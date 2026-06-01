@@ -1,0 +1,15 @@
+# Build artifacts
+/target
+
+# OpenCode session metadata (must never be committed)
+.omo/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+

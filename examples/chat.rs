@@ -185,6 +185,7 @@ async fn run_repl(
                 top_p: None,
                 tools: None,
                 tool_choice: None,
+                ..Default::default()
             };
             let mut s = match llm.stream_with(model, req).await {
                 Ok(s) => s,
@@ -220,6 +221,7 @@ async fn run_repl(
                 top_p: None,
                 tools: None,
                 tool_choice: None,
+                ..Default::default()
             };
             match llm.chat_with(model, req).await {
                 Ok(resp) => {

@@ -1,29 +1,35 @@
-//! Multi-deployment routing with automatic fallback and load balancing.
+//! Multi-deployment routing with fallback and round-robin load balancing.
 //!
-//! Run with: `cargo run --example router` (requires real API keys in env).
-
-use std::sync::Arc;
+//! Run with:
+//!
+//! ```bash
+//! OPENAI_API_KEY=sk-... ANTHROPIC_API_KEY=sk-ant-... cargo run --example router
+//! ```
 
 use llmrust::{LmrsClient, Router, RoutingStrategy};
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Arc::new(LmrsClient::new());
-    client.set_openai(std::env::var("OPENAI_API_KEY")?).await;
-    client.set_anthropic(std::env::var("ANTHROPIC_API_KEY")?).await;
 
+    let openai_key = std::env::var("OPENAI_API_KEY")?;
+    let anthropic_key = std::env::var("ANTHROPIC_API_KEY")?;
+    client.set_openai(openai_key).await;
+    client.set_anthropic(anthropic_key).await;
+
+    // `smart` tries gpt-4o first, falling back to Claude on a transient error.
+    // `balanced` rotates its starting deployment on each call (round-robin).
     let router = Router::new(client)
         .with_strategy(RoutingStrategy::RoundRobin)
-        // "smart": try GPT-4o first, fall back to Claude on a transient failure.
         .route(
             "smart",
             ["openai/gpt-4o", "anthropic/claude-sonnet-4-20250514"],
         )
-        // "balanced": round-robin across two deployments.
         .route("balanced", ["openai/gpt-4o-mini", "openai/gpt-4o"]);
 
-    let resp = router.chat("smart", "Explain Rust ownership in one sentence.").await?;
-    println!("smart -> {}", resp.content);
+    let resp = router.chat("smart", "Explain Rust ownership.").await?;
+    println!("smart -> {} ({})", resp.content, resp.model);
 
     for i in 0..3 {
         let resp = router.chat("balanced", "ping").await?;

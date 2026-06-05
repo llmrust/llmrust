@@ -42,7 +42,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::{ChatRequest, LlmError, LmrsClient, Message, Role};
 
-// ── ID generation ──────────────────────────────────────────────────────────
+// ── ID generation ───────────────────────────────────────────
 
 fn generate_id() -> String {
     let ts = SystemTime::now()
@@ -59,7 +59,7 @@ fn unix_timestamp() -> u64 {
         .as_secs()
 }
 
-// ── OpenAI-compatible request/response types ──────────────────────────────
+// ── OpenAI-compatible request/response types ──────────────────
 
 /// OpenAI-compatible chat completion request.
 #[derive(Debug, Default, Deserialize)]
@@ -157,7 +157,7 @@ pub struct ProxyErrorDetail {
     pub error_type: String,
 }
 
-// ── Application state ─────────────────────────────────────────────────────
+// ── Application state ───────────────────────────────────
 
 /// Shared application state for the proxy router.
 #[derive(Clone)]
@@ -165,7 +165,7 @@ pub struct AppState {
     pub llm: Arc<LmrsClient>,
 }
 
-// ── Router ────────────────────────────────────────────────────────────────
+// ── Router ────────────────────────────────────────────
 
 /// Build the Axum router for the proxy server.
 ///
@@ -240,14 +240,14 @@ async fn check_bearer(expected: String, req: Request<axum::body::Body>, next: Ne
     }
 }
 
-// ── Health check ───────────────────────────────────────────────────────────
+// ── Health check ────────────────────────────────────────
 
 /// `GET /health` — simple liveness probe. Returns `{"status":"ok"}`.
 async fn health_check() -> Json<serde_json::Value> {
     Json(serde_json::json!({"status": "ok"}))
 }
 
-// ── Graceful shutdown ─────────────────────────────────────────────────────
+// ── Graceful shutdown ───────────────────────────────────
 
 /// Shutdown signal listener. Waits for:
 /// - `SIGINT` (Ctrl+C) on all platforms
@@ -312,7 +312,7 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
         .await
 }
 
-// ── Handler ───────────────────────────────────────────────────────────────
+// ── Handler ──────────────────────────────────────────
 
 /// Handle POST /v1/chat/completions.
 async fn handle_chat_completions(
@@ -331,7 +331,7 @@ async fn handle_chat_completions(
     }
 }
 
-// ── Non-streaming handler ─────────────────────────────────────────────────
+// ── Non-streaming handler ───────────────────────────────
 
 async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Response {
     match state.llm.chat_with(model, req).await {
@@ -365,7 +365,7 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
     }
 }
 
-// ── Streaming handler ─────────────────────────────────────────────────────
+// ── Streaming handler ──────────────────────────────────
 
 async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Response {
     let (provider_name, model_name) = match split_model(model) {
@@ -391,6 +391,15 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
 
             let sse_stream = inner_stream.map(move |chunk_result| match chunk_result {
                 Ok(chunk) => {
+                    let mut finish_reason = chunk.finish_reason;
+                    if finish_reason.is_none() && chunk.done {
+                        finish_reason = Some("stop".to_string());
+                    }
+                    let usage = chunk.usage.map(|u| ProxyUsage {
+                        prompt_tokens: u.prompt_tokens,
+                        completion_tokens: u.completion_tokens,
+                        total_tokens: u.total_tokens,
+                    });
                     let payload = ProxyStreamChunk {
                         id: id.clone(),
                         object: "chat.completion.chunk".to_string(),
@@ -402,13 +411,9 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
                                 role: Some("assistant".to_string()),
                                 content: Some(chunk.delta),
                             },
-                            finish_reason: if chunk.done {
-                                Some("stop".to_string())
-                            } else {
-                                None
-                            },
+                            finish_reason,
                         }],
-                        usage: None,
+                        usage,
                     };
                     Ok::<_, Infallible>(
                         Event::default().data(serde_json::to_string(&payload).unwrap_or_default()),
@@ -443,7 +448,7 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
     }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────
 
 /// Convert a proxy request into an internal `ChatRequest`.
 fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
@@ -539,11 +544,24 @@ mod tests {
             let chunks: Vec<Result<StreamChunk>> = vec![
                 Ok(StreamChunk {
                     delta: "mock ".to_string(),
-                    done: false,
+                    ..Default::default()
                 }),
                 Ok(StreamChunk {
                     delta: "stream".to_string(),
+                    ..Default::default()
+                }),
+                Ok(StreamChunk {
                     done: true,
+                    finish_reason: Some("stop".to_string()),
+                    ..Default::default()
+                }),
+                Ok(StreamChunk {
+                    usage: Some(Usage {
+                        prompt_tokens: 3,
+                        completion_tokens: 5,
+                        total_tokens: 8,
+                    }),
+                    ..Default::default()
                 }),
             ];
             Ok(Box::pin(futures::stream::iter(chunks)))
@@ -598,6 +616,48 @@ mod tests {
         assert_eq!(json["usage"]["prompt_tokens"], 3);
         assert_eq!(json["usage"]["completion_tokens"], 5);
         assert_eq!(json["usage"]["total_tokens"], 8);
+    }
+
+    #[tokio::test]
+    async fn stream_forwards_finish_reason_and_usage() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": true,
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let text = String::from_utf8(bytes.to_vec()).expect("stream body is valid UTF-8");
+
+        assert!(
+            text.contains("mock "),
+            "expected streamed content delta, got: {text}"
+        );
+        assert!(
+            text.contains("\"finish_reason\":\"stop\""),
+            "expected finish_reason to be forwarded, got: {text}"
+        );
+        assert!(
+            text.contains("\"total_tokens\":8"),
+            "expected usage to be forwarded, got: {text}"
+        );
+        assert!(
+            text.contains("[DONE]"),
+            "expected terminal [DONE] marker, got: {text}"
+        );
     }
 
     #[tokio::test]

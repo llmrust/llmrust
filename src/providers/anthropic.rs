@@ -91,10 +91,14 @@ struct AnthropicStreamEvent {
 #[derive(Deserialize)]
 struct AnthropicDelta {
     text: Option<String>,
+    stop_reason: Option<String>,
 }
 
 /// Parse a single SSE line from an Anthropic stream into zero or more
 /// [`StreamChunk`]s. Lines are guaranteed complete by [`line_stream`].
+///
+/// Anthropic delivers the stop reason on the `message_delta` event rather than
+/// `message_stop`, so completion is keyed off that event's `stop_reason`.
 fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     let Some(data) = line.strip_prefix("data: ") else {
@@ -108,13 +112,17 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
             let text = event.delta.and_then(|d| d.text).unwrap_or_default();
             vec![Ok(StreamChunk {
                 delta: text,
-                done: false,
+                ..Default::default()
             })]
         }
-        "message_stop" => vec![Ok(StreamChunk {
-            delta: String::new(),
-            done: true,
-        })],
+        "message_delta" => {
+            let finish_reason = event.delta.and_then(|d| d.stop_reason);
+            vec![Ok(StreamChunk {
+                done: finish_reason.is_some(),
+                finish_reason,
+                ..Default::default()
+            })]
+        }
         _ => Vec::new(),
     }
 }

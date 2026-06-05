@@ -224,6 +224,7 @@ mod tests {
                     Ok(StreamChunk {
                         delta: "ok".to_string(),
                         done: true,
+                        ..Default::default()
                     })
                 })))
             }

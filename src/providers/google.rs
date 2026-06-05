@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
-use crate::types::{ChatRequest, ChatResponse, StreamChunk, Usage};
+use crate::types::{ChatRequest, ChatResponse, Content, ContentPart, StreamChunk, Usage};
 
 const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -47,9 +47,24 @@ struct GeminiContent {
     role: Option<String>,
 }
 
+/// A Gemini content part is either text or inline binary data (e.g. an image).
 #[derive(Serialize)]
-struct GeminiPart {
-    text: String,
+#[serde(untagged)]
+enum GeminiPart {
+    Text {
+        text: String,
+    },
+    InlineData {
+        #[serde(rename = "inlineData")]
+        inline_data: GeminiInlineData,
+    },
+}
+
+#[derive(Serialize)]
+struct GeminiInlineData {
+    #[serde(rename = "mimeType")]
+    mime_type: String,
+    data: String,
 }
 
 #[derive(Serialize)]
@@ -136,6 +151,55 @@ fn map_gemini_role(role: &crate::types::Role) -> Option<String> {
     }
 }
 
+/// Convert llmrust [`Content`] into Gemini parts. Text becomes a text part;
+/// images carried as `data:` URLs become `inlineData` parts. Gemini's inline
+/// API cannot fetch remote URLs, so http(s) image URLs are skipped. If the
+/// conversion yields nothing, an empty text part is added so the turn stays
+/// well-formed.
+fn content_to_parts(content: &Content) -> Vec<GeminiPart> {
+    let mut parts = Vec::new();
+    match content {
+        Content::Text(text) => parts.push(GeminiPart::Text { text: text.clone() }),
+        Content::Parts(items) => {
+            for item in items {
+                match item {
+                    ContentPart::Text { text } => {
+                        parts.push(GeminiPart::Text { text: text.clone() });
+                    }
+                    ContentPart::ImageUrl { image_url } => {
+                        if let Some(inline_data) = gemini_inline_from_url(&image_url.url) {
+                            parts.push(GeminiPart::InlineData { inline_data });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if parts.is_empty() {
+        parts.push(GeminiPart::Text {
+            text: String::new(),
+        });
+    }
+    parts
+}
+
+/// Extract Gemini inline image data from a `data:` URL. Returns `None` for any
+/// non-data URL, since Gemini's `inlineData` requires the bytes inline.
+fn gemini_inline_from_url(url: &str) -> Option<GeminiInlineData> {
+    let rest = url.strip_prefix("data:")?;
+    let (meta, data) = rest.split_once(',')?;
+    let mime_type = meta
+        .split(';')
+        .next()
+        .filter(|s| !s.is_empty())
+        .unwrap_or("image/png")
+        .to_string();
+    Some(GeminiInlineData {
+        mime_type,
+        data: data.to_string(),
+    })
+}
+
 /// Build Gemini `contents` (conversation turns) and an optional
 /// `systemInstruction` from the request messages. System messages are
 /// collected into the dedicated `systemInstruction` field instead of being
@@ -147,13 +211,11 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
 
     for msg in &req.messages {
         match msg.role {
-            crate::types::Role::System => system_parts.push(GeminiPart {
-                text: msg.content.clone(),
+            crate::types::Role::System => system_parts.push(GeminiPart::Text {
+                text: msg.content.as_text(),
             }),
             _ => contents.push(GeminiContent {
-                parts: vec![GeminiPart {
-                    text: msg.content.clone(),
-                }],
+                parts: content_to_parts(&msg.content),
                 role: map_gemini_role(&msg.role),
             }),
         }
@@ -335,5 +397,40 @@ impl Provider for GoogleProvider {
         });
 
         Ok(stream.boxed())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn text_content_maps_to_text_part() {
+        let parts = content_to_parts(&Content::Text("hi".to_string()));
+        let v = serde_json::to_value(&parts).unwrap();
+        assert_eq!(v[0]["text"], "hi");
+    }
+
+    #[test]
+    fn data_url_maps_to_inline_data() {
+        let parts = content_to_parts(&Content::Parts(vec![
+            ContentPart::text("look"),
+            ContentPart::image_url("data:image/png;base64,QUJD"),
+        ]));
+        let v = serde_json::to_value(&parts).unwrap();
+        assert_eq!(v[0]["text"], "look");
+        assert_eq!(v[1]["inlineData"]["mimeType"], "image/png");
+        assert_eq!(v[1]["inlineData"]["data"], "QUJD");
+    }
+
+    #[test]
+    fn http_image_url_is_skipped() {
+        let parts = content_to_parts(&Content::Parts(vec![ContentPart::image_url(
+            "https://example.com/cat.png",
+        )]));
+        let v = serde_json::to_value(&parts).unwrap();
+        // Only the empty-text padding remains; no inlineData part.
+        assert_eq!(v.as_array().unwrap().len(), 1);
+        assert_eq!(v[0]["text"], "");
     }
 }

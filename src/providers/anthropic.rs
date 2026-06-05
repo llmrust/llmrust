@@ -145,6 +145,10 @@ impl Provider for AnthropicProvider {
                         role: "assistant".to_string(),
                         content: msg.content.clone(),
                     }),
+                    crate::types::Role::Tool => msgs.push(AnthropicMessage {
+                        role: "user".to_string(),
+                        content: msg.content.clone(),
+                    }),
                 }
             }
             (sys, msgs)
@@ -200,6 +204,7 @@ impl Provider for AnthropicProvider {
                 completion_tokens: u.output_tokens,
                 total_tokens: u.input_tokens.saturating_add(u.output_tokens),
             }),
+            ..Default::default()
         })
     }
 
@@ -216,6 +221,10 @@ impl Provider for AnthropicProvider {
                     }),
                     crate::types::Role::Assistant => msgs.push(AnthropicMessage {
                         role: "assistant".to_string(),
+                        content: msg.content.clone(),
+                    }),
+                    crate::types::Role::Tool => msgs.push(AnthropicMessage {
+                        role: "user".to_string(),
                         content: msg.content.clone(),
                     }),
                 }

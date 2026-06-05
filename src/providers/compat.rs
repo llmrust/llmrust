@@ -14,7 +14,9 @@ use std::time::Duration;
 
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
-use crate::types::{ChatRequest, ChatResponse, Message, StreamChunk, Usage};
+use crate::types::{
+    ChatRequest, ChatResponse, Message, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
+};
 
 // ── Defaults ─────────────────────────────────────
 
@@ -36,6 +38,10 @@ struct CompChatRequest<'a> {
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     stream_options: Option<StreamOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<&'a [Tool]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_choice: Option<&'a ToolChoice>,
 }
 
 /// Asks OpenAI-compatible servers to emit a terminal chunk carrying token
@@ -48,19 +54,38 @@ struct StreamOptions {
 #[derive(Serialize, Deserialize)]
 struct CompMessage {
     role: String,
-    content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<ToolCall>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tool_call_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
 }
 
 impl From<&Message> for CompMessage {
     fn from(msg: &Message) -> Self {
+        let role = match msg.role {
+            crate::types::Role::System => "system",
+            crate::types::Role::User => "user",
+            crate::types::Role::Assistant => "assistant",
+            crate::types::Role::Tool => "tool",
+        }
+        .to_string();
+        // OpenAI expects an assistant tool-call turn to carry `content: null`
+        // (omitted here) rather than an empty string alongside `tool_calls`.
+        let content = if msg.content.is_empty() && msg.tool_calls.is_some() {
+            None
+        } else {
+            Some(msg.content.clone())
+        };
         Self {
-            role: match msg.role {
-                crate::types::Role::System => "system",
-                crate::types::Role::User => "user",
-                crate::types::Role::Assistant => "assistant",
-            }
-            .to_string(),
-            content: msg.content.clone(),
+            role,
+            content,
+            tool_calls: msg.tool_calls.clone(),
+            tool_call_id: msg.tool_call_id.clone(),
+            name: msg.name.clone(),
         }
     }
 }
@@ -75,6 +100,8 @@ struct CompResponse {
 #[derive(Deserialize)]
 struct CompChoice {
     message: CompMessage,
+    #[serde(default)]
+    finish_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -206,32 +233,8 @@ impl OpenAiCompatibleProvider {
         }
     }
 
-    /// Send the request and parse the raw JSON response.
-    async fn send_request(
-        &self,
-        messages: &[CompMessage],
-        model: &str,
-        temperature: Option<f64>,
-        max_tokens: Option<u64>,
-        top_p: Option<f64>,
-        stream: bool,
-    ) -> Result<reqwest::Response> {
-        let body = CompChatRequest {
-            model,
-            messages,
-            temperature,
-            max_tokens,
-            top_p,
-            stream,
-            stream_options: if stream {
-                Some(StreamOptions {
-                    include_usage: true,
-                })
-            } else {
-                None
-            },
-        };
-
+    /// Send a fully-built request body and return the raw HTTP response.
+    async fn send(&self, body: &CompChatRequest<'_>) -> Result<reqwest::Response> {
         let mut rb = self
             .client
             .post(format!("{}/chat/completions", self.base_url))
@@ -241,7 +244,7 @@ impl OpenAiCompatibleProvider {
             rb = rb.header(k.as_str(), v.as_str());
         }
 
-        let resp = rb.json(&body).send().await?;
+        let resp = rb.json(body).send().await?;
         Ok(resp)
     }
 
@@ -260,20 +263,27 @@ impl OpenAiCompatibleProvider {
 
     /// Parse a non-streaming response into [`ChatResponse`].
     fn parse_response(parsed: CompResponse) -> ChatResponse {
-        let content = parsed
-            .choices
-            .first()
-            .map(|c| c.message.content.clone())
-            .unwrap_or_default();
+        let usage = parsed.usage.map(|u| Usage {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+            total_tokens: u.total_tokens,
+        });
+
+        let (content, tool_calls, finish_reason) = match parsed.choices.into_iter().next() {
+            Some(choice) => (
+                choice.message.content.unwrap_or_default(),
+                choice.message.tool_calls,
+                choice.finish_reason,
+            ),
+            None => (String::new(), None, None),
+        };
 
         ChatResponse {
             content,
             model: parsed.model,
-            usage: parsed.usage.map(|u| Usage {
-                prompt_tokens: u.prompt_tokens,
-                completion_tokens: u.completion_tokens,
-                total_tokens: u.total_tokens,
-            }),
+            usage,
+            tool_calls,
+            finish_reason,
         }
     }
 }
@@ -283,16 +293,19 @@ impl Provider for OpenAiCompatibleProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
         let messages: Vec<CompMessage> = req.messages.iter().map(CompMessage::from).collect();
 
-        let resp = self
-            .send_request(
-                &messages,
-                &req.model,
-                req.temperature,
-                req.max_tokens,
-                req.top_p,
-                false,
-            )
-            .await?;
+        let body = CompChatRequest {
+            model: &req.model,
+            messages: &messages,
+            temperature: req.temperature,
+            max_tokens: req.max_tokens,
+            top_p: req.top_p,
+            stream: false,
+            stream_options: None,
+            tools: req.tools.as_deref(),
+            tool_choice: req.tool_choice.as_ref(),
+        };
+
+        let resp = self.send(&body).await?;
 
         if !resp.status().is_success() {
             return Err(Self::parse_error(resp).await);
@@ -309,16 +322,21 @@ impl Provider for OpenAiCompatibleProvider {
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         let messages: Vec<CompMessage> = req.messages.iter().map(CompMessage::from).collect();
 
-        let resp = self
-            .send_request(
-                &messages,
-                &req.model,
-                req.temperature,
-                req.max_tokens,
-                req.top_p,
-                true,
-            )
-            .await?;
+        let body = CompChatRequest {
+            model: &req.model,
+            messages: &messages,
+            temperature: req.temperature,
+            max_tokens: req.max_tokens,
+            top_p: req.top_p,
+            stream: true,
+            stream_options: Some(StreamOptions {
+                include_usage: true,
+            }),
+            tools: req.tools.as_deref(),
+            tool_choice: req.tool_choice.as_ref(),
+        };
+
+        let resp = self.send(&body).await?;
 
         if !resp.status().is_success() {
             return Err(Self::parse_error(resp).await);
@@ -337,5 +355,91 @@ impl Provider for OpenAiCompatibleProvider {
         });
 
         Ok(stream.boxed())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::FunctionCall;
+
+    #[test]
+    fn serializes_tools_and_tool_choice() {
+        let tools = vec![Tool::function(
+            "get_weather",
+            Some("Get weather".to_string()),
+            serde_json::json!({"type": "object"}),
+        )];
+        let choice = ToolChoice::auto();
+        let messages = vec![CompMessage::from(&Message::user("hi"))];
+        let body = CompChatRequest {
+            model: "gpt-4o",
+            messages: &messages,
+            temperature: None,
+            max_tokens: None,
+            top_p: None,
+            stream: false,
+            stream_options: None,
+            tools: Some(tools.as_slice()),
+            tool_choice: Some(&choice),
+        };
+
+        let v = serde_json::to_value(&body).unwrap();
+        assert_eq!(v["tools"][0]["type"], "function");
+        assert_eq!(v["tools"][0]["function"]["name"], "get_weather");
+        assert_eq!(v["tool_choice"], "auto");
+    }
+
+    #[test]
+    fn parses_tool_calls_from_response() {
+        let raw = serde_json::json!({
+            "model": "gpt-4o",
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {"name": "get_weather", "arguments": "{}"}
+                    }]
+                },
+                "finish_reason": "tool_calls"
+            }]
+        })
+        .to_string();
+
+        let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
+        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        assert_eq!(resp.content, "");
+        assert_eq!(resp.finish_reason.as_deref(), Some("tool_calls"));
+        let calls = resp.tool_calls.expect("tool_calls present");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].function.name, "get_weather");
+    }
+
+    #[test]
+    fn tool_message_serializes_with_id() {
+        let comp = CompMessage::from(&Message::tool("call_1", "result"));
+        let v = serde_json::to_value(&comp).unwrap();
+        assert_eq!(v["role"], "tool");
+        assert_eq!(v["content"], "result");
+        assert_eq!(v["tool_call_id"], "call_1");
+    }
+
+    #[test]
+    fn assistant_tool_call_message_omits_empty_content() {
+        let msg = Message::assistant_tool_calls(vec![ToolCall {
+            id: "call_1".to_string(),
+            call_type: "function".to_string(),
+            function: FunctionCall {
+                name: "f".to_string(),
+                arguments: "{}".to_string(),
+            },
+        }]);
+        let comp = CompMessage::from(&msg);
+        let v = serde_json::to_value(&comp).unwrap();
+        assert!(v.get("content").is_none(), "content should be omitted");
+        assert_eq!(v["tool_calls"][0]["id"], "call_1");
     }
 }

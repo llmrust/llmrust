@@ -43,8 +43,8 @@ pub use providers::retry::RetryProvider;
 pub use providers::{LlmError, Provider, ProviderConfig, Result};
 pub use router::{Router, RoutingStrategy};
 pub use types::{
-    ChatRequest, ChatResponse, FunctionCall, FunctionDef, Message, Role, StreamChunk, Tool,
-    ToolCall, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, FunctionDef, ImageUrl, Message,
+    Role, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
 };
 
 pub(crate) use futures::stream::BoxStream;

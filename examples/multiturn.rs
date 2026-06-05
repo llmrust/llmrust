@@ -27,6 +27,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_tokens: None,
         stream: false,
         top_p: None,
+        tools: None,
+        tool_choice: None,
     };
     let resp1 = llm.chat_with(&model, req).await?;
     println!("assistant: {}", resp1.content);
@@ -43,6 +45,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_tokens: None,
         stream: false,
         top_p: None,
+        tools: None,
+        tool_choice: None,
     };
     let resp2 = llm.chat_with(&model, req).await?;
     println!("assistant: {}", resp2.content);
@@ -58,6 +62,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_tokens: None,
         stream: true,
         top_p: None,
+        tools: None,
+        tool_choice: None,
     };
 
     use futures::StreamExt;

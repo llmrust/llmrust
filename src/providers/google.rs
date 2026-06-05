@@ -125,12 +125,14 @@ struct GeminiStreamCandidate {
 
 /// Map an llmrust role to a Gemini `role`. Gemini only understands `user` and
 /// `model`; system prompts are delivered separately via `systemInstruction`,
-/// so a `System` message has no inline role here.
+/// so a `System` message has no inline role here. Tool results are folded back
+/// in as `user` turns.
 fn map_gemini_role(role: &crate::types::Role) -> Option<String> {
     match role {
         crate::types::Role::System => None,
         crate::types::Role::User => Some("user".to_string()),
         crate::types::Role::Assistant => Some("model".to_string()),
+        crate::types::Role::Tool => Some("user".to_string()),
     }
 }
 
@@ -282,6 +284,7 @@ impl Provider for GoogleProvider {
                 completion_tokens: u.candidates_token_count,
                 total_tokens: u.total_token_count,
             }),
+            ..Default::default()
         })
     }
 

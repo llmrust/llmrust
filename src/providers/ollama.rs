@@ -60,6 +60,7 @@ impl From<&Message> for OllamaMessage {
                 crate::types::Role::System => "system".to_string(),
                 crate::types::Role::User => "user".to_string(),
                 crate::types::Role::Assistant => "assistant".to_string(),
+                crate::types::Role::Tool => "tool".to_string(),
             },
             content: msg.content.clone(),
         }
@@ -145,6 +146,7 @@ impl Provider for OllamaProvider {
                 completion_tokens: parsed.eval_count,
                 total_tokens: parsed.prompt_eval_count + parsed.eval_count,
             }),
+            ..Default::default()
         })
     }
 

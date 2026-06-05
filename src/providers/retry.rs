@@ -203,6 +203,7 @@ mod tests {
                     content: "ok".to_string(),
                     model: "test".to_string(),
                     usage: None,
+                    ..Default::default()
                 })
             }
         }

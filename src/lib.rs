@@ -40,7 +40,10 @@ use tokio::sync::RwLock;
 
 pub use providers::retry::RetryProvider;
 pub use providers::{LlmError, Provider, ProviderConfig, Result};
-pub use types::{ChatRequest, ChatResponse, Message, Role, StreamChunk, Usage};
+pub use types::{
+    ChatRequest, ChatResponse, FunctionCall, FunctionDef, Message, Role, StreamChunk, Tool,
+    ToolCall, ToolChoice, Usage,
+};
 
 pub(crate) use futures::stream::BoxStream;
 

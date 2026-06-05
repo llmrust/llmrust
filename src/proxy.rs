@@ -42,7 +42,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::{ChatRequest, LlmError, LmrsClient, Message, Role};
 
-// ── ID generation ───────────────────────────────────────────
+// ── ID generation ─────────────────────────────────────────
 
 fn generate_id() -> String {
     let ts = SystemTime::now()
@@ -365,7 +365,7 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
     }
 }
 
-// ── Streaming handler ──────────────────────────────────
+// ── Streaming handler ───────────────────────────────────
 
 async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Response {
     let (provider_name, model_name) = match split_model(model) {
@@ -465,6 +465,9 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
             Ok(Message {
                 role,
                 content: m.content.clone(),
+                tool_calls: None,
+                tool_call_id: None,
+                name: None,
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -476,6 +479,8 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         max_tokens: req.max_tokens,
         stream: req.stream,
         top_p: req.top_p,
+        tools: None,
+        tool_choice: None,
     })
 }
 
@@ -534,6 +539,7 @@ mod tests {
                     completion_tokens: 5,
                     total_tokens: 8,
                 }),
+                ..Default::default()
             })
         }
 

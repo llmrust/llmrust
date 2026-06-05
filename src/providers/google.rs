@@ -5,6 +5,7 @@ use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{ChatRequest, ChatResponse, StreamChunk, Usage};
 
@@ -33,6 +34,8 @@ impl GoogleProvider {
 #[derive(Serialize)]
 struct GeminiRequest<'a> {
     contents: &'a [GeminiContent],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    system_instruction: Option<GeminiContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
     generation_config: Option<GeminiGenerationConfig>,
 }
@@ -106,30 +109,107 @@ struct GeminiErrorDetail {
 // Stream SSE event
 #[derive(Deserialize)]
 struct GeminiStreamEvent {
-    candidates: Vec<GeminiCandidate>,
+    #[serde(default)]
+    candidates: Vec<GeminiStreamCandidate>,
 }
 
+#[derive(Deserialize)]
+struct GeminiStreamCandidate {
+    #[serde(default)]
+    content: Option<GeminiContentResponse>,
+    #[serde(default, rename = "finishReason")]
+    finish_reason: Option<String>,
+}
+
+/// Map an llmrust role to a Gemini `role`. Gemini only understands `user` and
+/// `model`; system prompts are delivered separately via `systemInstruction`,
+/// so a `System` message has no inline role here.
 fn map_gemini_role(role: &crate::types::Role) -> Option<String> {
     match role {
-        crate::types::Role::System => Some("user".to_string()),
+        crate::types::Role::System => None,
         crate::types::Role::User => Some("user".to_string()),
         crate::types::Role::Assistant => Some("model".to_string()),
     }
 }
 
-#[async_trait]
-impl Provider for GoogleProvider {
-    async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
-        let contents: Vec<GeminiContent> = req
-            .messages
-            .iter()
-            .map(|msg| GeminiContent {
+/// Build Gemini `contents` (conversation turns) and an optional
+/// `systemInstruction` from the request messages. System messages are
+/// collected into the dedicated `systemInstruction` field instead of being
+/// mislabeled as `user` turns (which would break Gemini's strict user/model
+/// alternation).
+fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiContent>) {
+    let mut contents = Vec::new();
+    let mut system_parts: Vec<GeminiPart> = Vec::new();
+
+    for msg in &req.messages {
+        match msg.role {
+            crate::types::Role::System => system_parts.push(GeminiPart {
+                text: msg.content.clone(),
+            }),
+            _ => contents.push(GeminiContent {
                 parts: vec![GeminiPart {
                     text: msg.content.clone(),
                 }],
                 role: map_gemini_role(&msg.role),
-            })
-            .collect();
+            }),
+        }
+    }
+
+    let system_instruction = if system_parts.is_empty() {
+        None
+    } else {
+        Some(GeminiContent {
+            parts: system_parts,
+            role: None,
+        })
+    };
+
+    (contents, system_instruction)
+}
+
+/// Parse a single SSE line from a Gemini stream into zero or more
+/// [`StreamChunk`]s. Lines are guaranteed complete by [`line_stream`].
+///
+/// Completion is keyed off the real `finishReason` field rather than guessing
+/// based on an empty chunk, which previously truncated responses whenever a
+/// keep-alive or unparsed chunk arrived.
+fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
+    let line = line.trim();
+    let Some(data) = line.strip_prefix("data: ") else {
+        return Vec::new();
+    };
+    let Ok(event) = serde_json::from_str::<GeminiStreamEvent>(data) else {
+        return Vec::new();
+    };
+    let Some(candidate) = event.candidates.into_iter().next() else {
+        return Vec::new();
+    };
+
+    let mut chunks = Vec::new();
+    let text = candidate
+        .content
+        .and_then(|c| c.parts.into_iter().next())
+        .map(|p| p.text)
+        .unwrap_or_default();
+    if !text.is_empty() {
+        chunks.push(Ok(StreamChunk {
+            delta: text,
+            done: false,
+        }));
+    }
+    if candidate.finish_reason.is_some() {
+        chunks.push(Ok(StreamChunk {
+            delta: String::new(),
+            done: true,
+        }));
+    }
+    chunks
+}
+
+#[async_trait]
+impl Provider for GoogleProvider {
+    async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
+        let (contents, system_instruction) = build_contents(req);
 
         let gen_config = GeminiGenerationConfig {
             temperature: req.temperature,
@@ -139,6 +219,7 @@ impl Provider for GoogleProvider {
 
         let body = GeminiRequest {
             contents: &contents,
+            system_instruction,
             generation_config: Some(gen_config),
         };
 
@@ -185,16 +266,7 @@ impl Provider for GoogleProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
-        let contents: Vec<GeminiContent> = req
-            .messages
-            .iter()
-            .map(|msg| GeminiContent {
-                parts: vec![GeminiPart {
-                    text: msg.content.clone(),
-                }],
-                role: map_gemini_role(&msg.role),
-            })
-            .collect();
+        let (contents, system_instruction) = build_contents(req);
 
         let gen_config = GeminiGenerationConfig {
             temperature: req.temperature,
@@ -204,6 +276,7 @@ impl Provider for GoogleProvider {
 
         let body = GeminiRequest {
             contents: &contents,
+            system_instruction,
             generation_config: Some(gen_config),
         };
 
@@ -226,41 +299,17 @@ impl Provider for GoogleProvider {
             });
         }
 
-        let stream = resp
+        let byte_stream = resp
             .bytes_stream()
-            .map(|chunk_result| {
-                let bytes = chunk_result.map_err(|e| LlmError::Stream(e.to_string()))?;
-                let text = String::from_utf8_lossy(&bytes);
+            .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
 
-                let mut chunks = Vec::new();
-                for line in text.lines() {
-                    let line = line.trim();
-                    if !line.starts_with("data: ") {
-                        continue;
-                    }
-                    let data = &line[6..];
-                    if let Ok(event) = serde_json::from_str::<GeminiStreamEvent>(data) {
-                        if let Some(candidate) = event.candidates.first() {
-                            if let Some(part) = candidate.content.parts.first() {
-                                let delta = part.text.clone();
-                                chunks.push(Ok(StreamChunk { delta, done: false }));
-                            }
-                        }
-                    }
-                }
-                // If we got no chunks from this read, the stream might be done
-                if chunks.is_empty() {
-                    chunks.push(Ok(StreamChunk {
-                        delta: String::new(),
-                        done: true,
-                    }));
-                }
-                Ok(chunks)
-            })
-            .flat_map(|result| match result {
-                Ok(chunks) => futures::stream::iter(chunks).boxed(),
-                Err(e) => futures::stream::once(async move { Err(e) }).boxed(),
-            });
+        let stream = line_stream(byte_stream).flat_map(|line_result| {
+            let chunks = match line_result {
+                Ok(line) => parse_sse_line(&line),
+                Err(e) => vec![Err(e)],
+            };
+            futures::stream::iter(chunks)
+        });
 
         Ok(stream.boxed())
     }

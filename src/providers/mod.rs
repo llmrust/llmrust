@@ -9,6 +9,7 @@ pub mod ollama;
 pub mod openai;
 pub mod openrouter;
 pub mod retry;
+pub mod stream_util;
 
 use async_trait::async_trait;
 use futures::stream::BoxStream;

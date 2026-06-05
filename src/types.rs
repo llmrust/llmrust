@@ -116,11 +116,133 @@ pub struct FunctionCall {
     pub arguments: String,
 }
 
+/// A single part of a multimodal message: either a text span or an image.
+///
+/// Serializes to OpenAI's "content parts" wire format, e.g.
+/// `{"type":"text","text":"..."}` or
+/// `{"type":"image_url","image_url":{"url":"..."}}`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ContentPart {
+    /// A span of text.
+    Text { text: String },
+    /// An image referenced by URL or `data:` URI.
+    ImageUrl { image_url: ImageUrl },
+}
+
+impl ContentPart {
+    /// Build a text content part.
+    pub fn text(text: impl Into<String>) -> Self {
+        ContentPart::Text { text: text.into() }
+    }
+
+    /// Build an image content part from a URL or `data:` URI.
+    pub fn image_url(url: impl Into<String>) -> Self {
+        ContentPart::ImageUrl {
+            image_url: ImageUrl {
+                url: url.into(),
+                detail: None,
+            },
+        }
+    }
+}
+
+/// An image reference inside a [`ContentPart::ImageUrl`].
+///
+/// `url` may be a public `https://` URL or an inline `data:<mime>;base64,<...>`
+/// URI. `detail` is an optional OpenAI hint (`"low"`, `"high"`, `"auto"`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ImageUrl {
+    pub url: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+/// Message content: either a plain string or a list of multimodal parts
+/// (text + images), matching OpenAI's `content` field.
+///
+/// A bare string serializes as a JSON string and a part list as a JSON array,
+/// so the wire format stays byte-compatible with OpenAI in both directions.
+/// All the string-based constructors on [`Message`] keep working unchanged via
+/// the `From<String>` / `From<&str>` conversions.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum Content {
+    /// Plain text content.
+    Text(String),
+    /// Multimodal content parts (text and/or images).
+    Parts(Vec<ContentPart>),
+}
+
+impl Default for Content {
+    fn default() -> Self {
+        Content::Text(String::new())
+    }
+}
+
+impl Content {
+    /// True if this is empty text or an empty part list.
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Content::Text(s) => s.is_empty(),
+            Content::Parts(parts) => parts.is_empty(),
+        }
+    }
+
+    /// Concatenate all text, ignoring image parts. Used by text-only providers
+    /// and to extract system-prompt text.
+    pub fn as_text(&self) -> String {
+        match self {
+            Content::Text(s) => s.clone(),
+            Content::Parts(parts) => {
+                let mut out = String::new();
+                for part in parts {
+                    if let ContentPart::Text { text } = part {
+                        out.push_str(text);
+                    }
+                }
+                out
+            }
+        }
+    }
+
+    /// The image references in this content, in order.
+    pub fn images(&self) -> Vec<&ImageUrl> {
+        let mut out = Vec::new();
+        if let Content::Parts(parts) = self {
+            for part in parts {
+                if let ContentPart::ImageUrl { image_url } = part {
+                    out.push(image_url);
+                }
+            }
+        }
+        out
+    }
+}
+
+impl From<String> for Content {
+    fn from(s: String) -> Self {
+        Content::Text(s)
+    }
+}
+
+impl From<&str> for Content {
+    fn from(s: &str) -> Self {
+        Content::Text(s.to_string())
+    }
+}
+
+impl From<Vec<ContentPart>> for Content {
+    fn from(parts: Vec<ContentPart>) -> Self {
+        Content::Parts(parts)
+    }
+}
+
 /// A single chat message.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     pub role: Role,
-    pub content: String,
+    pub content: Content,
     /// Tool calls requested by the assistant (present on assistant turns that
     /// invoke tools).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -138,7 +260,7 @@ impl Message {
     pub fn system(content: impl Into<String>) -> Self {
         Self {
             role: Role::System,
-            content: content.into(),
+            content: Content::Text(content.into()),
             tool_calls: None,
             tool_call_id: None,
             name: None,
@@ -148,7 +270,7 @@ impl Message {
     pub fn user(content: impl Into<String>) -> Self {
         Self {
             role: Role::User,
-            content: content.into(),
+            content: Content::Text(content.into()),
             tool_calls: None,
             tool_call_id: None,
             name: None,
@@ -158,11 +280,31 @@ impl Message {
     pub fn assistant(content: impl Into<String>) -> Self {
         Self {
             role: Role::Assistant,
-            content: content.into(),
+            content: Content::Text(content.into()),
             tool_calls: None,
             tool_call_id: None,
             name: None,
         }
+    }
+
+    /// Build a user message from multimodal content parts (text and/or images).
+    pub fn user_with_parts(parts: Vec<ContentPart>) -> Self {
+        Self {
+            role: Role::User,
+            content: Content::Parts(parts),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+        }
+    }
+
+    /// Convenience: a user message pairing a text prompt with a single image
+    /// (an `https://` URL or a `data:` URI).
+    pub fn user_with_image(text: impl Into<String>, image_url: impl Into<String>) -> Self {
+        Self::user_with_parts(vec![
+            ContentPart::text(text),
+            ContentPart::image_url(image_url),
+        ])
     }
 
     /// Build a `tool` message carrying the result of a tool call, keyed by the
@@ -170,7 +312,7 @@ impl Message {
     pub fn tool(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
         Self {
             role: Role::Tool,
-            content: content.into(),
+            content: Content::Text(content.into()),
             tool_calls: None,
             tool_call_id: Some(tool_call_id.into()),
             name: None,
@@ -181,7 +323,7 @@ impl Message {
     pub fn assistant_tool_calls(tool_calls: Vec<ToolCall>) -> Self {
         Self {
             role: Role::Assistant,
-            content: String::new(),
+            content: Content::Text(String::new()),
             tool_calls: Some(tool_calls),
             tool_call_id: None,
             name: None,
@@ -333,5 +475,48 @@ mod tests {
         let msg = Message::tool("call_1", "result");
         assert_eq!(msg.role, Role::Tool);
         assert_eq!(msg.tool_call_id.as_deref(), Some("call_1"));
+    }
+
+    #[test]
+    fn content_text_serializes_as_string() {
+        let c = Content::Text("hi".to_string());
+        assert_eq!(serde_json::to_value(&c).unwrap(), serde_json::json!("hi"));
+    }
+
+    #[test]
+    fn content_parts_serialize_as_openai_array() {
+        let c = Content::Parts(vec![
+            ContentPart::text("look"),
+            ContentPart::image_url("https://example.com/a.png"),
+        ]);
+        let v = serde_json::to_value(&c).unwrap();
+        assert!(v.is_array());
+        assert_eq!(v[0]["type"], "text");
+        assert_eq!(v[0]["text"], "look");
+        assert_eq!(v[1]["type"], "image_url");
+        assert_eq!(v[1]["image_url"]["url"], "https://example.com/a.png");
+        assert!(v[1]["image_url"].get("detail").is_none());
+    }
+
+    #[test]
+    fn content_deserializes_from_string_and_array() {
+        let from_str: Content = serde_json::from_value(serde_json::json!("hi")).unwrap();
+        assert_eq!(from_str, Content::Text("hi".to_string()));
+
+        let from_arr: Content = serde_json::from_value(serde_json::json!([
+            {"type": "text", "text": "a"},
+            {"type": "image_url", "image_url": {"url": "u"}}
+        ]))
+        .unwrap();
+        assert_eq!(from_arr.images().len(), 1);
+        assert_eq!(from_arr.as_text(), "a");
+    }
+
+    #[test]
+    fn message_user_with_image_holds_parts() {
+        let msg = Message::user_with_image("desc", "https://example.com/a.png");
+        assert_eq!(msg.role, Role::User);
+        assert_eq!(msg.content.images().len(), 1);
+        assert_eq!(msg.content.as_text(), "desc");
     }
 }

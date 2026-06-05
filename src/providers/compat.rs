@@ -16,12 +16,12 @@ use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{ChatRequest, ChatResponse, Message, StreamChunk, Usage};
 
-// ── Defaults ────────────────────────────────────────────────────
+// ── Defaults ─────────────────────────────────────
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
-// ── Shared request / response types ───────────────────────────────
+// ── Shared request / response types ──────────────────────
 
 #[derive(Serialize)]
 struct CompChatRequest<'a> {
@@ -34,6 +34,15 @@ struct CompChatRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f64>,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stream_options: Option<StreamOptions>,
+}
+
+/// Asks OpenAI-compatible servers to emit a terminal chunk carrying token
+/// usage when streaming (supported by OpenAI, DeepSeek, Moonshot, OpenRouter).
+#[derive(Serialize)]
+struct StreamOptions {
+    include_usage: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -77,7 +86,10 @@ struct CompUsage {
 
 #[derive(Deserialize)]
 struct CompStreamChunk {
+    #[serde(default)]
     choices: Vec<CompStreamChoice>,
+    #[serde(default)]
+    usage: Option<CompUsage>,
 }
 
 #[derive(Deserialize)]
@@ -101,7 +113,7 @@ struct CompErrorDetail {
     message: String,
 }
 
-// ── HTTP client construction ─────────────────────────────────────
+// ── HTTP client construction ──────────────────────────
 
 fn build_http_client() -> Client {
     Client::builder()
@@ -117,6 +129,10 @@ fn build_http_client() -> Client {
 /// [`StreamChunk`]s. Lines are guaranteed complete by [`line_stream`], so a
 /// failed JSON parse here indicates a genuinely malformed payload rather than
 /// a chunk-boundary artifact.
+///
+/// A streamed response ends with a chunk carrying a `finish_reason`, optionally
+/// followed by a choices-less chunk carrying only `usage` (when
+/// `stream_options.include_usage` was requested), then a literal `[DONE]`.
 fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     let Some(data) = line.strip_prefix("data: ") else {
@@ -124,23 +140,42 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     };
     if data == "[DONE]" {
         return vec![Ok(StreamChunk {
-            delta: String::new(),
             done: true,
+            ..Default::default()
         })];
     }
     let Ok(parsed) = serde_json::from_str::<CompStreamChunk>(data) else {
         return Vec::new();
     };
-    let Some(choice) = parsed.choices.first() else {
-        return Vec::new();
-    };
-    vec![Ok(StreamChunk {
-        delta: choice.delta.content.clone().unwrap_or_default(),
-        done: choice.finish_reason.is_some(),
-    })]
+    let usage = parsed.usage.map(|u| Usage {
+        prompt_tokens: u.prompt_tokens,
+        completion_tokens: u.completion_tokens,
+        total_tokens: u.total_tokens,
+    });
+    match parsed.choices.first() {
+        Some(choice) => {
+            let finish_reason = choice.finish_reason.clone();
+            vec![Ok(StreamChunk {
+                delta: choice.delta.content.clone().unwrap_or_default(),
+                done: finish_reason.is_some(),
+                finish_reason,
+                usage,
+            })]
+        }
+        None => {
+            if usage.is_some() {
+                vec![Ok(StreamChunk {
+                    usage,
+                    ..Default::default()
+                })]
+            } else {
+                Vec::new()
+            }
+        }
+    }
 }
 
-// ── The unified OpenAI-compatible provider ───────────────────────────
+// ── The unified OpenAI-compatible provider ────────────────────
 
 /// A generic provider for any OpenAI-compatible `/chat/completions` API.
 ///
@@ -188,6 +223,13 @@ impl OpenAiCompatibleProvider {
             max_tokens,
             top_p,
             stream,
+            stream_options: if stream {
+                Some(StreamOptions {
+                    include_usage: true,
+                })
+            } else {
+                None
+            },
         };
 
         let mut rb = self

@@ -86,6 +86,10 @@ struct OllamaMessageResponse {
 struct OllamaStreamChunk {
     message: Option<OllamaMessageResponse>,
     done: bool,
+    #[serde(default)]
+    eval_count: u64,
+    #[serde(default)]
+    prompt_eval_count: u64,
 }
 
 #[derive(Deserialize)]
@@ -193,21 +197,27 @@ impl Provider for OllamaProvider {
                     if let Ok(parsed) = serde_json::from_str::<OllamaStreamChunk>(line) {
                         if parsed.done {
                             chunks.push(Ok(StreamChunk {
-                                delta: String::new(),
                                 done: true,
+                                finish_reason: Some("stop".to_string()),
+                                usage: Some(Usage {
+                                    prompt_tokens: parsed.prompt_eval_count,
+                                    completion_tokens: parsed.eval_count,
+                                    total_tokens: parsed.prompt_eval_count + parsed.eval_count,
+                                }),
+                                ..Default::default()
                             }));
                         } else if let Some(msg) = parsed.message {
                             chunks.push(Ok(StreamChunk {
                                 delta: msg.content,
-                                done: false,
+                                ..Default::default()
                             }));
                         }
                     }
                 }
                 if chunks.is_empty() {
                     chunks.push(Ok(StreamChunk {
-                        delta: String::new(),
                         done: true,
+                        ..Default::default()
                     }));
                 }
                 Ok(chunks)

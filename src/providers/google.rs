@@ -65,9 +65,9 @@ struct GeminiGenerationConfig {
 #[derive(Deserialize)]
 struct GeminiResponse {
     candidates: Vec<GeminiCandidate>,
-    #[serde(default)]
+    #[serde(default, rename = "modelVersion")]
     model_version: String,
-    #[serde(default)]
+    #[serde(default, rename = "usageMetadata")]
     usage_metadata: Option<GeminiUsageMetadata>,
 }
 
@@ -88,11 +88,11 @@ struct GeminiPartResponse {
 
 #[derive(Deserialize)]
 struct GeminiUsageMetadata {
-    #[serde(default)]
+    #[serde(default, rename = "promptTokenCount")]
     prompt_token_count: u64,
-    #[serde(default)]
+    #[serde(default, rename = "candidatesTokenCount")]
     candidates_token_count: u64,
-    #[serde(default)]
+    #[serde(default, rename = "totalTokenCount")]
     total_token_count: u64,
 }
 
@@ -111,6 +111,8 @@ struct GeminiErrorDetail {
 struct GeminiStreamEvent {
     #[serde(default)]
     candidates: Vec<GeminiStreamCandidate>,
+    #[serde(default, rename = "usageMetadata")]
+    usage_metadata: Option<GeminiUsageMetadata>,
 }
 
 #[derive(Deserialize)]
@@ -172,7 +174,8 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
 ///
 /// Completion is keyed off the real `finishReason` field rather than guessing
 /// based on an empty chunk, which previously truncated responses whenever a
-/// keep-alive or unparsed chunk arrived.
+/// keep-alive or unparsed chunk arrived. The trailing event may carry only
+/// `usageMetadata`, which is surfaced as a usage-only chunk.
 fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     let Some(data) = line.strip_prefix("data: ") else {
@@ -181,26 +184,43 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     let Ok(event) = serde_json::from_str::<GeminiStreamEvent>(data) else {
         return Vec::new();
     };
+
+    let usage = event.usage_metadata.map(|u| Usage {
+        prompt_tokens: u.prompt_token_count,
+        completion_tokens: u.candidates_token_count,
+        total_tokens: u.total_token_count,
+    });
+
     let Some(candidate) = event.candidates.into_iter().next() else {
+        if usage.is_some() {
+            return vec![Ok(StreamChunk {
+                usage,
+                ..Default::default()
+            })];
+        }
         return Vec::new();
     };
 
-    let mut chunks = Vec::new();
+    let finish_reason = candidate.finish_reason;
     let text = candidate
         .content
         .and_then(|c| c.parts.into_iter().next())
         .map(|p| p.text)
         .unwrap_or_default();
+
+    let mut chunks = Vec::new();
     if !text.is_empty() {
         chunks.push(Ok(StreamChunk {
             delta: text,
-            done: false,
+            ..Default::default()
         }));
     }
-    if candidate.finish_reason.is_some() {
+    if finish_reason.is_some() || usage.is_some() {
         chunks.push(Ok(StreamChunk {
-            delta: String::new(),
-            done: true,
+            done: finish_reason.is_some(),
+            finish_reason,
+            usage,
+            ..Default::default()
         }));
     }
     chunks

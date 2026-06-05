@@ -35,6 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         top_p: None,
         tools: None,
         tool_choice: None,
+        ..Default::default()
     };
 
     let resp = llm.chat_with("openai/gpt-4o", req).await?;

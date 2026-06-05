@@ -15,15 +15,16 @@ use std::time::Duration;
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Content, Message, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, Message, ResponseFormat, StreamChunk, Tool, ToolCall,
+    ToolChoice, Usage,
 };
 
-// ── Defaults ────────────────────────────────────────────
+// ── Defaults ──────────────────────────────────────
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
-// ── Shared request / response types ───────────────────────
+// ── Shared request / response types ──────────────────────
 
 #[derive(Serialize)]
 struct CompChatRequest<'a> {
@@ -42,6 +43,22 @@ struct CompChatRequest<'a> {
     tools: Option<&'a [Tool]>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_choice: Option<&'a ToolChoice>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response_format: Option<&'a ResponseFormat>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stop: Option<&'a [String]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    n: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    seed: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    presence_penalty: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    frequency_penalty: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    logprobs: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    top_logprobs: Option<u32>,
 }
 
 /// Asks OpenAI-compatible servers to emit a terminal chunk carrying token
@@ -140,7 +157,7 @@ struct CompErrorDetail {
     message: String,
 }
 
-// ── HTTP client construction ──────────────────────────
+// ── HTTP client construction ─────────────────────
 
 fn build_http_client() -> Client {
     Client::builder()
@@ -202,7 +219,7 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     }
 }
 
-// ── The unified OpenAI-compatible provider ────────────────────
+// ── The unified OpenAI-compatible provider ────────────────
 
 /// A generic provider for any OpenAI-compatible `/chat/completions` API.
 ///
@@ -305,6 +322,14 @@ impl Provider for OpenAiCompatibleProvider {
             stream_options: None,
             tools: req.tools.as_deref(),
             tool_choice: req.tool_choice.as_ref(),
+            response_format: req.response_format.as_ref(),
+            stop: req.stop.as_deref(),
+            n: req.n,
+            seed: req.seed,
+            presence_penalty: req.presence_penalty,
+            frequency_penalty: req.frequency_penalty,
+            logprobs: req.logprobs,
+            top_logprobs: req.top_logprobs,
         };
 
         let resp = self.send(&body).await?;
@@ -336,6 +361,14 @@ impl Provider for OpenAiCompatibleProvider {
             }),
             tools: req.tools.as_deref(),
             tool_choice: req.tool_choice.as_ref(),
+            response_format: req.response_format.as_ref(),
+            stop: req.stop.as_deref(),
+            n: req.n,
+            seed: req.seed,
+            presence_penalty: req.presence_penalty,
+            frequency_penalty: req.frequency_penalty,
+            logprobs: req.logprobs,
+            top_logprobs: req.top_logprobs,
         };
 
         let resp = self.send(&body).await?;
@@ -384,6 +417,14 @@ mod tests {
             stream_options: None,
             tools: Some(tools.as_slice()),
             tool_choice: Some(&choice),
+            response_format: None,
+            stop: None,
+            n: None,
+            seed: None,
+            presence_penalty: None,
+            frequency_penalty: None,
+            logprobs: None,
+            top_logprobs: None,
         };
 
         let v = serde_json::to_value(&body).unwrap();
@@ -461,5 +502,75 @@ mod tests {
             v["content"][1]["image_url"]["url"],
             "https://example.com/cat.png"
         );
+    }
+
+    #[test]
+    fn serializes_sampling_params_and_response_format() {
+        let messages = vec![CompMessage::from(&Message::user("hi"))];
+        let rf = ResponseFormat::json_object();
+        let stop = vec!["STOP".to_string()];
+        let body = CompChatRequest {
+            model: "gpt-4o",
+            messages: &messages,
+            temperature: Some(0.2),
+            max_tokens: Some(64),
+            top_p: Some(0.9),
+            stream: false,
+            stream_options: None,
+            tools: None,
+            tool_choice: None,
+            response_format: Some(&rf),
+            stop: Some(stop.as_slice()),
+            n: Some(2),
+            seed: Some(7),
+            presence_penalty: Some(0.5),
+            frequency_penalty: Some(-0.25),
+            logprobs: Some(true),
+            top_logprobs: Some(3),
+        };
+
+        let v = serde_json::to_value(&body).unwrap();
+        assert_eq!(v["response_format"]["type"], "json_object");
+        assert_eq!(v["stop"][0], "STOP");
+        assert_eq!(v["n"], 2);
+        assert_eq!(v["seed"], 7);
+        assert_eq!(v["presence_penalty"], 0.5);
+        assert_eq!(v["frequency_penalty"], -0.25);
+        assert_eq!(v["logprobs"], true);
+        assert_eq!(v["top_logprobs"], 3);
+    }
+
+    #[test]
+    fn omits_unset_sampling_params() {
+        let messages = vec![CompMessage::from(&Message::user("hi"))];
+        let body = CompChatRequest {
+            model: "gpt-4o",
+            messages: &messages,
+            temperature: None,
+            max_tokens: None,
+            top_p: None,
+            stream: false,
+            stream_options: None,
+            tools: None,
+            tool_choice: None,
+            response_format: None,
+            stop: None,
+            n: None,
+            seed: None,
+            presence_penalty: None,
+            frequency_penalty: None,
+            logprobs: None,
+            top_logprobs: None,
+        };
+
+        let v = serde_json::to_value(&body).unwrap();
+        assert!(v.get("response_format").is_none());
+        assert!(v.get("stop").is_none());
+        assert!(v.get("seed").is_none());
+        assert!(v.get("n").is_none());
+        assert!(v.get("presence_penalty").is_none());
+        assert!(v.get("frequency_penalty").is_none());
+        assert!(v.get("logprobs").is_none());
+        assert!(v.get("top_logprobs").is_none());
     }
 }

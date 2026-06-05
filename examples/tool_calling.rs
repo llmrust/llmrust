@@ -48,6 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         top_p: None,
         tools: Some(vec![weather_tool.clone()]),
         tool_choice: Some(ToolChoice::auto()),
+        ..Default::default()
     };
     let resp = llm.chat_with(&model, req).await?;
 
@@ -78,6 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         top_p: None,
         tools: Some(vec![weather_tool]),
         tool_choice: None,
+        ..Default::default()
     };
     let final_resp = llm.chat_with(&model, req).await?;
     println!("\nFinal answer: {}", final_resp.content);

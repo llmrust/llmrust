@@ -42,7 +42,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::{ChatRequest, Content, LlmError, LmrsClient, Message, Role};
 
-// ── ID generation ──────────────────────────────
+// ── ID generation ────────────────────────────
 
 fn generate_id() -> String {
     let ts = SystemTime::now()
@@ -59,7 +59,7 @@ fn unix_timestamp() -> u64 {
         .as_secs()
 }
 
-// ── OpenAI-compatible request/response types ──────────────
+// ── OpenAI-compatible request/response types ──────────
 
 /// OpenAI-compatible chat completion request.
 #[derive(Debug, Default, Deserialize)]
@@ -158,7 +158,7 @@ pub struct ProxyErrorDetail {
     pub error_type: String,
 }
 
-// ── Application state ────────────────────────
+// ── Application state ───────────────────────
 
 /// Shared application state for the proxy router.
 #[derive(Clone)]
@@ -241,14 +241,14 @@ async fn check_bearer(expected: String, req: Request<axum::body::Body>, next: Ne
     }
 }
 
-// ── Health check ────────────────────────────
+// ── Health check ───────────────────────────
 
 /// `GET /health` — simple liveness probe. Returns `{"status":"ok"}`.
 async fn health_check() -> Json<serde_json::Value> {
     Json(serde_json::json!({"status": "ok"}))
 }
 
-// ── Graceful shutdown ────────────────────────
+// ── Graceful shutdown ───────────────────────
 
 /// Shutdown signal listener. Waits for:
 /// - `SIGINT` (Ctrl+C) on all platforms
@@ -313,7 +313,7 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
         .await
 }
 
-// ── Handler ─────────────────────────
+// ── Handler ───────────────────────
 
 /// Handle POST /v1/chat/completions.
 async fn handle_chat_completions(
@@ -332,7 +332,7 @@ async fn handle_chat_completions(
     }
 }
 
-// ── Non-streaming handler ───────────────────
+// ── Non-streaming handler ─────────────────
 
 async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Response {
     match state.llm.chat_with(model, req).await {
@@ -366,7 +366,7 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
     }
 }
 
-// ── Streaming handler ──────────────────────
+// ── Streaming handler ─────────────────────
 
 async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Response {
     let (provider_name, model_name) = match split_model(model) {
@@ -449,7 +449,7 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
     }
 }
 
-// ── Helpers ─────────────────────────
+// ── Helpers ────────────────────
 
 /// Convert a proxy request into an internal `ChatRequest`.
 fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
@@ -482,6 +482,7 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         top_p: req.top_p,
         tools: None,
         tool_choice: None,
+        ..Default::default()
     })
 }
 

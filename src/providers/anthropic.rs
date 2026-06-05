@@ -374,6 +374,7 @@ mod tests {
             top_p: None,
             tools: None,
             tool_choice: None,
+            ..Default::default()
         };
         let (system, messages) = split_messages(&req);
         assert_eq!(system.as_deref(), Some("be brief"));

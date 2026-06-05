@@ -44,7 +44,7 @@ pub use providers::{LlmError, Provider, ProviderConfig, Result};
 pub use router::{Router, RoutingStrategy};
 pub use types::{
     ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, FunctionDef, ImageUrl, Message,
-    Role, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
+    ResponseFormat, Role, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
 };
 
 pub(crate) use futures::stream::BoxStream;

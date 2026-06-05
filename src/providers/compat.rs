@@ -128,19 +128,16 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
             done: true,
         })];
     }
-    match serde_json::from_str::<CompStreamChunk>(data) {
-        Ok(parsed) => parsed
-            .choices
-            .first()
-            .map(|choice| {
-                vec![Ok(StreamChunk {
-                    delta: choice.delta.content.clone().unwrap_or_default(),
-                    done: choice.finish_reason.is_some(),
-                })]
-            })
-            .unwrap_or_default(),
-        Err(_) => Vec::new(),
-    }
+    let Ok(parsed) = serde_json::from_str::<CompStreamChunk>(data) else {
+        return Vec::new();
+    };
+    let Some(choice) = parsed.choices.first() else {
+        return Vec::new();
+    };
+    vec![Ok(StreamChunk {
+        delta: choice.delta.content.clone().unwrap_or_default(),
+        done: choice.finish_reason.is_some(),
+    })]
 }
 
 // ── The unified OpenAI-compatible provider ───────────────────────────

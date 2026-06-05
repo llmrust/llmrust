@@ -104,16 +104,10 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
         return Vec::new();
     };
     match event.event_type.as_str() {
-        "content_block_delta" => event
-            .delta
-            .and_then(|d| d.text)
-            .map(|text| {
-                vec![Ok(StreamChunk {
-                    delta: text,
-                    done: false,
-                })]
-            })
-            .unwrap_or_default(),
+        "content_block_delta" => {
+            let text = event.delta.and_then(|d| d.text).unwrap_or_default();
+            vec![Ok(StreamChunk { delta: text, done: false })]
+        }
         "message_stop" => vec![Ok(StreamChunk {
             delta: String::new(),
             done: true,

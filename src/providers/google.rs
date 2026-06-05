@@ -135,8 +135,8 @@ fn map_gemini_role(role: &crate::types::Role) -> Option<String> {
 /// Build Gemini `contents` (conversation turns) and an optional
 /// `systemInstruction` from the request messages. System messages are
 /// collected into the dedicated `systemInstruction` field instead of being
-/// mislabeled as `user` turns (which would break Gemini's strict
-/// user/model alternation).
+/// mislabeled as `user` turns (which would break Gemini's strict user/model
+/// alternation).
 fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiContent>) {
     let mut contents = Vec::new();
     let mut system_parts: Vec<GeminiPart> = Vec::new();
@@ -186,17 +186,16 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     };
 
     let mut chunks = Vec::new();
-    if let Some(text) = candidate
+    let text = candidate
         .content
         .and_then(|c| c.parts.into_iter().next())
         .map(|p| p.text)
-    {
-        if !text.is_empty() {
-            chunks.push(Ok(StreamChunk {
-                delta: text,
-                done: false,
-            }));
-        }
+        .unwrap_or_default();
+    if !text.is_empty() {
+        chunks.push(Ok(StreamChunk {
+            delta: text,
+            done: false,
+        }));
     }
     if candidate.finish_reason.is_some() {
         chunks.push(Ok(StreamChunk {

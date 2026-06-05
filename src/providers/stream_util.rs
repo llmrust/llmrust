@@ -28,9 +28,7 @@ use futures::{Stream, StreamExt};
 ///   final line.
 /// - An error from the underlying stream is forwarded, after which the stream
 ///   terminates.
-pub fn line_stream<S, B, E>(
-    byte_stream: S,
-) -> impl Stream<Item = std::result::Result<String, E>>
+pub fn line_stream<S, B, E>(byte_stream: S) -> impl Stream<Item = std::result::Result<String, E>>
 where
     S: Stream<Item = std::result::Result<B, E>> + Send + 'static,
     B: AsRef<[u8]> + Send + 'static,
@@ -116,10 +114,7 @@ mod tests {
     #[tokio::test]
     async fn splits_multiple_lines_and_flushes_tail() {
         let lines = collect_lines(vec![b"a\nb\nc"]).await;
-        assert_eq!(
-            lines,
-            vec!["a".to_string(), "b".to_string(), "c".to_string()]
-        );
+        assert_eq!(lines, vec!["a".to_string(), "b".to_string(), "c".to_string()]);
     }
 
     #[tokio::test]

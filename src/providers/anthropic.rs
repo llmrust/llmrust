@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
-use crate::types::{ChatRequest, ChatResponse, StreamChunk, Usage};
+use crate::types::{ChatRequest, ChatResponse, Content, ContentPart, StreamChunk, Usage};
 
 const DEFAULT_BASE_URL: &str = "https://api.anthropic.com/v1";
 
@@ -46,10 +46,108 @@ struct AnthropicRequest<'a> {
     stream: bool,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 struct AnthropicMessage {
     role: String,
-    content: String,
+    content: AnthropicMessageContent,
+}
+
+/// A Claude message body is either a plain string (text-only, the common case)
+/// or an array of typed content blocks (used when images are present).
+#[derive(Serialize)]
+#[serde(untagged)]
+enum AnthropicMessageContent {
+    Text(String),
+    Blocks(Vec<AnthropicContentBlock>),
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum AnthropicContentBlock {
+    Text { text: String },
+    Image { source: AnthropicImageSource },
+}
+
+/// Claude accepts images either as inline base64 data or, on recent API
+/// versions, by URL. Data URLs are decomposed into a base64 source; any other
+/// URL is passed through as a `url` source.
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum AnthropicImageSource {
+    Base64 { media_type: String, data: String },
+    Url { url: String },
+}
+
+/// Map an llmrust [`Content`] into Claude's message content. Text stays a
+/// plain string; mixed text/image parts become typed content blocks.
+fn to_anthropic_content(content: &Content) -> AnthropicMessageContent {
+    match content {
+        Content::Text(text) => AnthropicMessageContent::Text(text.clone()),
+        Content::Parts(parts) => {
+            let mut blocks = Vec::new();
+            for part in parts {
+                match part {
+                    ContentPart::Text { text } => {
+                        blocks.push(AnthropicContentBlock::Text { text: text.clone() });
+                    }
+                    ContentPart::ImageUrl { image_url } => {
+                        let source = anthropic_image_source(&image_url.url);
+                        blocks.push(AnthropicContentBlock::Image { source });
+                    }
+                }
+            }
+            AnthropicMessageContent::Blocks(blocks)
+        }
+    }
+}
+
+/// Build a Claude image source from a URL. `data:` URLs are split into their
+/// media type and base64 payload; everything else becomes a URL source.
+fn anthropic_image_source(url: &str) -> AnthropicImageSource {
+    if let Some(rest) = url.strip_prefix("data:") {
+        if let Some((meta, data)) = rest.split_once(',') {
+            let media_type = meta
+                .split(';')
+                .next()
+                .filter(|s| !s.is_empty())
+                .unwrap_or("image/png")
+                .to_string();
+            return AnthropicImageSource::Base64 {
+                media_type,
+                data: data.to_string(),
+            };
+        }
+    }
+    AnthropicImageSource::Url {
+        url: url.to_string(),
+    }
+}
+
+/// Split request messages into Claude's separate `system` prompt and the
+/// `messages` array. System content is flattened to text (Claude takes the
+/// system prompt as a string); user/assistant/tool turns keep full multimodal
+/// content, with tool results folded back in as `user` turns.
+fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) {
+    let mut system = None;
+    let mut messages = Vec::new();
+    for msg in &req.messages {
+        match msg.role {
+            crate::types::Role::System => system = Some(msg.content.as_text()),
+            crate::types::Role::User => messages.push(AnthropicMessage {
+                role: "user".to_string(),
+                content: to_anthropic_content(&msg.content),
+            }),
+            crate::types::Role::Assistant => messages.push(AnthropicMessage {
+                role: "assistant".to_string(),
+                content: to_anthropic_content(&msg.content),
+            }),
+            crate::types::Role::Tool => messages.push(AnthropicMessage {
+                role: "user".to_string(),
+                content: to_anthropic_content(&msg.content),
+            }),
+        }
+    }
+    (system, messages)
 }
 
 #[derive(Deserialize)]
@@ -130,29 +228,7 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
 #[async_trait]
 impl Provider for AnthropicProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
-        // Separate system message from conversation messages
-        let (system, messages): (Option<String>, Vec<AnthropicMessage>) = {
-            let mut sys = None;
-            let mut msgs = Vec::new();
-            for msg in &req.messages {
-                match msg.role {
-                    crate::types::Role::System => sys = Some(msg.content.clone()),
-                    crate::types::Role::User => msgs.push(AnthropicMessage {
-                        role: "user".to_string(),
-                        content: msg.content.clone(),
-                    }),
-                    crate::types::Role::Assistant => msgs.push(AnthropicMessage {
-                        role: "assistant".to_string(),
-                        content: msg.content.clone(),
-                    }),
-                    crate::types::Role::Tool => msgs.push(AnthropicMessage {
-                        role: "user".to_string(),
-                        content: msg.content.clone(),
-                    }),
-                }
-            }
-            (sys, msgs)
-        };
+        let (system, messages) = split_messages(req);
 
         let body = AnthropicRequest {
             model: &req.model,
@@ -209,28 +285,7 @@ impl Provider for AnthropicProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
-        let (system, messages): (Option<String>, Vec<AnthropicMessage>) = {
-            let mut sys = None;
-            let mut msgs = Vec::new();
-            for msg in &req.messages {
-                match msg.role {
-                    crate::types::Role::System => sys = Some(msg.content.clone()),
-                    crate::types::Role::User => msgs.push(AnthropicMessage {
-                        role: "user".to_string(),
-                        content: msg.content.clone(),
-                    }),
-                    crate::types::Role::Assistant => msgs.push(AnthropicMessage {
-                        role: "assistant".to_string(),
-                        content: msg.content.clone(),
-                    }),
-                    crate::types::Role::Tool => msgs.push(AnthropicMessage {
-                        role: "user".to_string(),
-                        content: msg.content.clone(),
-                    }),
-                }
-            }
-            (sys, msgs)
-        };
+        let (system, messages) = split_messages(req);
 
         let body = AnthropicRequest {
             model: &req.model,
@@ -276,5 +331,67 @@ impl Provider for AnthropicProvider {
         });
 
         Ok(stream.boxed())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::Message;
+
+    #[test]
+    fn text_message_serializes_as_plain_string() {
+        let content = to_anthropic_content(&Content::Text("hello".to_string()));
+        let v = serde_json::to_value(&content).unwrap();
+        assert_eq!(v, serde_json::json!("hello"));
+    }
+
+    #[test]
+    fn data_url_image_becomes_base64_block() {
+        let source = anthropic_image_source("data:image/jpeg;base64,QUJD");
+        let v = serde_json::to_value(&source).unwrap();
+        assert_eq!(v["type"], "base64");
+        assert_eq!(v["media_type"], "image/jpeg");
+        assert_eq!(v["data"], "QUJD");
+    }
+
+    #[test]
+    fn http_url_image_becomes_url_block() {
+        let source = anthropic_image_source("https://example.com/cat.png");
+        let v = serde_json::to_value(&source).unwrap();
+        assert_eq!(v["type"], "url");
+        assert_eq!(v["url"], "https://example.com/cat.png");
+    }
+
+    #[test]
+    fn split_messages_extracts_system_text() {
+        let req = ChatRequest {
+            model: "claude".to_string(),
+            messages: vec![Message::system("be brief"), Message::user("hi")],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+            top_p: None,
+            tools: None,
+            tool_choice: None,
+        };
+        let (system, messages) = split_messages(&req);
+        assert_eq!(system.as_deref(), Some("be brief"));
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].role.as_str(), "user");
+    }
+
+    #[test]
+    fn image_message_serializes_as_content_blocks() {
+        let content = to_anthropic_content(&Content::Parts(vec![
+            ContentPart::text("describe"),
+            ContentPart::image_url("https://example.com/cat.png"),
+        ]));
+        let v = serde_json::to_value(&content).unwrap();
+        assert_eq!(v[0]["type"], "text");
+        assert_eq!(v[0]["text"], "describe");
+        assert_eq!(v[1]["type"], "image");
+        assert_eq!(v[1]["source"]["type"], "url");
+        assert_eq!(v[1]["source"]["url"], "https://example.com/cat.png");
     }
 }

@@ -12,15 +12,16 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{ChatRequest, ChatResponse, Message, StreamChunk, Usage};
 
-// ── Defaults ───────────────────────────────────────────────────────────────
+// ── Defaults ────────────────────────────────────────────────────
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
-// ── Shared request / response types ────────────────────────────────────────
+// ── Shared request / response types ───────────────────────────────
 
 #[derive(Serialize)]
 struct CompChatRequest<'a> {
@@ -100,7 +101,7 @@ struct CompErrorDetail {
     message: String,
 }
 
-// ── HTTP client construction ───────────────────────────────────────────────
+// ── HTTP client construction ─────────────────────────────────────
 
 fn build_http_client() -> Client {
     Client::builder()
@@ -112,7 +113,37 @@ fn build_http_client() -> Client {
         .expect("reqwest::Client::builder() with valid options")
 }
 
-// ── The unified OpenAI-compatible provider ────────────────────────────────
+/// Parse a single SSE line from an OpenAI-compatible stream into zero or more
+/// [`StreamChunk`]s. Lines are guaranteed complete by [`line_stream`], so a
+/// failed JSON parse here indicates a genuinely malformed payload rather than
+/// a chunk-boundary artifact.
+fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
+    let line = line.trim();
+    let Some(data) = line.strip_prefix("data: ") else {
+        return Vec::new();
+    };
+    if data == "[DONE]" {
+        return vec![Ok(StreamChunk {
+            delta: String::new(),
+            done: true,
+        })];
+    }
+    match serde_json::from_str::<CompStreamChunk>(data) {
+        Ok(parsed) => parsed
+            .choices
+            .first()
+            .map(|choice| {
+                vec![Ok(StreamChunk {
+                    delta: choice.delta.content.clone().unwrap_or_default(),
+                    done: choice.finish_reason.is_some(),
+                })]
+            })
+            .unwrap_or_default(),
+        Err(_) => Vec::new(),
+    }
+}
+
+// ── The unified OpenAI-compatible provider ───────────────────────────
 
 /// A generic provider for any OpenAI-compatible `/chat/completions` API.
 ///
@@ -254,40 +285,17 @@ impl Provider for OpenAiCompatibleProvider {
             return Err(Self::parse_error(resp).await);
         }
 
-        let stream = resp
+        let byte_stream = resp
             .bytes_stream()
-            .map(|chunk_result| {
-                let bytes = chunk_result.map_err(|e| LlmError::Stream(e.to_string()))?;
-                let text = String::from_utf8_lossy(&bytes);
+            .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
 
-                let mut chunks: Vec<Result<StreamChunk>> = Vec::new();
-                for line in text.lines() {
-                    let line = line.trim();
-                    if !line.starts_with("data: ") {
-                        continue;
-                    }
-                    let data = &line[6..];
-                    if data == "[DONE]" {
-                        chunks.push(Ok(StreamChunk {
-                            delta: String::new(),
-                            done: true,
-                        }));
-                        continue;
-                    }
-                    if let Ok(parsed) = serde_json::from_str::<CompStreamChunk>(data) {
-                        if let Some(choice) = parsed.choices.first() {
-                            let delta = choice.delta.content.clone().unwrap_or_default();
-                            let done = choice.finish_reason.is_some();
-                            chunks.push(Ok(StreamChunk { delta, done }));
-                        }
-                    }
-                }
-                Ok(chunks)
-            })
-            .flat_map(|result| match result {
-                Ok(chunks) => futures::stream::iter(chunks).boxed(),
-                Err(e) => futures::stream::once(async move { Err(e) }).boxed(),
-            });
+        let stream = line_stream(byte_stream).flat_map(|line_result| {
+            let chunks = match line_result {
+                Ok(line) => parse_sse_line(&line),
+                Err(e) => vec![Err(e)],
+            };
+            futures::stream::iter(chunks)
+        });
 
         Ok(stream.boxed())
     }

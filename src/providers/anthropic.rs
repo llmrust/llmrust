@@ -5,6 +5,7 @@ use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{ChatRequest, ChatResponse, StreamChunk, Usage};
 
@@ -92,6 +93,35 @@ struct AnthropicDelta {
     text: Option<String>,
 }
 
+/// Parse a single SSE line from an Anthropic stream into zero or more
+/// [`StreamChunk`]s. Lines are guaranteed complete by [`line_stream`].
+fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
+    let line = line.trim();
+    let Some(data) = line.strip_prefix("data: ") else {
+        return Vec::new();
+    };
+    let Ok(event) = serde_json::from_str::<AnthropicStreamEvent>(data) else {
+        return Vec::new();
+    };
+    match event.event_type.as_str() {
+        "content_block_delta" => event
+            .delta
+            .and_then(|d| d.text)
+            .map(|text| {
+                vec![Ok(StreamChunk {
+                    delta: text,
+                    done: false,
+                })]
+            })
+            .unwrap_or_default(),
+        "message_stop" => vec![Ok(StreamChunk {
+            delta: String::new(),
+            done: true,
+        })],
+        _ => Vec::new(),
+    }
+}
+
 #[async_trait]
 impl Provider for AnthropicProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
@@ -163,7 +193,7 @@ impl Provider for AnthropicProvider {
             usage: parsed.usage.map(|u| Usage {
                 prompt_tokens: u.input_tokens,
                 completion_tokens: u.output_tokens,
-                total_tokens: u.input_tokens + u.output_tokens,
+                total_tokens: u.input_tokens.saturating_add(u.output_tokens),
             }),
         })
     }
@@ -219,46 +249,17 @@ impl Provider for AnthropicProvider {
             });
         }
 
-        let stream = resp
+        let byte_stream = resp
             .bytes_stream()
-            .map(|chunk_result| {
-                let bytes = chunk_result.map_err(|e| LlmError::Stream(e.to_string()))?;
-                let text = String::from_utf8_lossy(&bytes);
+            .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
 
-                let mut chunks = Vec::new();
-                for line in text.lines() {
-                    let line = line.trim();
-                    if !line.starts_with("data: ") {
-                        continue;
-                    }
-                    let data = &line[6..];
-                    if let Ok(event) = serde_json::from_str::<AnthropicStreamEvent>(data) {
-                        match event.event_type.as_str() {
-                            "content_block_delta" => {
-                                if let Some(delta) = event.delta {
-                                    let text = delta.text.unwrap_or_default();
-                                    chunks.push(Ok(StreamChunk {
-                                        delta: text,
-                                        done: false,
-                                    }));
-                                }
-                            }
-                            "message_stop" => {
-                                chunks.push(Ok(StreamChunk {
-                                    delta: String::new(),
-                                    done: true,
-                                }));
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                Ok(chunks)
-            })
-            .flat_map(|result| match result {
-                Ok(chunks) => futures::stream::iter(chunks).boxed(),
-                Err(e) => futures::stream::once(async move { Err(e) }).boxed(),
-            });
+        let stream = line_stream(byte_stream).flat_map(|line_result| {
+            let chunks = match line_result {
+                Ok(line) => parse_sse_line(&line),
+                Err(e) => vec![Err(e)],
+            };
+            futures::stream::iter(chunks)
+        });
 
         Ok(stream.boxed())
     }

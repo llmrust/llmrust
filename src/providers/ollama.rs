@@ -62,7 +62,9 @@ impl From<&Message> for OllamaMessage {
                 crate::types::Role::Assistant => "assistant".to_string(),
                 crate::types::Role::Tool => "tool".to_string(),
             },
-            content: msg.content.clone(),
+            // Ollama's /api/chat expects a plain string body, so multimodal
+            // content parts are flattened to their concatenated text.
+            content: msg.content.as_text(),
         }
     }
 }

@@ -18,7 +18,7 @@ use crate::types::{
     ChatRequest, ChatResponse, Content, Message, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
 };
 
-// ── Defaults ─────────────────────────────────────────
+// ── Defaults ────────────────────────────────────────────
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -270,11 +270,13 @@ impl OpenAiCompatibleProvider {
         });
 
         let (content, tool_calls, finish_reason) = match parsed.choices.into_iter().next() {
-            Some(choice) => (
-                choice.message.content.map(|c| c.as_text()).unwrap_or_default(),
-                choice.message.tool_calls,
-                choice.finish_reason,
-            ),
+            Some(choice) => {
+                let content = match choice.message.content {
+                    Some(c) => c.as_text(),
+                    None => String::new(),
+                };
+                (content, choice.message.tool_calls, choice.finish_reason)
+            }
             None => (String::new(), None, None),
         };
 
@@ -455,6 +457,9 @@ mod tests {
         assert_eq!(v["content"][0]["type"], "text");
         assert_eq!(v["content"][0]["text"], "what is this?");
         assert_eq!(v["content"][1]["type"], "image_url");
-        assert_eq!(v["content"][1]["image_url"]["url"], "https://example.com/cat.png");
+        assert_eq!(
+            v["content"][1]["image_url"]["url"],
+            "https://example.com/cat.png"
+        );
     }
 }

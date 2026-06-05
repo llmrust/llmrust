@@ -11,11 +11,11 @@ mod tests {
         let assistant = Message::assistant("Hi there!");
 
         assert_eq!(sys.role, Role::System);
-        assert_eq!(sys.content, "You are helpful.");
+        assert_eq!(sys.content.as_text(), "You are helpful.");
         assert_eq!(user.role, Role::User);
-        assert_eq!(user.content, "Hello");
+        assert_eq!(user.content.as_text(), "Hello");
         assert_eq!(assistant.role, Role::Assistant);
-        assert_eq!(assistant.content, "Hi there!");
+        assert_eq!(assistant.content.as_text(), "Hi there!");
     }
 
     #[test]
@@ -175,7 +175,7 @@ mod tests {
 
         let deserialized: Message = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.role, Role::User);
-        assert_eq!(deserialized.content, "Hello, world!");
+        assert_eq!(deserialized.content.as_text(), "Hello, world!");
     }
 
     #[test]

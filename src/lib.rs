@@ -30,6 +30,7 @@
 
 pub mod providers;
 pub mod proxy;
+pub mod router;
 pub mod types;
 
 use std::collections::HashMap;
@@ -40,6 +41,7 @@ use tokio::sync::RwLock;
 
 pub use providers::retry::RetryProvider;
 pub use providers::{LlmError, Provider, ProviderConfig, Result};
+pub use router::{Router, RoutingStrategy};
 pub use types::{
     ChatRequest, ChatResponse, FunctionCall, FunctionDef, Message, Role, StreamChunk, Tool,
     ToolCall, ToolChoice, Usage,

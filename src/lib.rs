@@ -2,6 +2,20 @@
 //!
 //! Call multiple LLM APIs with one unified Rust interface.
 //!
+//! ## Installation
+//!
+//! ```toml
+//! # Cargo.toml
+//!
+//! # LLM client only (recommended for most users)
+//! [dependencies]
+//! llmrust = "0.1"
+//!
+//! # With the built-in HTTP proxy server
+//! [dependencies]
+//! llmrust = { version = "0.1", features = ["proxy"] }
+//! ```
+//!
 //! ## Quick Start
 //!
 //! ```rust,no_run
@@ -29,6 +43,7 @@
 //! ```
 
 pub mod providers;
+#[cfg(feature = "proxy")]
 pub mod proxy;
 pub mod router;
 pub mod types;
@@ -44,7 +59,7 @@ pub use providers::{LlmError, Provider, ProviderConfig, Result};
 pub use router::{Router, RoutingStrategy};
 pub use types::{
     ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, FunctionDef, ImageUrl, Message,
-    Role, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
+    ResponseFormat, Role, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
 };
 
 pub(crate) use futures::stream::BoxStream;

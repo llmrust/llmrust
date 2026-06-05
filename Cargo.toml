@@ -7,21 +7,34 @@ description = "Unified Rust interface for 7 LLM providers (OpenAI, Anthropic, De
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/llmrust/llmrust"
 readme = "README.md"
-keywords = ["llm", "openai", "anthropic", "ai", "chatgpt", "claude", "gemini"]
-categories = ["api-bindings", "asynchronous", "web-programming::http-server"]
+keywords = ["llm", "openai", "anthropic", "ai", "gemini"]
+categories = ["api-bindings", "asynchronous", "web-programming::http-client"]
+documentation = "https://docs.rs/llmrust"
+exclude = [".github/", "images/"]
+
+[features]
+# Default: LLM client only. No web-server dependencies pulled in.
+default = []
+# Enable the built-in OpenAI-compatible HTTP proxy server.
+proxy = ["dep:axum", "dep:tower-http"]
 
 [dependencies]
-reqwest = { version = "0.12", features = ["json", "stream"] }
-tokio = { version = "1", features = ["full"] }
-serde = { version = "1", features = ["derive"] }
+reqwest    = { version = "0.12", features = ["json", "stream"] }
+# Only the tokio primitives the library itself needs.
+# Downstream crates pick their own runtime features; examples use dev-dep below.
+tokio      = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+serde      = { version = "1",  features = ["derive"] }
 serde_json = "1"
 async-trait = "0.1"
-futures = "0.3"
-thiserror = "2"
-axum = "0.7"
-tower-http = { version = "0.5", features = ["cors"] }
+futures    = "0.3"
+thiserror  = "2"
+
+# Optional: only compiled when the `proxy` feature is enabled.
+axum       = { version = "0.7", optional = true }
+tower-http = { version = "0.5", features = ["cors"], optional = true }
 
 [dev-dependencies]
+# Examples and integration tests need the full runtime.
 tokio = { version = "1", features = ["full", "test-util"] }
 tower = { version = "0.5", features = ["util"] }
 
@@ -44,3 +57,12 @@ path = "examples/retry_e2e.rs"
 [[example]]
 name = "proxy_server"
 path = "examples/proxy_server.rs"
+required-features = ["proxy"]
+
+[[example]]
+name = "tool_calling"
+path = "examples/tool_calling.rs"
+
+[[example]]
+name = "multimodal"
+path = "examples/multimodal.rs"

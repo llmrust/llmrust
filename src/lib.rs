@@ -5,11 +5,11 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use llmrust::{LiteLLM, Message};
+//! use llmrust::{LmrsClient, Message};
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let llm = LiteLLM::new();
+//!     let llm = LmrsClient::new();
 //!
 //!     // OpenAI
 //!     llm.set_openai("sk-...").await;
@@ -35,12 +35,14 @@ pub mod types;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use futures::stream::BoxStream;
 use futures::StreamExt;
 use tokio::sync::RwLock;
 
+pub use providers::retry::RetryProvider;
 pub use providers::{LlmError, Provider, ProviderConfig, Result};
 pub use types::{ChatRequest, ChatResponse, Message, Role, StreamChunk, Usage};
+
+pub(crate) use futures::stream::BoxStream;
 
 use providers::anthropic::AnthropicProvider;
 use providers::deepseek::DeepSeekProvider;
@@ -51,11 +53,11 @@ use providers::openai::OpenAIProvider;
 use providers::openrouter::OpenRouterProvider;
 
 /// The unified LLM client. Routes `provider/model` strings to the right backend.
-pub struct LiteLLM {
+pub struct LmrsClient {
     providers: Arc<RwLock<HashMap<String, Arc<dyn Provider>>>>,
 }
 
-impl LiteLLM {
+impl LmrsClient {
     /// Create a new empty client. Register providers with `set_*` methods.
     pub fn new() -> Self {
         Self {
@@ -157,6 +159,25 @@ impl LiteLLM {
         self.providers.write().await.insert(name.into(), provider);
     }
 
+    /// Wrap every registered provider with [`RetryProvider`].
+    ///
+    /// All future `chat` / `stream` calls through this `LmrsClient` instance
+    /// will automatically retry transient failures (HTTP 5xx, network errors)
+    /// up to `max_retries` times with exponential back-off.
+    ///
+    /// Call this **after** all `set_*` calls.
+    pub async fn with_retry(&self, max_retries: u32) {
+        let mut map = self.providers.write().await;
+        let keys: Vec<String> = map.keys().cloned().collect();
+        for key in keys {
+            if let Some(provider) = map.remove(&key) {
+                let wrapped =
+                    Arc::new(RetryProvider::new(provider, max_retries)) as Arc<dyn Provider>;
+                map.insert(key, wrapped);
+            }
+        }
+    }
+
     /// Parse a "provider/model" string into (provider_name, model_name).
     fn parse_model(model: &str) -> Result<(&str, &str)> {
         model.split_once('/').ok_or_else(|| {
@@ -206,6 +227,20 @@ impl LiteLLM {
         provider.stream(&req).await
     }
 
+    /// Send a streaming chat request with full control over parameters
+    /// (used internally for multi-turn REPLs).
+    pub async fn stream_with(
+        &self,
+        model: &str,
+        mut req: ChatRequest,
+    ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+        let (provider_name, model_name) = Self::parse_model(model)?;
+        let provider = self.get_provider(provider_name).await?;
+        req.model = model_name.to_string();
+        req.stream = true;
+        provider.stream(&req).await
+    }
+
     /// Send a streaming request and collect the full text.
     pub async fn stream_collect(&self, model: &str, prompt: &str) -> Result<String> {
         let mut stream = self.stream(model, prompt).await?;
@@ -223,7 +258,7 @@ impl LiteLLM {
     }
 }
 
-impl Default for LiteLLM {
+impl Default for LmrsClient {
     fn default() -> Self {
         Self::new()
     }

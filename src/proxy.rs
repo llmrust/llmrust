@@ -3,17 +3,21 @@
 //! # Usage
 //!
 //! ```rust,no_run
-//! use llmrust::{LiteLLM, proxy};
+//! use llmrust::{LmrsClient, proxy};
 //! use std::sync::Arc;
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let llm = Arc::new(LiteLLM::new());
+//!     let llm = Arc::new(LmrsClient::new());
 //!     llm.set_openai("sk-...").await;
 //!
-//!     let app = proxy::router(llm);
+//!     // Option A: bind and serve yourself (requires manual graceful shutdown)
+//!     let app = proxy::router(llm.clone());
 //!     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 //!     axum::serve(listener, app).await.unwrap();
+//!
+//!     // Option B: use the built-in serve() with graceful shutdown
+//!     // proxy::serve(llm, "0.0.0.0:3000").await.unwrap();
 //! }
 //! ```
 
@@ -29,13 +33,14 @@ use axum::{
         sse::{Event, Sse},
         IntoResponse, Json, Response,
     },
-    routing::post,
+    routing::{get, post},
     Router,
 };
 use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
+use tower_http::cors::CorsLayer;
 
-use crate::{ChatRequest, LiteLLM, LlmError, Message, Role};
+use crate::{ChatRequest, LlmError, LmrsClient, Message, Role};
 
 // ── ID generation ──────────────────────────────────────────────────────────
 
@@ -157,7 +162,7 @@ pub struct ProxyErrorDetail {
 /// Shared application state for the proxy router.
 #[derive(Clone)]
 pub struct AppState {
-    pub llm: Arc<LiteLLM>,
+    pub llm: Arc<LmrsClient>,
 }
 
 // ── Router ────────────────────────────────────────────────────────────────
@@ -167,10 +172,19 @@ pub struct AppState {
 /// The router accepts every request without authentication. If you need to
 /// expose the proxy on anything other than `localhost`, use
 /// [`router_with_auth`] instead.
-pub fn router(llm: Arc<LiteLLM>) -> Router {
+///
+/// Routes:
+/// - `POST /v1/chat/completions` — OpenAI-compatible chat endpoint
+/// - `GET /health` — health check (not rate-limited, no auth)
+///
+/// CORS is **permissive** by default (all origins allowed). Tighten this in
+/// production by wrapping the returned `Router` with a restrictive layer.
+pub fn router(llm: Arc<LmrsClient>) -> Router {
     let state = AppState { llm };
     Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
+        .route("/health", get(health_check))
+        .layer(CorsLayer::permissive())
         .with_state(state)
 }
 
@@ -184,16 +198,18 @@ pub fn router(llm: Arc<LiteLLM>) -> Router {
 /// constant-time. This is acceptable when the proxy is reachable only by
 /// trusted clients (e.g., behind a reverse proxy). For higher security,
 /// consider a reverse proxy with TLS and rate limiting.
-pub fn router_with_auth(llm: Arc<LiteLLM>, expected_token: String) -> Router {
+pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router {
     let state = AppState { llm };
     let token = expected_token.clone();
     Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
+        .route("/health", get(health_check))
         .with_state(state)
         .layer(from_fn(move |req, next| {
             let expected = token.clone();
             check_bearer(expected, req, next)
         }))
+        .layer(CorsLayer::permissive())
 }
 
 /// Bearer-token middleware. Returns 401 if the `Authorization` header is
@@ -222,6 +238,78 @@ async fn check_bearer(expected: String, req: Request<axum::body::Body>, next: Ne
             response
         }
     }
+}
+
+// ── Health check ───────────────────────────────────────────────────────────
+
+/// `GET /health` — simple liveness probe. Returns `{"status":"ok"}`.
+async fn health_check() -> Json<serde_json::Value> {
+    Json(serde_json::json!({"status": "ok"}))
+}
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────
+
+/// Shutdown signal listener. Waits for:
+/// - `SIGINT` (Ctrl+C) on all platforms
+/// - `SIGTERM` on Unix (container orchestration, systemd, etc.)
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+}
+
+/// Bind to `addr` and serve the proxy with graceful shutdown.
+///
+/// If the `LLMRUST_PROXY_KEY` environment variable is set and non-empty,
+/// bearer-token authentication is required for every request (see
+/// [`router_with_auth`]). Otherwise, the proxy accepts all requests
+/// without authentication.
+///
+/// This is a convenience wrapper around the common boot sequence:
+///
+/// ```rust,ignore
+/// let app = router(llm);
+/// let listener = tokio::net::TcpListener::bind(addr).await?;
+/// axum::serve(listener, app)
+///     .with_graceful_shutdown(shutdown_signal())
+///     .await
+/// ```
+pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
+    let token = std::env::var("LLMRUST_PROXY_KEY")
+        .ok()
+        .filter(|s| !s.is_empty());
+    let app = match token {
+        Some(key) => {
+            eprintln!("[auth] enabled — bearer token required");
+            router_with_auth(llm, key)
+        }
+        None => {
+            eprintln!("[auth] DISABLED — set LLMRUST_PROXY_KEY=<secret> to require bearer auth");
+            router(llm)
+        }
+    };
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────
@@ -473,14 +561,14 @@ mod tests {
 
     #[tokio::test]
     async fn router_can_be_built() {
-        let llm = Arc::new(LiteLLM::new());
+        let llm = Arc::new(LmrsClient::new());
         // Should not panic.
         let _router = router(llm);
     }
 
     #[tokio::test]
     async fn non_stream_chat_with_mock_provider() {
-        let llm = Arc::new(LiteLLM::new());
+        let llm = Arc::new(LmrsClient::new());
         llm.set_custom("mock", Arc::new(MockProvider)).await;
         let app = router(llm);
 
@@ -514,7 +602,7 @@ mod tests {
 
     #[tokio::test]
     async fn unknown_provider_returns_404() {
-        let llm = Arc::new(LiteLLM::new());
+        let llm = Arc::new(LmrsClient::new());
         let app = router(llm);
 
         let body = serde_json::json!({
@@ -545,7 +633,7 @@ mod tests {
 
     #[tokio::test]
     async fn invalid_model_format_returns_400() {
-        let llm = Arc::new(LiteLLM::new());
+        let llm = Arc::new(LmrsClient::new());
         let app = router(llm);
 
         let body = serde_json::json!({
@@ -563,7 +651,7 @@ mod tests {
 
     #[tokio::test]
     async fn invalid_role_returns_400() {
-        let llm = Arc::new(LiteLLM::new());
+        let llm = Arc::new(LmrsClient::new());
         llm.set_custom("mock", Arc::new(MockProvider)).await;
         let app = router(llm);
 
@@ -624,7 +712,7 @@ mod tests {
 
     #[tokio::test]
     async fn auth_missing_header_returns_401() {
-        let llm = Arc::new(LiteLLM::new());
+        let llm = Arc::new(LmrsClient::new());
         llm.set_custom("mock", Arc::new(MockProvider)).await;
         let app = router_with_auth(llm, TEST_TOKEN.to_string());
 
@@ -644,7 +732,7 @@ mod tests {
 
     #[tokio::test]
     async fn auth_wrong_token_returns_401() {
-        let llm = Arc::new(LiteLLM::new());
+        let llm = Arc::new(LmrsClient::new());
         llm.set_custom("mock", Arc::new(MockProvider)).await;
         let app = router_with_auth(llm, TEST_TOKEN.to_string());
 
@@ -663,7 +751,7 @@ mod tests {
 
     #[tokio::test]
     async fn auth_malformed_header_returns_401() {
-        let llm = Arc::new(LiteLLM::new());
+        let llm = Arc::new(LmrsClient::new());
         llm.set_custom("mock", Arc::new(MockProvider)).await;
         let app = router_with_auth(llm, TEST_TOKEN.to_string());
 
@@ -683,7 +771,7 @@ mod tests {
 
     #[tokio::test]
     async fn auth_valid_token_passes_through() {
-        let llm = Arc::new(LiteLLM::new());
+        let llm = Arc::new(LmrsClient::new());
         llm.set_custom("mock", Arc::new(MockProvider)).await;
         let app = router_with_auth(llm, TEST_TOKEN.to_string());
 
@@ -707,5 +795,84 @@ mod tests {
             .expect("body read failed");
         let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(json["choices"][0]["message"]["content"], "mocked reply");
+    }
+
+    // ── serve() integration tests ──
+
+    #[tokio::test]
+    async fn serve_starts_and_answers_health() {
+        let llm = Arc::new(LmrsClient::new());
+        let addr = "127.0.0.1:0";
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
+            .expect("bind failed");
+        let bound_addr = listener.local_addr().unwrap();
+
+        let app = router(llm);
+        tokio::spawn(async move {
+            axum::serve(listener, app)
+                .with_graceful_shutdown(std::future::pending())
+                .await
+                .ok();
+        });
+
+        // Give the server a moment to start
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        let resp = reqwest::Client::new()
+            .get(format!("http://{}/health", bound_addr))
+            .send()
+            .await
+            .expect("health request failed");
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json: serde_json::Value = resp.json().await.unwrap();
+        assert_eq!(json["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn serve_with_bearer_requires_auth() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let addr = "127.0.0.1:0";
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
+            .expect("bind failed");
+        let bound_addr = listener.local_addr().unwrap();
+
+        let app = router_with_auth(llm, "test-secret".to_string());
+        tokio::spawn(async move {
+            axum::serve(listener, app)
+                .with_graceful_shutdown(std::future::pending())
+                .await
+                .ok();
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Without auth — should get 401
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": "hi"}],
+        })
+        .to_string();
+        let resp = reqwest::Client::new()
+            .post(format!("http://{}/v1/chat/completions", bound_addr))
+            .header("content-type", "application/json")
+            .body(body.clone())
+            .send()
+            .await
+            .expect("request failed");
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+
+        // With auth — should pass
+        let resp = reqwest::Client::new()
+            .post(format!("http://{}/v1/chat/completions", bound_addr))
+            .header("content-type", "application/json")
+            .header("authorization", "Bearer test-secret")
+            .body(body)
+            .send()
+            .await
+            .expect("request failed");
+        assert_eq!(resp.status(), StatusCode::OK);
     }
 }

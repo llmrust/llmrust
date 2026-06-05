@@ -7,7 +7,7 @@ description = "Unified Rust interface for 7 LLM providers (OpenAI, Anthropic, De
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/llmrust/llmrust"
 readme = "README.md"
-keywords = ["llm", "openai", "anthropic", "ai", "chatgpt", "litellm", "claude", "gemini"]
+keywords = ["llm", "openai", "anthropic", "ai", "chatgpt", "claude", "gemini"]
 categories = ["api-bindings", "asynchronous", "web-programming::http-server"]
 
 [dependencies]
@@ -28,6 +28,18 @@ tower = { version = "0.5", features = ["util"] }
 [[example]]
 name = "demo"
 path = "examples/demo.rs"
+
+[[example]]
+name = "chat"
+path = "examples/chat.rs"
+
+[[example]]
+name = "multiturn"
+path = "examples/multiturn.rs"
+
+[[example]]
+name = "retry_e2e"
+path = "examples/retry_e2e.rs"
 
 [[example]]
 name = "proxy_server"

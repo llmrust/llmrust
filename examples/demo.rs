@@ -16,11 +16,11 @@
 //! ```
 
 use futures::StreamExt;
-use llmrust::LiteLLM;
+use llmrust::LmrsClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = LiteLLM::new();
+    let llm = LmrsClient::new();
 
     // Register providers from environment variables. Each is silently skipped
     // if the corresponding env var is missing or empty.

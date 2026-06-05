@@ -1,12 +1,14 @@
 //! Provider trait and unified LLM client.
 
 pub mod anthropic;
+pub mod compat;
 pub mod deepseek;
 pub mod google;
 pub mod moonshot;
 pub mod ollama;
 pub mod openai;
 pub mod openrouter;
+pub mod retry;
 
 use async_trait::async_trait;
 use futures::stream::BoxStream;

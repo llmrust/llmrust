@@ -24,12 +24,12 @@ cargo add llmrust
 ```
 
 ```rust
-use llmrust::LiteLLM;
+use llmrust::LmrsClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = LiteLLM::new();
-    
+    let llm = LmrsClient::new();
+
     // Register providers
     llm.set_openai("sk-...").await;
     llm.set_anthropic("sk-ant-...").await;
@@ -60,11 +60,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Basic Chat
 
 ```rust
-use llmrust::LiteLLM;
+use llmrust::LmrsClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = LiteLLM::new();
+    let llm = LmrsClient::new();
     llm.set_deepseek(std::env::var("DEEPSEEK_API_KEY")?).await;
     
     let response = llm.chat("deepseek/deepseek-chat", "Explain Rust ownership in one paragraph.").await?;
@@ -78,12 +78,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Streaming
 
 ```rust
-use llmrust::LiteLLM;
+use llmrust::LmrsClient;
 use futures::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = LiteLLM::new();
+    let llm = LmrsClient::new();
     llm.set_openai(std::env::var("OPENAI_API_KEY")?).await;
     
     let mut stream = llm.stream("openai/gpt-4o", "Write a haiku about Rust.").await?;
@@ -101,11 +101,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Advanced Configuration
 
 ```rust
-use llmrust::{LiteLLM, ChatRequest, Message};
+use llmrust::{LmrsClient, ChatRequest, Message};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = LiteLLM::new();
+    let llm = LmrsClient::new();
     llm.set_anthropic(std::env::var("ANTHROPIC_API_KEY")?).await;
     
     let request = ChatRequest::new("claude-3-5-sonnet-20241022", "What is the meaning of life?")
@@ -160,8 +160,6 @@ llm.set_openai("sk-...").await;
 // OpenAI-compatible API). The base URL must include the `/v1` (or
 // equivalent) path prefix; `/chat/completions` is appended automatically.
 llm.set_openai_compatible("sk-...", "https://your-proxy.com/v1").await;
-// Azure OpenAI example:
-llm.set_openai_compatible("sk-...", "https://YOUR_RESOURCE.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT").await;
 ```
 
 ### Anthropic
@@ -205,7 +203,7 @@ llm.set_openrouter("sk-or-...").await;
 ## Error Handling
 
 ```rust
-use llmrust::{LiteLLM, LlmError};
+use llmrust::{LmrsClient, LlmError};
 
 match llm.chat("openai/gpt-4o", "Hello").await {
     Ok(response) => println!("{}", response.content),
@@ -245,9 +243,11 @@ microseconds per request at most. Real numbers will be added once a
 - [x] Google Gemini, Ollama, Moonshot, OpenRouter
 - [x] HTTP proxy server
 - [ ] Tool-use / Function calling
+- [ ] Azure OpenAI (dedicated `set_azure()` with proper auth)
 - [ ] Embeddings API
 - [ ] Batch API
-- [ ] Rate limiting and retry logic
+- [x] Retry logic
+- [ ] Rate limiting
 - [ ] More providers (Cohere, Mistral, Groq, etc.)
 
 ## License

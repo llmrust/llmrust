@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use llmrust::{ChatRequest, LiteLLM, Message, Role};
+    use llmrust::{ChatRequest, LmrsClient, Message, Role};
 
     #[test]
     fn test_message_constructors() {
@@ -44,8 +44,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_litellm_parse_model_valid() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_parse_model_valid() {
+        let llm = LmrsClient::new();
         // Test that chat fails with unknown provider (not parse error)
         let result = llm.chat("openai/gpt-4o", "test").await;
         assert!(result.is_err());
@@ -54,8 +54,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_litellm_parse_model_invalid() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_parse_model_invalid() {
+        let llm = LmrsClient::new();
         let result = llm.chat("no-slash-here", "test").await;
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -63,23 +63,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_litellm_providers_empty() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_providers_empty() {
+        let llm = LmrsClient::new();
         let providers = llm.providers().await;
         assert!(providers.is_empty());
     }
 
     #[tokio::test]
-    async fn test_litellm_set_openai() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_set_openai() {
+        let llm = LmrsClient::new();
         llm.set_openai("sk-test").await;
         let providers = llm.providers().await;
         assert!(providers.contains(&"openai".to_string()));
     }
 
     #[tokio::test]
-    async fn test_litellm_set_multiple_providers() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_set_multiple_providers() {
+        let llm = LmrsClient::new();
         llm.set_openai("sk-test").await;
         llm.set_anthropic("sk-ant-test").await;
         llm.set_deepseek("sk-ds-test").await;
@@ -90,8 +90,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_litellm_set_openai_compatible() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_set_openai_compatible() {
+        let llm = LmrsClient::new();
         llm.set_openai_compatible("sk-test", "http://localhost:8080/v1")
             .await;
         let providers = llm.providers().await;
@@ -99,24 +99,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_litellm_set_google() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_set_google() {
+        let llm = LmrsClient::new();
         llm.set_google("AIza-test").await;
         let providers = llm.providers().await;
         assert!(providers.contains(&"google".to_string()));
     }
 
     #[tokio::test]
-    async fn test_litellm_set_ollama_default() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_set_ollama_default() {
+        let llm = LmrsClient::new();
         llm.set_ollama(None).await;
         let providers = llm.providers().await;
         assert!(providers.contains(&"ollama".to_string()));
     }
 
     #[tokio::test]
-    async fn test_litellm_set_ollama_custom_url() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_set_ollama_custom_url() {
+        let llm = LmrsClient::new();
         llm.set_ollama(Some("http://my-ollama.local:11434".to_string()))
             .await;
         let providers = llm.providers().await;
@@ -124,24 +124,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_litellm_set_moonshot() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_set_moonshot() {
+        let llm = LmrsClient::new();
         llm.set_moonshot("sk-moonshot-test").await;
         let providers = llm.providers().await;
         assert!(providers.contains(&"moonshot".to_string()));
     }
 
     #[tokio::test]
-    async fn test_litellm_set_openrouter() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_set_openrouter() {
+        let llm = LmrsClient::new();
         llm.set_openrouter("sk-or-test").await;
         let providers = llm.providers().await;
         assert!(providers.contains(&"openrouter".to_string()));
     }
 
     #[tokio::test]
-    async fn test_litellm_set_all_seven_providers() {
-        let llm = LiteLLM::new();
+    async fn test_lmrs_client_set_all_seven_providers() {
+        let llm = LmrsClient::new();
         llm.set_openai("sk-1").await;
         llm.set_anthropic("sk-2").await;
         llm.set_deepseek("sk-3").await;

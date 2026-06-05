@@ -17,16 +17,17 @@
 //!   -H "Content-Type: application/json" \
 //!   -d '{"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": "Hello!"}]}'
 //! ```
+//!
+//! Press Ctrl+C to stop gracefully.
 
 use std::sync::Arc;
 
 use llmrust::proxy;
-use llmrust::LiteLLM;
-use tokio::net::TcpListener;
+use llmrust::LmrsClient;
 
 #[tokio::main]
 async fn main() {
-    let llm = Arc::new(LiteLLM::new());
+    let llm = Arc::new(LmrsClient::new());
 
     // Register providers from environment variables
     if let Ok(key) = std::env::var("LLMRUST_OPENAI_KEY") {
@@ -81,13 +82,13 @@ async fn main() {
 
     println!("\n🚀 llmrust proxy server starting on http://0.0.0.0:3000");
     println!("   Registered providers: {}", providers.join(", "));
-    println!("   Try: curl http://localhost:3000/v1/chat/completions ...\n");
+    println!("   Try: curl http://localhost:3000/v1/chat/completions ...");
+    println!("   Health: curl http://localhost:3000/health");
+    println!("   Press Ctrl+C to stop.\n");
 
-    let app = proxy::router(llm);
-
-    let listener = TcpListener::bind("0.0.0.0:3000")
-        .await
-        .expect("Failed to bind to 0.0.0.0:3000");
-
-    axum::serve(listener, app).await.expect("Server error");
+    // proxy::serve binds, serves, and handles graceful shutdown on Ctrl+C/SIGTERM
+    if let Err(e) = proxy::serve(llm, "0.0.0.0:3000").await {
+        eprintln!("Server error: {e}");
+        std::process::exit(1);
+    }
 }

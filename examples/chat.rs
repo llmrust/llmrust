@@ -183,6 +183,8 @@ async fn run_repl(
                 max_tokens: None,
                 stream: true,
                 top_p: None,
+                tools: None,
+                tool_choice: None,
             };
             let mut s = match llm.stream_with(model, req).await {
                 Ok(s) => s,
@@ -216,6 +218,8 @@ async fn run_repl(
                 max_tokens: None,
                 stream: false,
                 top_p: None,
+                tools: None,
+                tool_choice: None,
             };
             match llm.chat_with(model, req).await {
                 Ok(resp) => {

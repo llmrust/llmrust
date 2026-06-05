@@ -58,12 +58,20 @@ pub struct ChatResponse {
 }
 
 /// A single chunk from a streaming response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StreamChunk {
     /// The text delta for this chunk (may be empty for the final chunk).
     pub delta: String,
     /// Set to true when the stream is complete.
     pub done: bool,
+    /// The provider-reported reason the stream stopped (e.g. `"stop"`,
+    /// `"length"`), when available. Populated on the terminal content chunk.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+    /// Token usage for the request. Only populated on the terminal usage
+    /// chunk, and only for providers that report usage while streaming.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
 }
 
 /// A chat completion request.

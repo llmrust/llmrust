@@ -1,5 +1,7 @@
 # llmrust
 
+![llmrust](images/llmrust-banner.png)
+
 [![Crates.io](https://img.shields.io/crates/v/llmrust)](https://crates.io/crates/llmrust)
 [![Documentation](https://docs.rs/llmrust/badge.svg)](https://docs.rs/llmrust)
 [![License](https://img.shields.io/crates/l/llmrust)](https://github.com/llmrust/llmrust)

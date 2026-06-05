@@ -40,9 +40,9 @@ use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 
-use crate::{ChatRequest, LlmError, LmrsClient, Message, Role};
+use crate::{ChatRequest, Content, LlmError, LmrsClient, Message, Role};
 
-// ── ID generation ─────────────────────────────────────────
+// ── ID generation ──────────────────────────────
 
 fn generate_id() -> String {
     let ts = SystemTime::now()
@@ -59,7 +59,7 @@ fn unix_timestamp() -> u64 {
         .as_secs()
 }
 
-// ── OpenAI-compatible request/response types ──────────────────
+// ── OpenAI-compatible request/response types ──────────────
 
 /// OpenAI-compatible chat completion request.
 #[derive(Debug, Default, Deserialize)]
@@ -73,11 +73,12 @@ pub struct ProxyChatRequest {
     pub top_p: Option<f64>,
 }
 
-/// OpenAI-compatible message.
+/// OpenAI-compatible message. `content` accepts either a plain string or an
+/// array of content parts (text / image_url), matching the OpenAI schema.
 #[derive(Debug, Deserialize)]
 pub struct ProxyMessage {
     pub role: String,
-    pub content: String,
+    pub content: Content,
 }
 
 /// OpenAI-compatible chat completion response (non-streaming).
@@ -157,7 +158,7 @@ pub struct ProxyErrorDetail {
     pub error_type: String,
 }
 
-// ── Application state ───────────────────────────────────
+// ── Application state ────────────────────────
 
 /// Shared application state for the proxy router.
 #[derive(Clone)]
@@ -165,7 +166,7 @@ pub struct AppState {
     pub llm: Arc<LmrsClient>,
 }
 
-// ── Router ────────────────────────────────────────────
+// ── Router ───────────────────────────
 
 /// Build the Axum router for the proxy server.
 ///
@@ -240,14 +241,14 @@ async fn check_bearer(expected: String, req: Request<axum::body::Body>, next: Ne
     }
 }
 
-// ── Health check ────────────────────────────────────────
+// ── Health check ────────────────────────────
 
 /// `GET /health` — simple liveness probe. Returns `{"status":"ok"}`.
 async fn health_check() -> Json<serde_json::Value> {
     Json(serde_json::json!({"status": "ok"}))
 }
 
-// ── Graceful shutdown ───────────────────────────────────
+// ── Graceful shutdown ────────────────────────
 
 /// Shutdown signal listener. Waits for:
 /// - `SIGINT` (Ctrl+C) on all platforms
@@ -312,7 +313,7 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
         .await
 }
 
-// ── Handler ──────────────────────────────────────────
+// ── Handler ─────────────────────────
 
 /// Handle POST /v1/chat/completions.
 async fn handle_chat_completions(
@@ -331,7 +332,7 @@ async fn handle_chat_completions(
     }
 }
 
-// ── Non-streaming handler ───────────────────────────────
+// ── Non-streaming handler ───────────────────
 
 async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Response {
     match state.llm.chat_with(model, req).await {
@@ -365,7 +366,7 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
     }
 }
 
-// ── Streaming handler ───────────────────────────────────
+// ── Streaming handler ──────────────────────
 
 async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Response {
     let (provider_name, model_name) = match split_model(model) {
@@ -448,7 +449,7 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
     }
 }
 
-// ── Helpers ──────────────────────────────────────────
+// ── Helpers ─────────────────────────
 
 /// Convert a proxy request into an internal `ChatRequest`.
 fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
@@ -622,6 +623,37 @@ mod tests {
         assert_eq!(json["usage"]["prompt_tokens"], 3);
         assert_eq!(json["usage"]["completion_tokens"], 5);
         assert_eq!(json["usage"]["total_tokens"], 8);
+    }
+
+    #[tokio::test]
+    async fn proxy_accepts_multimodal_content() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "what is in this image?"},
+                    {"type": "image_url", "image_url": {"url": "https://example.com/cat.png"}}
+                ]
+            }],
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["choices"][0]["message"]["content"], "mocked reply");
     }
 
     #[tokio::test]

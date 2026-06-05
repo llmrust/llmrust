@@ -23,11 +23,42 @@ A high-performance, type-safe Rust library for calling multiple LLM providers th
 - **High performance** — Built on reqwest + tokio, minimal overhead
 - **Zero runtime dependencies** — Single binary, no Python/Node required
 
-## Quick Start
+## Installation
+
+Add llmrust to your `Cargo.toml`:
+
+```toml
+[dependencies]
+llmrust = "0.1"
+```
+
+Or use `cargo add`:
 
 ```bash
 cargo add llmrust
 ```
+
+### Feature Flags
+
+| Feature | Default | Description |
+|---|---|---|
+| *(none)* | ✅ | LLM client — all providers, streaming, tool calling |
+| `proxy` | ❌ | Built-in OpenAI-compatible HTTP proxy server (adds `axum`) |
+
+Enable the proxy server:
+
+```toml
+[dependencies]
+llmrust = { version = "0.1", features = ["proxy"] }
+```
+
+Or:
+
+```bash
+cargo add llmrust --features proxy
+```
+
+## Quick Start
 
 ```rust
 use llmrust::LmrsClient;
@@ -107,7 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Advanced Configuration
 
 ```rust
-use llmrust::{LmrsClient, ChatRequest, Message};
+use llmrust::{LmrsClient, ChatRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -126,16 +157,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### JSON Mode & Sampling Parameters
+
+```rust
+use llmrust::ChatRequest;
+
+let request = ChatRequest::new("gpt-4o", "List 3 cities as JSON")
+    .with_json_mode()
+    .with_seed(42)
+    .with_temperature(0.2);
+```
+
 ### HTTP Proxy Server
 
-Run a local OpenAI-compatible API gateway:
+Run a local OpenAI-compatible API gateway (requires `features = ["proxy"]`):
 
 ```bash
 export LLMRUST_OPENAI_KEY="sk-..."
 export LLMRUST_DEEPSEEK_KEY="sk-..."
 # Optional: enable bearer-token auth
 export LLMRUST_PROXY_KEY="some-shared-secret"
-cargo run --example proxy_server
+cargo run --example proxy_server --features proxy
 ```
 
 ```bash
@@ -236,7 +278,8 @@ We have not yet published formal benchmarks. The library adds a thin async layer
 - [x] Google Gemini, Ollama, Moonshot, OpenRouter
 - [x] HTTP proxy server
 - [x] Retry logic
-- [ ] Tool-use / Function calling
+- [x] Tool-use / Function calling
+- [x] JSON mode & sampling parameters
 - [ ] Embeddings API
 - [ ] Batch API
 - [ ] Rate limiting

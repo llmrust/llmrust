@@ -403,7 +403,30 @@ impl ResponseFormat {
 }
 
 /// A chat completion request.
+///
+/// This struct is marked `#[non_exhaustive]`: always construct it with
+/// [`ChatRequest::new`] + builder methods, or include `..Default::default()`
+/// when using struct-literal syntax. This allows new optional fields to be
+/// added in minor releases without breaking downstream code.
+///
+/// # Example
+///
+/// ```rust
+/// use llmrust::ChatRequest;
+///
+/// // Recommended: builder pattern
+/// let req = ChatRequest::new("gpt-4o", "Hello!")
+///     .with_temperature(0.7)
+///     .with_max_tokens(1000);
+///
+/// // Also valid: struct literal with catch-all
+/// let req = ChatRequest {
+///     model: String::new(),
+///     ..Default::default()
+/// };
+/// ```
 #[derive(Debug, Clone, Default)]
+#[non_exhaustive]
 pub struct ChatRequest {
     pub model: String,
     pub messages: Vec<Message>,

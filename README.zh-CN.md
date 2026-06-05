@@ -23,11 +23,42 @@
 - **高性能** — 基于 reqwest + tokio 构建，极低开销
 - **零运行时依赖** — 单一二进制，无需 Python/Node
 
-## 快速开始
+## 安装
+
+在 `Cargo.toml` 中添加：
+
+```toml
+[dependencies]
+llmrust = "0.1"
+```
+
+或使用 `cargo add`：
 
 ```bash
 cargo add llmrust
 ```
+
+### Feature 说明
+
+| Feature | 默认 | 说明 |
+|---|---|---|
+| *(无)* | ✅ | LLM 客户端 — 全部提供商、流式、工具调用 |
+| `proxy` | ❌ | 内置 OpenAI 兼容 HTTP 代理服务器（会引入 `axum`）|
+
+启用代理服务器：
+
+```toml
+[dependencies]
+llmrust = { version = "0.1", features = ["proxy"] }
+```
+
+或：
+
+```bash
+cargo add llmrust --features proxy
+```
+
+## 快速开始
 
 ```rust
 use llmrust::LmrsClient;
@@ -107,7 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 高级配置
 
 ```rust
-use llmrust::{LmrsClient, ChatRequest, Message};
+use llmrust::{LmrsClient, ChatRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -126,16 +157,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### JSON 模式 & 采样参数
+
+```rust
+use llmrust::ChatRequest;
+
+let request = ChatRequest::new("gpt-4o", "以 JSON 格式列出 3 个城市")
+    .with_json_mode()
+    .with_seed(42)
+    .with_temperature(0.2);
+```
+
 ### HTTP 代理服务器
 
-运行一个本地 OpenAI 兼容的 API 网关：
+运行一个本地 OpenAI 兼容的 API 网关（需要 `features = ["proxy"]`）：
 
 ```bash
 export LLMRUST_OPENAI_KEY="sk-..."
 export LLMRUST_DEEPSEEK_KEY="sk-..."
 # 可选：启用 Bearer Token 认证
 export LLMRUST_PROXY_KEY="some-shared-secret"
-cargo run --example proxy_server
+cargo run --example proxy_server --features proxy
 ```
 
 ```bash
@@ -236,7 +278,8 @@ match llm.chat("openai/gpt-4o", "你好").await {
 - [x] Google Gemini、Ollama、Moonshot、OpenRouter
 - [x] HTTP 代理服务器
 - [x] 重试逻辑
-- [ ] 工具调用 / Function calling
+- [x] 工具调用 / Function calling
+- [x] JSON 模式 & 采样参数
 - [ ] Embeddings API
 - [ ] 批量 API
 - [ ] 速率限制

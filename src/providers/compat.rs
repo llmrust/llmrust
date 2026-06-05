@@ -15,15 +15,15 @@ use std::time::Duration;
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Message, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, Message, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
 };
 
-// ── Defaults ─────────────────────────────────────
+// ── Defaults ─────────────────────────────────────────
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
-// ── Shared request / response types ──────────────────────
+// ── Shared request / response types ───────────────────────
 
 #[derive(Serialize)]
 struct CompChatRequest<'a> {
@@ -55,7 +55,7 @@ struct StreamOptions {
 struct CompMessage {
     role: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    content: Option<String>,
+    content: Option<Content>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     tool_calls: Option<Vec<ToolCall>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -271,7 +271,7 @@ impl OpenAiCompatibleProvider {
 
         let (content, tool_calls, finish_reason) = match parsed.choices.into_iter().next() {
             Some(choice) => (
-                choice.message.content.unwrap_or_default(),
+                choice.message.content.map(|c| c.as_text()).unwrap_or_default(),
                 choice.message.tool_calls,
                 choice.finish_reason,
             ),
@@ -361,7 +361,7 @@ impl Provider for OpenAiCompatibleProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::FunctionCall;
+    use crate::types::{ContentPart, FunctionCall};
 
     #[test]
     fn serializes_tools_and_tool_choice() {
@@ -441,5 +441,20 @@ mod tests {
         let v = serde_json::to_value(&comp).unwrap();
         assert!(v.get("content").is_none(), "content should be omitted");
         assert_eq!(v["tool_calls"][0]["id"], "call_1");
+    }
+
+    #[test]
+    fn user_image_message_serializes_as_content_parts() {
+        let msg = Message::user_with_parts(vec![
+            ContentPart::text("what is this?"),
+            ContentPart::image_url("https://example.com/cat.png"),
+        ]);
+        let comp = CompMessage::from(&msg);
+        let v = serde_json::to_value(&comp).unwrap();
+        assert_eq!(v["role"], "user");
+        assert_eq!(v["content"][0]["type"], "text");
+        assert_eq!(v["content"][0]["text"], "what is this?");
+        assert_eq!(v["content"][1]["type"], "image_url");
+        assert_eq!(v["content"][1]["image_url"]["url"], "https://example.com/cat.png");
     }
 }

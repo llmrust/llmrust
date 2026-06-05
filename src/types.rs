@@ -371,6 +371,37 @@ pub struct StreamChunk {
     pub usage: Option<Usage>,
 }
 
+/// The format the model's response must take, mirroring OpenAI's
+/// `response_format` field.
+///
+/// Serializes to OpenAI's wire format, e.g. `{"type":"text"}`,
+/// `{"type":"json_object"}`, or `{"type":"json_schema","json_schema":{...}}`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ResponseFormat {
+    /// Plain text (the provider default).
+    Text,
+    /// Constrain the output to a syntactically valid JSON object ("JSON mode").
+    JsonObject,
+    /// Constrain the output to a specific JSON Schema (structured outputs).
+    JsonSchema {
+        /// The OpenAI `json_schema` object (typically `{name, schema, strict}`).
+        json_schema: serde_json::Value,
+    },
+}
+
+impl ResponseFormat {
+    /// JSON mode: any syntactically valid JSON object.
+    pub fn json_object() -> Self {
+        ResponseFormat::JsonObject
+    }
+
+    /// Structured outputs constrained to the given `json_schema` object.
+    pub fn json_schema(json_schema: serde_json::Value) -> Self {
+        ResponseFormat::JsonSchema { json_schema }
+    }
+}
+
 /// A chat completion request.
 #[derive(Debug, Clone, Default)]
 pub struct ChatRequest {
@@ -384,6 +415,23 @@ pub struct ChatRequest {
     pub tools: Option<Vec<Tool>>,
     /// Tool-choice policy.
     pub tool_choice: Option<ToolChoice>,
+    /// Desired response format (e.g. JSON mode / structured outputs).
+    pub response_format: Option<ResponseFormat>,
+    /// Sequences that, when produced, stop generation.
+    pub stop: Option<Vec<String>>,
+    /// Number of completions to generate.
+    pub n: Option<u32>,
+    /// Seed for best-effort deterministic sampling.
+    pub seed: Option<i64>,
+    /// Penalize tokens by whether they have already appeared (-2.0..=2.0).
+    pub presence_penalty: Option<f64>,
+    /// Penalize tokens by how often they have appeared (-2.0..=2.0).
+    pub frequency_penalty: Option<f64>,
+    /// Whether to return log probabilities of the output tokens.
+    pub logprobs: Option<bool>,
+    /// Number of most-likely tokens to return log probabilities for at each
+    /// position (implies `logprobs = true`).
+    pub top_logprobs: Option<u32>,
 }
 
 impl ChatRequest {
@@ -420,6 +468,12 @@ impl ChatRequest {
         self
     }
 
+    /// Set top-p nucleus sampling.
+    pub fn with_top_p(mut self, top_p: f64) -> Self {
+        self.top_p = Some(top_p);
+        self
+    }
+
     /// Advertise tools the model may call.
     pub fn with_tools(mut self, tools: Vec<Tool>) -> Self {
         self.tools = Some(tools);
@@ -429,6 +483,62 @@ impl ChatRequest {
     /// Set the tool-choice policy.
     pub fn with_tool_choice(mut self, tool_choice: ToolChoice) -> Self {
         self.tool_choice = Some(tool_choice);
+        self
+    }
+
+    /// Set the response format (e.g. [`ResponseFormat::json_object`] for JSON
+    /// mode).
+    pub fn with_response_format(mut self, format: ResponseFormat) -> Self {
+        self.response_format = Some(format);
+        self
+    }
+
+    /// Shortcut for JSON mode (`response_format = {"type":"json_object"}`).
+    pub fn with_json_mode(mut self) -> Self {
+        self.response_format = Some(ResponseFormat::JsonObject);
+        self
+    }
+
+    /// Set stop sequences.
+    pub fn with_stop(mut self, stop: Vec<String>) -> Self {
+        self.stop = Some(stop);
+        self
+    }
+
+    /// Set the number of completions to generate.
+    pub fn with_n(mut self, n: u32) -> Self {
+        self.n = Some(n);
+        self
+    }
+
+    /// Set the sampling seed for best-effort determinism.
+    pub fn with_seed(mut self, seed: i64) -> Self {
+        self.seed = Some(seed);
+        self
+    }
+
+    /// Set the presence penalty (-2.0..=2.0).
+    pub fn with_presence_penalty(mut self, penalty: f64) -> Self {
+        self.presence_penalty = Some(penalty);
+        self
+    }
+
+    /// Set the frequency penalty (-2.0..=2.0).
+    pub fn with_frequency_penalty(mut self, penalty: f64) -> Self {
+        self.frequency_penalty = Some(penalty);
+        self
+    }
+
+    /// Request log probabilities for the output tokens.
+    pub fn with_logprobs(mut self, logprobs: bool) -> Self {
+        self.logprobs = Some(logprobs);
+        self
+    }
+
+    /// Request the top-N token log probabilities at each position (implies
+    /// `logprobs = true`).
+    pub fn with_top_logprobs(mut self, top_logprobs: u32) -> Self {
+        self.top_logprobs = Some(top_logprobs);
         self
     }
 }
@@ -518,5 +628,45 @@ mod tests {
         assert_eq!(msg.role, Role::User);
         assert_eq!(msg.content.images().len(), 1);
         assert_eq!(msg.content.as_text(), "desc");
+    }
+
+    #[test]
+    fn response_format_serializes_as_openai_wire_format() {
+        assert_eq!(
+            serde_json::to_value(ResponseFormat::Text).unwrap(),
+            serde_json::json!({"type": "text"})
+        );
+        assert_eq!(
+            serde_json::to_value(ResponseFormat::json_object()).unwrap(),
+            serde_json::json!({"type": "json_object"})
+        );
+        let schema = serde_json::json!({"name": "person", "schema": {"type": "object"}});
+        let v = serde_json::to_value(ResponseFormat::json_schema(schema.clone())).unwrap();
+        assert_eq!(v["type"], "json_schema");
+        assert_eq!(v["json_schema"], schema);
+    }
+
+    #[test]
+    fn chat_request_sampling_builders_set_fields() {
+        let req = ChatRequest::new("gpt-4o", "hi")
+            .with_json_mode()
+            .with_stop(vec!["\n".to_string()])
+            .with_seed(42)
+            .with_top_p(0.9)
+            .with_n(2)
+            .with_presence_penalty(0.5)
+            .with_frequency_penalty(-0.3)
+            .with_logprobs(true)
+            .with_top_logprobs(5);
+
+        assert_eq!(req.response_format, Some(ResponseFormat::JsonObject));
+        assert_eq!(req.stop, Some(vec!["\n".to_string()]));
+        assert_eq!(req.seed, Some(42));
+        assert_eq!(req.top_p, Some(0.9));
+        assert_eq!(req.n, Some(2));
+        assert_eq!(req.presence_penalty, Some(0.5));
+        assert_eq!(req.frequency_penalty, Some(-0.3));
+        assert_eq!(req.logprobs, Some(true));
+        assert_eq!(req.top_logprobs, Some(5));
     }
 }

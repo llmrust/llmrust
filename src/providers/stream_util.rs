@@ -114,7 +114,10 @@ mod tests {
     #[tokio::test]
     async fn splits_multiple_lines_and_flushes_tail() {
         let lines = collect_lines(vec![b"a\nb\nc"]).await;
-        assert_eq!(lines, vec!["a".to_string(), "b".to_string(), "c".to_string()]);
+        assert_eq!(
+            lines,
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
     }
 
     #[tokio::test]

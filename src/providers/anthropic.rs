@@ -59,6 +59,8 @@ struct AnthropicRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    stop_sequences: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     tools: Option<Vec<AnthropicTool>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_choice: Option<AnthropicToolChoice>,
@@ -293,6 +295,29 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
     (system, messages)
 }
 
+/// Build the Claude request body shared by `chat` and `stream`.
+///
+/// Anthropic's Messages API supports `stop_sequences`, `temperature`, `top_p`
+/// and `max_tokens`. The OpenAI-style `seed`, `n`, `presence_penalty`,
+/// `frequency_penalty`, `logprobs`/`top_logprobs` and structured
+/// `response_format` have no Claude equivalent, so they are intentionally not
+/// forwarded.
+fn build_body<'a>(req: &'a ChatRequest, stream: bool) -> AnthropicRequest<'a> {
+    let (system, messages) = split_messages(req);
+    AnthropicRequest {
+        model: &req.model,
+        messages,
+        system,
+        temperature: req.temperature,
+        max_tokens: req.max_tokens.or(Some(4096)), // Anthropic requires max_tokens
+        top_p: req.top_p,
+        stop_sequences: req.stop.clone(),
+        tools: req.tools.as_deref().map(to_anthropic_tools),
+        tool_choice: req.tool_choice.as_ref().map(to_anthropic_tool_choice),
+        stream,
+    }
+}
+
 #[derive(Deserialize)]
 struct AnthropicResponse {
     content: Vec<AnthropicContent>,
@@ -511,28 +536,10 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
     }
 }
 
-impl AnthropicProvider {
-    /// Build the Claude request body shared by `chat` and `stream`.
-    fn build_body<'a>(&self, req: &'a ChatRequest, stream: bool) -> AnthropicRequest<'a> {
-        let (system, messages) = split_messages(req);
-        AnthropicRequest {
-            model: &req.model,
-            messages,
-            system,
-            temperature: req.temperature,
-            max_tokens: req.max_tokens.or(Some(4096)), // Anthropic requires max_tokens
-            top_p: req.top_p,
-            tools: req.tools.as_deref().map(to_anthropic_tools),
-            tool_choice: req.tool_choice.as_ref().map(to_anthropic_tool_choice),
-            stream,
-        }
-    }
-}
-
 #[async_trait]
 impl Provider for AnthropicProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
-        let body = self.build_body(req, false);
+        let body = build_body(req, false);
 
         let resp = self
             .client
@@ -609,7 +616,7 @@ impl Provider for AnthropicProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
-        let body = self.build_body(req, true);
+        let body = build_body(req, true);
 
         let resp = self
             .client
@@ -753,6 +760,22 @@ mod tests {
             serde_json::to_value(to_anthropic_tool_choice(&ToolChoice::function("f"))).unwrap();
         assert_eq!(forced["type"], "tool");
         assert_eq!(forced["name"], "f");
+    }
+
+    #[test]
+    fn stop_sequences_are_forwarded() {
+        let req = ChatRequest::new("claude", "hi").with_stop(vec!["END".to_string()]);
+        let body = build_body(&req, false);
+        let v = serde_json::to_value(&body).unwrap();
+        assert_eq!(v["stop_sequences"][0], "END");
+    }
+
+    #[test]
+    fn omitted_stop_is_not_serialized() {
+        let req = ChatRequest::new("claude", "hi");
+        let body = build_body(&req, false);
+        let v = serde_json::to_value(&body).unwrap();
+        assert!(v.get("stop_sequences").is_none());
     }
 
     #[test]

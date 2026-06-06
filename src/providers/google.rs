@@ -48,9 +48,9 @@ impl GoogleProvider {
 #[derive(Serialize)]
 struct GeminiRequest<'a> {
     contents: &'a [GeminiContent],
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "systemInstruction", skip_serializing_if = "Option::is_none")]
     system_instruction: Option<GeminiContent>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "generationConfig", skip_serializing_if = "Option::is_none")]
     generation_config: Option<GeminiGenerationConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tools: Option<Vec<GeminiTool>>,
@@ -110,9 +110,9 @@ struct GeminiFunctionResponseOut {
 struct GeminiGenerationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "maxOutputTokens", skip_serializing_if = "Option::is_none")]
     max_output_tokens: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "topP", skip_serializing_if = "Option::is_none")]
     top_p: Option<f64>,
 }
 
@@ -467,7 +467,12 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
 
 impl GoogleProvider {
     /// Build the Gemini request body shared by `chat` and `stream`.
-    fn build_body<'a>(&self, req: &ChatRequest, contents: &'a [GeminiContent], system_instruction: Option<GeminiContent>) -> GeminiRequest<'a> {
+    fn build_body<'a>(
+        &self,
+        req: &ChatRequest,
+        contents: &'a [GeminiContent],
+        system_instruction: Option<GeminiContent>,
+    ) -> GeminiRequest<'a> {
         GeminiRequest {
             contents,
             system_instruction,

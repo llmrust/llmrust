@@ -302,7 +302,7 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
 /// `frequency_penalty`, `logprobs`/`top_logprobs` and structured
 /// `response_format` have no Claude equivalent, so they are intentionally not
 /// forwarded.
-fn build_body<'a>(req: &'a ChatRequest, stream: bool) -> AnthropicRequest<'a> {
+fn build_body(req: &ChatRequest, stream: bool) -> AnthropicRequest<'_> {
     let (system, messages) = split_messages(req);
     AnthropicRequest {
         model: &req.model,

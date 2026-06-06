@@ -42,7 +42,7 @@ cargo add llmrust
 
 | Feature | Default | Description |
 |---|---|---|
-| *(none)* | ✅ | LLM client — all providers + streaming; tool calling & JSON mode on OpenAI-compatible providers |
+| *(none)* | ✅ | LLM client — all providers + streaming; tool calling on OpenAI-compatible, Anthropic, and Gemini providers (non-streaming); JSON mode on OpenAI-compatible providers |
 | `proxy` | ❌ | Built-in OpenAI-compatible HTTP proxy server (adds `axum`) |
 
 Enable the proxy server:
@@ -88,13 +88,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | Stable |
 | Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | Stable |
 | OpenRouter | any model via OpenRouter | ✅ | ✅ | Stable |
-| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | 🚧 planned (0.2) | Stable (chat) |
-| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | 🚧 planned (0.2) | Stable (chat) |
+| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | ✅ (chat) | Stable |
+| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | ✅ (chat) | Stable |
 | Ollama | llama3.2, qwen2.5, any local model | ✅ | ➖ | Stable (chat) |
 
 > **Feature support notes**
 >
-> - **Tool calling / function calling** and **JSON mode** are currently wired through the OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter). Native Anthropic and Gemini tool calling is in progress and targeted for 0.2.
+> - **Tool calling / function calling** is supported on the OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter) and natively on Anthropic and Gemini. Tool calls are surfaced from the non-streaming `chat` path; the streaming path emits text deltas and `finish_reason` but does not yet reconstruct tool calls.
+> - **JSON mode** is currently wired through the OpenAI-compatible providers.
 > - **Sampling parameters** beyond `temperature` / `max_tokens` / `top_p` (e.g. `stop`, `seed`, `presence_penalty`, `frequency_penalty`, `logprobs`, `n`, `response_format`) are sent to the OpenAI-compatible providers; Anthropic, Gemini, and Ollama currently honor the core sampling parameters only.
 
 ## Usage Examples
@@ -137,6 +138,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!();
 
     Ok(())
+}
+```
+
+### Tool Calling
+
+> Tool calling works on OpenAI-compatible providers as well as natively on Anthropic and Gemini, via the non-streaming `chat` path. Provide tool definitions on the request, then feed the returned `tool_calls` results back as `tool` messages for the next turn.
+
+```rust
+use llmrust::{ChatRequest, Message, Tool, ToolChoice};
+use serde_json::json;
+
+let tools = vec![Tool::function(
+    "get_weather",
+    Some("Get the current weather for a city".to_string()),
+    json!({
+        "type": "object",
+        "properties": { "city": { "type": "string" } },
+        "required": ["city"]
+    }),
+)];
+
+let request = ChatRequest::from_messages(
+    "claude-3-5-sonnet-20241022",
+    vec![Message::user("What's the weather in San Francisco?")],
+)
+.with_tools(tools)
+.with_tool_choice(ToolChoice::auto());
+
+let response = llm.chat_with("anthropic/claude-3-5-sonnet-20241022", request).await?;
+if let Some(calls) = &response.tool_calls {
+    for call in calls {
+        println!("call {} -> {}", call.function.name, call.function.arguments);
+    }
 }
 ```
 
@@ -285,8 +319,9 @@ We have not yet published formal benchmarks. The library adds a thin async layer
 - [x] Google Gemini, Ollama, Moonshot, OpenRouter
 - [x] HTTP proxy server
 - [x] Retry logic
-- [x] Tool-use / Function calling (OpenAI-compatible; Anthropic & Gemini in progress)
+- [x] Tool-use / Function calling (OpenAI-compatible, Anthropic, Gemini; non-streaming)
 - [x] JSON mode & sampling parameters (OpenAI-compatible providers)
+- [ ] Streaming tool calls (reconstruct tool calls from streamed chunks)
 - [ ] Embeddings API
 - [ ] Batch API
 - [ ] Rate limiting

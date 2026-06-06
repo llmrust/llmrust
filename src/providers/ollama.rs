@@ -5,10 +5,23 @@ use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{ChatRequest, ChatResponse, Message, StreamChunk, Usage};
 
 const DEFAULT_BASE_URL: &str = "http://localhost:11434";
+
+/// Build an HTTP client for a local Ollama server. Only a connection timeout
+/// is enforced (to fail fast when the server is unreachable); no overall
+/// request timeout is set because local generation can legitimately run for a
+/// long time on large models. Falls back to the default client if the builder
+/// fails (it will not in practice).
+fn build_http_client() -> Client {
+    Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .build()
+        .unwrap_or_else(|_| Client::new())
+}
 
 pub struct OllamaProvider {
     client: Client,
@@ -18,7 +31,7 @@ pub struct OllamaProvider {
 impl OllamaProvider {
     pub fn new(config: ProviderConfig) -> Self {
         Self {
-            client: Client::new(),
+            client: build_http_client(),
             base_url: config
                 .base_url
                 .unwrap_or_else(|| DEFAULT_BASE_URL.to_string()),
@@ -100,6 +113,39 @@ struct OllamaErrorBody {
     error: String,
 }
 
+/// Parse a single newline-delimited JSON line from an Ollama stream into zero
+/// or more [`StreamChunk`]s. Lines are guaranteed complete by [`line_stream`],
+/// so a JSON object split across network chunks is reassembled before parsing
+/// and multi-byte UTF-8 (e.g. CJK / emoji) is never corrupted.
+fn parse_ndjson_line(line: &str) -> Vec<Result<StreamChunk>> {
+    let line = line.trim();
+    if line.is_empty() {
+        return Vec::new();
+    }
+    let Ok(parsed) = serde_json::from_str::<OllamaStreamChunk>(line) else {
+        return Vec::new();
+    };
+    if parsed.done {
+        vec![Ok(StreamChunk {
+            done: true,
+            finish_reason: Some("stop".to_string()),
+            usage: Some(Usage {
+                prompt_tokens: parsed.prompt_eval_count,
+                completion_tokens: parsed.eval_count,
+                total_tokens: parsed.prompt_eval_count.saturating_add(parsed.eval_count),
+            }),
+            ..Default::default()
+        })]
+    } else if let Some(msg) = parsed.message {
+        vec![Ok(StreamChunk {
+            delta: msg.content,
+            ..Default::default()
+        })]
+    } else {
+        Vec::new()
+    }
+}
+
 #[async_trait]
 impl Provider for OllamaProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
@@ -146,7 +192,7 @@ impl Provider for OllamaProvider {
             usage: Some(Usage {
                 prompt_tokens: parsed.prompt_eval_count,
                 completion_tokens: parsed.eval_count,
-                total_tokens: parsed.prompt_eval_count + parsed.eval_count,
+                total_tokens: parsed.prompt_eval_count.saturating_add(parsed.eval_count),
             }),
             ..Default::default()
         })
@@ -185,51 +231,17 @@ impl Provider for OllamaProvider {
             });
         }
 
-        let stream = resp
+        let byte_stream = resp
             .bytes_stream()
-            .map(|chunk_result| {
-                let bytes = chunk_result.map_err(|e| LlmError::Stream(e.to_string()))?;
-                let text = String::from_utf8_lossy(&bytes);
+            .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
 
-                let mut chunks = Vec::new();
-                // Ollama stream is newline-delimited JSON
-                for line in text.lines() {
-                    let line = line.trim();
-                    if line.is_empty() {
-                        continue;
-                    }
-                    if let Ok(parsed) = serde_json::from_str::<OllamaStreamChunk>(line) {
-                        if parsed.done {
-                            chunks.push(Ok(StreamChunk {
-                                done: true,
-                                finish_reason: Some("stop".to_string()),
-                                usage: Some(Usage {
-                                    prompt_tokens: parsed.prompt_eval_count,
-                                    completion_tokens: parsed.eval_count,
-                                    total_tokens: parsed.prompt_eval_count + parsed.eval_count,
-                                }),
-                                ..Default::default()
-                            }));
-                        } else if let Some(msg) = parsed.message {
-                            chunks.push(Ok(StreamChunk {
-                                delta: msg.content,
-                                ..Default::default()
-                            }));
-                        }
-                    }
-                }
-                if chunks.is_empty() {
-                    chunks.push(Ok(StreamChunk {
-                        done: true,
-                        ..Default::default()
-                    }));
-                }
-                Ok(chunks)
-            })
-            .flat_map(|result| match result {
-                Ok(chunks) => futures::stream::iter(chunks).boxed(),
-                Err(e) => futures::stream::once(async move { Err(e) }).boxed(),
-            });
+        let stream = line_stream(byte_stream).flat_map(|line_result| {
+            let chunks = match line_result {
+                Ok(line) => parse_ndjson_line(&line),
+                Err(e) => vec![Err(e)],
+            };
+            futures::stream::iter(chunks)
+        });
 
         Ok(stream.boxed())
     }

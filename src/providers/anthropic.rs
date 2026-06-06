@@ -11,6 +11,17 @@ use crate::types::{ChatRequest, ChatResponse, Content, ContentPart, StreamChunk,
 
 const DEFAULT_BASE_URL: &str = "https://api.anthropic.com/v1";
 
+/// Build an HTTP client with explicit request/connect timeouts so a stalled
+/// connection can never block a caller indefinitely. Falls back to the default
+/// client if the builder fails (it will not in practice).
+fn build_http_client() -> Client {
+    Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .build()
+        .unwrap_or_else(|_| Client::new())
+}
+
 pub struct AnthropicProvider {
     client: Client,
     api_key: String,
@@ -20,7 +31,7 @@ pub struct AnthropicProvider {
 impl AnthropicProvider {
     pub fn new(config: ProviderConfig) -> Self {
         Self {
-            client: Client::new(),
+            client: build_http_client(),
             api_key: config.api_key,
             base_url: config
                 .base_url
@@ -157,9 +168,14 @@ struct AnthropicResponse {
     usage: Option<AnthropicUsage>,
 }
 
+/// A single content block in a Claude response. Only the text payload is
+/// consumed today; non-text blocks (e.g. `tool_use`) deserialize with `text`
+/// absent (hence `Option`) and are simply skipped instead of causing a
+/// deserialization error, which previously crashed the whole response.
 #[derive(Deserialize)]
 struct AnthropicContent {
-    text: String,
+    #[serde(default)]
+    text: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -268,9 +284,9 @@ impl Provider for AnthropicProvider {
 
         let content = parsed
             .content
-            .first()
-            .map(|c| c.text.clone())
-            .unwrap_or_default();
+            .iter()
+            .filter_map(|c| c.text.as_deref())
+            .collect::<String>();
 
         Ok(ChatResponse {
             content,
@@ -394,5 +410,28 @@ mod tests {
         assert_eq!(v[1]["type"], "image");
         assert_eq!(v[1]["source"]["type"], "url");
         assert_eq!(v[1]["source"]["url"], "https://example.com/cat.png");
+    }
+
+    #[test]
+    fn response_with_non_text_blocks_is_tolerated() {
+        // A response containing a tool_use block (no `text`) must not fail to
+        // deserialize; text blocks are concatenated, others skipped.
+        let raw = serde_json::json!({
+            "content": [
+                { "type": "text", "text": "Hello " },
+                { "type": "tool_use", "id": "t1", "name": "f", "input": {} },
+                { "type": "text", "text": "world" }
+            ],
+            "model": "claude-3-5-sonnet",
+            "usage": { "input_tokens": 1, "output_tokens": 2 }
+        })
+        .to_string();
+        let parsed: AnthropicResponse = serde_json::from_str(&raw).unwrap();
+        let content = parsed
+            .content
+            .iter()
+            .filter_map(|c| c.text.as_deref())
+            .collect::<String>();
+        assert_eq!(content, "Hello world");
     }
 }

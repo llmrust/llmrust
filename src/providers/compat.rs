@@ -15,16 +15,16 @@ use std::time::Duration;
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Content, Message, ResponseFormat, StreamChunk, Tool, ToolCall,
-    ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, FunctionCall, Message, ResponseFormat, StreamChunk, Tool,
+    ToolCall, ToolChoice, Usage,
 };
 
-// ── Defaults ──────────────────────────────────────
+// ── Defaults ────────────────────────────────
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
-// ── Shared request / response types ──────────────────────
+// ── Shared request / response types ─────────────────────
 
 #[derive(Serialize)]
 struct CompChatRequest<'a> {
@@ -145,6 +145,29 @@ struct CompStreamChoice {
 #[derive(Deserialize)]
 struct CompDelta {
     content: Option<String>,
+    #[serde(default)]
+    tool_calls: Option<Vec<CompToolCallDelta>>,
+}
+
+/// A streamed tool-call fragment. OpenAI-compatible servers stream tool calls
+/// incrementally: the first fragment for a given `index` carries the call `id`
+/// and function `name`, and later fragments append `arguments` text.
+#[derive(Deserialize)]
+struct CompToolCallDelta {
+    #[serde(default)]
+    index: usize,
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    function: Option<CompFunctionDelta>,
+}
+
+#[derive(Deserialize)]
+struct CompFunctionDelta {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    arguments: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -157,7 +180,72 @@ struct CompErrorDetail {
     message: String,
 }
 
-// ── HTTP client construction ─────────────────────
+/// Accumulates streamed tool-call fragments across SSE lines. OpenAI-style
+/// streams deliver tool calls as a series of deltas keyed by `index`: the
+/// first delta for an index carries `id` and `name`, later deltas append
+/// `arguments` text. [`ToolCallAccumulator::ingest`] folds each delta in and
+/// [`ToolCallAccumulator::take`] drains the completed calls on the terminal
+/// chunk.
+#[derive(Default)]
+struct ToolCallAccumulator {
+    builders: Vec<ToolCallBuilder>,
+}
+
+#[derive(Default)]
+struct ToolCallBuilder {
+    id: String,
+    name: String,
+    arguments: String,
+}
+
+impl ToolCallAccumulator {
+    fn ingest(&mut self, deltas: &[CompToolCallDelta]) {
+        for delta in deltas {
+            if self.builders.len() <= delta.index {
+                self.builders
+                    .resize_with(delta.index + 1, ToolCallBuilder::default);
+            }
+            let builder = &mut self.builders[delta.index];
+            if let Some(id) = delta.id.as_deref().filter(|s| !s.is_empty()) {
+                builder.id = id.to_string();
+            }
+            if let Some(function) = &delta.function {
+                if let Some(name) = function.name.as_deref().filter(|s| !s.is_empty()) {
+                    builder.name = name.to_string();
+                }
+                if let Some(arguments) = &function.arguments {
+                    builder.arguments.push_str(arguments);
+                }
+            }
+        }
+    }
+
+    fn take(&mut self) -> Option<Vec<ToolCall>> {
+        if self.builders.is_empty() {
+            return None;
+        }
+        let calls: Vec<ToolCall> = self
+            .builders
+            .drain(..)
+            .filter(|b| !b.name.is_empty())
+            .map(|b| ToolCall {
+                id: b.id,
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: b.name,
+                    arguments: b.arguments,
+                },
+            })
+            .collect();
+        if calls.is_empty() {
+            None
+        } else {
+            Some(calls)
+        }
+    }
+}
+
+// ── HTTP client construction ──────────────────────
 
 fn build_http_client() -> Client {
     Client::builder()
@@ -170,14 +258,17 @@ fn build_http_client() -> Client {
 }
 
 /// Parse a single SSE line from an OpenAI-compatible stream into zero or more
-/// [`StreamChunk`]s. Lines are guaranteed complete by [`line_stream`], so a
-/// failed JSON parse here indicates a genuinely malformed payload rather than
-/// a chunk-boundary artifact.
+/// [`StreamChunk`]s, threading a [`ToolCallAccumulator`] so streamed tool-call
+/// fragments can be reassembled across lines. Lines are guaranteed complete by
+/// [`line_stream`], so a failed JSON parse here indicates a genuinely
+/// malformed payload rather than a chunk-boundary artifact.
 ///
 /// A streamed response ends with a chunk carrying a `finish_reason`, optionally
 /// followed by a choices-less chunk carrying only `usage` (when
 /// `stream_options.include_usage` was requested), then a literal `[DONE]`.
-fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
+/// Accumulated tool calls are drained onto the chunk that carries
+/// `finish_reason`.
+fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     let Some(data) = line.strip_prefix("data: ") else {
         return Vec::new();
@@ -198,12 +289,21 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     });
     match parsed.choices.first() {
         Some(choice) => {
+            if let Some(deltas) = &choice.delta.tool_calls {
+                tools.ingest(deltas);
+            }
             let finish_reason = choice.finish_reason.clone();
+            let tool_calls = if finish_reason.is_some() {
+                tools.take()
+            } else {
+                None
+            };
             vec![Ok(StreamChunk {
                 delta: choice.delta.content.clone().unwrap_or_default(),
                 done: finish_reason.is_some(),
                 finish_reason,
                 usage,
+                tool_calls,
             })]
         }
         None => {
@@ -381,13 +481,15 @@ impl Provider for OpenAiCompatibleProvider {
             .bytes_stream()
             .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
 
-        let stream = line_stream(byte_stream).flat_map(|line_result| {
-            let chunks = match line_result {
-                Ok(line) => parse_sse_line(&line),
-                Err(e) => vec![Err(e)],
-            };
-            futures::stream::iter(chunks)
-        });
+        let stream = line_stream(byte_stream)
+            .scan(ToolCallAccumulator::default(), |tools, line_result| {
+                let chunks = match line_result {
+                    Ok(line) => parse_sse_line(tools, &line),
+                    Err(e) => vec![Err(e)],
+                };
+                futures::future::ready(Some(futures::stream::iter(chunks)))
+            })
+            .flatten();
 
         Ok(stream.boxed())
     }
@@ -572,5 +674,42 @@ mod tests {
         assert!(v.get("frequency_penalty").is_none());
         assert!(v.get("logprobs").is_none());
         assert!(v.get("top_logprobs").is_none());
+    }
+
+    #[test]
+    fn stream_accumulates_tool_call_fragments() {
+        let mut tools = ToolCallAccumulator::default();
+        let lines = [
+            r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"get_weather","arguments":"{\"ci"}}]},"finish_reason":null}]}"#,
+            r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"ty\":\"SF\"}"}}]},"finish_reason":null}]}"#,
+            r#"data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}"#,
+        ];
+        let mut final_chunk = None;
+        for line in lines {
+            for chunk in parse_sse_line(&mut tools, line) {
+                final_chunk = Some(chunk.unwrap());
+            }
+        }
+        let chunk = final_chunk.expect("a terminal chunk");
+        assert!(chunk.done);
+        assert_eq!(chunk.finish_reason.as_deref(), Some("tool_calls"));
+        let calls = chunk.tool_calls.expect("tool calls present");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_1");
+        assert_eq!(calls[0].function.name, "get_weather");
+        assert_eq!(calls[0].function.arguments, "{\"city\":\"SF\"}");
+    }
+
+    #[test]
+    fn stream_without_tool_calls_has_none() {
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}]}"#,
+        );
+        let chunk = chunks.into_iter().next().unwrap().unwrap();
+        assert_eq!(chunk.delta, "hi");
+        assert!(chunk.done);
+        assert!(chunk.tool_calls.is_none());
     }
 }

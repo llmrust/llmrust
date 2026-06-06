@@ -140,7 +140,10 @@ struct GeminiToolConfig {
 #[derive(Serialize)]
 struct GeminiFunctionCallingConfig {
     mode: String,
-    #[serde(rename = "allowedFunctionNames", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "allowedFunctionNames",
+        skip_serializing_if = "Option::is_none"
+    )]
     allowed_function_names: Option<Vec<String>>,
 }
 
@@ -655,7 +658,10 @@ mod tests {
         )]);
         let v = serde_json::to_value(&tools).unwrap();
         assert_eq!(v[0]["functionDeclarations"][0]["name"], "get_weather");
-        assert_eq!(v[0]["functionDeclarations"][0]["parameters"]["type"], "object");
+        assert_eq!(
+            v[0]["functionDeclarations"][0]["parameters"]["type"],
+            "object"
+        );
     }
 
     #[test]
@@ -716,7 +722,10 @@ mod tests {
         assert_eq!(v[1]["parts"][0]["functionCall"]["args"]["city"], "SF");
         assert_eq!(v[2]["role"], "user");
         assert_eq!(v[2]["parts"][0]["functionResponse"]["name"], "get_weather");
-        assert_eq!(v[2]["parts"][0]["functionResponse"]["response"]["result"], "sunny");
+        assert_eq!(
+            v[2]["parts"][0]["functionResponse"]["response"]["result"],
+            "sunny"
+        );
     }
 
     #[test]

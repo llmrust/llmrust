@@ -184,7 +184,10 @@ fn to_anthropic_content(content: &Content) -> AnthropicMessageContent {
 /// Build a Claude image source from a URL. `data:` URLs are split into their
 /// media type and base64 payload; everything else becomes a URL source.
 fn anthropic_image_source(url: &str) -> AnthropicImageSource {
-    if let Some((meta, data)) = url.strip_prefix("data:").and_then(|rest| rest.split_once(',')) {
+    if let Some((meta, data)) = url
+        .strip_prefix("data:")
+        .and_then(|rest| rest.split_once(','))
+    {
         let media_type = meta
             .split(';')
             .next()

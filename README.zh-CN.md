@@ -42,7 +42,7 @@ cargo add llmrust
 
 | Feature | 默认 | 说明 |
 |---|---|---|
-| *(无)* | ✅ | LLM 客户端 — 全部提供商、流式、工具调用 |
+| *(无)* | ✅ | LLM 客户端 — 全部提供商 + 流式；工具调用与 JSON 模式支持 OpenAI 兼容提供商 |
 | `proxy` | ❌ | 内置 OpenAI 兼容 HTTP 代理服务器（会引入 `axum`）|
 
 启用代理服务器：
@@ -82,15 +82,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 支持的服务商
 
-| 服务商 | 模型 | 流式 | 状态 |
-|---|---|---|---|
-| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | 稳定 |
-| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | 稳定 |
-| DeepSeek | deepseek-chat, deepseek-coder | ✅ | 稳定 |
-| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | 稳定 |
-| Ollama | llama3.2, qwen2.5 等本地模型 | ✅ | 稳定 |
-| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | 稳定 |
-| OpenRouter | 通过 OpenRouter 访问任意模型 | ✅ | 稳定 |
+| 服务商 | 模型 | 流式 | 工具调用 | 状态 |
+|---|---|---|---|---|
+| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | 稳定 |
+| DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | 稳定 |
+| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | 稳定 |
+| OpenRouter | 通过 OpenRouter 访问任意模型 | ✅ | ✅ | 稳定 |
+| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | 🚧 计划中 (0.2) | 稳定（对话）|
+| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | 🚧 计划中 (0.2) | 稳定（对话）|
+| Ollama | llama3.2, qwen2.5 等本地模型 | ✅ | ➖ | 稳定（对话）|
+
+> **功能支持说明**
+>
+> - **工具调用 / Function calling** 与 **JSON 模式** 目前通过 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）提供。Anthropic 与 Gemini 的原生工具调用正在开发中，计划于 0.2 版本补齐。
+> - 除 `temperature` / `max_tokens` / `top_p` 之外的**采样参数**（如 `stop`、`seed`、`presence_penalty`、`frequency_penalty`、`logprobs`、`n`、`response_format`）目前会发送给 OpenAI 兼容服务商；Anthropic、Gemini、Ollama 当前仅支持核心采样参数。
 
 ## 使用示例
 
@@ -158,6 +163,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ### JSON 模式 & 采样参数
+
+> JSON 模式以及下面的扩展采样参数目前在 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）上生效。
 
 ```rust
 use llmrust::ChatRequest;
@@ -278,8 +285,8 @@ match llm.chat("openai/gpt-4o", "你好").await {
 - [x] Google Gemini、Ollama、Moonshot、OpenRouter
 - [x] HTTP 代理服务器
 - [x] 重试逻辑
-- [x] 工具调用 / Function calling
-- [x] JSON 模式 & 采样参数
+- [x] 工具调用 / Function calling（OpenAI 兼容；Anthropic 与 Gemini 进行中）
+- [x] JSON 模式 & 采样参数（OpenAI 兼容服务商）
 - [ ] Embeddings API
 - [ ] 批量 API
 - [ ] 速率限制

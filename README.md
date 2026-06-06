@@ -42,7 +42,7 @@ cargo add llmrust
 
 | Feature | Default | Description |
 |---|---|---|
-| *(none)* | ✅ | LLM client — all providers, streaming, tool calling |
+| *(none)* | ✅ | LLM client — all providers + streaming; tool calling & JSON mode on OpenAI-compatible providers |
 | `proxy` | ❌ | Built-in OpenAI-compatible HTTP proxy server (adds `axum`) |
 
 Enable the proxy server:
@@ -82,15 +82,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Supported Providers
 
-| Provider | Models | Streaming | Status |
-|---|---|---|---|
-| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | Stable |
-| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | Stable |
-| DeepSeek | deepseek-chat, deepseek-coder | ✅ | Stable |
-| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | Stable |
-| Ollama | llama3.2, qwen2.5, any local model | ✅ | Stable |
-| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | Stable |
-| OpenRouter | any model via OpenRouter | ✅ | Stable |
+| Provider | Models | Streaming | Tool calling | Status |
+|---|---|---|---|---|
+| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | Stable |
+| DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | Stable |
+| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | Stable |
+| OpenRouter | any model via OpenRouter | ✅ | ✅ | Stable |
+| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | 🚧 planned (0.2) | Stable (chat) |
+| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | 🚧 planned (0.2) | Stable (chat) |
+| Ollama | llama3.2, qwen2.5, any local model | ✅ | ➖ | Stable (chat) |
+
+> **Feature support notes**
+>
+> - **Tool calling / function calling** and **JSON mode** are currently wired through the OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter). Native Anthropic and Gemini tool calling is in progress and targeted for 0.2.
+> - **Sampling parameters** beyond `temperature` / `max_tokens` / `top_p` (e.g. `stop`, `seed`, `presence_penalty`, `frequency_penalty`, `logprobs`, `n`, `response_format`) are sent to the OpenAI-compatible providers; Anthropic, Gemini, and Ollama currently honor the core sampling parameters only.
 
 ## Usage Examples
 
@@ -158,6 +163,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ### JSON Mode & Sampling Parameters
+
+> JSON mode and the extended sampling parameters below are currently applied on the OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter).
 
 ```rust
 use llmrust::ChatRequest;
@@ -278,8 +285,8 @@ We have not yet published formal benchmarks. The library adds a thin async layer
 - [x] Google Gemini, Ollama, Moonshot, OpenRouter
 - [x] HTTP proxy server
 - [x] Retry logic
-- [x] Tool-use / Function calling
-- [x] JSON mode & sampling parameters
+- [x] Tool-use / Function calling (OpenAI-compatible; Anthropic & Gemini in progress)
+- [x] JSON mode & sampling parameters (OpenAI-compatible providers)
 - [ ] Embeddings API
 - [ ] Batch API
 - [ ] Rate limiting

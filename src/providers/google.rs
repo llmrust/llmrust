@@ -11,6 +11,17 @@ use crate::types::{ChatRequest, ChatResponse, Content, ContentPart, StreamChunk,
 
 const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 
+/// Build an HTTP client with explicit request/connect timeouts so a stalled
+/// connection can never block a caller indefinitely. Falls back to the default
+/// client if the builder fails (it will not in practice).
+fn build_http_client() -> Client {
+    Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .build()
+        .unwrap_or_else(|_| Client::new())
+}
+
 pub struct GoogleProvider {
     client: Client,
     api_key: String,
@@ -20,7 +31,7 @@ pub struct GoogleProvider {
 impl GoogleProvider {
     pub fn new(config: ProviderConfig) -> Self {
         Self {
-            client: Client::new(),
+            client: build_http_client(),
             api_key: config.api_key,
             base_url: config
                 .base_url
@@ -307,12 +318,15 @@ impl Provider for GoogleProvider {
             generation_config: Some(gen_config),
         };
 
-        let url = format!(
-            "{}/models/{}:generateContent?key={}",
-            self.base_url, req.model, self.api_key
-        );
+        let url = format!("{}/models/{}:generateContent", self.base_url, req.model);
 
-        let resp = self.client.post(&url).json(&body).send().await?;
+        let resp = self
+            .client
+            .post(&url)
+            .header("x-goog-api-key", &self.api_key)
+            .json(&body)
+            .send()
+            .await?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -366,11 +380,17 @@ impl Provider for GoogleProvider {
         };
 
         let url = format!(
-            "{}/models/{}:streamGenerateContent?alt=sse&key={}",
-            self.base_url, req.model, self.api_key
+            "{}/models/{}:streamGenerateContent?alt=sse",
+            self.base_url, req.model
         );
 
-        let resp = self.client.post(&url).json(&body).send().await?;
+        let resp = self
+            .client
+            .post(&url)
+            .header("x-goog-api-key", &self.api_key)
+            .json(&body)
+            .send()
+            .await?;
 
         let status = resp.status();
         if !status.is_success() {

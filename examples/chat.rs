@@ -176,9 +176,7 @@ async fn run_repl(
         io::stderr().flush().ok();
 
         if stream {
-            let mut req = ChatRequest::new("", "");
-            req.messages = history.clone();
-            req.stream = true;
+            let req = ChatRequest::from_messages("", history.clone()).with_stream();
             let mut s = match llm.stream_with(model, req).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -204,8 +202,7 @@ async fn run_repl(
             println!();
             history.push(Message::assistant(&full));
         } else {
-            let mut req = ChatRequest::new("", "");
-            req.messages = history.clone();
+            let req = ChatRequest::from_messages("", history.clone());
             match llm.chat_with(model, req).await {
                 Ok(resp) => {
                     println!("{}", resp.content);

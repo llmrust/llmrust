@@ -404,26 +404,26 @@ impl ResponseFormat {
 
 /// A chat completion request.
 ///
-/// This struct is marked `#[non_exhaustive]`: always construct it with
-/// [`ChatRequest::new`] + builder methods, or include `..Default::default()`
-/// when using struct-literal syntax. This allows new optional fields to be
-/// added in minor releases without breaking downstream code.
+/// This struct is marked `#[non_exhaustive]`, which lets new optional fields
+/// be added in minor releases without breaking downstream code. Because of
+/// that attribute, code **outside this crate** cannot build a `ChatRequest`
+/// with struct-literal syntax (not even with `..Default::default()`); use the
+/// constructors and builder methods below instead. Public fields may still be
+/// assigned directly after construction.
 ///
 /// # Example
 ///
 /// ```rust
-/// use llmrust::ChatRequest;
+/// use llmrust::{ChatRequest, Message};
 ///
-/// // Recommended: builder pattern
+/// // Builder pattern for a single prompt
 /// let req = ChatRequest::new("gpt-4o", "Hello!")
 ///     .with_temperature(0.7)
 ///     .with_max_tokens(1000);
 ///
-/// // Also valid: struct literal with catch-all
-/// let req = ChatRequest {
-///     model: String::new(),
-///     ..Default::default()
-/// };
+/// // From a pre-built message list (multi-turn / multimodal)
+/// let req = ChatRequest::from_messages("gpt-4o", vec![Message::user("Hello!")])
+///     .with_stream();
 /// ```
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
@@ -465,6 +465,25 @@ impl ChatRequest {
             messages: vec![Message::user(prompt)],
             ..Default::default()
         }
+    }
+
+    /// Create a request from a pre-built list of messages.
+    ///
+    /// Useful for multi-turn conversations or multimodal messages, where the
+    /// caller assembles the [`Message`] list directly instead of passing a
+    /// single text prompt.
+    pub fn from_messages(model: impl Into<String>, messages: Vec<Message>) -> Self {
+        Self {
+            model: model.into(),
+            messages,
+            ..Default::default()
+        }
+    }
+
+    /// Replace the request's message list.
+    pub fn with_messages(mut self, messages: Vec<Message>) -> Self {
+        self.messages = messages;
+        self
     }
 
     /// Add a system message at the beginning.
@@ -691,5 +710,15 @@ mod tests {
         assert_eq!(req.frequency_penalty, Some(-0.3));
         assert_eq!(req.logprobs, Some(true));
         assert_eq!(req.top_logprobs, Some(5));
+    }
+
+    #[test]
+    fn chat_request_from_messages_sets_messages() {
+        let req = ChatRequest::from_messages("gpt-4o", vec![Message::user("hi")]);
+        assert_eq!(req.model, "gpt-4o");
+        assert_eq!(req.messages.len(), 1);
+
+        let req = req.with_messages(vec![Message::user("a"), Message::user("b")]);
+        assert_eq!(req.messages.len(), 2);
     }
 }

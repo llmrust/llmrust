@@ -20,17 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Message::system("你是一个 Rust 专家，回答必须用中文，且不超过两句话。"),
         Message::user("你好，我叫小明。"),
     ];
-    let req = ChatRequest {
-        model: String::new(),
-        messages: history.clone(),
-        temperature: None,
-        max_tokens: None,
-        stream: false,
-        top_p: None,
-        tools: None,
-        tool_choice: None,
-        ..Default::default()
-    };
+    let req = ChatRequest::from_messages("", history.clone());
     let resp1 = llm.chat_with(&model, req).await?;
     println!("assistant: {}", resp1.content);
     println!("tokens: {:?}\n", resp1.usage);
@@ -39,17 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut history = history;
     history.push(Message::assistant(&resp1.content));
     history.push(Message::user("我下一步该学什么？"));
-    let req = ChatRequest {
-        model: String::new(),
-        messages: history.clone(),
-        temperature: None,
-        max_tokens: None,
-        stream: false,
-        top_p: None,
-        tools: None,
-        tool_choice: None,
-        ..Default::default()
-    };
+    let req = ChatRequest::from_messages("", history.clone());
     let resp2 = llm.chat_with(&model, req).await?;
     println!("assistant: {}", resp2.content);
     println!("tokens: {:?}\n", resp2.usage);
@@ -57,17 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Turn 3: streaming with full history ===");
     history.push(Message::assistant(&resp2.content));
     history.push(Message::user("能用一句话总结吗？"));
-    let req = ChatRequest {
-        model: String::new(),
-        messages: history.clone(),
-        temperature: None,
-        max_tokens: None,
-        stream: true,
-        top_p: None,
-        tools: None,
-        tool_choice: None,
-        ..Default::default()
-    };
+    let req = ChatRequest::from_messages("", history.clone()).with_stream();
 
     use futures::StreamExt;
     let mut s = llm.stream_with(&model, req).await?;

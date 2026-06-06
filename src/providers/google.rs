@@ -225,6 +225,36 @@ struct GeminiStreamCandidate {
     finish_reason: Option<String>,
 }
 
+/// Accumulates streamed `functionCall` parts from a Gemini stream. Gemini emits
+/// each tool call as a complete `functionCall` part (name + args), so the
+/// accumulator simply collects them and drains the set once a `finishReason`
+/// arrives.
+#[derive(Default)]
+struct GeminiToolAccumulator {
+    calls: Vec<ToolCall>,
+}
+
+impl GeminiToolAccumulator {
+    fn push(&mut self, name: String, args: serde_json::Value) {
+        self.calls.push(ToolCall {
+            id: name.clone(),
+            call_type: "function".to_string(),
+            function: FunctionCall {
+                name,
+                arguments: args.to_string(),
+            },
+        });
+    }
+
+    fn take(&mut self) -> Option<Vec<ToolCall>> {
+        if self.calls.is_empty() {
+            None
+        } else {
+            Some(std::mem::take(&mut self.calls))
+        }
+    }
+}
+
 /// Map an llmrust role to a Gemini `role`. Gemini only understands `user` and
 /// `model`; system prompts are delivered separately via `systemInstruction`,
 /// so a `System` message has no inline role here. Tool results are folded back
@@ -407,14 +437,16 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
 }
 
 /// Parse a single SSE line from a Gemini stream into zero or more
-/// [`StreamChunk`]s. Lines are guaranteed complete by [`line_stream`].
+/// [`StreamChunk`]s, threading a [`GeminiToolAccumulator`] so streamed
+/// `functionCall` parts can be surfaced as tool calls. Lines are guaranteed
+/// complete by [`line_stream`].
 ///
 /// Completion is keyed off the real `finishReason` field rather than guessing
 /// based on an empty chunk. The trailing event may carry only `usageMetadata`,
-/// which is surfaced as a usage-only chunk. Streaming surfaces text deltas
-/// only; tool calls are not reconstructed from the stream, so callers that
-/// need tool calls should use the non-streaming `chat` path.
-fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
+/// which is surfaced as a usage-only chunk. Text is surfaced as deltas;
+/// `functionCall` parts are accumulated and surfaced as `tool_calls` on the
+/// terminal chunk, with `finish_reason` normalized to `tool_calls`.
+fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     let Some(data) = line.strip_prefix("data: ") else {
         return Vec::new();
@@ -439,16 +471,27 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
         return Vec::new();
     };
 
-    let finish_reason = candidate.finish_reason;
-    let text = candidate
-        .content
-        .map(|c| {
-            c.parts
-                .into_iter()
-                .filter_map(|p| p.text)
-                .collect::<String>()
-        })
-        .unwrap_or_default();
+    let mut finish_reason = candidate.finish_reason;
+    let mut text = String::new();
+    if let Some(content) = candidate.content {
+        for part in content.parts {
+            if let Some(t) = part.text {
+                text.push_str(&t);
+            }
+            if let Some(fc) = part.function_call {
+                tools.push(fc.name, fc.args);
+            }
+        }
+    }
+
+    let tool_calls = if finish_reason.is_some() {
+        tools.take()
+    } else {
+        None
+    };
+    if tool_calls.is_some() {
+        finish_reason = Some("tool_calls".to_string());
+    }
 
     let mut chunks = Vec::new();
     if !text.is_empty() {
@@ -462,6 +505,7 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
             done: finish_reason.is_some(),
             finish_reason,
             usage,
+            tool_calls,
             ..Default::default()
         }));
     }
@@ -603,13 +647,15 @@ impl Provider for GoogleProvider {
             .bytes_stream()
             .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
 
-        let stream = line_stream(byte_stream).flat_map(|line_result| {
-            let chunks = match line_result {
-                Ok(line) => parse_sse_line(&line),
-                Err(e) => vec![Err(e)],
-            };
-            futures::stream::iter(chunks)
-        });
+        let stream = line_stream(byte_stream)
+            .scan(GeminiToolAccumulator::default(), |tools, line_result| {
+                let chunks = match line_result {
+                    Ok(line) => parse_sse_line(tools, &line),
+                    Err(e) => vec![Err(e)],
+                };
+                futures::future::ready(Some(futures::stream::iter(chunks)))
+            })
+            .flatten();
 
         Ok(stream.boxed())
     }
@@ -734,5 +780,46 @@ mod tests {
         assert_eq!(v["temp"], 21);
         let v = tool_result_response("plain text");
         assert_eq!(v["result"], "plain text");
+    }
+
+    #[test]
+    fn stream_surfaces_function_call_as_tool_calls() {
+        let mut tools = GeminiToolAccumulator::default();
+        let lines = [
+            r#"data: {"candidates":[{"content":{"parts":[{"functionCall":{"name":"get_weather","args":{"city":"SF"}}}]}}]}"#,
+            r#"data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":2,"totalTokenCount":3}}"#,
+        ];
+        let mut final_chunk = None;
+        for line in lines {
+            for chunk in parse_sse_line(&mut tools, line) {
+                final_chunk = Some(chunk.unwrap());
+            }
+        }
+        let chunk = final_chunk.expect("a terminal chunk");
+        assert!(chunk.done);
+        assert_eq!(chunk.finish_reason.as_deref(), Some("tool_calls"));
+        let calls = chunk.tool_calls.expect("tool calls present");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].function.name, "get_weather");
+        assert_eq!(calls[0].function.arguments, "{\"city\":\"SF\"}");
+    }
+
+    #[test]
+    fn stream_text_chunk_has_no_tool_calls() {
+        let mut tools = GeminiToolAccumulator::default();
+        let mut chunks = Vec::new();
+        for line in [
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"Hello"}]}}]}"#,
+            r#"data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}]}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                chunks.push(chunk.unwrap());
+            }
+        }
+        assert_eq!(chunks[0].delta, "Hello");
+        let last = chunks.last().unwrap();
+        assert!(last.done);
+        assert_eq!(last.finish_reason.as_deref(), Some("STOP"));
+        assert!(last.tool_calls.is_none());
     }
 }

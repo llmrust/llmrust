@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
@@ -340,24 +341,114 @@ struct AnthropicErrorDetail {
 struct AnthropicStreamEvent {
     #[serde(rename = "type")]
     event_type: String,
+    #[serde(default)]
+    index: Option<usize>,
+    #[serde(default)]
+    content_block: Option<AnthropicStreamContentBlock>,
+    #[serde(default)]
     delta: Option<AnthropicDelta>,
+}
+
+/// The `content_block` of a `content_block_start` event. A `tool_use` block
+/// opens a streamed tool call and carries its `id` and `name`.
+#[derive(Deserialize)]
+struct AnthropicStreamContentBlock {
+    #[serde(rename = "type", default)]
+    block_type: Option<String>,
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct AnthropicDelta {
+    #[serde(rename = "type", default)]
+    delta_type: Option<String>,
+    #[serde(default)]
     text: Option<String>,
+    #[serde(default)]
+    partial_json: Option<String>,
+    #[serde(default)]
     stop_reason: Option<String>,
 }
 
+/// Accumulates streamed `tool_use` blocks from an Anthropic stream, keyed by
+/// their stream `index`. A `content_block_start` opens a call (id + name), the
+/// JSON arguments arrive as `input_json_delta` fragments on
+/// `content_block_delta`, and the call set is drained on `message_delta`.
+#[derive(Default)]
+struct AnthropicToolAccumulator {
+    builders: BTreeMap<usize, AnthropicToolBuilder>,
+}
+
+#[derive(Default)]
+struct AnthropicToolBuilder {
+    id: String,
+    name: String,
+    arguments: String,
+}
+
+impl AnthropicToolAccumulator {
+    fn start(&mut self, index: usize, id: String, name: String) {
+        self.builders.insert(
+            index,
+            AnthropicToolBuilder {
+                id,
+                name,
+                arguments: String::new(),
+            },
+        );
+    }
+
+    fn push_arguments(&mut self, index: usize, partial_json: &str) {
+        if let Some(builder) = self.builders.get_mut(&index) {
+            builder.arguments.push_str(partial_json);
+        }
+    }
+
+    fn take(&mut self) -> Option<Vec<ToolCall>> {
+        if self.builders.is_empty() {
+            return None;
+        }
+        let calls: Vec<ToolCall> = std::mem::take(&mut self.builders)
+            .into_values()
+            .filter(|b| !b.name.is_empty())
+            .map(|b| {
+                let arguments = if b.arguments.is_empty() {
+                    "{}".to_string()
+                } else {
+                    b.arguments
+                };
+                ToolCall {
+                    id: b.id,
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: b.name,
+                        arguments,
+                    },
+                }
+            })
+            .collect();
+        if calls.is_empty() {
+            None
+        } else {
+            Some(calls)
+        }
+    }
+}
+
 /// Parse a single SSE line from an Anthropic stream into zero or more
-/// [`StreamChunk`]s. Lines are guaranteed complete by [`line_stream`].
+/// [`StreamChunk`]s, threading an [`AnthropicToolAccumulator`] so streamed
+/// `tool_use` blocks can be reconstructed across events. Lines are guaranteed
+/// complete by [`line_stream`].
 ///
 /// Anthropic delivers the stop reason on the `message_delta` event rather than
-/// `message_stop`, so completion is keyed off that event's `stop_reason`.
-/// Streaming surfaces text deltas only; reconstructing tool calls from the
-/// stream is not yet supported, so callers that need tool calls should use the
-/// non-streaming `chat` path.
-fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
+/// `message_stop`, so completion is keyed off that event's `stop_reason`. Text
+/// is surfaced as deltas on `content_block_delta`; `tool_use` blocks are
+/// reconstructed from `content_block_start` + `input_json_delta` fragments and
+/// surfaced as `tool_calls` on the terminal chunk.
+fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     let Some(data) = line.strip_prefix("data: ") else {
         return Vec::new();
@@ -366,21 +457,53 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
         return Vec::new();
     };
     match event.event_type.as_str() {
+        "content_block_start" => {
+            if let Some(block) = event.content_block {
+                if block.block_type.as_deref() == Some("tool_use") {
+                    tools.start(
+                        event.index.unwrap_or(0),
+                        block.id.unwrap_or_default(),
+                        block.name.unwrap_or_default(),
+                    );
+                }
+            }
+            Vec::new()
+        }
         "content_block_delta" => {
-            let text = event.delta.and_then(|d| d.text).unwrap_or_default();
-            vec![Ok(StreamChunk {
-                delta: text,
-                ..Default::default()
-            })]
+            let index = event.index.unwrap_or(0);
+            let Some(delta) = event.delta else {
+                return Vec::new();
+            };
+            match delta.delta_type.as_deref() {
+                Some("input_json_delta") => {
+                    if let Some(partial) = delta.partial_json {
+                        tools.push_arguments(index, &partial);
+                    }
+                    Vec::new()
+                }
+                _ => {
+                    let text = delta.text.unwrap_or_default();
+                    if text.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![Ok(StreamChunk {
+                            delta: text,
+                            ..Default::default()
+                        })]
+                    }
+                }
+            }
         }
         "message_delta" => {
             let finish_reason = event
                 .delta
                 .and_then(|d| d.stop_reason)
                 .map(normalize_stop_reason);
+            let tool_calls = tools.take();
             vec![Ok(StreamChunk {
                 done: finish_reason.is_some(),
                 finish_reason,
+                tool_calls,
                 ..Default::default()
             })]
         }
@@ -513,13 +636,15 @@ impl Provider for AnthropicProvider {
             .bytes_stream()
             .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
 
-        let stream = line_stream(byte_stream).flat_map(|line_result| {
-            let chunks = match line_result {
-                Ok(line) => parse_sse_line(&line),
-                Err(e) => vec![Err(e)],
-            };
-            futures::stream::iter(chunks)
-        });
+        let stream = line_stream(byte_stream)
+            .scan(AnthropicToolAccumulator::default(), |tools, line_result| {
+                let chunks = match line_result {
+                    Ok(line) => parse_sse_line(tools, &line),
+                    Err(e) => vec![Err(e)],
+                };
+                futures::future::ready(Some(futures::stream::iter(chunks)))
+            })
+            .flatten();
 
         Ok(stream.boxed())
     }
@@ -696,5 +821,49 @@ mod tests {
         assert_eq!(v[2]["content"][0]["type"], "tool_result");
         assert_eq!(v[2]["content"][0]["tool_use_id"], "toolu_1");
         assert_eq!(v[2]["content"][0]["content"], "sunny");
+    }
+
+    #[test]
+    fn stream_reconstructs_tool_calls() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let lines = [
+            r#"data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"get_weather"}}"#,
+            r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"city\":"}}"#,
+            r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"\"SF\"}"}}"#,
+            r#"data: {"type":"message_delta","delta":{"stop_reason":"tool_use"}}"#,
+        ];
+        let mut final_chunk = None;
+        for line in lines {
+            for chunk in parse_sse_line(&mut tools, line) {
+                final_chunk = Some(chunk.unwrap());
+            }
+        }
+        let chunk = final_chunk.expect("a terminal chunk");
+        assert!(chunk.done);
+        assert_eq!(chunk.finish_reason.as_deref(), Some("tool_calls"));
+        let calls = chunk.tool_calls.expect("tool calls present");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "toolu_1");
+        assert_eq!(calls[0].function.name, "get_weather");
+        assert_eq!(calls[0].function.arguments, "{\"city\":\"SF\"}");
+    }
+
+    #[test]
+    fn stream_text_deltas_have_no_tool_calls() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let mut chunks = Vec::new();
+        for line in [
+            r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}"#,
+            r#"data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                chunks.push(chunk.unwrap());
+            }
+        }
+        assert_eq!(chunks[0].delta, "Hello");
+        let last = chunks.last().unwrap();
+        assert!(last.done);
+        assert_eq!(last.finish_reason.as_deref(), Some("end_turn"));
+        assert!(last.tool_calls.is_none());
     }
 }

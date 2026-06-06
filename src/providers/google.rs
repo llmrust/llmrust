@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, StreamChunk, Tool, ToolCall,
-    ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, ResponseFormat, StreamChunk,
+    Tool, ToolCall, ToolChoice, Usage,
 };
 
 const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
@@ -114,6 +114,24 @@ struct GeminiGenerationConfig {
     max_output_tokens: Option<u64>,
     #[serde(rename = "topP", skip_serializing_if = "Option::is_none")]
     top_p: Option<f64>,
+    #[serde(rename = "stopSequences", skip_serializing_if = "Option::is_none")]
+    stop_sequences: Option<Vec<String>>,
+    #[serde(rename = "candidateCount", skip_serializing_if = "Option::is_none")]
+    candidate_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    seed: Option<i64>,
+    #[serde(rename = "presencePenalty", skip_serializing_if = "Option::is_none")]
+    presence_penalty: Option<f64>,
+    #[serde(rename = "frequencyPenalty", skip_serializing_if = "Option::is_none")]
+    frequency_penalty: Option<f64>,
+    #[serde(rename = "responseMimeType", skip_serializing_if = "Option::is_none")]
+    response_mime_type: Option<String>,
+    #[serde(rename = "responseSchema", skip_serializing_if = "Option::is_none")]
+    response_schema: Option<serde_json::Value>,
+    #[serde(rename = "responseLogprobs", skip_serializing_if = "Option::is_none")]
+    response_logprobs: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    logprobs: Option<u32>,
 }
 
 /// A Gemini tool is a bundle of function declarations.
@@ -354,13 +372,46 @@ fn to_gemini_tool_config(choice: &ToolChoice) -> GeminiToolConfig {
     }
 }
 
-/// Wrap a tool result string into the JSON object Gemini's `functionResponse`
-/// expects. If the result already parses as a JSON object it is used directly;
-/// otherwise it is wrapped as `{ "result": <text> }`.
-fn tool_result_response(content: &str) -> serde_json::Value {
-    match serde_json::from_str::<serde_json::Value>(content) {
-        Ok(value @ serde_json::Value::Object(_)) => value,
-        _ => serde_json::json!({ "result": content }),
+/// Map an llmrust [`ResponseFormat`] to Gemini's `responseMimeType` /
+/// `responseSchema`. JSON mode sets the mime type to `application/json`; a JSON
+/// schema additionally sets `responseSchema` (the bare schema is extracted from
+/// the OpenAI-style `{name, schema, strict}` wrapper when present).
+fn gemini_response_format(format: &ResponseFormat) -> (Option<String>, Option<serde_json::Value>) {
+    match format {
+        ResponseFormat::Text => (None, None),
+        ResponseFormat::JsonObject => (Some("application/json".to_string()), None),
+        ResponseFormat::JsonSchema { json_schema } => {
+            let schema = json_schema
+                .get("schema")
+                .cloned()
+                .unwrap_or_else(|| json_schema.clone());
+            (Some("application/json".to_string()), Some(schema))
+        }
+    }
+}
+
+/// Build Gemini's `generationConfig` from the request's sampling parameters.
+/// All fields are optional and omitted when unset, so the wire format stays
+/// backward compatible. OpenAI-style `logprobs` (enable) + `top_logprobs`
+/// (count) map to Gemini's `responseLogprobs` + `logprobs`.
+fn build_generation_config(req: &ChatRequest) -> GeminiGenerationConfig {
+    let (response_mime_type, response_schema) = match &req.response_format {
+        Some(format) => gemini_response_format(format),
+        None => (None, None),
+    };
+    GeminiGenerationConfig {
+        temperature: req.temperature,
+        max_output_tokens: req.max_tokens,
+        top_p: req.top_p,
+        stop_sequences: req.stop.clone(),
+        candidate_count: req.n,
+        seed: req.seed,
+        presence_penalty: req.presence_penalty,
+        frequency_penalty: req.frequency_penalty,
+        response_mime_type,
+        response_schema,
+        response_logprobs: req.logprobs,
+        logprobs: req.top_logprobs,
     }
 }
 
@@ -512,25 +563,18 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
     chunks
 }
 
-impl GoogleProvider {
-    /// Build the Gemini request body shared by `chat` and `stream`.
-    fn build_body<'a>(
-        &self,
-        req: &ChatRequest,
-        contents: &'a [GeminiContent],
-        system_instruction: Option<GeminiContent>,
-    ) -> GeminiRequest<'a> {
-        GeminiRequest {
-            contents,
-            system_instruction,
-            generation_config: Some(GeminiGenerationConfig {
-                temperature: req.temperature,
-                max_output_tokens: req.max_tokens,
-                top_p: req.top_p,
-            }),
-            tools: req.tools.as_deref().map(to_gemini_tools),
-            tool_config: req.tool_choice.as_ref().map(to_gemini_tool_config),
-        }
+/// Build the Gemini request body shared by `chat` and `stream`.
+fn build_body<'a>(
+    req: &ChatRequest,
+    contents: &'a [GeminiContent],
+    system_instruction: Option<GeminiContent>,
+) -> GeminiRequest<'a> {
+    GeminiRequest {
+        contents,
+        system_instruction,
+        generation_config: Some(build_generation_config(req)),
+        tools: req.tools.as_deref().map(to_gemini_tools),
+        tool_config: req.tool_choice.as_ref().map(to_gemini_tool_config),
     }
 }
 
@@ -538,7 +582,7 @@ impl GoogleProvider {
 impl Provider for GoogleProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
         let (contents, system_instruction) = build_contents(req);
-        let body = self.build_body(req, &contents, system_instruction);
+        let body = build_body(req, &contents, system_instruction);
 
         let url = format!("{}/models/{}:generateContent", self.base_url, req.model);
 
@@ -616,7 +660,7 @@ impl Provider for GoogleProvider {
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         let (contents, system_instruction) = build_contents(req);
-        let body = self.build_body(req, &contents, system_instruction);
+        let body = build_body(req, &contents, system_instruction);
 
         let url = format!(
             "{}/models/{}:streamGenerateContent?alt=sse",
@@ -724,6 +768,64 @@ mod tests {
         let cfg = to_gemini_tool_config(&ToolChoice::none());
         let v = serde_json::to_value(&cfg).unwrap();
         assert_eq!(v["functionCallingConfig"]["mode"], "NONE");
+    }
+
+    #[test]
+    fn generation_config_forwards_sampling_params() {
+        let req = ChatRequest::new("gemini", "hi")
+            .with_stop(vec!["END".to_string()])
+            .with_seed(42)
+            .with_n(2)
+            .with_presence_penalty(0.5)
+            .with_frequency_penalty(-0.3)
+            .with_top_p(0.9);
+        let cfg = build_generation_config(&req);
+        let v = serde_json::to_value(&cfg).unwrap();
+        assert_eq!(v["stopSequences"][0], "END");
+        assert_eq!(v["seed"], 42);
+        assert_eq!(v["candidateCount"], 2);
+        assert_eq!(v["presencePenalty"], 0.5);
+        assert_eq!(v["frequencyPenalty"], -0.3);
+        assert_eq!(v["topP"], 0.9);
+    }
+
+    #[test]
+    fn json_mode_sets_response_mime_type() {
+        let req = ChatRequest::new("gemini", "hi").with_json_mode();
+        let cfg = build_generation_config(&req);
+        let v = serde_json::to_value(&cfg).unwrap();
+        assert_eq!(v["responseMimeType"], "application/json");
+        assert!(v.get("responseSchema").is_none());
+    }
+
+    #[test]
+    fn json_schema_sets_response_schema() {
+        let schema = serde_json::json!({"name": "person", "schema": {"type": "object"}});
+        let req = ChatRequest::new("gemini", "hi")
+            .with_response_format(ResponseFormat::json_schema(schema));
+        let cfg = build_generation_config(&req);
+        let v = serde_json::to_value(&cfg).unwrap();
+        assert_eq!(v["responseMimeType"], "application/json");
+        assert_eq!(v["responseSchema"]["type"], "object");
+    }
+
+    #[test]
+    fn logprobs_map_to_gemini_fields() {
+        let req = ChatRequest::new("gemini", "hi")
+            .with_logprobs(true)
+            .with_top_logprobs(5);
+        let cfg = build_generation_config(&req);
+        let v = serde_json::to_value(&cfg).unwrap();
+        assert_eq!(v["responseLogprobs"], true);
+        assert_eq!(v["logprobs"], 5);
+    }
+
+    #[test]
+    fn empty_generation_config_omits_all_optional_fields() {
+        let req = ChatRequest::new("gemini", "hi");
+        let cfg = build_generation_config(&req);
+        let v = serde_json::to_value(&cfg).unwrap();
+        assert!(v.as_object().unwrap().is_empty());
     }
 
     #[test]

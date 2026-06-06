@@ -7,7 +7,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
-use crate::types::{ChatRequest, ChatResponse, Content, ContentPart, StreamChunk, Usage};
+use crate::types::{
+    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, StreamChunk, Tool, ToolCall,
+    ToolChoice, Usage,
+};
 
 const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -45,10 +48,14 @@ impl GoogleProvider {
 #[derive(Serialize)]
 struct GeminiRequest<'a> {
     contents: &'a [GeminiContent],
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "systemInstruction", skip_serializing_if = "Option::is_none")]
     system_instruction: Option<GeminiContent>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "generationConfig", skip_serializing_if = "Option::is_none")]
     generation_config: Option<GeminiGenerationConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<GeminiTool>>,
+    #[serde(rename = "toolConfig", skip_serializing_if = "Option::is_none")]
+    tool_config: Option<GeminiToolConfig>,
 }
 
 #[derive(Serialize)]
@@ -58,7 +65,8 @@ struct GeminiContent {
     role: Option<String>,
 }
 
-/// A Gemini content part is either text or inline binary data (e.g. an image).
+/// A Gemini content part: text, inline binary (e.g. an image), an outgoing
+/// `functionCall` (assistant tool call), or a `functionResponse` (tool result).
 #[derive(Serialize)]
 #[serde(untagged)]
 enum GeminiPart {
@@ -68,6 +76,14 @@ enum GeminiPart {
     InlineData {
         #[serde(rename = "inlineData")]
         inline_data: GeminiInlineData,
+    },
+    FunctionCall {
+        #[serde(rename = "functionCall")]
+        function_call: GeminiFunctionCallOut,
+    },
+    FunctionResponse {
+        #[serde(rename = "functionResponse")]
+        function_response: GeminiFunctionResponseOut,
     },
 }
 
@@ -79,17 +95,61 @@ struct GeminiInlineData {
 }
 
 #[derive(Serialize)]
+struct GeminiFunctionCallOut {
+    name: String,
+    args: serde_json::Value,
+}
+
+#[derive(Serialize)]
+struct GeminiFunctionResponseOut {
+    name: String,
+    response: serde_json::Value,
+}
+
+#[derive(Serialize)]
 struct GeminiGenerationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "maxOutputTokens", skip_serializing_if = "Option::is_none")]
     max_output_tokens: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "topP", skip_serializing_if = "Option::is_none")]
     top_p: Option<f64>,
+}
+
+/// A Gemini tool is a bundle of function declarations.
+#[derive(Serialize)]
+struct GeminiTool {
+    #[serde(rename = "functionDeclarations")]
+    function_declarations: Vec<GeminiFunctionDeclaration>,
+}
+
+#[derive(Serialize)]
+struct GeminiFunctionDeclaration {
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    parameters: serde_json::Value,
+}
+
+#[derive(Serialize)]
+struct GeminiToolConfig {
+    #[serde(rename = "functionCallingConfig")]
+    function_calling_config: GeminiFunctionCallingConfig,
+}
+
+#[derive(Serialize)]
+struct GeminiFunctionCallingConfig {
+    mode: String,
+    #[serde(
+        rename = "allowedFunctionNames",
+        skip_serializing_if = "Option::is_none"
+    )]
+    allowed_function_names: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
 struct GeminiResponse {
+    #[serde(default)]
     candidates: Vec<GeminiCandidate>,
     #[serde(default, rename = "modelVersion")]
     model_version: String,
@@ -100,16 +160,32 @@ struct GeminiResponse {
 #[derive(Deserialize)]
 struct GeminiCandidate {
     content: GeminiContentResponse,
+    #[serde(default, rename = "finishReason")]
+    finish_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct GeminiContentResponse {
+    #[serde(default)]
     parts: Vec<GeminiPartResponse>,
 }
 
+/// A response part. `text` and `functionCall` are mutually exclusive in
+/// practice; both are optional so any part shape deserializes cleanly (a
+/// required `text` field previously crashed on `functionCall`-only parts).
 #[derive(Deserialize)]
 struct GeminiPartResponse {
-    text: String,
+    #[serde(default)]
+    text: Option<String>,
+    #[serde(default, rename = "functionCall")]
+    function_call: Option<GeminiFunctionCallResponse>,
+}
+
+#[derive(Deserialize)]
+struct GeminiFunctionCallResponse {
+    name: String,
+    #[serde(default)]
+    args: serde_json::Value,
 }
 
 #[derive(Deserialize)]
@@ -211,11 +287,58 @@ fn gemini_inline_from_url(url: &str) -> Option<GeminiInlineData> {
     })
 }
 
+/// Map llmrust tools to a single Gemini tool carrying all function
+/// declarations.
+fn to_gemini_tools(tools: &[Tool]) -> Vec<GeminiTool> {
+    vec![GeminiTool {
+        function_declarations: tools
+            .iter()
+            .map(|t| GeminiFunctionDeclaration {
+                name: t.function.name.clone(),
+                description: t.function.description.clone(),
+                parameters: t.function.parameters.clone(),
+            })
+            .collect(),
+    }]
+}
+
+/// Map llmrust [`ToolChoice`] to Gemini's `functionCallingConfig`. `auto`
+/// stays `AUTO`, `required` becomes `ANY`, `none` becomes `NONE`, and a forced
+/// function becomes `ANY` restricted to that single name.
+fn to_gemini_tool_config(choice: &ToolChoice) -> GeminiToolConfig {
+    let (mode, allowed) = match choice {
+        ToolChoice::Mode(mode) => match mode.as_str() {
+            "required" => ("ANY".to_string(), None),
+            "none" => ("NONE".to_string(), None),
+            _ => ("AUTO".to_string(), None),
+        },
+        ToolChoice::Function { function, .. } => {
+            ("ANY".to_string(), Some(vec![function.name.clone()]))
+        }
+    };
+    GeminiToolConfig {
+        function_calling_config: GeminiFunctionCallingConfig {
+            mode,
+            allowed_function_names: allowed,
+        },
+    }
+}
+
+/// Wrap a tool result string into the JSON object Gemini's `functionResponse`
+/// expects. If the result already parses as a JSON object it is used directly;
+/// otherwise it is wrapped as `{ "result": <text> }`.
+fn tool_result_response(content: &str) -> serde_json::Value {
+    match serde_json::from_str::<serde_json::Value>(content) {
+        Ok(value @ serde_json::Value::Object(_)) => value,
+        _ => serde_json::json!({ "result": content }),
+    }
+}
+
 /// Build Gemini `contents` (conversation turns) and an optional
 /// `systemInstruction` from the request messages. System messages are
-/// collected into the dedicated `systemInstruction` field instead of being
-/// mislabeled as `user` turns (which would break Gemini's strict user/model
-/// alternation).
+/// collected into the dedicated `systemInstruction` field; assistant tool
+/// calls become `functionCall` parts on a `model` turn; tool results become
+/// `functionResponse` parts on a `user` turn.
 fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiContent>) {
     let mut contents = Vec::new();
     let mut system_parts: Vec<GeminiPart> = Vec::new();
@@ -225,6 +348,45 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
             crate::types::Role::System => system_parts.push(GeminiPart::Text {
                 text: msg.content.as_text(),
             }),
+            crate::types::Role::Tool => {
+                let name = msg
+                    .name
+                    .clone()
+                    .or_else(|| msg.tool_call_id.clone())
+                    .unwrap_or_default();
+                contents.push(GeminiContent {
+                    parts: vec![GeminiPart::FunctionResponse {
+                        function_response: GeminiFunctionResponseOut {
+                            name,
+                            response: tool_result_response(&msg.content.as_text()),
+                        },
+                    }],
+                    role: Some("user".to_string()),
+                });
+            }
+            crate::types::Role::Assistant
+                if msg.tool_calls.as_ref().is_some_and(|c| !c.is_empty()) =>
+            {
+                let mut parts = Vec::new();
+                let text = msg.content.as_text();
+                if !text.is_empty() {
+                    parts.push(GeminiPart::Text { text });
+                }
+                for call in msg.tool_calls.as_ref().unwrap() {
+                    let args: serde_json::Value = serde_json::from_str(&call.function.arguments)
+                        .unwrap_or_else(|_| serde_json::json!({}));
+                    parts.push(GeminiPart::FunctionCall {
+                        function_call: GeminiFunctionCallOut {
+                            name: call.function.name.clone(),
+                            args,
+                        },
+                    });
+                }
+                contents.push(GeminiContent {
+                    parts,
+                    role: Some("model".to_string()),
+                });
+            }
             _ => contents.push(GeminiContent {
                 parts: content_to_parts(&msg.content),
                 role: map_gemini_role(&msg.role),
@@ -248,9 +410,10 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
 /// [`StreamChunk`]s. Lines are guaranteed complete by [`line_stream`].
 ///
 /// Completion is keyed off the real `finishReason` field rather than guessing
-/// based on an empty chunk, which previously truncated responses whenever a
-/// keep-alive or unparsed chunk arrived. The trailing event may carry only
-/// `usageMetadata`, which is surfaced as a usage-only chunk.
+/// based on an empty chunk. The trailing event may carry only `usageMetadata`,
+/// which is surfaced as a usage-only chunk. Streaming surfaces text deltas
+/// only; tool calls are not reconstructed from the stream, so callers that
+/// need tool calls should use the non-streaming `chat` path.
 fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     let Some(data) = line.strip_prefix("data: ") else {
@@ -279,8 +442,12 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     let finish_reason = candidate.finish_reason;
     let text = candidate
         .content
-        .and_then(|c| c.parts.into_iter().next())
-        .map(|p| p.text)
+        .map(|c| {
+            c.parts
+                .into_iter()
+                .filter_map(|p| p.text)
+                .collect::<String>()
+        })
         .unwrap_or_default();
 
     let mut chunks = Vec::new();
@@ -301,22 +468,33 @@ fn parse_sse_line(line: &str) -> Vec<Result<StreamChunk>> {
     chunks
 }
 
+impl GoogleProvider {
+    /// Build the Gemini request body shared by `chat` and `stream`.
+    fn build_body<'a>(
+        &self,
+        req: &ChatRequest,
+        contents: &'a [GeminiContent],
+        system_instruction: Option<GeminiContent>,
+    ) -> GeminiRequest<'a> {
+        GeminiRequest {
+            contents,
+            system_instruction,
+            generation_config: Some(GeminiGenerationConfig {
+                temperature: req.temperature,
+                max_output_tokens: req.max_tokens,
+                top_p: req.top_p,
+            }),
+            tools: req.tools.as_deref().map(to_gemini_tools),
+            tool_config: req.tool_choice.as_ref().map(to_gemini_tool_config),
+        }
+    }
+}
+
 #[async_trait]
 impl Provider for GoogleProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
         let (contents, system_instruction) = build_contents(req);
-
-        let gen_config = GeminiGenerationConfig {
-            temperature: req.temperature,
-            max_output_tokens: req.max_tokens,
-            top_p: req.top_p,
-        };
-
-        let body = GeminiRequest {
-            contents: &contents,
-            system_instruction,
-            generation_config: Some(gen_config),
-        };
+        let body = self.build_body(req, &contents, system_instruction);
 
         let url = format!("{}/models/{}:generateContent", self.base_url, req.model);
 
@@ -345,39 +523,56 @@ impl Provider for GoogleProvider {
             .await
             .map_err(|e| LlmError::Parse(e.to_string()))?;
 
-        let content = parsed
-            .candidates
-            .first()
-            .and_then(|c| c.content.parts.first())
-            .map(|p| p.text.clone())
-            .unwrap_or_default();
+        let usage = parsed.usage_metadata.map(|u| Usage {
+            prompt_tokens: u.prompt_token_count,
+            completion_tokens: u.candidates_token_count,
+            total_tokens: u.total_token_count,
+        });
+
+        let (content, tool_calls, finish_reason) = match parsed.candidates.into_iter().next() {
+            Some(candidate) => {
+                let candidate_finish = candidate.finish_reason;
+                let mut text = String::new();
+                let mut calls: Vec<ToolCall> = Vec::new();
+                for part in candidate.content.parts {
+                    if let Some(t) = part.text {
+                        text.push_str(&t);
+                    }
+                    if let Some(fc) = part.function_call {
+                        let arguments = fc.args.to_string();
+                        calls.push(ToolCall {
+                            id: fc.name.clone(),
+                            call_type: "function".to_string(),
+                            function: FunctionCall {
+                                name: fc.name,
+                                arguments,
+                            },
+                        });
+                    }
+                }
+                let tool_calls = if calls.is_empty() { None } else { Some(calls) };
+                let finish_reason = if tool_calls.is_some() {
+                    Some("tool_calls".to_string())
+                } else {
+                    candidate_finish
+                };
+                (text, tool_calls, finish_reason)
+            }
+            None => (String::new(), None, None),
+        };
 
         Ok(ChatResponse {
             content,
             model: parsed.model_version,
-            usage: parsed.usage_metadata.map(|u| Usage {
-                prompt_tokens: u.prompt_token_count,
-                completion_tokens: u.candidates_token_count,
-                total_tokens: u.total_token_count,
-            }),
-            ..Default::default()
+            usage,
+            tool_calls,
+            finish_reason,
         })
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         let (contents, system_instruction) = build_contents(req);
-
-        let gen_config = GeminiGenerationConfig {
-            temperature: req.temperature,
-            max_output_tokens: req.max_tokens,
-            top_p: req.top_p,
-        };
-
-        let body = GeminiRequest {
-            contents: &contents,
-            system_instruction,
-            generation_config: Some(gen_config),
-        };
+        let body = self.build_body(req, &contents, system_instruction);
 
         let url = format!(
             "{}/models/{}:streamGenerateContent?alt=sse",
@@ -423,6 +618,7 @@ impl Provider for GoogleProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::Message;
 
     #[test]
     fn text_content_maps_to_text_part() {
@@ -449,8 +645,94 @@ mod tests {
             "https://example.com/cat.png",
         )]));
         let v = serde_json::to_value(&parts).unwrap();
-        // Only the empty-text padding remains; no inlineData part.
         assert_eq!(v.as_array().unwrap().len(), 1);
         assert_eq!(v[0]["text"], "");
+    }
+
+    #[test]
+    fn function_declarations_serialize() {
+        let tools = to_gemini_tools(&[Tool::function(
+            "get_weather",
+            Some("w".to_string()),
+            serde_json::json!({"type": "object"}),
+        )]);
+        let v = serde_json::to_value(&tools).unwrap();
+        assert_eq!(v[0]["functionDeclarations"][0]["name"], "get_weather");
+        assert_eq!(
+            v[0]["functionDeclarations"][0]["parameters"]["type"],
+            "object"
+        );
+    }
+
+    #[test]
+    fn tool_choice_maps_to_gemini_mode() {
+        let cfg = to_gemini_tool_config(&ToolChoice::required());
+        let v = serde_json::to_value(&cfg).unwrap();
+        assert_eq!(v["functionCallingConfig"]["mode"], "ANY");
+
+        let cfg = to_gemini_tool_config(&ToolChoice::function("f"));
+        let v = serde_json::to_value(&cfg).unwrap();
+        assert_eq!(v["functionCallingConfig"]["mode"], "ANY");
+        assert_eq!(v["functionCallingConfig"]["allowedFunctionNames"][0], "f");
+
+        let cfg = to_gemini_tool_config(&ToolChoice::none());
+        let v = serde_json::to_value(&cfg).unwrap();
+        assert_eq!(v["functionCallingConfig"]["mode"], "NONE");
+    }
+
+    #[test]
+    fn response_function_call_part_parsed() {
+        let raw = serde_json::json!({
+            "candidates": [{
+                "content": { "parts": [{ "functionCall": { "name": "get_weather", "args": {"city": "SF"} } }] },
+                "finishReason": "STOP"
+            }],
+            "modelVersion": "gemini-1.5-pro"
+        })
+        .to_string();
+        let parsed: GeminiResponse = serde_json::from_str(&raw).unwrap();
+        let part = &parsed.candidates[0].content.parts[0];
+        assert!(part.text.is_none());
+        let fc = part.function_call.as_ref().unwrap();
+        assert_eq!(fc.name, "get_weather");
+        assert_eq!(fc.args["city"], "SF");
+    }
+
+    #[test]
+    fn tool_messages_build_function_call_and_response() {
+        let req = ChatRequest::from_messages(
+            "gemini",
+            vec![
+                Message::user("weather?"),
+                Message::assistant_tool_calls(vec![ToolCall {
+                    id: "get_weather".to_string(),
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: "get_weather".to_string(),
+                        arguments: "{\"city\":\"SF\"}".to_string(),
+                    },
+                }]),
+                Message::tool("get_weather", "sunny"),
+            ],
+        );
+        let (contents, _system) = build_contents(&req);
+        let v = serde_json::to_value(&contents).unwrap();
+        assert_eq!(v[1]["role"], "model");
+        assert_eq!(v[1]["parts"][0]["functionCall"]["name"], "get_weather");
+        assert_eq!(v[1]["parts"][0]["functionCall"]["args"]["city"], "SF");
+        assert_eq!(v[2]["role"], "user");
+        assert_eq!(v[2]["parts"][0]["functionResponse"]["name"], "get_weather");
+        assert_eq!(
+            v[2]["parts"][0]["functionResponse"]["response"]["result"],
+            "sunny"
+        );
+    }
+
+    #[test]
+    fn json_tool_result_is_passed_through_as_object() {
+        let v = tool_result_response("{\"temp\": 21}");
+        assert_eq!(v["temp"], 21);
+        let v = tool_result_response("plain text");
+        assert_eq!(v["result"], "plain text");
     }
 }

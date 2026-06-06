@@ -42,7 +42,7 @@ cargo add llmrust
 
 | Feature | 默认 | 说明 |
 |---|---|---|
-| *(无)* | ✅ | LLM 客户端 — 全部提供商 + 流式；工具调用与 JSON 模式支持 OpenAI 兼容提供商 |
+| *(无)* | ✅ | LLM 客户端 — 全部提供商 + 流式；工具调用支持 OpenAI 兼容、Anthropic、Gemini 提供商（非流式）；JSON 模式支持 OpenAI 兼容提供商 |
 | `proxy` | ❌ | 内置 OpenAI 兼容 HTTP 代理服务器（会引入 `axum`）|
 
 启用代理服务器：
@@ -88,13 +88,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | 稳定 |
 | Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | 稳定 |
 | OpenRouter | 通过 OpenRouter 访问任意模型 | ✅ | ✅ | 稳定 |
-| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | 🚧 计划中 (0.2) | 稳定（对话）|
-| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | 🚧 计划中 (0.2) | 稳定（对话）|
+| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | ✅（对话）| 稳定 |
+| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | ✅（对话）| 稳定 |
 | Ollama | llama3.2, qwen2.5 等本地模型 | ✅ | ➖ | 稳定（对话）|
 
 > **功能支持说明**
 >
-> - **工具调用 / Function calling** 与 **JSON 模式** 目前通过 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）提供。Anthropic 与 Gemini 的原生工具调用正在开发中，计划于 0.2 版本补齐。
+> - **工具调用 / Function calling** 同时支持 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）以及 Anthropic、Gemini 的原生工具调用。工具调用通过非流式的 `chat` 路径返回；流式路径会输出文本增量与 `finish_reason`，但暂不从流式分片中重建工具调用。
+> - **JSON 模式** 目前通过 OpenAI 兼容服务商提供。
 > - 除 `temperature` / `max_tokens` / `top_p` 之外的**采样参数**（如 `stop`、`seed`、`presence_penalty`、`frequency_penalty`、`logprobs`、`n`、`response_format`）目前会发送给 OpenAI 兼容服务商；Anthropic、Gemini、Ollama 当前仅支持核心采样参数。
 
 ## 使用示例
@@ -137,6 +138,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!();
 
     Ok(())
+}
+```
+
+### 工具调用
+
+> 工具调用支持 OpenAI 兼容服务商，以及 Anthropic、Gemini 原生工具调用，均通过非流式的 `chat` 路径。先在请求上提供工具定义，再把返回的 `tool_calls` 结果作为 `tool` 消息回填到下一轮对话。
+
+```rust
+use llmrust::{ChatRequest, Message, Tool, ToolChoice};
+use serde_json::json;
+
+let tools = vec![Tool::function(
+    "get_weather",
+    Some("获取某城市的当前天气".to_string()),
+    json!({
+        "type": "object",
+        "properties": { "city": { "type": "string" } },
+        "required": ["city"]
+    }),
+)];
+
+let request = ChatRequest::from_messages(
+    "claude-3-5-sonnet-20241022",
+    vec![Message::user("旧金山现在天气怎么样？")],
+)
+.with_tools(tools)
+.with_tool_choice(ToolChoice::auto());
+
+let response = llm.chat_with("anthropic/claude-3-5-sonnet-20241022", request).await?;
+if let Some(calls) = &response.tool_calls {
+    for call in calls {
+        println!("调用 {} -> {}", call.function.name, call.function.arguments);
+    }
 }
 ```
 
@@ -285,8 +319,9 @@ match llm.chat("openai/gpt-4o", "你好").await {
 - [x] Google Gemini、Ollama、Moonshot、OpenRouter
 - [x] HTTP 代理服务器
 - [x] 重试逻辑
-- [x] 工具调用 / Function calling（OpenAI 兼容；Anthropic 与 Gemini 进行中）
+- [x] 工具调用 / Function calling（OpenAI 兼容、Anthropic、Gemini；非流式）
 - [x] JSON 模式 & 采样参数（OpenAI 兼容服务商）
+- [ ] 流式工具调用（从流式分片中重建工具调用）
 - [ ] Embeddings API
 - [ ] 批量 API
 - [ ] 速率限制

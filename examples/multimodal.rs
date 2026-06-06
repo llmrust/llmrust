@@ -26,17 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         image_url,
     )];
 
-    let req = ChatRequest {
-        model: String::new(),
-        messages,
-        temperature: None,
-        max_tokens: Some(300),
-        stream: false,
-        top_p: None,
-        tools: None,
-        tool_choice: None,
-        ..Default::default()
-    };
+    let req = ChatRequest::from_messages("", messages).with_max_tokens(300);
 
     let resp = llm.chat_with("openai/gpt-4o", req).await?;
     println!("{}", resp.content);

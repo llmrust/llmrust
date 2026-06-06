@@ -39,17 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut messages = vec![Message::user("What's the weather in San Francisco?")];
 
     // 2. First round: let the model decide whether to call the tool.
-    let req = ChatRequest {
-        model: String::new(),
-        messages: messages.clone(),
-        temperature: None,
-        max_tokens: None,
-        stream: false,
-        top_p: None,
-        tools: Some(vec![weather_tool.clone()]),
-        tool_choice: Some(ToolChoice::auto()),
-        ..Default::default()
-    };
+    let req = ChatRequest::from_messages("", messages.clone())
+        .with_tools(vec![weather_tool.clone()])
+        .with_tool_choice(ToolChoice::auto());
     let resp = llm.chat_with(&model, req).await?;
 
     let Some(tool_calls) = resp.tool_calls else {
@@ -70,17 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // 4. Second round: the model produces a natural-language answer.
-    let req = ChatRequest {
-        model: String::new(),
-        messages,
-        temperature: None,
-        max_tokens: None,
-        stream: false,
-        top_p: None,
-        tools: Some(vec![weather_tool]),
-        tool_choice: None,
-        ..Default::default()
-    };
+    let req = ChatRequest::from_messages("", messages).with_tools(vec![weather_tool]);
     let final_resp = llm.chat_with(&model, req).await?;
     println!("\nFinal answer: {}", final_resp.content);
 

@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Multi-turn tool loops round-trip correctly: assistant tool calls and tool
     results are re-encoded as Claude `tool_use` / `tool_result` blocks and
     Gemini `functionCall` / `functionResponse` parts.
+- Streaming tool calls: the streaming path (`stream`) now reconstructs tool
+  calls from streamed chunks and surfaces them on the terminal `StreamChunk` via
+  `StreamChunk.tool_calls`, with `finish_reason` set to `tool_calls`. Supported
+  on the OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter),
+  Anthropic, and Gemini. Ollama is unaffected (no tool support).
 - `ChatRequest::from_messages` / `ChatRequest::with_messages` constructors for building a request from a prepared message list.
 - `CHANGELOG.md`.
 
@@ -26,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Anthropic and Google Gemini HTTP clients now use explicit request (120s) and connect (30s) timeouts, matching the OpenAI-compatible client, so a stalled connection can no longer hang a call indefinitely. The Ollama client enforces only a connection timeout, since local generation can legitimately be long-running.
 - Google Gemini now passes the API key via the `x-goog-api-key` header instead of the URL query string, avoiding key leakage in request logs.
-- README (English and 中文) provider/feature matrix now reflects actual per-provider capabilities: tool calling is supported on OpenAI-compatible, Anthropic, and Gemini providers (non-streaming); JSON mode and the extended sampling parameters remain OpenAI-compatible only.
+- README (English and 中文) provider/feature matrix now reflects actual per-provider capabilities: tool calling is supported on OpenAI-compatible, Anthropic, and Gemini providers (both `chat` and `stream`); JSON mode and the extended sampling parameters remain OpenAI-compatible only.
 
 ### Fixed
 
@@ -38,9 +43,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Stray `test.txt` from the repository root.
-
-### Known limitations
-
-- Tool calls are surfaced from the non-streaming `chat` path only. The streaming
-  path (`stream`) emits text deltas and `finish_reason`, but does not yet
-  reconstruct tool calls from streamed chunks for any provider.

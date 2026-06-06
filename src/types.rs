@@ -369,6 +369,12 @@ pub struct StreamChunk {
     /// chunk, and only for providers that report usage while streaming.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
+    /// Tool calls reconstructed from the stream, surfaced on the terminal
+    /// chunk for providers that support streaming tool calls. `None` for
+    /// chunks that carry no tool calls (and for providers, such as Ollama,
+    /// that do not reconstruct tool calls while streaming).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
 }
 
 /// The format the model's response must take, mirroring OpenAI's
@@ -720,5 +726,30 @@ mod tests {
 
         let req = req.with_messages(vec![Message::user("a"), Message::user("b")]);
         assert_eq!(req.messages.len(), 2);
+    }
+
+    #[test]
+    fn stream_chunk_serializes_tool_calls_only_when_present() {
+        let empty = StreamChunk::default();
+        let v = serde_json::to_value(&empty).unwrap();
+        assert!(v.get("tool_calls").is_none());
+
+        let chunk = StreamChunk {
+            done: true,
+            finish_reason: Some("tool_calls".to_string()),
+            tool_calls: Some(vec![ToolCall {
+                id: "call_1".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "get_weather".to_string(),
+                    arguments: "{\"city\":\"SF\"}".to_string(),
+                },
+            }]),
+            ..Default::default()
+        };
+        let v = serde_json::to_value(&chunk).unwrap();
+        assert_eq!(v["tool_calls"][0]["id"], "call_1");
+        assert_eq!(v["tool_calls"][0]["function"]["name"], "get_weather");
+        assert_eq!(v["finish_reason"], "tool_calls");
     }
 }

@@ -176,17 +176,9 @@ async fn run_repl(
         io::stderr().flush().ok();
 
         if stream {
-            let req = ChatRequest {
-                model: String::new(),
-                messages: history.clone(),
-                temperature: None,
-                max_tokens: None,
-                stream: true,
-                top_p: None,
-                tools: None,
-                tool_choice: None,
-                ..Default::default()
-            };
+            let mut req = ChatRequest::new("", "");
+            req.messages = history.clone();
+            req.stream = true;
             let mut s = match llm.stream_with(model, req).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -212,17 +204,8 @@ async fn run_repl(
             println!();
             history.push(Message::assistant(&full));
         } else {
-            let req = ChatRequest {
-                model: String::new(),
-                messages: history.clone(),
-                temperature: None,
-                max_tokens: None,
-                stream: false,
-                top_p: None,
-                tools: None,
-                tool_choice: None,
-                ..Default::default()
-            };
+            let mut req = ChatRequest::new("", "");
+            req.messages = history.clone();
             match llm.chat_with(model, req).await {
                 Ok(resp) => {
                     println!("{}", resp.content);

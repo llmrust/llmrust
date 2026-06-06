@@ -26,17 +26,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         image_url,
     )];
 
-    let req = ChatRequest {
-        model: String::new(),
-        messages,
-        temperature: None,
-        max_tokens: Some(300),
-        stream: false,
-        top_p: None,
-        tools: None,
-        tool_choice: None,
-        ..Default::default()
-    };
+    // `ChatRequest` is `#[non_exhaustive]`, so downstream crates build it via
+    // its constructor + public fields rather than a struct literal.
+    let mut req = ChatRequest::new("", "");
+    req.messages = messages;
+    req.max_tokens = Some(300);
 
     let resp = llm.chat_with("openai/gpt-4o", req).await?;
     println!("{}", resp.content);

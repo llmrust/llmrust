@@ -339,6 +339,47 @@ pub struct Usage {
     pub total_tokens: u64,
 }
 
+/// Log-probability information for the generated tokens, returned when
+/// `logprobs` / `top_logprobs` were requested and the provider reports them.
+///
+/// Mirrors OpenAI's `choices[].logprobs` object; other providers (e.g. Gemini)
+/// are normalized into this same shape.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct LogProbs {
+    /// Per-token log probabilities for the generated message content, in order.
+    #[serde(default)]
+    pub content: Vec<TokenLogProb>,
+}
+
+/// Log-probability data for a single generated token, optionally including the
+/// most-likely alternative tokens at that position.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct TokenLogProb {
+    /// The token text.
+    pub token: String,
+    /// The natural-log probability of this token.
+    pub logprob: f64,
+    /// The token's raw UTF-8 bytes, when reported by the provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bytes: Option<Vec<u8>>,
+    /// The most-likely alternative tokens at this position, when `top_logprobs`
+    /// was requested.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub top_logprobs: Vec<TopLogProb>,
+}
+
+/// A single alternative token and its log probability at one position.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct TopLogProb {
+    /// The token text.
+    pub token: String,
+    /// The natural-log probability of this token.
+    pub logprob: f64,
+    /// The token's raw UTF-8 bytes, when reported by the provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bytes: Option<Vec<u8>>,
+}
+
 /// A complete chat completion response.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ChatResponse {
@@ -352,6 +393,10 @@ pub struct ChatResponse {
     /// `"tool_calls"`), when reported.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<String>,
+    /// Log probabilities for the generated tokens, when requested via
+    /// `logprobs` / `top_logprobs` and reported by the provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<LogProbs>,
 }
 
 /// A single chunk from a streaming response.
@@ -751,5 +796,41 @@ mod tests {
         assert_eq!(v["tool_calls"][0]["id"], "call_1");
         assert_eq!(v["tool_calls"][0]["function"]["name"], "get_weather");
         assert_eq!(v["finish_reason"], "tool_calls");
+    }
+
+    #[test]
+    fn chat_response_serializes_logprobs_only_when_present() {
+        let resp = ChatResponse {
+            content: "Hi".to_string(),
+            model: "gpt-4o".to_string(),
+            ..Default::default()
+        };
+        let v = serde_json::to_value(&resp).unwrap();
+        assert!(v.get("logprobs").is_none());
+
+        let resp = ChatResponse {
+            content: "Hi".to_string(),
+            model: "gpt-4o".to_string(),
+            logprobs: Some(LogProbs {
+                content: vec![TokenLogProb {
+                    token: "Hi".to_string(),
+                    logprob: -0.25,
+                    bytes: Some(vec![72, 105]),
+                    top_logprobs: vec![TopLogProb {
+                        token: "Hi".to_string(),
+                        logprob: -0.25,
+                        bytes: Some(vec![72, 105]),
+                    }],
+                }],
+            }),
+            ..Default::default()
+        };
+        let v = serde_json::to_value(&resp).unwrap();
+        assert_eq!(v["logprobs"]["content"][0]["token"], "Hi");
+        assert_eq!(v["logprobs"]["content"][0]["logprob"], -0.25);
+        assert_eq!(
+            v["logprobs"]["content"][0]["top_logprobs"][0]["token"],
+            "Hi"
+        );
     }
 }

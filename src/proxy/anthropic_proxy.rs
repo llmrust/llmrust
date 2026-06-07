@@ -16,12 +16,12 @@ use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, Message,
-    StreamChunk, Tool, ToolCall, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, Message, StreamChunk, Tool,
+    ToolCall, ToolChoice, Usage,
 };
 use crate::LlmError;
 
-use super::{AppState, generate_id};
+use super::{generate_id, AppState};
 
 // ── Anthropic API types (request) ──────────────────────
 
@@ -119,13 +119,8 @@ pub struct AnthropicToolResultBlock {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AnthropicImageSource {
-    Base64 {
-        media_type: String,
-        data: String,
-    },
-    Url {
-        url: String,
-    },
+    Base64 { media_type: String, data: String },
+    Url { url: String },
 }
 
 /// Tool definition in Anthropic format.
@@ -277,12 +272,18 @@ pub fn convert_request(req: &AnthropicRequest) -> Result<ChatRequest, String> {
 
                         // Emit each tool_result as a separate tool message
                         for block in blocks {
-                            if let AnthropicContentBlock::ToolResult { tool_use_id, content } = block {
+                            if let AnthropicContentBlock::ToolResult {
+                                tool_use_id,
+                                content,
+                            } = block
+                            {
                                 let text = match content {
                                     AnthropicToolResultContent::Text(t) => t.clone(),
-                                    AnthropicToolResultContent::Blocks(bs) => {
-                                        bs.iter().map(|b| b.text.as_str()).collect::<Vec<_>>().join("")
-                                    }
+                                    AnthropicToolResultContent::Blocks(bs) => bs
+                                        .iter()
+                                        .map(|b| b.text.as_str())
+                                        .collect::<Vec<_>>()
+                                        .join(""),
                                 };
                                 messages.push(Message::tool(tool_use_id.as_str(), text));
                             }
@@ -368,9 +369,7 @@ pub fn convert_request(req: &AnthropicRequest) -> Result<ChatRequest, String> {
 
 /// Convert Anthropic content blocks to ContentParts.
 #[allow(dead_code)]
-fn blocks_to_content_parts(
-    blocks: &[AnthropicContentBlock],
-) -> Result<Vec<ContentPart>, String> {
+fn blocks_to_content_parts(blocks: &[AnthropicContentBlock]) -> Result<Vec<ContentPart>, String> {
     let mut parts = Vec::new();
     for block in blocks {
         match block {
@@ -405,9 +404,7 @@ pub fn build_response(resp: ChatResponse, id: &str) -> AnthropicResponse {
     let mut content: Vec<AnthropicResponseBlock> = Vec::new();
 
     if !resp.content.is_empty() {
-        content.push(AnthropicResponseBlock::Text {
-            text: resp.content,
-        });
+        content.push(AnthropicResponseBlock::Text { text: resp.content });
     }
 
     if let Some(tool_calls) = &resp.tool_calls {
@@ -537,10 +534,7 @@ impl AnthropicStreamState {
         }
 
         let has_text = !chunk.delta.is_empty();
-        let has_tools = chunk
-            .tool_calls
-            .as_ref()
-            .is_some_and(|c| !c.is_empty());
+        let has_tools = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
 
         // Close text block before tool calls
         if has_tools && self.in_text_block {
@@ -649,7 +643,13 @@ impl AnthropicStreamState {
             }
 
             // If no content was emitted at all, emit an empty text block
-            if !self.started || (!has_text && !has_tools && self.tool_block_index == 0 && self.text_block_index == 0 && events.is_empty()) {
+            if !self.started
+                || (!has_text
+                    && !has_tools
+                    && self.tool_block_index == 0
+                    && self.text_block_index == 0
+                    && events.is_empty())
+            {
                 events.push(Self::sse_event(
                     "content_block_start",
                     &serde_json::json!({
@@ -693,7 +693,10 @@ impl AnthropicStreamState {
                 .to_string(),
             ));
 
-            events.push(Self::sse_event("message_stop", "{\"type\":\"message_stop\"}"));
+            events.push(Self::sse_event(
+                "message_stop",
+                "{\"type\":\"message_stop\"}",
+            ));
             self.done_emitted = true;
         }
 
@@ -725,7 +728,10 @@ impl AnthropicStreamState {
             })
             .to_string(),
         ));
-        events.push(Self::sse_event("message_stop", "{\"type\":\"message_stop\"}"));
+        events.push(Self::sse_event(
+            "message_stop",
+            "{\"type\":\"message_stop\"}",
+        ));
         self.done_emitted = true;
         events
     }
@@ -743,10 +749,7 @@ pub fn build_stream_response(
         // Drain pending events first
         if !state.pending_events.is_empty() {
             let event = state.pending_events.remove(0);
-            return Some((
-                Ok::<_, std::convert::Infallible>(Bytes::from(event)),
-                state,
-            ));
+            return Some((Ok::<_, std::convert::Infallible>(Bytes::from(event)), state));
         }
 
         // Pull next chunk from inner stream
@@ -755,10 +758,7 @@ pub fn build_stream_response(
                 let events = state.process_chunk(chunk);
                 if events.is_empty() {
                     // No events produced, recurse to get next chunk
-                    Some((
-                        Ok(Bytes::from("")),
-                        state,
-                    ))
+                    Some((Ok(Bytes::from("")), state))
                 } else {
                     let first = events[0].clone();
                     state.pending_events = events[1..].to_vec();
@@ -867,9 +867,7 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
 
     let id = generate_id();
     match provider.stream(&req).await {
-        Ok(inner_stream) => {
-            build_stream_response(inner_stream, id, model_name.to_string())
-        }
+        Ok(inner_stream) => build_stream_response(inner_stream, id, model_name.to_string()),
         Err(e) => anthropic_error_from_llm_error(e),
     }
 }
@@ -1141,7 +1139,10 @@ mod tests {
         };
         let resp = build_response(chat_resp, "msg_3");
         assert_eq!(resp.content.len(), 2);
-        assert!(matches!(&resp.content[0], AnthropicResponseBlock::Text { .. }));
+        assert!(matches!(
+            &resp.content[0],
+            AnthropicResponseBlock::Text { .. }
+        ));
         assert!(matches!(
             &resp.content[1],
             AnthropicResponseBlock::ToolUse { .. }
@@ -1216,11 +1217,8 @@ mod tests {
     #[tokio::test]
     async fn stream_state_handles_tool_calls() {
         let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
-        let mut state = AnthropicStreamState::new(
-            empty_stream,
-            "msg_tc".to_string(),
-            "test-model".to_string(),
-        );
+        let mut state =
+            AnthropicStreamState::new(empty_stream, "msg_tc".to_string(), "test-model".to_string());
 
         // Terminal chunk with tool calls (no preceding text)
         let chunk = StreamChunk {

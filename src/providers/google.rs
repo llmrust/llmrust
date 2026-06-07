@@ -335,6 +335,17 @@ fn gemini_inline_from_url(url: &str) -> Option<GeminiInlineData> {
     })
 }
 
+/// Convert a tool-result string into the JSON object Gemini's `functionResponse`
+/// expects. A payload that already parses as a JSON object is passed through
+/// unchanged; anything else (plain text, or a non-object JSON value) is wrapped
+/// as `{"result": <text>}`.
+fn tool_result_response(text: &str) -> serde_json::Value {
+    match serde_json::from_str::<serde_json::Value>(text) {
+        Ok(value @ serde_json::Value::Object(_)) => value,
+        _ => serde_json::json!({ "result": text }),
+    }
+}
+
 /// Map llmrust tools to a single Gemini tool carrying all function
 /// declarations.
 fn to_gemini_tools(tools: &[Tool]) -> Vec<GeminiTool> {

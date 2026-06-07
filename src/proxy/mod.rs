@@ -1,5 +1,9 @@
 //! HTTP proxy server that exposes llmrust as an OpenAI-compatible API.
 //!
+//! Supports both **OpenAI** (`/v1/chat/completions`) and **Anthropic**
+//! (`/v1/messages`) protocols, so any SDK client can talk to any registered
+//! provider through automatic format conversion.
+//!
 //! # Usage
 //!
 //! ```rust,no_run
@@ -39,6 +43,8 @@ use axum::{
 use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
+
+mod anthropic_proxy;
 
 use crate::{ChatRequest, Content, LlmError, LmrsClient, Message, Role};
 
@@ -176,6 +182,7 @@ pub struct AppState {
 ///
 /// Routes:
 /// - `POST /v1/chat/completions` — OpenAI-compatible chat endpoint
+/// - `POST /v1/messages` — Anthropic Messages API endpoint
 /// - `GET /health` — health check (not rate-limited, no auth)
 ///
 /// CORS is **permissive** by default (all origins allowed). Tighten this in
@@ -184,6 +191,7 @@ pub fn router(llm: Arc<LmrsClient>) -> Router {
     let state = AppState { llm };
     Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
+        .route("/v1/messages", post(anthropic_proxy::handle_messages))
         .route("/health", get(health_check))
         .layer(CorsLayer::permissive())
         .with_state(state)
@@ -204,6 +212,7 @@ pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router 
     let token = expected_token.clone();
     Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
+        .route("/v1/messages", post(anthropic_proxy::handle_messages))
         .route("/health", get(health_check))
         .with_state(state)
         .layer(from_fn(move |req, next| {

@@ -95,6 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 > **Feature support notes**
 >
 > - **Tool calling / function calling** is supported on the OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter) and natively on Anthropic and Gemini, on both the non-streaming `chat` path and the streaming `stream` path (streamed tool calls are reconstructed and surfaced as `StreamChunk.tool_calls` on the terminal chunk).
+> - The OpenAI-compatible proxy accepts both modern `tools` / `tool_choice` and legacy `functions` / `function_call` request fields, normalizing them to llmrust's unified tool model.
 > - **JSON mode / structured outputs** are wired through the OpenAI-compatible providers and mapped to Gemini's `responseMimeType` / `responseSchema`.
 > - **Sampling and request metadata parameters** beyond `temperature` / `max_tokens` / `top_p` (e.g. `stop`, `seed`, `presence_penalty`, `frequency_penalty`, `logprobs`, `n`, `response_format`, `parallel_tool_calls`, `service_tier`, `store`, `metadata`, `user`) are sent to OpenAI-compatible providers and mapped where Gemini has native equivalents. Anthropic and Ollama currently honor a smaller provider-native subset.
 

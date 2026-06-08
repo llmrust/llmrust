@@ -47,8 +47,8 @@ use tower_http::cors::{Any, CorsLayer};
 mod anthropic_proxy;
 
 use crate::{
-    ChatRequest, Content, LlmError, LmrsClient, LogProbs, Message, ResponseFormat, Role, Tool,
-    ToolCall, ToolChoice,
+    ChatRequest, Content, FunctionDef, LlmError, LmrsClient, LogProbs, Message, ResponseFormat,
+    Role, Tool, ToolCall, ToolChoice,
 };
 
 // ── ID generation ────────────────────────────
@@ -88,6 +88,14 @@ pub struct ProxyChatRequest {
     /// How the model should choose which tool to call.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<ToolChoice>,
+    /// Legacy OpenAI function definitions. Converted to modern `tools`
+    /// internally when `tools` is not provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub functions: Option<Vec<FunctionDef>>,
+    /// Legacy OpenAI function-call choice. Converted to modern `tool_choice`
+    /// internally when `tool_choice` is not provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function_call: Option<ProxyFunctionCallChoice>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<ResponseFormat>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -123,6 +131,24 @@ pub struct ProxyChatRequest {
 #[serde(default)]
 pub struct ProxyStreamOptions {
     pub include_usage: bool,
+}
+
+/// Legacy OpenAI function-call choice (`"auto"`, `"none"`, or
+/// `{"name":"function_name"}`).
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum ProxyFunctionCallChoice {
+    Mode(String),
+    Function { name: String },
+}
+
+impl ProxyFunctionCallChoice {
+    fn to_tool_choice(&self) -> ToolChoice {
+        match self {
+            ProxyFunctionCallChoice::Mode(mode) => ToolChoice::Mode(mode.clone()),
+            ProxyFunctionCallChoice::Function { name } => ToolChoice::function(name),
+        }
+    }
 }
 
 /// OpenAI-compatible stop sequences.
@@ -688,6 +714,25 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         })
         .collect::<Result<Vec<_>, _>>()?;
 
+    let tools = match &req.tools {
+        Some(tools) => Some(tools.clone()),
+        None => req.functions.as_ref().map(|functions| {
+            functions
+                .iter()
+                .cloned()
+                .map(|function| Tool {
+                    tool_type: "function".to_string(),
+                    function,
+                })
+                .collect()
+        }),
+    };
+    let tool_choice = req.tool_choice.clone().or_else(|| {
+        req.function_call
+            .as_ref()
+            .map(ProxyFunctionCallChoice::to_tool_choice)
+    });
+
     Ok(ChatRequest {
         model: String::new(),
         messages,
@@ -695,8 +740,8 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         max_tokens: req.max_tokens,
         stream: req.stream,
         top_p: req.top_p,
-        tools: req.tools.clone(),
-        tool_choice: req.tool_choice.clone(),
+        tools,
+        tool_choice,
         response_format: req.response_format.clone(),
         stop: req.stop.as_ref().map(ProxyStop::as_vec),
         n: req.n,
@@ -1571,6 +1616,68 @@ mod tests {
         let chat_req = convert_request(&req).expect("should not fail");
         assert!(chat_req.tools.is_some());
         assert!(chat_req.tool_choice.is_some());
+    }
+
+    #[test]
+    fn convert_request_accepts_legacy_functions_and_function_call() {
+        let raw = serde_json::json!({
+            "model": "openai/gpt-4o",
+            "messages": [{"role": "user", "content": "hi"}],
+            "functions": [{
+                "name": "get_weather",
+                "description": "Get the weather",
+                "parameters": {"type": "object"}
+            }],
+            "function_call": {"name": "get_weather"}
+        })
+        .to_string();
+        let req: ProxyChatRequest = serde_json::from_str(&raw).unwrap();
+        let chat_req = convert_request(&req).expect("should not fail");
+
+        let tools = chat_req.tools.expect("legacy functions become tools");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].tool_type, "function");
+        assert_eq!(tools[0].function.name, "get_weather");
+        assert_eq!(
+            tools[0].function.description.as_deref(),
+            Some("Get the weather")
+        );
+
+        match chat_req
+            .tool_choice
+            .expect("function_call becomes tool_choice")
+        {
+            ToolChoice::Function { function, .. } => {
+                assert_eq!(function.name, "get_weather");
+            }
+            other => panic!("expected forced function tool_choice, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn convert_request_prefers_modern_tools_over_legacy_functions() {
+        let raw = serde_json::json!({
+            "model": "openai/gpt-4o",
+            "messages": [{"role": "user", "content": "hi"}],
+            "tools": [{
+                "type": "function",
+                "function": {"name": "modern_tool", "parameters": {}}
+            }],
+            "tool_choice": "auto",
+            "functions": [{
+                "name": "legacy_function",
+                "parameters": {}
+            }],
+            "function_call": {"name": "legacy_function"}
+        })
+        .to_string();
+        let req: ProxyChatRequest = serde_json::from_str(&raw).unwrap();
+        let chat_req = convert_request(&req).expect("should not fail");
+
+        let tools = chat_req.tools.expect("modern tools present");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].function.name, "modern_tool");
+        assert_eq!(chat_req.tool_choice, Some(ToolChoice::auto()));
     }
 
     #[test]

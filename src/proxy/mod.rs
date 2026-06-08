@@ -42,7 +42,7 @@ use axum::{
 };
 use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 
 mod anthropic_proxy;
 
@@ -191,6 +191,30 @@ pub struct AppState {
 
 // ── Router ───────────────────────────
 
+/// Build a CORS layer suitable for development and local proxy use.
+///
+/// Permits all origins, methods, and headers. **For production deployments**,
+/// build your own `Router` via [`router`] or [`router_with_auth`] and replace
+/// this layer with a restrictive `CorsLayer` that allows only your trusted
+/// origins.
+///
+/// ```rust,ignore
+/// use tower_http::cors::{CorsLayer, AllowOrigin};
+/// use axum::http::HeaderValue;
+///
+/// let app = llmrust::proxy::router(llm)
+///     .layer(CorsLayer::new()
+///         .allow_origin(AllowOrigin::list(vec![
+///             HeaderValue::from_static("https://my-app.example.com"),
+///         ])));
+/// ```
+fn default_cors() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any)
+}
+
 /// Build the Axum router for the proxy server.
 ///
 /// The router accepts every request without authentication. If you need to
@@ -202,15 +226,18 @@ pub struct AppState {
 /// - `POST /v1/messages` — Anthropic Messages API endpoint
 /// - `GET /health` — health check (not rate-limited, no auth)
 ///
-/// CORS is **permissive** by default (all origins allowed). Tighten this in
-/// production by wrapping the returned `Router` with a restrictive layer.
+/// # CORS
+///
+/// The default CORS layer allows all origins for development convenience.
+/// **For production**, wrap the returned `Router` with a restrictive
+/// `CorsLayer` (see [`default_cors`] for an example).
 pub fn router(llm: Arc<LmrsClient>) -> Router {
     let state = AppState { llm };
     Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
         .route("/health", get(health_check))
-        .layer(CorsLayer::permissive())
+        .layer(default_cors())
         .with_state(state)
 }
 
@@ -236,7 +263,7 @@ pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router 
             let expected = token.clone();
             check_bearer(expected, req, next)
         }))
-        .layer(CorsLayer::permissive())
+        .layer(default_cors())
 }
 
 /// Bearer-token middleware. Returns 401 if the `Authorization` header is

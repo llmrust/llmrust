@@ -98,6 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 > - The OpenAI-compatible proxy accepts both modern `tools` / `tool_choice` and legacy `functions` / `function_call` request fields, normalizing them to llmrust's unified tool model.
 > - **JSON mode / structured outputs** are wired through the OpenAI-compatible providers and mapped to Gemini's `responseMimeType` / `responseSchema`.
 > - **Sampling and request metadata parameters** beyond `temperature` / `max_tokens` / `top_p` (e.g. `stop`, `seed`, `presence_penalty`, `frequency_penalty`, `logprobs`, `n`, `response_format`, `parallel_tool_calls`, `service_tier`, `store`, `metadata`, `user`) are sent to OpenAI-compatible providers and mapped where Gemini has native equivalents. Anthropic and Ollama currently honor a smaller provider-native subset.
+> - Non-streaming `logprobs` responses are normalized into `ChatResponse.logprobs` for OpenAI-compatible providers and Gemini.
 
 ## Usage Examples
 

@@ -234,7 +234,7 @@ curl http://localhost:3000/v1/chat/completions \
 > **安全提示：** 若不设置 `LLMRUST_PROXY_KEY`，代理没有任何认证。仅在 localhost 或反向代理之后运行。
 >
 > 代理遵循 OpenAI chat completions 请求约定，包括 `stop` 可为字符串或数组，并会对格式错误的请求返回 JSON 错误体。
-> 流式响应使用 OpenAI 风格 SSE chunk，包括只在首个 delta 中发送一次 `assistant` role，并在仅包含 usage 的 chunk 中返回空 `choices`。
+> 流式响应使用 OpenAI 风格 SSE chunk，包括只在首个 delta 中发送一次 `assistant` role。设置 `stream_options.include_usage = true` 时，仅包含 usage 的 chunk 会返回空 `choices`。
 
 ## 日志
 

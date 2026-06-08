@@ -2,12 +2,12 @@
 //!
 //! Run with:
 //! ```bash
-//! export LLMRUST_OPENAI_KEY="sk-..."
-//! export LLMRUST_ANTHROPIC_KEY="sk-ant-..."
-//! export LLMRUST_DEEPSEEK_KEY="sk-..."
-//! export LLMRUST_GOOGLE_KEY="AIza..."
-//! export LLMRUST_MOONSHOT_KEY="sk-..."
-//! export LLMRUST_OPENROUTER_KEY="sk-or-..."
+//! export OPENAI_API_KEY="sk-..."          # or LLMRUST_OPENAI_KEY
+//! export ANTHROPIC_API_KEY="sk-ant-..."   # or LLMRUST_ANTHROPIC_KEY
+//! export DEEPSEEK_API_KEY="sk-..."        # or LLMRUST_DEEPSEEK_KEY
+//! export GOOGLE_API_KEY="AIza..."         # or LLMRUST_GOOGLE_KEY
+//! export MOONSHOT_API_KEY="sk-..."        # or LLMRUST_MOONSHOT_KEY
+//! export OPENROUTER_API_KEY="sk-or-..."   # or LLMRUST_OPENROUTER_KEY
 //! cargo run --example proxy_server
 //! ```
 //!
@@ -27,60 +27,21 @@ use llmrust::LmrsClient;
 
 #[tokio::main]
 async fn main() {
-    let llm = Arc::new(LmrsClient::new());
-
-    // Register providers from environment variables
-    if let Ok(key) = std::env::var("LLMRUST_OPENAI_KEY") {
-        if !key.is_empty() {
-            llm.set_openai(&key).await;
-            println!("  ✓ OpenAI registered");
-        }
-    }
-    if let Ok(key) = std::env::var("LLMRUST_ANTHROPIC_KEY") {
-        if !key.is_empty() {
-            llm.set_anthropic(&key).await;
-            println!("  ✓ Anthropic registered");
-        }
-    }
-    if let Ok(key) = std::env::var("LLMRUST_DEEPSEEK_KEY") {
-        if !key.is_empty() {
-            llm.set_deepseek(&key).await;
-            println!("  ✓ DeepSeek registered");
-        }
-    }
-    if let Ok(key) = std::env::var("LLMRUST_GOOGLE_KEY") {
-        if !key.is_empty() {
-            llm.set_google(&key).await;
-            println!("  ✓ Google Gemini registered");
-        }
-    }
-    if let Ok(key) = std::env::var("LLMRUST_MOONSHOT_KEY") {
-        if !key.is_empty() {
-            llm.set_moonshot(&key).await;
-            println!("  ✓ Moonshot/Kimi registered");
-        }
-    }
-    if let Ok(key) = std::env::var("LLMRUST_OPENROUTER_KEY") {
-        if !key.is_empty() {
-            llm.set_openrouter(&key).await;
-            println!("  ✓ OpenRouter registered");
-        }
-    }
-
-    // Always register Ollama (local, no key needed)
-    llm.set_ollama(None).await;
-    println!("  ✓ Ollama registered (http://localhost:11434)");
+    // from_env() auto-detects providers from OPENAI_API_KEY, ANTHROPIC_API_KEY,
+    // DEEPSEEK_API_KEY, GOOGLE_API_KEY, MOONSHOT_API_KEY, OPENROUTER_API_KEY,
+    // OLLAMA_HOST (also supports LLMRUST_* fallbacks).
+    let llm = Arc::new(LmrsClient::from_env().await);
 
     let providers = llm.providers().await;
     if providers.is_empty() {
-        eprintln!(
-            "⚠  No providers configured. Set at least one LLMRUST_*_KEY environment variable."
-        );
-        eprintln!("   Example: $env:LLMRUST_OPENAI_KEY='sk-...'");
+        eprintln!("No providers configured. Set at least one environment variable.");
+        eprintln!("   Supported: OPENAI_API_KEY, ANTHROPIC_API_KEY, DEEPSEEK_API_KEY,");
+        eprintln!("   GOOGLE_API_KEY, MOONSHOT_API_KEY, OPENROUTER_API_KEY");
+        eprintln!("   Or LLMRUST_*_KEY fallbacks.");
         std::process::exit(1);
     }
 
-    println!("\n🚀 llmrust proxy server starting on http://0.0.0.0:3000");
+    println!("\nllmrust proxy server starting on http://0.0.0.0:3000");
     println!("   Registered providers: {}", providers.join(", "));
     println!("   Try: curl http://localhost:3000/v1/chat/completions ...");
     println!("   Health: curl http://localhost:3000/health");

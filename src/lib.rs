@@ -48,6 +48,8 @@ pub mod proxy;
 pub mod router;
 pub mod types;
 
+pub mod prelude;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -84,6 +86,87 @@ impl LmrsClient {
         Self {
             providers: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+
+    /// Create a client with providers auto-detected from environment variables.
+    ///
+    /// Checks industry-standard variable names first, then `LLMRUST_*` fallbacks:
+    ///
+    /// | Provider   | Primary env var       | Fallback                 |
+    /// |------------|-----------------------|--------------------------|
+    /// | OpenAI     | `OPENAI_API_KEY`      | `LLMRUST_OPENAI_KEY`     |
+    /// | Anthropic  | `ANTHROPIC_API_KEY`   | `LLMRUST_ANTHROPIC_KEY`  |
+    /// | DeepSeek   | `DEEPSEEK_API_KEY`    | `LLMRUST_DEEPSEEK_KEY`   |
+    /// | Google     | `GOOGLE_API_KEY`      | `LLMRUST_GOOGLE_KEY`     |
+    /// | Moonshot   | `MOONSHOT_API_KEY`    | `LLMRUST_MOONSHOT_KEY`   |
+    /// | OpenRouter | `OPENROUTER_API_KEY`  | `LLMRUST_OPENROUTER_KEY` |
+    /// | Ollama     | `OLLAMA_HOST`         | `LLMRUST_OLLAMA_HOST`    |
+    ///
+    /// Ollama is always registered (no API key required). If neither host
+    /// variable is set, it defaults to `http://localhost:11434`.
+    ///
+    /// ```rust,no_run
+    /// use llmrust::LmrsClient;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     // Reads OPENAI_API_KEY, ANTHROPIC_API_KEY, etc. from environment
+    ///     let llm = LmrsClient::from_env().await;
+    ///     println!("Registered: {:?}", llm.providers().await);
+    /// }
+    /// ```
+    pub async fn from_env() -> Self {
+        let client = Self::new();
+
+        // Helper: resolve first non-empty env var from a list.
+        fn resolve_env(vars: &[&str]) -> Option<String> {
+            vars.iter()
+                .find_map(|v| std::env::var(v).ok().filter(|s| !s.is_empty()))
+        }
+
+        if let Some(key) = resolve_env(&["OPENAI_API_KEY", "LLMRUST_OPENAI_KEY"]) {
+            client.set_openai(key).await;
+            tracing::debug!(provider = "openai", "registered provider from environment");
+        }
+        if let Some(key) = resolve_env(&["ANTHROPIC_API_KEY", "LLMRUST_ANTHROPIC_KEY"]) {
+            client.set_anthropic(key).await;
+            tracing::debug!(
+                provider = "anthropic",
+                "registered provider from environment"
+            );
+        }
+        if let Some(key) = resolve_env(&["DEEPSEEK_API_KEY", "LLMRUST_DEEPSEEK_KEY"]) {
+            client.set_deepseek(key).await;
+            tracing::debug!(
+                provider = "deepseek",
+                "registered provider from environment"
+            );
+        }
+        if let Some(key) = resolve_env(&["GOOGLE_API_KEY", "LLMRUST_GOOGLE_KEY"]) {
+            client.set_google(key).await;
+            tracing::debug!(provider = "google", "registered provider from environment");
+        }
+        if let Some(key) = resolve_env(&["MOONSHOT_API_KEY", "LLMRUST_MOONSHOT_KEY"]) {
+            client.set_moonshot(key).await;
+            tracing::debug!(
+                provider = "moonshot",
+                "registered provider from environment"
+            );
+        }
+        if let Some(key) = resolve_env(&["OPENROUTER_API_KEY", "LLMRUST_OPENROUTER_KEY"]) {
+            client.set_openrouter(key).await;
+            tracing::debug!(
+                provider = "openrouter",
+                "registered provider from environment"
+            );
+        }
+
+        // Ollama: always registered, host is optional.
+        let ollama_host = resolve_env(&["OLLAMA_HOST", "LLMRUST_OLLAMA_HOST"]);
+        client.set_ollama(ollama_host).await;
+        tracing::debug!(provider = "ollama", "registered Ollama provider");
+
+        client
     }
 
     /// Register the OpenAI provider.

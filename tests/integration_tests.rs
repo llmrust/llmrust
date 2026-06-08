@@ -190,4 +190,26 @@ mod tests {
         let system: Role = serde_json::from_str("\"system\"").unwrap();
         assert_eq!(system, Role::System);
     }
+
+    #[tokio::test]
+    async fn test_from_env_registers_ollama_always() {
+        // Ollama should always be registered by from_env().
+        // We don't set any API keys here, so only ollama should appear.
+        let llm = LmrsClient::from_env().await;
+        let providers = llm.providers().await;
+        assert!(
+            providers.contains(&"ollama".to_string()),
+            "from_env() should always register ollama, got: {:?}",
+            providers
+        );
+    }
+
+    #[test]
+    fn test_prelude_reexports_compile() {
+        // Just verify the prelude compiles and re-exports key types.
+        use llmrust::prelude::*;
+        let _req = ChatRequest::new("model", "hi");
+        let _msg = Message::user("hello");
+        let _client = LmrsClient::new();
+    }
 }

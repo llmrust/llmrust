@@ -244,7 +244,11 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
         match msg.role {
             crate::types::Role::System => {
                 flush_tool_results(&mut messages, &mut pending_tool_results);
-                system = Some(msg.content.as_text());
+                let text = msg.content.as_text();
+                system = Some(match system {
+                    Some(existing) => format!("{existing}\n\n{text}"),
+                    None => text,
+                });
             }
             crate::types::Role::Tool => {
                 pending_tool_results.push(AnthropicContentBlock::ToolResult {
@@ -612,6 +616,7 @@ impl Provider for AnthropicProvider {
             }),
             tool_calls,
             finish_reason: parsed.stop_reason.map(normalize_stop_reason),
+            logprobs: None,
         })
     }
 
@@ -696,6 +701,22 @@ mod tests {
         assert_eq!(system.as_deref(), Some("be brief"));
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].role.as_str(), "user");
+    }
+
+    #[test]
+    fn split_messages_concatenates_multiple_system_messages() {
+        let req = ChatRequest::from_messages(
+            "claude",
+            vec![
+                Message::system("be brief"),
+                Message::user("hi"),
+                Message::system("also be polite"),
+                Message::user("thanks"),
+            ],
+        );
+        let (system, messages) = split_messages(&req);
+        assert_eq!(system.as_deref(), Some("be brief\n\nalso be polite"));
+        assert_eq!(messages.len(), 2);
     }
 
     #[test]

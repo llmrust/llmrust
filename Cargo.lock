@@ -681,6 +681,7 @@ dependencies = [
  "async-trait",
  "axum",
  "bytes",
+ "fastrand",
  "futures",
  "reqwest",
  "serde",

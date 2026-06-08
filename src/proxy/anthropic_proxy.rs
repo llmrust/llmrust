@@ -1073,6 +1073,7 @@ mod tests {
             }),
             tool_calls: None,
             finish_reason: Some("stop".to_string()),
+            logprobs: None,
         };
         let resp = build_response(chat_resp, "msg_1");
         assert_eq!(resp.id, "msg_1");
@@ -1107,6 +1108,7 @@ mod tests {
                 },
             }]),
             finish_reason: Some("tool_calls".to_string()),
+            logprobs: None,
         };
         let resp = build_response(chat_resp, "msg_2");
         assert_eq!(resp.stop_reason.as_deref(), Some("tool_use"));
@@ -1136,6 +1138,7 @@ mod tests {
                 },
             }]),
             finish_reason: Some("tool_calls".to_string()),
+            logprobs: None,
         };
         let resp = build_response(chat_resp, "msg_3");
         assert_eq!(resp.content.len(), 2);

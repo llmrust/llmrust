@@ -403,6 +403,7 @@ impl OpenAiCompatibleProvider {
             usage,
             tool_calls,
             finish_reason,
+            logprobs: None,
         }
     }
 }

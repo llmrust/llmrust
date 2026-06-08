@@ -46,7 +46,9 @@ use tower_http::cors::CorsLayer;
 
 mod anthropic_proxy;
 
-use crate::{ChatRequest, Content, LlmError, LmrsClient, Message, Role};
+use crate::{
+    ChatRequest, Content, LlmError, LmrsClient, Message, Role, Tool, ToolCall, ToolChoice,
+};
 
 // ── ID generation ────────────────────────────
 
@@ -55,7 +57,8 @@ fn generate_id() -> String {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    format!("chatcmpl-{:016x}", ts)
+    let rand = fastrand::u64(..);
+    format!("chatcmpl-{:016x}{:08x}", ts, rand)
 }
 
 fn unix_timestamp() -> u64 {
@@ -77,6 +80,12 @@ pub struct ProxyChatRequest {
     pub max_tokens: Option<u64>,
     pub stream: bool,
     pub top_p: Option<f64>,
+    /// Tool definitions for function calling (OpenAI protocol).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<Tool>>,
+    /// How the model should choose which tool to call.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<ToolChoice>,
 }
 
 /// OpenAI-compatible message. `content` accepts either a plain string or an
@@ -85,6 +94,14 @@ pub struct ProxyChatRequest {
 pub struct ProxyMessage {
     pub role: String,
     pub content: Content,
+    /// The id of the tool call this message responds to (present on `tool`
+    /// role messages in OpenAI's tool-calling protocol).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    /// Tool calls requested by the assistant (present on assistant turns that
+    /// invoke tools).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
 }
 
 /// OpenAI-compatible chat completion response (non-streaming).
@@ -470,13 +487,14 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
                 "system" => Role::System,
                 "user" => Role::User,
                 "assistant" => Role::Assistant,
+                "tool" => Role::Tool,
                 other => return Err(format!("Unknown role: {}", other)),
             };
             Ok(Message {
                 role,
                 content: m.content.clone(),
-                tool_calls: None,
-                tool_call_id: None,
+                tool_calls: m.tool_calls.clone(),
+                tool_call_id: m.tool_call_id.clone(),
                 name: None,
             })
         })
@@ -489,8 +507,8 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         max_tokens: req.max_tokens,
         stream: req.stream,
         top_p: req.top_p,
-        tools: None,
-        tool_choice: None,
+        tools: req.tools.clone(),
+        tool_choice: req.tool_choice.clone(),
         ..Default::default()
     })
 }
@@ -982,5 +1000,39 @@ mod tests {
             .await
             .expect("request failed");
         assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[test]
+    fn convert_request_handles_tool_role() {
+        let raw = serde_json::json!({
+            "model": "openai/gpt-4o",
+            "messages": [
+                {"role": "user", "content": "What's the weather?"},
+                {"role": "assistant", "content": "", "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "get_weather", "arguments": "{}"}}]},
+                {"role": "tool", "tool_call_id": "call_1", "content": "sunny"}
+            ]
+        })
+        .to_string();
+        let req: ProxyChatRequest = serde_json::from_str(&raw).unwrap();
+        let chat_req = convert_request(&req).expect("should not fail");
+        assert_eq!(chat_req.messages.len(), 3);
+        assert_eq!(chat_req.messages[2].role, Role::Tool);
+        assert_eq!(chat_req.messages[2].tool_call_id.as_deref(), Some("call_1"));
+        assert!(chat_req.messages[1].tool_calls.is_some());
+    }
+
+    #[test]
+    fn convert_request_forwards_tools_and_tool_choice() {
+        let raw = serde_json::json!({
+            "model": "openai/gpt-4o",
+            "messages": [{"role": "user", "content": "hi"}],
+            "tools": [{"type": "function", "function": {"name": "f", "parameters": {}}}],
+            "tool_choice": "auto"
+        })
+        .to_string();
+        let req: ProxyChatRequest = serde_json::from_str(&raw).unwrap();
+        let chat_req = convert_request(&req).expect("should not fail");
+        assert!(chat_req.tools.is_some());
+        assert!(chat_req.tool_choice.is_some());
     }
 }

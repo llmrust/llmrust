@@ -97,6 +97,9 @@ impl LmrsClient {
     }
 
     /// Register the OpenAI provider with a custom base URL (for compatible APIs).
+    ///
+    /// **Note:** This registers under the same `"openai"` key as [`set_openai`](Self::set_openai).
+    /// Calling both will silently replace the earlier registration.
     pub async fn set_openai_compatible(
         &self,
         api_key: impl Into<String>,
@@ -263,6 +266,9 @@ impl LmrsClient {
     }
 
     /// Send a streaming request and collect the full text.
+    ///
+    /// Returns only the concatenated text. Use [`LmrsClient::stream_collect_full`]
+    /// if you also need `usage`, `tool_calls`, or `finish_reason`.
     pub async fn stream_collect(&self, model: &str, prompt: &str) -> Result<String> {
         let mut stream = self.stream(model, prompt).await?;
         let mut text = String::new();
@@ -271,6 +277,39 @@ impl LmrsClient {
             text.push_str(&chunk.delta);
         }
         Ok(text)
+    }
+
+    /// Send a streaming request and collect the full response.
+    ///
+    /// Returns a [`ChatResponse`] with concatenated text, the last reported
+    /// `usage`, `tool_calls`, and `finish_reason` from the terminal chunk(s).
+    pub async fn stream_collect_full(&self, model: &str, prompt: &str) -> Result<ChatResponse> {
+        let mut stream = self.stream(model, prompt).await?;
+        let mut text = String::new();
+        let mut usage = None;
+        let mut tool_calls = None;
+        let mut finish_reason = None;
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            text.push_str(&chunk.delta);
+            if chunk.usage.is_some() {
+                usage = chunk.usage;
+            }
+            if chunk.tool_calls.is_some() {
+                tool_calls = chunk.tool_calls;
+            }
+            if chunk.finish_reason.is_some() {
+                finish_reason = chunk.finish_reason;
+            }
+        }
+        Ok(ChatResponse {
+            content: text,
+            model: String::new(),
+            usage,
+            tool_calls,
+            finish_reason,
+            ..Default::default()
+        })
     }
 
     /// List registered provider names.

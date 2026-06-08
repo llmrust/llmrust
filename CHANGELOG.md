@@ -44,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The OpenAI-compatible proxy now accepts assistant tool-call messages with `content: null`, forwards advanced request fields such as `response_format`, `stop`, `seed`, penalties, and logprob options, and returns tool calls / real `finish_reason` values in non-streaming and streaming responses.
+- The OpenAI-compatible proxy now accepts `stop` as either a string or an array,
+  rejects empty `messages` locally, returns OpenAI-style JSON error bodies for
+  malformed JSON, and maps upstream API failures to more accurate error types
+  such as `rate_limit_error` and `authentication_error`.
 - Public rustdoc no longer links to a private helper, so docs build cleanly when warnings are denied.
 - Anthropic responses containing non-text content blocks (e.g. `tool_use`) no longer fail to deserialize; text blocks are concatenated and other blocks are skipped.
 - Google Gemini responses whose parts carry a `functionCall` (and no `text`) no longer fail to deserialize; part `text` is now optional.

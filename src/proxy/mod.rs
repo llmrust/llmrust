@@ -30,7 +30,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::{
-    extract::State,
+    extract::{rejection::JsonRejection, State},
     http::{header, Request, StatusCode},
     middleware::{from_fn, Next},
     response::{
@@ -91,7 +91,7 @@ pub struct ProxyChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<ResponseFormat>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stop: Option<Vec<String>>,
+    pub stop: Option<ProxyStop>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub n: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -104,6 +104,27 @@ pub struct ProxyChatRequest {
     pub logprobs: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_logprobs: Option<u32>,
+}
+
+/// OpenAI-compatible stop sequences.
+///
+/// The OpenAI API accepts either a single string (`"stop": "\n"`) or a list
+/// of strings (`"stop": ["END"]`). Internally llmrust stores both as
+/// `Vec<String>`.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum ProxyStop {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl ProxyStop {
+    fn as_vec(&self) -> Vec<String> {
+        match self {
+            ProxyStop::One(stop) => vec![stop.clone()],
+            ProxyStop::Many(stop) => stop.clone(),
+        }
+    }
 }
 
 /// OpenAI-compatible message. `content` accepts either a plain string or an
@@ -209,6 +230,8 @@ pub struct ProxyErrorDetail {
     pub message: String,
     #[serde(rename = "type")]
     pub error_type: String,
+    pub param: Option<String>,
+    pub code: Option<String>,
 }
 
 // ── Application state ───────────────────────
@@ -401,8 +424,16 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
 /// Handle POST /v1/chat/completions.
 async fn handle_chat_completions(
     State(state): State<AppState>,
-    Json(req): Json<ProxyChatRequest>,
+    payload: std::result::Result<Json<ProxyChatRequest>, JsonRejection>,
 ) -> Response {
+    let Json(req) = match payload {
+        Ok(req) => req,
+        Err(e) => {
+            tracing::error!(error = %e, "proxy: request JSON extraction failed");
+            return json_rejection_response(e);
+        }
+    };
+
     tracing::info!(
         model = &req.model,
         stream = req.stream,
@@ -546,6 +577,8 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
                         error: ProxyErrorDetail {
                             message: e.to_string(),
                             error_type: "stream_error".to_string(),
+                            param: None,
+                            code: None,
                         },
                     };
                     Ok::<_, Infallible>(
@@ -574,6 +607,10 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
 
 /// Convert a proxy request into an internal `ChatRequest`.
 fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
+    if req.messages.is_empty() {
+        return Err("messages must contain at least one message".to_string());
+    }
+
     let messages: Vec<Message> = req
         .messages
         .iter()
@@ -605,7 +642,7 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         tools: req.tools.clone(),
         tool_choice: req.tool_choice.clone(),
         response_format: req.response_format.clone(),
-        stop: req.stop.clone(),
+        stop: req.stop.as_ref().map(ProxyStop::as_vec),
         n: req.n,
         seed: req.seed,
         presence_penalty: req.presence_penalty,
@@ -617,31 +654,72 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
 
 /// Parse a "provider/model" string into (provider_name, model_name).
 fn split_model(model: &str) -> Result<(&str, &str), &'static str> {
-    model
+    let (provider, model) = model
         .split_once('/')
-        .ok_or("model must be in 'provider/model' format")
+        .ok_or("model must be in 'provider/model' format")?;
+    if provider.is_empty() || model.is_empty() {
+        return Err("model must be in 'provider/model' format with non-empty provider and model");
+    }
+    Ok((provider, model))
 }
 
 /// Convert an `LlmError` into an HTTP error response.
 fn proxy_error_from_llm_error(e: LlmError) -> Response {
-    let (status, message) = match &e {
+    let (status, message, error_type) = match &e {
         LlmError::Api { status, message } => {
             let code = StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_GATEWAY);
-            (code, message.clone())
+            (code, message.clone(), api_error_type(code))
         }
-        LlmError::UnknownProvider(_) => (StatusCode::NOT_FOUND, e.to_string()),
-        LlmError::Parse(_) => (StatusCode::BAD_REQUEST, e.to_string()),
-        _ => (StatusCode::BAD_GATEWAY, e.to_string()),
+        LlmError::UnknownProvider(_) => (
+            StatusCode::NOT_FOUND,
+            e.to_string(),
+            "invalid_request_error",
+        ),
+        LlmError::Parse(_) => (
+            StatusCode::BAD_REQUEST,
+            e.to_string(),
+            "invalid_request_error",
+        ),
+        _ => (StatusCode::BAD_GATEWAY, e.to_string(), "api_error"),
     };
-    error_response(status, &message)
+    error_response_with_type(status, &message, error_type)
+}
+
+fn api_error_type(status: StatusCode) -> &'static str {
+    match status {
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => "authentication_error",
+        StatusCode::TOO_MANY_REQUESTS => "rate_limit_error",
+        StatusCode::BAD_REQUEST => "invalid_request_error",
+        _ if status.is_server_error() => "api_error",
+        _ => "api_error",
+    }
+}
+
+fn json_rejection_response(e: JsonRejection) -> Response {
+    let status = if e.status() == StatusCode::UNSUPPORTED_MEDIA_TYPE {
+        StatusCode::UNSUPPORTED_MEDIA_TYPE
+    } else {
+        StatusCode::BAD_REQUEST
+    };
+    error_response_with_type(
+        status,
+        &format!("Invalid JSON request body: {e}"),
+        "invalid_request_error",
+    )
 }
 
 /// Build an HTTP error response with JSON body.
 fn error_response(status: StatusCode, message: &str) -> Response {
+    error_response_with_type(status, message, "invalid_request_error")
+}
+
+fn error_response_with_type(status: StatusCode, message: &str, error_type: &str) -> Response {
     let body = ProxyError {
         error: ProxyErrorDetail {
             message: message.to_string(),
-            error_type: "invalid_request_error".to_string(),
+            error_type: error_type.to_string(),
+            param: None,
+            code: None,
         },
     };
     (status, Json(body)).into_response()
@@ -744,6 +822,28 @@ mod tests {
                 ..Default::default()
             })];
             Ok(Box::pin(futures::stream::iter(chunks)))
+        }
+    }
+
+    struct ApiErrorProvider;
+
+    #[async_trait::async_trait]
+    impl Provider for ApiErrorProvider {
+        async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+            Err(LlmError::Api {
+                status: StatusCode::TOO_MANY_REQUESTS.as_u16(),
+                message: "rate limited".to_string(),
+            })
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            Err(LlmError::Api {
+                status: StatusCode::TOO_MANY_REQUESTS.as_u16(),
+                message: "rate limited".to_string(),
+            })
         }
     }
 
@@ -861,6 +961,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn proxy_accepts_string_stop_sequence() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stop": "END"
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn malformed_json_returns_proxy_error_body() {
+        let llm = Arc::new(LmrsClient::new());
+        let app = router(llm);
+
+        let response = app
+            .oneshot(build_request("{"))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert!(json["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("Invalid JSON request body"));
+        assert!(json["error"]["param"].is_null());
+        assert!(json["error"]["code"].is_null());
+    }
+
+    #[tokio::test]
     async fn stream_forwards_finish_reason_and_usage() {
         let llm = Arc::new(LmrsClient::new());
         llm.set_custom("mock", Arc::new(MockProvider)).await;
@@ -962,6 +1106,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn upstream_rate_limit_uses_openai_error_type() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("api", Arc::new(ApiErrorProvider)).await;
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "api/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["error"]["message"], "rate limited");
+        assert_eq!(json["error"]["type"], "rate_limit_error");
+        assert!(json["error"]["param"].is_null());
+        assert!(json["error"]["code"].is_null());
+    }
+
+    #[tokio::test]
     async fn invalid_model_format_returns_400() {
         let llm = Arc::new(LmrsClient::new());
         let app = router(llm);
@@ -977,6 +1149,35 @@ mod tests {
             .await
             .expect("request failed");
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn empty_messages_returns_400() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [],
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert!(json["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("messages"));
     }
 
     #[tokio::test]
@@ -1021,6 +1222,8 @@ mod tests {
     #[tokio::test]
     async fn split_model_helper_rejects_invalid_input() {
         assert!(split_model("nope").is_err());
+        assert!(split_model("/gpt-4o").is_err());
+        assert!(split_model("openai/").is_err());
     }
 
     // ── Auth middleware tests ──
@@ -1270,5 +1473,28 @@ mod tests {
         assert_eq!(chat_req.logprobs, Some(true));
         assert_eq!(chat_req.top_logprobs, Some(3));
         assert_eq!(chat_req.max_tokens, Some(64));
+    }
+
+    #[test]
+    fn convert_request_accepts_string_stop_sequence() {
+        let raw = serde_json::json!({
+            "model": "openai/gpt-4o",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stop": "END"
+        })
+        .to_string();
+        let req: ProxyChatRequest = serde_json::from_str(&raw).unwrap();
+        let chat_req = convert_request(&req).expect("should not fail");
+        assert_eq!(chat_req.stop, Some(vec!["END".to_string()]));
+    }
+
+    #[test]
+    fn convert_request_rejects_empty_messages() {
+        let req = ProxyChatRequest {
+            model: "openai/gpt-4o".to_string(),
+            ..Default::default()
+        };
+        let err = convert_request(&req).expect_err("empty messages should fail");
+        assert!(err.contains("messages"));
     }
 }

@@ -101,6 +101,20 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_lmrs_client_parse_model_rejects_empty_parts() {
+        let llm = LmrsClient::new();
+        let result = llm.chat("openai/", "test").await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("non-empty provider and model"));
+
+        let result = llm.chat("/gpt-4o", "test").await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("non-empty provider and model"));
+    }
+
+    #[tokio::test]
     async fn test_lmrs_client_providers_empty() {
         let llm = LmrsClient::new();
         let providers = llm.providers().await;

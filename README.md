@@ -233,6 +233,23 @@ curl http://localhost:3000/v1/chat/completions \
 
 > **Security note:** Without `LLMRUST_PROXY_KEY` set, the proxy has no authentication. Run it on localhost or behind a reverse proxy.
 
+## Logging
+
+`llmrust` emits structured [`tracing`](https://docs.rs/tracing) events for provider registration, request lifecycle, proxy requests, retries, router failover, and upstream API errors. As a library, it does not install a global subscriber; your application decides how logs are collected.
+
+```toml
+[dependencies]
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+```
+
+```rust
+tracing_subscriber::fmt()
+    .with_env_filter("llmrust=debug")
+    .init();
+```
+
+Log fields include operational metadata such as `provider`, `model`, HTTP `status`, retry `attempt`, and router `group`. API keys, prompts, message content, request bodies, and response text are intentionally not logged.
+
 ## Provider Configuration
 
 ### OpenAI
@@ -341,8 +358,10 @@ at your option.
 Contributions welcome! Please open an issue or PR.
 
 ```bash
-cargo build
+cargo build --all-targets --all-features
 cargo test
-cargo clippy --all-targets -- -D warnings
+cargo test --all-features
+cargo clippy --all-targets --all-features -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 cargo fmt --check
 ```

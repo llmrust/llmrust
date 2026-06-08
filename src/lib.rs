@@ -41,6 +41,25 @@
 //!     println!("{}", resp.content);
 //! }
 //! ```
+//!
+//! ## Logging
+//!
+//! `llmrust` emits structured [`tracing`](https://docs.rs/tracing) events for
+//! provider registration, request lifecycle, proxy requests, retries, router
+//! failover, and upstream API errors. It does **not** install a global
+//! subscriber; applications remain in control of how logs are collected.
+//!
+//! The built-in events include operational fields such as `provider`, `model`,
+//! HTTP `status`, retry `attempt`, and router `group`. They intentionally avoid
+//! logging API keys, request bodies, prompts, message content, and response
+//! text.
+//!
+//! ```rust,ignore
+//! // In your application, not inside llmrust:
+//! tracing_subscriber::fmt()
+//!     .with_env_filter("llmrust=debug")
+//!     .init();
+//! ```
 
 pub mod providers;
 #[cfg(feature = "proxy")]
@@ -126,45 +145,26 @@ impl LmrsClient {
 
         if let Some(key) = resolve_env(&["OPENAI_API_KEY", "LLMRUST_OPENAI_KEY"]) {
             client.set_openai(key).await;
-            tracing::debug!(provider = "openai", "registered provider from environment");
         }
         if let Some(key) = resolve_env(&["ANTHROPIC_API_KEY", "LLMRUST_ANTHROPIC_KEY"]) {
             client.set_anthropic(key).await;
-            tracing::debug!(
-                provider = "anthropic",
-                "registered provider from environment"
-            );
         }
         if let Some(key) = resolve_env(&["DEEPSEEK_API_KEY", "LLMRUST_DEEPSEEK_KEY"]) {
             client.set_deepseek(key).await;
-            tracing::debug!(
-                provider = "deepseek",
-                "registered provider from environment"
-            );
         }
         if let Some(key) = resolve_env(&["GOOGLE_API_KEY", "LLMRUST_GOOGLE_KEY"]) {
             client.set_google(key).await;
-            tracing::debug!(provider = "google", "registered provider from environment");
         }
         if let Some(key) = resolve_env(&["MOONSHOT_API_KEY", "LLMRUST_MOONSHOT_KEY"]) {
             client.set_moonshot(key).await;
-            tracing::debug!(
-                provider = "moonshot",
-                "registered provider from environment"
-            );
         }
         if let Some(key) = resolve_env(&["OPENROUTER_API_KEY", "LLMRUST_OPENROUTER_KEY"]) {
             client.set_openrouter(key).await;
-            tracing::debug!(
-                provider = "openrouter",
-                "registered provider from environment"
-            );
         }
 
         // Ollama: always registered, host is optional.
         let ollama_host = resolve_env(&["OLLAMA_HOST", "LLMRUST_OLLAMA_HOST"]);
         client.set_ollama(ollama_host).await;
-        tracing::debug!(provider = "ollama", "registered Ollama provider");
 
         client
     }
@@ -181,6 +181,7 @@ impl LmrsClient {
         if prev.is_some() {
             tracing::warn!("overwriting existing 'openai' provider registration");
         }
+        tracing::debug!(provider = "openai", "registered provider");
     }
 
     /// Register the OpenAI provider with a custom base URL (for compatible APIs).
@@ -202,6 +203,11 @@ impl LmrsClient {
         if prev.is_some() {
             tracing::warn!("overwriting existing 'openai' provider registration");
         }
+        tracing::debug!(
+            provider = "openai",
+            custom_base_url = true,
+            "registered provider"
+        );
     }
 
     /// Register the Anthropic provider.
@@ -212,6 +218,7 @@ impl LmrsClient {
             .write()
             .await
             .insert("anthropic".to_string(), provider);
+        tracing::debug!(provider = "anthropic", "registered provider");
     }
 
     /// Register the DeepSeek provider.
@@ -222,6 +229,7 @@ impl LmrsClient {
             .write()
             .await
             .insert("deepseek".to_string(), provider);
+        tracing::debug!(provider = "deepseek", "registered provider");
     }
 
     /// Register the Google Gemini provider.
@@ -232,12 +240,14 @@ impl LmrsClient {
             .write()
             .await
             .insert("google".to_string(), provider);
+        tracing::debug!(provider = "google", "registered provider");
     }
 
     /// Register the Ollama provider.
     /// Pass `None` to use the default `http://localhost:11434`.
     pub async fn set_ollama(&self, base_url: Option<String>) {
         let config = ProviderConfig::new("");
+        let custom_base_url = base_url.is_some();
         let config = match base_url {
             Some(url) => config.with_base_url(url),
             None => config,
@@ -247,6 +257,7 @@ impl LmrsClient {
             .write()
             .await
             .insert("ollama".to_string(), provider);
+        tracing::debug!(provider = "ollama", custom_base_url, "registered provider");
     }
 
     /// Register the Moonshot/Kimi provider.
@@ -257,6 +268,7 @@ impl LmrsClient {
             .write()
             .await
             .insert("moonshot".to_string(), provider);
+        tracing::debug!(provider = "moonshot", "registered provider");
     }
 
     /// Register the OpenRouter provider.
@@ -267,11 +279,14 @@ impl LmrsClient {
             .write()
             .await
             .insert("openrouter".to_string(), provider);
+        tracing::debug!(provider = "openrouter", "registered provider");
     }
 
     /// Register a custom provider under a name.
     pub async fn set_custom(&self, name: impl Into<String>, provider: Arc<dyn Provider>) {
-        self.providers.write().await.insert(name.into(), provider);
+        let name = name.into();
+        self.providers.write().await.insert(name.clone(), provider);
+        tracing::debug!(provider = %name, "registered custom provider");
     }
 
     /// Wrap every registered provider with [`RetryProvider`].

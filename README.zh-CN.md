@@ -233,6 +233,23 @@ curl http://localhost:3000/v1/chat/completions \
 
 > **安全提示：** 若不设置 `LLMRUST_PROXY_KEY`，代理没有任何认证。仅在 localhost 或反向代理之后运行。
 
+## 日志
+
+`llmrust` 会通过 [`tracing`](https://docs.rs/tracing) 输出结构化事件，覆盖 provider 注册、请求生命周期、proxy 请求、重试、router failover 以及上游 API 错误。作为依赖库，它不会安装全局 subscriber；日志如何收集由你的应用决定。
+
+```toml
+[dependencies]
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+```
+
+```rust
+tracing_subscriber::fmt()
+    .with_env_filter("llmrust=debug")
+    .init();
+```
+
+日志字段包含 `provider`、`model`、HTTP `status`、重试 `attempt`、router `group` 等运行元数据。API key、prompt、消息内容、请求体和响应正文都不会被主动写入日志。
+
 ## 服务商配置
 
 ### OpenAI
@@ -339,8 +356,10 @@ match llm.chat("openai/gpt-4o", "你好").await {
 欢迎贡献！请提交 Issue 或 PR。
 
 ```bash
-cargo build
+cargo build --all-targets --all-features
 cargo test
-cargo clippy --all-targets -- -D warnings
+cargo test --all-features
+cargo clippy --all-targets --all-features -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 cargo fmt --check
 ```

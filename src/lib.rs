@@ -48,6 +48,8 @@ pub mod proxy;
 pub mod router;
 pub mod types;
 
+pub mod prelude;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -86,17 +88,105 @@ impl LmrsClient {
         }
     }
 
+    /// Create a client with providers auto-detected from environment variables.
+    ///
+    /// Checks industry-standard variable names first, then `LLMRUST_*` fallbacks:
+    ///
+    /// | Provider   | Primary env var       | Fallback                 |
+    /// |------------|-----------------------|--------------------------|
+    /// | OpenAI     | `OPENAI_API_KEY`      | `LLMRUST_OPENAI_KEY`     |
+    /// | Anthropic  | `ANTHROPIC_API_KEY`   | `LLMRUST_ANTHROPIC_KEY`  |
+    /// | DeepSeek   | `DEEPSEEK_API_KEY`    | `LLMRUST_DEEPSEEK_KEY`   |
+    /// | Google     | `GOOGLE_API_KEY`      | `LLMRUST_GOOGLE_KEY`     |
+    /// | Moonshot   | `MOONSHOT_API_KEY`    | `LLMRUST_MOONSHOT_KEY`   |
+    /// | OpenRouter | `OPENROUTER_API_KEY`  | `LLMRUST_OPENROUTER_KEY` |
+    /// | Ollama     | `OLLAMA_HOST`         | `LLMRUST_OLLAMA_HOST`    |
+    ///
+    /// Ollama is always registered (no API key required). If neither host
+    /// variable is set, it defaults to `http://localhost:11434`.
+    ///
+    /// ```rust,no_run
+    /// use llmrust::LmrsClient;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     // Reads OPENAI_API_KEY, ANTHROPIC_API_KEY, etc. from environment
+    ///     let llm = LmrsClient::from_env().await;
+    ///     println!("Registered: {:?}", llm.providers().await);
+    /// }
+    /// ```
+    pub async fn from_env() -> Self {
+        let client = Self::new();
+
+        // Helper: resolve first non-empty env var from a list.
+        fn resolve_env(vars: &[&str]) -> Option<String> {
+            vars.iter()
+                .find_map(|v| std::env::var(v).ok().filter(|s| !s.is_empty()))
+        }
+
+        if let Some(key) = resolve_env(&["OPENAI_API_KEY", "LLMRUST_OPENAI_KEY"]) {
+            client.set_openai(key).await;
+            tracing::debug!(provider = "openai", "registered provider from environment");
+        }
+        if let Some(key) = resolve_env(&["ANTHROPIC_API_KEY", "LLMRUST_ANTHROPIC_KEY"]) {
+            client.set_anthropic(key).await;
+            tracing::debug!(
+                provider = "anthropic",
+                "registered provider from environment"
+            );
+        }
+        if let Some(key) = resolve_env(&["DEEPSEEK_API_KEY", "LLMRUST_DEEPSEEK_KEY"]) {
+            client.set_deepseek(key).await;
+            tracing::debug!(
+                provider = "deepseek",
+                "registered provider from environment"
+            );
+        }
+        if let Some(key) = resolve_env(&["GOOGLE_API_KEY", "LLMRUST_GOOGLE_KEY"]) {
+            client.set_google(key).await;
+            tracing::debug!(provider = "google", "registered provider from environment");
+        }
+        if let Some(key) = resolve_env(&["MOONSHOT_API_KEY", "LLMRUST_MOONSHOT_KEY"]) {
+            client.set_moonshot(key).await;
+            tracing::debug!(
+                provider = "moonshot",
+                "registered provider from environment"
+            );
+        }
+        if let Some(key) = resolve_env(&["OPENROUTER_API_KEY", "LLMRUST_OPENROUTER_KEY"]) {
+            client.set_openrouter(key).await;
+            tracing::debug!(
+                provider = "openrouter",
+                "registered provider from environment"
+            );
+        }
+
+        // Ollama: always registered, host is optional.
+        let ollama_host = resolve_env(&["OLLAMA_HOST", "LLMRUST_OLLAMA_HOST"]);
+        client.set_ollama(ollama_host).await;
+        tracing::debug!(provider = "ollama", "registered Ollama provider");
+
+        client
+    }
+
     /// Register the OpenAI provider.
     pub async fn set_openai(&self, api_key: impl Into<String>) {
         let config = ProviderConfig::new(api_key);
         let provider: Arc<dyn Provider> = Arc::new(OpenAIProvider::new(config));
-        self.providers
+        let prev = self
+            .providers
             .write()
             .await
             .insert("openai".to_string(), provider);
+        if prev.is_some() {
+            tracing::warn!("overwriting existing 'openai' provider registration");
+        }
     }
 
     /// Register the OpenAI provider with a custom base URL (for compatible APIs).
+    ///
+    /// **Note:** This registers under the same `"openai"` key as [`set_openai`](Self::set_openai).
+    /// Calling both will silently replace the earlier registration.
     pub async fn set_openai_compatible(
         &self,
         api_key: impl Into<String>,
@@ -104,10 +194,14 @@ impl LmrsClient {
     ) {
         let config = ProviderConfig::new(api_key).with_base_url(base_url);
         let provider: Arc<dyn Provider> = Arc::new(OpenAIProvider::new(config));
-        self.providers
+        let prev = self
+            .providers
             .write()
             .await
             .insert("openai".to_string(), provider);
+        if prev.is_some() {
+            tracing::warn!("overwriting existing 'openai' provider registration");
+        }
     }
 
     /// Register the Anthropic provider.
@@ -230,10 +324,22 @@ impl LmrsClient {
     /// Send a chat request with full control over parameters.
     pub async fn chat_with(&self, model: &str, req: ChatRequest) -> Result<ChatResponse> {
         let (provider_name, model_name) = Self::parse_model(model)?;
+        tracing::debug!(
+            provider = provider_name,
+            model = model_name,
+            "sending chat request"
+        );
         let provider = self.get_provider(provider_name).await?;
         let mut req = req;
         req.model = model_name.to_string();
-        provider.chat(&req).await
+        let resp = provider.chat(&req).await?;
+        tracing::debug!(
+            provider = provider_name,
+            model = model_name,
+            finish_reason = ?resp.finish_reason,
+            "chat response received"
+        );
+        Ok(resp)
     }
 
     /// Send a streaming chat request with a single user message.
@@ -256,6 +362,11 @@ impl LmrsClient {
         mut req: ChatRequest,
     ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         let (provider_name, model_name) = Self::parse_model(model)?;
+        tracing::debug!(
+            provider = provider_name,
+            model = model_name,
+            "opening stream"
+        );
         let provider = self.get_provider(provider_name).await?;
         req.model = model_name.to_string();
         req.stream = true;
@@ -263,6 +374,9 @@ impl LmrsClient {
     }
 
     /// Send a streaming request and collect the full text.
+    ///
+    /// Returns only the concatenated text. Use [`LmrsClient::stream_collect_full`]
+    /// if you also need `usage`, `tool_calls`, or `finish_reason`.
     pub async fn stream_collect(&self, model: &str, prompt: &str) -> Result<String> {
         let mut stream = self.stream(model, prompt).await?;
         let mut text = String::new();
@@ -271,6 +385,39 @@ impl LmrsClient {
             text.push_str(&chunk.delta);
         }
         Ok(text)
+    }
+
+    /// Send a streaming request and collect the full response.
+    ///
+    /// Returns a [`ChatResponse`] with concatenated text, the last reported
+    /// `usage`, `tool_calls`, and `finish_reason` from the terminal chunk(s).
+    pub async fn stream_collect_full(&self, model: &str, prompt: &str) -> Result<ChatResponse> {
+        let mut stream = self.stream(model, prompt).await?;
+        let mut text = String::new();
+        let mut usage = None;
+        let mut tool_calls = None;
+        let mut finish_reason = None;
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            text.push_str(&chunk.delta);
+            if chunk.usage.is_some() {
+                usage = chunk.usage;
+            }
+            if chunk.tool_calls.is_some() {
+                tool_calls = chunk.tool_calls;
+            }
+            if chunk.finish_reason.is_some() {
+                finish_reason = chunk.finish_reason;
+            }
+        }
+        Ok(ChatResponse {
+            content: text,
+            model: String::new(),
+            usage,
+            tool_calls,
+            finish_reason,
+            ..Default::default()
+        })
     }
 
     /// List registered provider names.

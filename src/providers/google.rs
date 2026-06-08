@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, ResponseFormat, StreamChunk,
-    Tool, ToolCall, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, LogProbs, ResponseFormat,
+    StreamChunk, TokenLogProb, Tool, ToolCall, ToolChoice, TopLogProb, Usage,
 };
 
 const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
@@ -180,6 +180,71 @@ struct GeminiCandidate {
     content: GeminiContentResponse,
     #[serde(default, rename = "finishReason")]
     finish_reason: Option<String>,
+    #[serde(default, rename = "logprobsResult")]
+    logprobs_result: Option<GeminiLogprobsResult>,
+}
+
+/// Gemini log-probability result. `chosen_candidates` carries the per-token
+/// log-probability of the tokens that were actually selected; `top_candidates`
+/// carries the top-N alternatives at each position (when `top_logprobs` was
+/// requested).
+#[derive(Deserialize)]
+struct GeminiLogprobsResult {
+    #[serde(default, rename = "chosenCandidates")]
+    chosen_candidates: Vec<GeminiLogprobCandidate>,
+    #[serde(default, rename = "topCandidates")]
+    top_candidates: Vec<GeminiTopCandidatesAtPosition>,
+}
+
+#[derive(Deserialize)]
+struct GeminiLogprobCandidate {
+    #[serde(default)]
+    token: Option<String>,
+    #[serde(default, rename = "logProbability")]
+    log_probability: Option<f64>,
+    #[serde(default)]
+    bytes: Option<Vec<u8>>,
+}
+
+#[derive(Deserialize)]
+struct GeminiTopCandidatesAtPosition {
+    #[serde(default)]
+    candidate: Vec<GeminiLogprobCandidate>,
+}
+
+/// Convert Gemini logprobs into the OpenAI-normalized [`LogProbs`] shape.
+fn gemini_logprobs_to_logprobs(lp: &GeminiLogprobsResult) -> Option<LogProbs> {
+    if lp.chosen_candidates.is_empty() {
+        return None;
+    }
+    let content: Vec<TokenLogProb> = lp
+        .chosen_candidates
+        .iter()
+        .enumerate()
+        .map(|(i, chosen)| {
+            let top_logprobs = lp
+                .top_candidates
+                .get(i)
+                .map(|tc| {
+                    tc.candidate
+                        .iter()
+                        .map(|c| TopLogProb {
+                            token: c.token.clone().unwrap_or_default(),
+                            logprob: c.log_probability.unwrap_or(0.0),
+                            bytes: c.bytes.clone(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            TokenLogProb {
+                token: chosen.token.clone().unwrap_or_default(),
+                logprob: chosen.log_probability.unwrap_or(0.0),
+                bytes: chosen.bytes.clone(),
+                top_logprobs,
+            }
+        })
+        .collect();
+    Some(LogProbs { content })
 }
 
 #[derive(Deserialize)]
@@ -597,6 +662,11 @@ impl Provider for GoogleProvider {
 
         let url = format!("{}/models/{}:generateContent", self.base_url, req.model);
 
+        tracing::debug!(
+            provider = "google",
+            model = &req.model,
+            "sending chat request"
+        );
         let resp = self
             .client
             .post(&url)
@@ -611,10 +681,12 @@ impl Provider for GoogleProvider {
             let msg = serde_json::from_str::<GeminiErrorBody>(&text)
                 .map(|e| e.error.message)
                 .unwrap_or(text);
-            return Err(LlmError::Api {
+            let err = LlmError::Api {
                 status: status.as_u16(),
                 message: msg,
-            });
+            };
+            tracing::error!(provider = "google", status = status.as_u16(), error = %err, "API error");
+            return Err(err);
         }
 
         let parsed: GeminiResponse = resp
@@ -628,45 +700,53 @@ impl Provider for GoogleProvider {
             total_tokens: u.total_token_count,
         });
 
-        let (content, tool_calls, finish_reason) = match parsed.candidates.into_iter().next() {
-            Some(candidate) => {
-                let candidate_finish = candidate.finish_reason;
-                let mut text = String::new();
-                let mut calls: Vec<ToolCall> = Vec::new();
-                for part in candidate.content.parts {
-                    if let Some(t) = part.text {
-                        text.push_str(&t);
+        let (content, tool_calls, finish_reason, logprobs) =
+            match parsed.candidates.into_iter().next() {
+                Some(candidate) => {
+                    let candidate_finish = candidate.finish_reason;
+                    let lp = candidate
+                        .logprobs_result
+                        .as_ref()
+                        .and_then(gemini_logprobs_to_logprobs);
+                    let mut text = String::new();
+                    let mut calls: Vec<ToolCall> = Vec::new();
+                    for part in candidate.content.parts {
+                        if let Some(t) = part.text {
+                            text.push_str(&t);
+                        }
+                        if let Some(fc) = part.function_call {
+                            let arguments = fc.args.to_string();
+                            calls.push(ToolCall {
+                                id: fc.name.clone(),
+                                call_type: "function".to_string(),
+                                function: FunctionCall {
+                                    name: fc.name,
+                                    arguments,
+                                },
+                            });
+                        }
                     }
-                    if let Some(fc) = part.function_call {
-                        let arguments = fc.args.to_string();
-                        calls.push(ToolCall {
-                            id: fc.name.clone(),
-                            call_type: "function".to_string(),
-                            function: FunctionCall {
-                                name: fc.name,
-                                arguments,
-                            },
-                        });
-                    }
+                    let tool_calls = if calls.is_empty() { None } else { Some(calls) };
+                    let finish_reason = if tool_calls.is_some() {
+                        Some("tool_calls".to_string())
+                    } else {
+                        candidate_finish
+                    };
+                    (text, tool_calls, finish_reason, lp)
                 }
-                let tool_calls = if calls.is_empty() { None } else { Some(calls) };
-                let finish_reason = if tool_calls.is_some() {
-                    Some("tool_calls".to_string())
-                } else {
-                    candidate_finish
-                };
-                (text, tool_calls, finish_reason)
-            }
-            None => (String::new(), None, None),
-        };
+                None => (String::new(), None, None, None),
+            };
 
-        Ok(ChatResponse {
+        let result = ChatResponse {
             content,
             model: parsed.model_version,
             usage,
             tool_calls,
             finish_reason,
-        })
+            logprobs,
+        };
+        tracing::debug!(provider = "google", model = &result.model, finish_reason = ?result.finish_reason, "chat response received");
+        Ok(result)
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
@@ -678,6 +758,11 @@ impl Provider for GoogleProvider {
             self.base_url, req.model
         );
 
+        tracing::debug!(
+            provider = "google",
+            model = &req.model,
+            "sending stream request"
+        );
         let resp = self
             .client
             .post(&url)
@@ -692,10 +777,12 @@ impl Provider for GoogleProvider {
             let msg = serde_json::from_str::<GeminiErrorBody>(&text)
                 .map(|e| e.error.message)
                 .unwrap_or(text);
-            return Err(LlmError::Api {
+            let err = LlmError::Api {
                 status: status.as_u16(),
                 message: msg,
-            });
+            };
+            tracing::error!(provider = "google", status = status.as_u16(), error = %err, "API error");
+            return Err(err);
         }
 
         let byte_stream = resp
@@ -934,5 +1021,41 @@ mod tests {
         assert!(last.done);
         assert_eq!(last.finish_reason.as_deref(), Some("STOP"));
         assert!(last.tool_calls.is_none());
+    }
+
+    #[test]
+    fn gemini_logprobs_parsed_into_logprobs() {
+        let raw = serde_json::json!({
+            "candidates": [{
+                "content": {"parts": [{"text": "hi"}]},
+                "finishReason": "STOP",
+                "logprobsResult": {
+                    "chosenCandidates": [
+                        {"token": "hi", "logProbability": -0.3, "bytes": [104, 105]}
+                    ],
+                    "topCandidates": [{
+                        "candidate": [
+                            {"token": "hi", "logProbability": -0.3, "bytes": [104, 105]},
+                            {"token": "hello", "logProbability": -1.2}
+                        ]
+                    }]
+                }
+            }],
+            "modelVersion": "gemini-2.0-flash"
+        })
+        .to_string();
+        let parsed: GeminiResponse = serde_json::from_str(&raw).unwrap();
+        let candidate = parsed.candidates.into_iter().next().unwrap();
+        let lp = candidate
+            .logprobs_result
+            .as_ref()
+            .and_then(gemini_logprobs_to_logprobs)
+            .expect("logprobs should be present");
+        assert_eq!(lp.content.len(), 1);
+        assert_eq!(lp.content[0].token, "hi");
+        assert_eq!(lp.content[0].logprob, -0.3);
+        assert_eq!(lp.content[0].bytes, Some(vec![104, 105]));
+        assert_eq!(lp.content[0].top_logprobs.len(), 2);
+        assert_eq!(lp.content[0].top_logprobs[1].token, "hello");
     }
 }

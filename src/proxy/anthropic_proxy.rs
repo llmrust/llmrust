@@ -822,9 +822,17 @@ pub async fn handle_messages(
     let stream = req.stream;
     let model = req.model.clone();
 
+    tracing::info!(model = &model, stream, "proxy: Anthropic messages request");
     let chat_req = match convert_request(&req) {
         Ok(r) => r,
-        Err(e) => return anthropic_error(StatusCode::BAD_REQUEST, "invalid_request_error", &e),
+        Err(e) => {
+            tracing::error!(
+                model = &model,
+                error = &e,
+                "proxy: Anthropic request conversion failed"
+            );
+            return anthropic_error(StatusCode::BAD_REQUEST, "invalid_request_error", &e);
+        }
     };
 
     if stream {
@@ -1073,6 +1081,7 @@ mod tests {
             }),
             tool_calls: None,
             finish_reason: Some("stop".to_string()),
+            logprobs: None,
         };
         let resp = build_response(chat_resp, "msg_1");
         assert_eq!(resp.id, "msg_1");
@@ -1107,6 +1116,7 @@ mod tests {
                 },
             }]),
             finish_reason: Some("tool_calls".to_string()),
+            logprobs: None,
         };
         let resp = build_response(chat_resp, "msg_2");
         assert_eq!(resp.stop_reason.as_deref(), Some("tool_use"));
@@ -1136,6 +1146,7 @@ mod tests {
                 },
             }]),
             finish_reason: Some("tool_calls".to_string()),
+            logprobs: None,
         };
         let resp = build_response(chat_resp, "msg_3");
         assert_eq!(resp.content.len(), 2);

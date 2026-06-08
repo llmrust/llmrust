@@ -59,11 +59,12 @@ fn backoff(attempt: u32, base_ms: u64, max_ms: u64) -> Duration {
     let delay = base_ms.saturating_mul(exponent).min(max_ms);
 
     // "Equal jitter" — spread retries within [delay/2, delay] to avoid
-    // thundering-herd without needing a real RNG.
+    // thundering-herd. Uses `fastrand` for real randomness so multiple
+    // clients retrying the same service don't synchronize.
     let quarter = delay / 4;
     let jitter = match quarter {
         0 => 0,
-        q => (attempt as u64) % q,
+        q => fastrand::u64(0..q),
     };
     let actual = delay - quarter + jitter;
 
@@ -124,10 +125,22 @@ impl Provider for RetryProvider {
 
         for attempt in 0..=self.max_retries {
             match self.inner.chat(req).await {
-                Ok(resp) => return Ok(resp),
+                Ok(resp) => {
+                    if attempt > 0 {
+                        tracing::info!(attempt, "retry succeeded");
+                    }
+                    return Ok(resp);
+                }
                 Err(e) => {
                     if should_retry(&e) && attempt < self.max_retries {
                         let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
+                        tracing::warn!(
+                            attempt = attempt + 1,
+                            max_retries = self.max_retries,
+                            delay_ms = delay.as_millis() as u64,
+                            error = %e,
+                            "retrying transient failure"
+                        );
                         sleep(delay).await;
                         last_error = Some(e);
                     } else {
@@ -147,10 +160,22 @@ impl Provider for RetryProvider {
 
         for attempt in 0..=self.max_retries {
             match self.inner.stream(req).await {
-                Ok(stream) => return Ok(stream),
+                Ok(stream) => {
+                    if attempt > 0 {
+                        tracing::info!(attempt, "retry succeeded (stream)");
+                    }
+                    return Ok(stream);
+                }
                 Err(e) => {
                     if should_retry(&e) && attempt < self.max_retries {
                         let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
+                        tracing::warn!(
+                            attempt = attempt + 1,
+                            max_retries = self.max_retries,
+                            delay_ms = delay.as_millis() as u64,
+                            error = %e,
+                            "retrying transient failure (stream)"
+                        );
                         sleep(delay).await;
                         last_error = Some(e);
                     } else {
@@ -299,17 +324,35 @@ mod tests {
 
     #[tokio::test]
     async fn backoff_produces_increasing_delays() {
-        let d0 = backoff(0, 500, 30_000);
-        let d1 = backoff(1, 500, 30_000);
-        let d2 = backoff(2, 500, 30_000);
-        // Each delay should be >= previous (with jitter there may be some
-        // overlap, but the mid-point trends upward).
-        assert!(d1 >= d0 || d2 >= d1);
+        // With random jitter the exact values vary, but the *range* of
+        // successive attempts must trend upward.
+        for _ in 0..20 {
+            let d0 = backoff(0, 500, 30_000);
+            let _d1 = backoff(1, 500, 30_000);
+            let d2 = backoff(2, 500, 30_000);
+            // Upper bound of attempt-0 range < lower bound of attempt-2 range
+            assert!(d0 <= Duration::from_millis(500));
+            assert!(d2 >= Duration::from_millis(1500));
+        }
     }
 
     #[tokio::test]
     async fn backoff_respects_max() {
         let d = backoff(30, 500, 5_000);
         assert!(d <= Duration::from_millis(5_000));
+    }
+
+    #[tokio::test]
+    async fn backoff_jitter_is_random() {
+        // Call backoff with the same attempt many times; at least some values
+        // must differ (probability of all-equal with a real RNG is negligible).
+        let values: Vec<u64> = (0..50)
+            .map(|_| backoff(3, 500, 30_000).as_millis() as u64)
+            .collect();
+        let first = values[0];
+        assert!(
+            values.iter().any(|&v| v != first),
+            "jitter should produce varying values, got all {first}"
+        );
     }
 }

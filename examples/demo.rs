@@ -20,60 +20,29 @@ use llmrust::LmrsClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = LmrsClient::new();
-
-    // Register providers from environment variables. Each is silently skipped
-    // if the corresponding env var is missing or empty.
-    if let Ok(key) = std::env::var("OPENAI_API_KEY") {
-        if !key.is_empty() {
-            llm.set_openai(&key).await;
-        }
-    }
-    if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") {
-        if !key.is_empty() {
-            llm.set_anthropic(&key).await;
-        }
-    }
-    if let Ok(key) = std::env::var("DEEPSEEK_API_KEY") {
-        if !key.is_empty() {
-            llm.set_deepseek(&key).await;
-        }
-    }
-    if let Ok(key) = std::env::var("GOOGLE_API_KEY") {
-        if !key.is_empty() {
-            llm.set_google(&key).await;
-        }
-    }
-    if let Ok(key) = std::env::var("MOONSHOT_API_KEY") {
-        if !key.is_empty() {
-            llm.set_moonshot(&key).await;
-        }
-    }
-    if let Ok(key) = std::env::var("OPENROUTER_API_KEY") {
-        if !key.is_empty() {
-            llm.set_openrouter(&key).await;
-        }
-    }
-
-    // Ollama is always registered — it needs no key, just a local server.
-    // If OLLAMA_HOST is set we use it; otherwise the provider falls back to
-    // its built-in default of http://localhost:11434.
-    let ollama_host = std::env::var("OLLAMA_HOST").ok().filter(|s| !s.is_empty());
-    llm.set_ollama(ollama_host).await;
+    // from_env() auto-detects providers from OPENAI_API_KEY, ANTHROPIC_API_KEY,
+    // DEEPSEEK_API_KEY, GOOGLE_API_KEY, MOONSHOT_API_KEY, OPENROUTER_API_KEY,
+    // OLLAMA_HOST (also supports LLMRUST_* fallbacks).
+    let llm = LmrsClient::from_env().await;
 
     let providers = llm.providers().await;
     if providers.is_empty() {
-        println!("No API keys found. Set at least one of:");
+        println!("No providers registered. Set at least one of:");
         println!("  OPENAI_API_KEY, ANTHROPIC_API_KEY, DEEPSEEK_API_KEY,");
         println!("  GOOGLE_API_KEY, MOONSHOT_API_KEY, OPENROUTER_API_KEY");
         println!("Ollama runs locally without a key (set OLLAMA_HOST if non-default).");
         return Ok(());
     }
     println!("Registered providers: {:?}\n", providers);
+    if providers.len() == 1 && providers.iter().any(|p| p == "ollama") {
+        println!(
+            "Only Ollama is registered. Make sure an Ollama server is running at OLLAMA_HOST or http://localhost:11434.\n"
+        );
+    }
 
     // --- Non-streaming example ---
-    // Each entry: (provider key, model string, prompt). Providers without a
-    // key are skipped gracefully.
+    // Each entry: (provider key, model string, prompt). Unregistered providers
+    // are skipped gracefully.
     let models = [
         ("openai", "openai/gpt-4o-mini", "Say hello in one sentence."),
         (

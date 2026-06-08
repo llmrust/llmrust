@@ -48,10 +48,22 @@ pub trait Provider: Send + Sync {
 }
 
 /// Configuration for a provider.
-#[derive(Debug, Clone)]
+///
+/// The `Debug` implementation masks the `api_key` field to prevent
+/// accidental leakage in logs or panic messages.
+#[derive(Clone)]
 pub struct ProviderConfig {
     pub api_key: String,
     pub base_url: Option<String>,
+}
+
+impl std::fmt::Debug for ProviderConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProviderConfig")
+            .field("api_key", &"***")
+            .field("base_url", &self.base_url)
+            .finish()
+    }
 }
 
 impl ProviderConfig {
@@ -65,5 +77,21 @@ impl ProviderConfig {
     pub fn with_base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = Some(url.into());
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn debug_hides_api_key() {
+        let config = ProviderConfig::new("sk-secret-12345");
+        let debug = format!("{:?}", config);
+        assert!(
+            !debug.contains("sk-secret-12345"),
+            "Debug output should not contain the API key, got: {debug}"
+        );
+        assert!(debug.contains("***"));
     }
 }

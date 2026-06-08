@@ -59,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `stream_options.include_usage`: usage events are emitted only when requested.
 - The OpenAI-compatible proxy now accepts legacy `functions` / `function_call`
   request fields and normalizes them to modern `tools` / `tool_choice`.
+- OpenAI-compatible provider responses now parse non-streaming
+  `choices[].logprobs` into `ChatResponse.logprobs` when reported.
 - Public rustdoc no longer links to a private helper, so docs build cleanly when warnings are denied.
 - Anthropic responses containing non-text content blocks (e.g. `tool_use`) no longer fail to deserialize; text blocks are concatenated and other blocks are skipped.
 - Google Gemini responses whose parts carry a `functionCall` (and no `text`) no longer fail to deserialize; part `text` is now optional.

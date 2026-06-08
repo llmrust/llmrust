@@ -15,8 +15,8 @@ use std::time::Duration;
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Content, FunctionCall, Message, ResponseFormat, StreamChunk, Tool,
-    ToolCall, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, FunctionCall, LogProbs, Message, ResponseFormat,
+    StreamChunk, Tool, ToolCall, ToolChoice, Usage,
 };
 
 // ── Defaults ────────────────────────────────
@@ -129,6 +129,8 @@ struct CompChoice {
     message: CompMessage,
     #[serde(default)]
     finish_reason: Option<String>,
+    #[serde(default)]
+    logprobs: Option<LogProbs>,
 }
 
 #[derive(Deserialize)]
@@ -396,15 +398,21 @@ impl OpenAiCompatibleProvider {
             total_tokens: u.total_tokens,
         });
 
-        let (content, tool_calls, finish_reason) = match parsed.choices.into_iter().next() {
+        let (content, tool_calls, finish_reason, logprobs) = match parsed.choices.into_iter().next()
+        {
             Some(choice) => {
                 let content = match choice.message.content {
                     Some(c) => c.as_text(),
                     None => String::new(),
                 };
-                (content, choice.message.tool_calls, choice.finish_reason)
+                (
+                    content,
+                    choice.message.tool_calls,
+                    choice.finish_reason,
+                    choice.logprobs,
+                )
             }
-            None => (String::new(), None, None),
+            None => (String::new(), None, None, None),
         };
 
         ChatResponse {
@@ -413,7 +421,7 @@ impl OpenAiCompatibleProvider {
             usage,
             tool_calls,
             finish_reason,
-            logprobs: None,
+            logprobs,
         }
     }
 }
@@ -605,6 +613,47 @@ mod tests {
         let calls = resp.tool_calls.expect("tool_calls present");
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].function.name, "get_weather");
+    }
+
+    #[test]
+    fn parses_logprobs_from_response() {
+        let raw = serde_json::json!({
+            "model": "gpt-4o",
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": "Hi"
+                },
+                "finish_reason": "stop",
+                "logprobs": {
+                    "content": [{
+                        "token": "Hi",
+                        "logprob": -0.25,
+                        "bytes": [72, 105],
+                        "top_logprobs": [{
+                            "token": "Hello",
+                            "logprob": -0.5,
+                            "bytes": [72, 101, 108, 108, 111]
+                        }]
+                    }]
+                }
+            }]
+        })
+        .to_string();
+
+        let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
+        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        assert_eq!(resp.content, "Hi");
+        assert_eq!(resp.finish_reason.as_deref(), Some("stop"));
+
+        let logprobs = resp.logprobs.expect("logprobs present");
+        assert_eq!(logprobs.content.len(), 1);
+        assert_eq!(logprobs.content[0].token, "Hi");
+        assert_eq!(logprobs.content[0].logprob, -0.25);
+        assert_eq!(logprobs.content[0].bytes, Some(vec![72, 105]));
+        assert_eq!(logprobs.content[0].top_logprobs.len(), 1);
+        assert_eq!(logprobs.content[0].top_logprobs[0].token, "Hello");
+        assert_eq!(logprobs.content[0].top_logprobs[0].logprob, -0.5);
     }
 
     #[test]

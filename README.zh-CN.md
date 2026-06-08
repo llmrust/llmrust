@@ -98,6 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 > - OpenAI 兼容代理同时接受现代 `tools` / `tool_choice` 和旧版 `functions` / `function_call` 请求字段，并统一转换为 llmrust 的工具模型。
 > - **JSON 模式 / 结构化输出** 支持 OpenAI 兼容服务商，并会映射到 Gemini 的 `responseMimeType` / `responseSchema`。
 > - 除 `temperature` / `max_tokens` / `top_p` 之外的**采样参数和请求元数据参数**（如 `stop`、`seed`、`presence_penalty`、`frequency_penalty`、`logprobs`、`n`、`response_format`、`parallel_tool_calls`、`service_tier`、`store`、`metadata`、`user`）会发送给 OpenAI 兼容服务商，并在 Gemini 有原生等价项时进行映射；Anthropic、Ollama 当前只支持较小的原生参数子集。
+> - 非流式 `logprobs` 响应会在 OpenAI 兼容服务商和 Gemini 中统一映射到 `ChatResponse.logprobs`。
 
 ## 使用示例
 

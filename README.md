@@ -358,8 +358,10 @@ at your option.
 Contributions welcome! Please open an issue or PR.
 
 ```bash
-cargo build
+cargo build --all-targets --all-features
 cargo test
-cargo clippy --all-targets -- -D warnings
+cargo test --all-features
+cargo clippy --all-targets --all-features -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 cargo fmt --check
 ```

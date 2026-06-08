@@ -356,8 +356,10 @@ match llm.chat("openai/gpt-4o", "你好").await {
 欢迎贡献！请提交 Issue 或 PR。
 
 ```bash
-cargo build
+cargo build --all-targets --all-features
 cargo test
-cargo clippy --all-targets -- -D warnings
+cargo test --all-features
+cargo clippy --all-targets --all-features -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 cargo fmt --check
 ```

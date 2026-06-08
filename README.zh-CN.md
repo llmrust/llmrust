@@ -235,7 +235,7 @@ curl http://localhost:3000/v1/chat/completions \
 
 ## 日志
 
-`llmrust` 会通过 [`tracing`](https://docs.rs/tracing) 输出结构化事件，覆盖 provider 注册、请求生命周期、proxy 请求、重试、router failover 以及上游 API 错误。作为依赖库，它不会安装全局 subscriber；日志如何收集由你的应用决定。
+`llmrust` 会通过 [`tracing`](https://docs.rs/tracing) 输出结构化事件，覆盖 provider 注册、请求生命周期（包括便捷 `chat` / `stream` API）、proxy 请求、重试、router failover 以及上游 API 错误。作为依赖库，它不会安装全局 subscriber；日志如何收集由你的应用决定。
 
 ```toml
 [dependencies]
@@ -248,7 +248,7 @@ tracing_subscriber::fmt()
     .init();
 ```
 
-日志字段包含 `provider`、`model`、HTTP `status`、重试 `attempt`、router `group` 等运行元数据。API key、prompt、消息内容、请求体和响应正文都不会被主动写入日志。
+日志字段包含 `provider`、`model`、HTTP `status`、重试 `attempt`、router `group` 等运行元数据。API key、原始 base URL、prompt、消息内容、请求体和响应正文都不会被主动写入日志。
 
 ## 服务商配置
 

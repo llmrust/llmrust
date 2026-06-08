@@ -235,7 +235,7 @@ curl http://localhost:3000/v1/chat/completions \
 
 ## Logging
 
-`llmrust` emits structured [`tracing`](https://docs.rs/tracing) events for provider registration, request lifecycle, proxy requests, retries, router failover, and upstream API errors. As a library, it does not install a global subscriber; your application decides how logs are collected.
+`llmrust` emits structured [`tracing`](https://docs.rs/tracing) events for provider registration, request lifecycle (including the convenience `chat` / `stream` APIs), proxy requests, retries, router failover, and upstream API errors. As a library, it does not install a global subscriber; your application decides how logs are collected.
 
 ```toml
 [dependencies]
@@ -248,7 +248,7 @@ tracing_subscriber::fmt()
     .init();
 ```
 
-Log fields include operational metadata such as `provider`, `model`, HTTP `status`, retry `attempt`, and router `group`. API keys, prompts, message content, request bodies, and response text are intentionally not logged.
+Log fields include operational metadata such as `provider`, `model`, HTTP `status`, retry `attempt`, and router `group`. API keys, raw base URLs, prompts, message content, request bodies, and response text are intentionally not logged.
 
 ## Provider Configuration
 

@@ -2,7 +2,45 @@
 
 #[cfg(test)]
 mod tests {
-    use llmrust::{ChatRequest, LmrsClient, Message, Role};
+    use futures::stream::{self, BoxStream};
+    use llmrust::{ChatRequest, ChatResponse, LmrsClient, Message, Provider, Role, StreamChunk};
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Clone, Default)]
+    struct RecordedRequest {
+        model: Arc<Mutex<Option<String>>>,
+        stream: Arc<Mutex<Option<bool>>>,
+    }
+
+    struct RecordingProvider {
+        recorded: RecordedRequest,
+    }
+
+    #[async_trait::async_trait]
+    impl Provider for RecordingProvider {
+        async fn chat(&self, req: &ChatRequest) -> llmrust::Result<ChatResponse> {
+            *self.recorded.model.lock().expect("lock not poisoned") = Some(req.model.clone());
+            Ok(ChatResponse {
+                content: "ok".to_string(),
+                model: req.model.clone(),
+                ..Default::default()
+            })
+        }
+
+        async fn stream(
+            &self,
+            req: &ChatRequest,
+        ) -> llmrust::Result<BoxStream<'static, llmrust::Result<StreamChunk>>> {
+            *self.recorded.model.lock().expect("lock not poisoned") = Some(req.model.clone());
+            *self.recorded.stream.lock().expect("lock not poisoned") = Some(req.stream);
+            Ok(Box::pin(stream::once(async {
+                Ok(StreamChunk {
+                    done: true,
+                    ..Default::default()
+                })
+            })))
+        }
+    }
 
     #[test]
     fn test_message_constructors() {
@@ -137,6 +175,47 @@ mod tests {
         llm.set_openrouter("sk-or-test").await;
         let providers = llm.providers().await;
         assert!(providers.contains(&"openrouter".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_convenience_chat_and_stream_set_internal_model() {
+        let llm = LmrsClient::new();
+        let recorded = RecordedRequest::default();
+        llm.set_custom(
+            "mock",
+            Arc::new(RecordingProvider {
+                recorded: recorded.clone(),
+            }),
+        )
+        .await;
+
+        let resp = llm
+            .chat("mock/actual-model", "secret prompt")
+            .await
+            .unwrap();
+        assert_eq!(resp.model, "actual-model");
+        assert_eq!(
+            recorded.model.lock().expect("lock not poisoned").as_deref(),
+            Some("actual-model")
+        );
+
+        let mut chunks = llm
+            .stream("mock/stream-model", "secret prompt")
+            .await
+            .unwrap();
+        let chunk = futures::StreamExt::next(&mut chunks)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(chunk.done);
+        assert_eq!(
+            recorded.model.lock().expect("lock not poisoned").as_deref(),
+            Some("stream-model")
+        );
+        assert_eq!(
+            *recorded.stream.lock().expect("lock not poisoned"),
+            Some(true)
+        );
     }
 
     #[tokio::test]

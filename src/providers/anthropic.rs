@@ -612,6 +612,7 @@ impl Provider for AnthropicProvider {
             }),
             tool_calls,
             finish_reason: parsed.stop_reason.map(normalize_stop_reason),
+            logprobs: None,
         })
     }
 

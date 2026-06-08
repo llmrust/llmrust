@@ -104,6 +104,15 @@ pub struct ProxyChatRequest {
     pub logprobs: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_logprobs: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_options: Option<ProxyStreamOptions>,
+}
+
+/// OpenAI-compatible streaming options.
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct ProxyStreamOptions {
+    pub include_usage: bool,
 }
 
 /// OpenAI-compatible stop sequences.
@@ -452,7 +461,11 @@ async fn handle_chat_completions(
     };
 
     if req.stream {
-        handle_stream(state, &req.model, chat_req).await
+        let include_usage = req
+            .stream_options
+            .as_ref()
+            .is_some_and(|opts| opts.include_usage);
+        handle_stream(state, &req.model, chat_req, include_usage).await
     } else {
         handle_non_stream(state, &req.model, chat_req).await
     }
@@ -509,7 +522,12 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
 
 // ── Streaming handler ─────────────────────
 
-async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Response {
+async fn handle_stream(
+    state: AppState,
+    model: &str,
+    mut req: ChatRequest,
+    include_usage: bool,
+) -> Response {
     let (provider_name, model_name) = match split_model(model) {
         Ok(pair) => pair,
         Err(e) => return error_response(StatusCode::BAD_REQUEST, e),
@@ -532,76 +550,88 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
             let model_clone = model_name.to_string();
             let mut role_sent = false;
 
-            let sse_stream = inner_stream.map(move |chunk_result| match chunk_result {
-                Ok(chunk) => {
-                    let has_tool_calls = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
-                    let mut finish_reason = chunk.finish_reason;
-                    if finish_reason.is_none() && chunk.done {
-                        finish_reason = Some(if has_tool_calls {
-                            "tool_calls".to_string()
+            let sse_stream = inner_stream.filter_map(move |chunk_result| {
+                let event = match chunk_result {
+                    Ok(chunk) => {
+                        let has_tool_calls =
+                            chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
+                        let mut finish_reason = chunk.finish_reason;
+                        if finish_reason.is_none() && chunk.done {
+                            finish_reason = Some(if has_tool_calls {
+                                "tool_calls".to_string()
+                            } else {
+                                "stop".to_string()
+                            });
+                        }
+                        let has_usage = chunk.usage.is_some();
+                        let usage = if include_usage {
+                            chunk.usage.map(|u| ProxyUsage {
+                                prompt_tokens: u.prompt_tokens,
+                                completion_tokens: u.completion_tokens,
+                                total_tokens: u.total_tokens,
+                            })
                         } else {
-                            "stop".to_string()
-                        });
-                    }
-                    let usage = chunk.usage.map(|u| ProxyUsage {
-                        prompt_tokens: u.prompt_tokens,
-                        completion_tokens: u.completion_tokens,
-                        total_tokens: u.total_tokens,
-                    });
-                    let content = if chunk.delta.is_empty() {
-                        None
-                    } else {
-                        Some(chunk.delta)
-                    };
-                    let is_usage_only = usage.is_some()
-                        && content.is_none()
-                        && finish_reason.is_none()
-                        && !has_tool_calls;
-                    let choices = if is_usage_only {
-                        Vec::new()
-                    } else {
-                        let role = if role_sent {
+                            None
+                        };
+                        let content = if chunk.delta.is_empty() {
                             None
                         } else {
-                            role_sent = true;
-                            Some("assistant".to_string())
+                            Some(chunk.delta)
                         };
-                        vec![ProxyStreamChoice {
-                            index: 0,
-                            delta: ProxyDelta {
-                                role,
-                                content,
-                                tool_calls: chunk.tool_calls,
+                        let is_usage_only = has_usage
+                            && content.is_none()
+                            && finish_reason.is_none()
+                            && !has_tool_calls;
+                        if is_usage_only && !include_usage {
+                            return futures::future::ready(None);
+                        }
+                        let choices = if is_usage_only {
+                            Vec::new()
+                        } else {
+                            let role = if role_sent {
+                                None
+                            } else {
+                                role_sent = true;
+                                Some("assistant".to_string())
+                            };
+                            vec![ProxyStreamChoice {
+                                index: 0,
+                                delta: ProxyDelta {
+                                    role,
+                                    content,
+                                    tool_calls: chunk.tool_calls,
+                                },
+                                finish_reason,
+                            }]
+                        };
+                        let payload = ProxyStreamChunk {
+                            id: id.clone(),
+                            object: "chat.completion.chunk".to_string(),
+                            created,
+                            model: model_clone.clone(),
+                            choices,
+                            usage,
+                        };
+                        Some(Ok::<_, Infallible>(
+                            Event::default()
+                                .data(serde_json::to_string(&payload).unwrap_or_default()),
+                        ))
+                    }
+                    Err(e) => {
+                        let error_payload = ProxyError {
+                            error: ProxyErrorDetail {
+                                message: e.to_string(),
+                                error_type: "stream_error".to_string(),
+                                param: None,
+                                code: None,
                             },
-                            finish_reason,
-                        }]
-                    };
-                    let payload = ProxyStreamChunk {
-                        id: id.clone(),
-                        object: "chat.completion.chunk".to_string(),
-                        created,
-                        model: model_clone.clone(),
-                        choices,
-                        usage,
-                    };
-                    Ok::<_, Infallible>(
-                        Event::default().data(serde_json::to_string(&payload).unwrap_or_default()),
-                    )
-                }
-                Err(e) => {
-                    let error_payload = ProxyError {
-                        error: ProxyErrorDetail {
-                            message: e.to_string(),
-                            error_type: "stream_error".to_string(),
-                            param: None,
-                            code: None,
-                        },
-                    };
-                    Ok::<_, Infallible>(
-                        Event::default()
-                            .data(serde_json::to_string(&error_payload).unwrap_or_default()),
-                    )
-                }
+                        };
+                        Some(Ok::<_, Infallible>(Event::default().data(
+                            serde_json::to_string(&error_payload).unwrap_or_default(),
+                        )))
+                    }
+                };
+                futures::future::ready(event)
             });
 
             // Final [DONE] chunk matching OpenAI conventions
@@ -1039,6 +1069,7 @@ mod tests {
             "model": "mock/test-model",
             "messages": [{"role": "user", "content": "hi"}],
             "stream": true,
+            "stream_options": {"include_usage": true},
         })
         .to_string();
 
@@ -1084,6 +1115,48 @@ mod tests {
             "usage-only chunk should have empty choices: {text}"
         );
         assert_eq!(events[3]["usage"]["total_tokens"], 8);
+    }
+
+    #[tokio::test]
+    async fn stream_omits_usage_without_stream_options() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": true,
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let text = String::from_utf8(bytes.to_vec()).expect("stream body is valid UTF-8");
+        let events = sse_json_events(&text);
+
+        assert_eq!(
+            events.len(),
+            3,
+            "usage-only event should be skipped: {text}"
+        );
+        assert!(
+            events.iter().all(|event| event.get("usage").is_none()),
+            "usage should be omitted unless requested: {text}"
+        );
+        assert_eq!(events[0]["choices"][0]["delta"]["role"], "assistant");
+        assert_eq!(events[2]["choices"][0]["finish_reason"], "stop");
+        assert!(
+            text.contains("[DONE]"),
+            "expected terminal [DONE] marker, got: {text}"
+        );
     }
 
     #[tokio::test]

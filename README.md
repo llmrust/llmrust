@@ -234,7 +234,7 @@ curl http://localhost:3000/v1/chat/completions \
 > **Security note:** Without `LLMRUST_PROXY_KEY` set, the proxy has no authentication. Run it on localhost or behind a reverse proxy.
 >
 > The proxy follows OpenAI chat-completions request conventions, including `stop` as either a string or an array, and returns JSON error bodies for malformed requests.
-> Streaming responses use OpenAI-style SSE chunks, including a single initial `assistant` role delta and empty `choices` on usage-only chunks.
+> Streaming responses use OpenAI-style SSE chunks, including a single initial `assistant` role delta. When `stream_options.include_usage` is `true`, usage-only chunks use empty `choices`.
 
 ## Logging
 

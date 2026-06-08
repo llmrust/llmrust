@@ -29,6 +29,7 @@ async-trait = "0.1"
 futures    = "0.3"
 thiserror  = "2"
 fastrand   = "2"
+tracing    = "0.1"
 
 # Optional: only compiled when the `proxy` feature is enabled.
 axum       = { version = "0.7", optional = true }

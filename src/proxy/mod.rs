@@ -373,9 +373,21 @@ async fn handle_chat_completions(
     State(state): State<AppState>,
     Json(req): Json<ProxyChatRequest>,
 ) -> Response {
+    tracing::info!(
+        model = &req.model,
+        stream = req.stream,
+        "proxy: chat completion request"
+    );
     let chat_req = match convert_request(&req) {
         Ok(r) => r,
-        Err(e) => return error_response(StatusCode::BAD_REQUEST, &e),
+        Err(e) => {
+            tracing::error!(
+                model = &req.model,
+                error = &e,
+                "proxy: request conversion failed"
+            );
+            return error_response(StatusCode::BAD_REQUEST, &e);
+        }
     };
 
     if req.stream {

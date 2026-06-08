@@ -662,6 +662,11 @@ impl Provider for GoogleProvider {
 
         let url = format!("{}/models/{}:generateContent", self.base_url, req.model);
 
+        tracing::debug!(
+            provider = "google",
+            model = &req.model,
+            "sending chat request"
+        );
         let resp = self
             .client
             .post(&url)
@@ -676,10 +681,12 @@ impl Provider for GoogleProvider {
             let msg = serde_json::from_str::<GeminiErrorBody>(&text)
                 .map(|e| e.error.message)
                 .unwrap_or(text);
-            return Err(LlmError::Api {
+            let err = LlmError::Api {
                 status: status.as_u16(),
                 message: msg,
-            });
+            };
+            tracing::error!(provider = "google", status = status.as_u16(), error = %err, "API error");
+            return Err(err);
         }
 
         let parsed: GeminiResponse = resp
@@ -730,14 +737,16 @@ impl Provider for GoogleProvider {
                 None => (String::new(), None, None, None),
             };
 
-        Ok(ChatResponse {
+        let result = ChatResponse {
             content,
             model: parsed.model_version,
             usage,
             tool_calls,
             finish_reason,
             logprobs,
-        })
+        };
+        tracing::debug!(provider = "google", model = &result.model, finish_reason = ?result.finish_reason, "chat response received");
+        Ok(result)
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
@@ -749,6 +758,11 @@ impl Provider for GoogleProvider {
             self.base_url, req.model
         );
 
+        tracing::debug!(
+            provider = "google",
+            model = &req.model,
+            "sending stream request"
+        );
         let resp = self
             .client
             .post(&url)
@@ -763,10 +777,12 @@ impl Provider for GoogleProvider {
             let msg = serde_json::from_str::<GeminiErrorBody>(&text)
                 .map(|e| e.error.message)
                 .unwrap_or(text);
-            return Err(LlmError::Api {
+            let err = LlmError::Api {
                 status: status.as_u16(),
                 message: msg,
-            });
+            };
+            tracing::error!(provider = "google", status = status.as_u16(), error = %err, "API error");
+            return Err(err);
         }
 
         let byte_stream = resp

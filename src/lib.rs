@@ -90,10 +90,14 @@ impl LmrsClient {
     pub async fn set_openai(&self, api_key: impl Into<String>) {
         let config = ProviderConfig::new(api_key);
         let provider: Arc<dyn Provider> = Arc::new(OpenAIProvider::new(config));
-        self.providers
+        let prev = self
+            .providers
             .write()
             .await
             .insert("openai".to_string(), provider);
+        if prev.is_some() {
+            tracing::warn!("overwriting existing 'openai' provider registration");
+        }
     }
 
     /// Register the OpenAI provider with a custom base URL (for compatible APIs).
@@ -107,10 +111,14 @@ impl LmrsClient {
     ) {
         let config = ProviderConfig::new(api_key).with_base_url(base_url);
         let provider: Arc<dyn Provider> = Arc::new(OpenAIProvider::new(config));
-        self.providers
+        let prev = self
+            .providers
             .write()
             .await
             .insert("openai".to_string(), provider);
+        if prev.is_some() {
+            tracing::warn!("overwriting existing 'openai' provider registration");
+        }
     }
 
     /// Register the Anthropic provider.
@@ -233,10 +241,22 @@ impl LmrsClient {
     /// Send a chat request with full control over parameters.
     pub async fn chat_with(&self, model: &str, req: ChatRequest) -> Result<ChatResponse> {
         let (provider_name, model_name) = Self::parse_model(model)?;
+        tracing::debug!(
+            provider = provider_name,
+            model = model_name,
+            "sending chat request"
+        );
         let provider = self.get_provider(provider_name).await?;
         let mut req = req;
         req.model = model_name.to_string();
-        provider.chat(&req).await
+        let resp = provider.chat(&req).await?;
+        tracing::debug!(
+            provider = provider_name,
+            model = model_name,
+            finish_reason = ?resp.finish_reason,
+            "chat response received"
+        );
+        Ok(resp)
     }
 
     /// Send a streaming chat request with a single user message.
@@ -259,6 +279,11 @@ impl LmrsClient {
         mut req: ChatRequest,
     ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         let (provider_name, model_name) = Self::parse_model(model)?;
+        tracing::debug!(
+            provider = provider_name,
+            model = model_name,
+            "opening stream"
+        );
         let provider = self.get_provider(provider_name).await?;
         req.model = model_name.to_string();
         req.stream = true;

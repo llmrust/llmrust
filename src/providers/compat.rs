@@ -433,10 +433,18 @@ impl Provider for OpenAiCompatibleProvider {
             top_logprobs: req.top_logprobs,
         };
 
+        tracing::debug!(
+            provider = "openai-compatible",
+            model = &req.model,
+            "sending chat request"
+        );
         let resp = self.send(&body).await?;
 
         if !resp.status().is_success() {
-            return Err(Self::parse_error(resp).await);
+            let status = resp.status().as_u16();
+            let err = Self::parse_error(resp).await;
+            tracing::error!(provider = "openai-compatible", status, error = %err, "API error");
+            return Err(err);
         }
 
         let parsed: CompResponse = resp
@@ -444,7 +452,9 @@ impl Provider for OpenAiCompatibleProvider {
             .await
             .map_err(|e| LlmError::Parse(format!("OpenAI-compatible parse: {e}")))?;
 
-        Ok(Self::parse_response(parsed))
+        let result = Self::parse_response(parsed);
+        tracing::debug!(provider = "openai-compatible", model = &result.model, finish_reason = ?result.finish_reason, "chat response received");
+        Ok(result)
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
@@ -472,10 +482,18 @@ impl Provider for OpenAiCompatibleProvider {
             top_logprobs: req.top_logprobs,
         };
 
+        tracing::debug!(
+            provider = "openai-compatible",
+            model = &req.model,
+            "sending stream request"
+        );
         let resp = self.send(&body).await?;
 
         if !resp.status().is_success() {
-            return Err(Self::parse_error(resp).await);
+            let status = resp.status().as_u16();
+            let err = Self::parse_error(resp).await;
+            tracing::error!(provider = "openai-compatible", status, error = %err, "API error");
+            return Err(err);
         }
 
         let byte_stream = resp

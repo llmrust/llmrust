@@ -822,9 +822,17 @@ pub async fn handle_messages(
     let stream = req.stream;
     let model = req.model.clone();
 
+    tracing::info!(model = &model, stream, "proxy: Anthropic messages request");
     let chat_req = match convert_request(&req) {
         Ok(r) => r,
-        Err(e) => return anthropic_error(StatusCode::BAD_REQUEST, "invalid_request_error", &e),
+        Err(e) => {
+            tracing::error!(
+                model = &model,
+                error = &e,
+                "proxy: Anthropic request conversion failed"
+            );
+            return anthropic_error(StatusCode::BAD_REQUEST, "invalid_request_error", &e);
+        }
     };
 
     if stream {

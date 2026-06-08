@@ -162,6 +162,11 @@ impl Provider for OllamaProvider {
             }),
         };
 
+        tracing::debug!(
+            provider = "ollama",
+            model = &req.model,
+            "sending chat request"
+        );
         let resp = self
             .client
             .post(format!("{}/api/chat", self.base_url))
@@ -175,10 +180,12 @@ impl Provider for OllamaProvider {
             let msg = serde_json::from_str::<OllamaErrorBody>(&text)
                 .map(|e| e.error)
                 .unwrap_or(text);
-            return Err(LlmError::Api {
+            let err = LlmError::Api {
                 status: status.as_u16(),
                 message: msg,
-            });
+            };
+            tracing::error!(provider = "ollama", status = status.as_u16(), error = %err, "API error");
+            return Err(err);
         }
 
         let parsed: OllamaResponse = resp
@@ -186,7 +193,7 @@ impl Provider for OllamaProvider {
             .await
             .map_err(|e| LlmError::Parse(e.to_string()))?;
 
-        Ok(ChatResponse {
+        let result = ChatResponse {
             content: parsed.message.content,
             model: parsed.model,
             usage: Some(Usage {
@@ -195,7 +202,13 @@ impl Provider for OllamaProvider {
                 total_tokens: parsed.prompt_eval_count.saturating_add(parsed.eval_count),
             }),
             ..Default::default()
-        })
+        };
+        tracing::debug!(
+            provider = "ollama",
+            model = &result.model,
+            "chat response received"
+        );
+        Ok(result)
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
@@ -212,6 +225,11 @@ impl Provider for OllamaProvider {
             }),
         };
 
+        tracing::debug!(
+            provider = "ollama",
+            model = &req.model,
+            "sending stream request"
+        );
         let resp = self
             .client
             .post(format!("{}/api/chat", self.base_url))
@@ -225,10 +243,12 @@ impl Provider for OllamaProvider {
             let msg = serde_json::from_str::<OllamaErrorBody>(&text)
                 .map(|e| e.error)
                 .unwrap_or(text);
-            return Err(LlmError::Api {
+            let err = LlmError::Api {
                 status: status.as_u16(),
                 message: msg,
-            });
+            };
+            tracing::error!(provider = "ollama", status = status.as_u16(), error = %err, "API error");
+            return Err(err);
         }
 
         let byte_stream = resp

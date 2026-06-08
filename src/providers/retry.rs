@@ -125,10 +125,22 @@ impl Provider for RetryProvider {
 
         for attempt in 0..=self.max_retries {
             match self.inner.chat(req).await {
-                Ok(resp) => return Ok(resp),
+                Ok(resp) => {
+                    if attempt > 0 {
+                        tracing::info!(attempt, "retry succeeded");
+                    }
+                    return Ok(resp);
+                }
                 Err(e) => {
                     if should_retry(&e) && attempt < self.max_retries {
                         let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
+                        tracing::warn!(
+                            attempt = attempt + 1,
+                            max_retries = self.max_retries,
+                            delay_ms = delay.as_millis() as u64,
+                            error = %e,
+                            "retrying transient failure"
+                        );
                         sleep(delay).await;
                         last_error = Some(e);
                     } else {
@@ -148,10 +160,22 @@ impl Provider for RetryProvider {
 
         for attempt in 0..=self.max_retries {
             match self.inner.stream(req).await {
-                Ok(stream) => return Ok(stream),
+                Ok(stream) => {
+                    if attempt > 0 {
+                        tracing::info!(attempt, "retry succeeded (stream)");
+                    }
+                    return Ok(stream);
+                }
                 Err(e) => {
                     if should_retry(&e) && attempt < self.max_retries {
                         let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
+                        tracing::warn!(
+                            attempt = attempt + 1,
+                            max_retries = self.max_retries,
+                            delay_ms = delay.as_millis() as u64,
+                            error = %e,
+                            "retrying transient failure (stream)"
+                        );
                         sleep(delay).await;
                         last_error = Some(e);
                     } else {

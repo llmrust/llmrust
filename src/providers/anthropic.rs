@@ -545,6 +545,11 @@ impl Provider for AnthropicProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
         let body = build_body(req, false);
 
+        tracing::debug!(
+            provider = "anthropic",
+            model = &req.model,
+            "sending chat request"
+        );
         let resp = self
             .client
             .post(format!("{}/messages", self.base_url))
@@ -560,10 +565,12 @@ impl Provider for AnthropicProvider {
             let msg = serde_json::from_str::<AnthropicErrorBody>(&text)
                 .map(|e| e.error.message)
                 .unwrap_or(text);
-            return Err(LlmError::Api {
+            let err = LlmError::Api {
                 status: status.as_u16(),
                 message: msg,
-            });
+            };
+            tracing::error!(provider = "anthropic", status = status.as_u16(), error = %err, "API error");
+            return Err(err);
         }
 
         let parsed: AnthropicResponse = resp
@@ -606,7 +613,7 @@ impl Provider for AnthropicProvider {
             Some(tool_calls)
         };
 
-        Ok(ChatResponse {
+        let result = ChatResponse {
             content,
             model: parsed.model,
             usage: parsed.usage.map(|u| Usage {
@@ -617,12 +624,19 @@ impl Provider for AnthropicProvider {
             tool_calls,
             finish_reason: parsed.stop_reason.map(normalize_stop_reason),
             logprobs: None,
-        })
+        };
+        tracing::debug!(provider = "anthropic", model = &result.model, finish_reason = ?result.finish_reason, "chat response received");
+        Ok(result)
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         let body = build_body(req, true);
 
+        tracing::debug!(
+            provider = "anthropic",
+            model = &req.model,
+            "sending stream request"
+        );
         let resp = self
             .client
             .post(format!("{}/messages", self.base_url))
@@ -638,10 +652,12 @@ impl Provider for AnthropicProvider {
             let msg = serde_json::from_str::<AnthropicErrorBody>(&text)
                 .map(|e| e.error.message)
                 .unwrap_or(text);
-            return Err(LlmError::Api {
+            let err = LlmError::Api {
                 status: status.as_u16(),
                 message: msg,
-            });
+            };
+            tracing::error!(provider = "anthropic", status = status.as_u16(), error = %err, "API error");
+            return Err(err);
         }
 
         let byte_stream = resp

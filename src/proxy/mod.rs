@@ -530,6 +530,7 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
             let id = generate_id();
             let created = unix_timestamp();
             let model_clone = model_name.to_string();
+            let mut role_sent = false;
 
             let sse_stream = inner_stream.map(move |chunk_result| match chunk_result {
                 Ok(chunk) => {
@@ -552,20 +553,35 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
                     } else {
                         Some(chunk.delta)
                     };
+                    let is_usage_only = usage.is_some()
+                        && content.is_none()
+                        && finish_reason.is_none()
+                        && !has_tool_calls;
+                    let choices = if is_usage_only {
+                        Vec::new()
+                    } else {
+                        let role = if role_sent {
+                            None
+                        } else {
+                            role_sent = true;
+                            Some("assistant".to_string())
+                        };
+                        vec![ProxyStreamChoice {
+                            index: 0,
+                            delta: ProxyDelta {
+                                role,
+                                content,
+                                tool_calls: chunk.tool_calls,
+                            },
+                            finish_reason,
+                        }]
+                    };
                     let payload = ProxyStreamChunk {
                         id: id.clone(),
                         object: "chat.completion.chunk".to_string(),
                         created,
                         model: model_clone.clone(),
-                        choices: vec![ProxyStreamChoice {
-                            index: 0,
-                            delta: ProxyDelta {
-                                role: Some("assistant".to_string()),
-                                content,
-                                tool_calls: chunk.tool_calls,
-                            },
-                            finish_reason,
-                        }],
+                        choices,
                         usage,
                     };
                     Ok::<_, Infallible>(
@@ -856,6 +872,15 @@ mod tests {
             .expect("failed to build test request")
     }
 
+    fn sse_json_events(text: &str) -> Vec<serde_json::Value> {
+        text.lines()
+            .filter_map(|line| line.strip_prefix("data:"))
+            .map(str::trim)
+            .filter(|data| !data.is_empty() && *data != "[DONE]")
+            .map(|data| serde_json::from_str(data).expect("SSE data is valid JSON"))
+            .collect()
+    }
+
     #[tokio::test]
     async fn router_can_be_built() {
         let llm = Arc::new(LmrsClient::new());
@@ -1044,6 +1069,21 @@ mod tests {
             text.contains("[DONE]"),
             "expected terminal [DONE] marker, got: {text}"
         );
+
+        let events = sse_json_events(&text);
+        assert_eq!(events[0]["choices"][0]["delta"]["role"], "assistant");
+        assert_eq!(events[0]["choices"][0]["delta"]["content"], "mock ");
+        assert!(
+            events[1]["choices"][0]["delta"].get("role").is_none(),
+            "role should only be emitted on the first delta: {text}"
+        );
+        assert_eq!(events[1]["choices"][0]["delta"]["content"], "stream");
+        assert_eq!(events[2]["choices"][0]["finish_reason"], "stop");
+        assert!(
+            events[3]["choices"].as_array().unwrap().is_empty(),
+            "usage-only chunk should have empty choices: {text}"
+        );
+        assert_eq!(events[3]["usage"]["total_tokens"], 8);
     }
 
     #[tokio::test]

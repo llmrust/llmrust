@@ -232,6 +232,8 @@ curl http://localhost:3000/v1/chat/completions \
 ```
 
 > **Security note:** Without `LLMRUST_PROXY_KEY` set, the proxy has no authentication. Run it on localhost or behind a reverse proxy.
+>
+> The proxy follows OpenAI chat-completions request conventions, including `stop` as either a string or an array, and returns JSON error bodies for malformed requests.
 
 ## Logging
 

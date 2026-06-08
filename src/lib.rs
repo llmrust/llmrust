@@ -316,12 +316,19 @@ impl LmrsClient {
 
     /// Parse a "provider/model" string into (provider_name, model_name).
     fn parse_model(model: &str) -> Result<(&str, &str)> {
-        model.split_once('/').ok_or_else(|| {
+        let (provider, model_name) = model.split_once('/').ok_or_else(|| {
             LlmError::Parse(format!(
                 "Model must be in 'provider/model' format, got: {}",
                 model
             ))
-        })
+        })?;
+        if provider.is_empty() || model_name.is_empty() {
+            return Err(LlmError::Parse(format!(
+                "Model must be in 'provider/model' format with non-empty provider and model, got: {}",
+                model
+            )));
+        }
+        Ok((provider, model_name))
     }
 
     /// Get the provider for a given model string.

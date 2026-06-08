@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Convenience `LmrsClient::chat` / `stream` calls now share the same structured
+  request lifecycle tracing as `chat_with` / `stream_with`, and
+  `ProviderConfig` debug output masks configured base URLs as well as API keys.
 - Provider registration now emits consistent `tracing` debug events without logging API keys or raw base URLs.
 - Anthropic and Google Gemini HTTP clients now use explicit request (120s) and connect (30s) timeouts, matching the OpenAI-compatible client, so a stalled connection can no longer hang a call indefinitely. The Ollama client enforces only a connection timeout, since local generation can legitimately be long-running.
 - Google Gemini now passes the API key via the `x-goog-api-key` header instead of the URL query string, avoiding key leakage in request logs.

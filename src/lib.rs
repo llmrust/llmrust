@@ -298,6 +298,7 @@ impl LmrsClient {
     /// Call this **after** all `set_*` calls.
     pub async fn with_retry(&self, max_retries: u32) {
         let mut map = self.providers.write().await;
+        let provider_count = map.len();
         let keys: Vec<String> = map.keys().cloned().collect();
         for key in keys {
             if let Some(provider) = map.remove(&key) {
@@ -306,6 +307,11 @@ impl LmrsClient {
                 map.insert(key, wrapped);
             }
         }
+        tracing::debug!(
+            providers = provider_count,
+            max_retries,
+            "wrapped providers with retry"
+        );
     }
 
     /// Parse a "provider/model" string into (provider_name, model_name).
@@ -330,10 +336,7 @@ impl LmrsClient {
 
     /// Send a simple chat request with a single user message.
     pub async fn chat(&self, model: &str, prompt: &str) -> Result<ChatResponse> {
-        let (provider_name, model_name) = Self::parse_model(model)?;
-        let provider = self.get_provider(provider_name).await?;
-        let req = ChatRequest::new(model_name, prompt);
-        provider.chat(&req).await
+        self.chat_with(model, ChatRequest::new("", prompt)).await
     }
 
     /// Send a chat request with full control over parameters.
@@ -363,10 +366,7 @@ impl LmrsClient {
         model: &str,
         prompt: &str,
     ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
-        let (provider_name, model_name) = Self::parse_model(model)?;
-        let provider = self.get_provider(provider_name).await?;
-        let req = ChatRequest::new(model_name, prompt).with_stream();
-        provider.stream(&req).await
+        self.stream_with(model, ChatRequest::new("", prompt)).await
     }
 
     /// Send a streaming chat request with full control over parameters
@@ -385,7 +385,13 @@ impl LmrsClient {
         let provider = self.get_provider(provider_name).await?;
         req.model = model_name.to_string();
         req.stream = true;
-        provider.stream(&req).await
+        let stream = provider.stream(&req).await?;
+        tracing::debug!(
+            provider = provider_name,
+            model = model_name,
+            "stream opened"
+        );
+        Ok(stream)
     }
 
     /// Send a streaming request and collect the full text.

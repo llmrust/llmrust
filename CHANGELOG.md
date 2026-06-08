@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `content_block_start` + `input_json_delta` fragments; Gemini collects
   streamed `functionCall` parts.
 - `ChatRequest::from_messages` / `ChatRequest::with_messages` constructors for building a request from a prepared message list.
+- `ChatRequest` builder support for OpenAI-compatible request metadata/control
+  fields: `parallel_tool_calls`, `service_tier`, `store`, `metadata`, and
+  `user`. The built-in OpenAI-compatible provider and proxy forward these
+  fields when set.
 - Logging documentation for the library's `tracing` events, including subscriber setup and the sensitive-data boundary.
 - `CHANGELOG.md`.
 

@@ -106,6 +106,16 @@ pub struct ProxyChatRequest {
     pub top_logprobs: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream_options: Option<ProxyStreamOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parallel_tool_calls: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub service_tier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub store: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
 }
 
 /// OpenAI-compatible streaming options.
@@ -695,6 +705,11 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         frequency_penalty: req.frequency_penalty,
         logprobs: req.logprobs,
         top_logprobs: req.top_logprobs,
+        parallel_tool_calls: req.parallel_tool_calls,
+        service_tier: req.service_tier.clone(),
+        store: req.store,
+        metadata: req.metadata.clone(),
+        user: req.user.clone(),
     })
 }
 
@@ -1571,7 +1586,12 @@ mod tests {
             "frequency_penalty": -0.25,
             "logprobs": true,
             "top_logprobs": 3,
-            "max_completion_tokens": 64
+            "max_completion_tokens": 64,
+            "parallel_tool_calls": false,
+            "service_tier": "flex",
+            "store": true,
+            "metadata": {"trace_id": "abc"},
+            "user": "user-123"
         })
         .to_string();
         let req: ProxyChatRequest = serde_json::from_str(&raw).unwrap();
@@ -1586,6 +1606,14 @@ mod tests {
         assert_eq!(chat_req.logprobs, Some(true));
         assert_eq!(chat_req.top_logprobs, Some(3));
         assert_eq!(chat_req.max_tokens, Some(64));
+        assert_eq!(chat_req.parallel_tool_calls, Some(false));
+        assert_eq!(chat_req.service_tier.as_deref(), Some("flex"));
+        assert_eq!(chat_req.store, Some(true));
+        assert_eq!(
+            chat_req.metadata,
+            Some(serde_json::json!({"trace_id": "abc"}))
+        );
+        assert_eq!(chat_req.user.as_deref(), Some("user-123"));
     }
 
     #[test]

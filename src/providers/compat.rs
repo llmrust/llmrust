@@ -59,6 +59,16 @@ struct CompChatRequest<'a> {
     logprobs: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     top_logprobs: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parallel_tool_calls: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    service_tier: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    store: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metadata: Option<&'a serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user: Option<&'a str>,
 }
 
 /// Asks OpenAI-compatible servers to emit a terminal chunk carrying token
@@ -431,6 +441,11 @@ impl Provider for OpenAiCompatibleProvider {
             frequency_penalty: req.frequency_penalty,
             logprobs: req.logprobs,
             top_logprobs: req.top_logprobs,
+            parallel_tool_calls: req.parallel_tool_calls,
+            service_tier: req.service_tier.as_deref(),
+            store: req.store,
+            metadata: req.metadata.as_ref(),
+            user: req.user.as_deref(),
         };
 
         tracing::debug!(
@@ -480,6 +495,11 @@ impl Provider for OpenAiCompatibleProvider {
             frequency_penalty: req.frequency_penalty,
             logprobs: req.logprobs,
             top_logprobs: req.top_logprobs,
+            parallel_tool_calls: req.parallel_tool_calls,
+            service_tier: req.service_tier.as_deref(),
+            store: req.store,
+            metadata: req.metadata.as_ref(),
+            user: req.user.as_deref(),
         };
 
         tracing::debug!(
@@ -546,6 +566,11 @@ mod tests {
             frequency_penalty: None,
             logprobs: None,
             top_logprobs: None,
+            parallel_tool_calls: None,
+            service_tier: None,
+            store: None,
+            metadata: None,
+            user: None,
         };
 
         let v = serde_json::to_value(&body).unwrap();
@@ -630,6 +655,7 @@ mod tests {
         let messages = vec![CompMessage::from(&Message::user("hi"))];
         let rf = ResponseFormat::json_object();
         let stop = vec!["STOP".to_string()];
+        let metadata = serde_json::json!({"trace_id": "abc"});
         let body = CompChatRequest {
             model: "gpt-4o",
             messages: &messages,
@@ -648,6 +674,11 @@ mod tests {
             frequency_penalty: Some(-0.25),
             logprobs: Some(true),
             top_logprobs: Some(3),
+            parallel_tool_calls: Some(false),
+            service_tier: Some("flex"),
+            store: Some(true),
+            metadata: Some(&metadata),
+            user: Some("user-123"),
         };
 
         let v = serde_json::to_value(&body).unwrap();
@@ -659,6 +690,11 @@ mod tests {
         assert_eq!(v["frequency_penalty"], -0.25);
         assert_eq!(v["logprobs"], true);
         assert_eq!(v["top_logprobs"], 3);
+        assert_eq!(v["parallel_tool_calls"], false);
+        assert_eq!(v["service_tier"], "flex");
+        assert_eq!(v["store"], true);
+        assert_eq!(v["metadata"]["trace_id"], "abc");
+        assert_eq!(v["user"], "user-123");
     }
 
     #[test]
@@ -682,6 +718,11 @@ mod tests {
             frequency_penalty: None,
             logprobs: None,
             top_logprobs: None,
+            parallel_tool_calls: None,
+            service_tier: None,
+            store: None,
+            metadata: None,
+            user: None,
         };
 
         let v = serde_json::to_value(&body).unwrap();
@@ -693,6 +734,11 @@ mod tests {
         assert!(v.get("frequency_penalty").is_none());
         assert!(v.get("logprobs").is_none());
         assert!(v.get("top_logprobs").is_none());
+        assert!(v.get("parallel_tool_calls").is_none());
+        assert!(v.get("service_tier").is_none());
+        assert!(v.get("store").is_none());
+        assert!(v.get("metadata").is_none());
+        assert!(v.get("user").is_none());
     }
 
     #[test]

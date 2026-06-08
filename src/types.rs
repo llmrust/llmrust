@@ -506,6 +506,19 @@ pub struct ChatRequest {
     /// Number of most-likely tokens to return log probabilities for at each
     /// position (implies `logprobs = true`).
     pub top_logprobs: Option<u32>,
+    /// Whether models may execute tool calls in parallel.
+    pub parallel_tool_calls: Option<bool>,
+    /// OpenAI-compatible processing tier hint (e.g. `"auto"`, `"default"`,
+    /// `"flex"`, `"scale"`, `"priority"`).
+    pub service_tier: Option<String>,
+    /// Whether compatible providers should store the completion, when they
+    /// support stored completions.
+    pub store: Option<bool>,
+    /// Provider-specific request metadata. This is forwarded to
+    /// OpenAI-compatible providers when set and is never logged by llmrust.
+    pub metadata: Option<serde_json::Value>,
+    /// End-user identifier for abuse monitoring on compatible providers.
+    pub user: Option<String>,
 }
 
 impl ChatRequest {
@@ -634,6 +647,36 @@ impl ChatRequest {
         self.top_logprobs = Some(top_logprobs);
         self
     }
+
+    /// Set whether tool calls may run in parallel.
+    pub fn with_parallel_tool_calls(mut self, enabled: bool) -> Self {
+        self.parallel_tool_calls = Some(enabled);
+        self
+    }
+
+    /// Set an OpenAI-compatible processing tier hint.
+    pub fn with_service_tier(mut self, tier: impl Into<String>) -> Self {
+        self.service_tier = Some(tier.into());
+        self
+    }
+
+    /// Set whether compatible providers should store the completion.
+    pub fn with_store(mut self, store: bool) -> Self {
+        self.store = Some(store);
+        self
+    }
+
+    /// Attach provider-specific request metadata.
+    pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
+        self.metadata = Some(metadata);
+        self
+    }
+
+    /// Set an end-user identifier for compatible providers.
+    pub fn with_user(mut self, user: impl Into<String>) -> Self {
+        self.user = Some(user.into());
+        self
+    }
 }
 
 #[cfg(test)]
@@ -750,7 +793,12 @@ mod tests {
             .with_presence_penalty(0.5)
             .with_frequency_penalty(-0.3)
             .with_logprobs(true)
-            .with_top_logprobs(5);
+            .with_top_logprobs(5)
+            .with_parallel_tool_calls(false)
+            .with_service_tier("flex")
+            .with_store(true)
+            .with_metadata(serde_json::json!({"trace_id": "abc"}))
+            .with_user("user-123");
 
         assert_eq!(req.response_format, Some(ResponseFormat::JsonObject));
         assert_eq!(req.stop, Some(vec!["\n".to_string()]));
@@ -761,6 +809,11 @@ mod tests {
         assert_eq!(req.frequency_penalty, Some(-0.3));
         assert_eq!(req.logprobs, Some(true));
         assert_eq!(req.top_logprobs, Some(5));
+        assert_eq!(req.parallel_tool_calls, Some(false));
+        assert_eq!(req.service_tier.as_deref(), Some("flex"));
+        assert_eq!(req.store, Some(true));
+        assert_eq!(req.metadata, Some(serde_json::json!({"trace_id": "abc"})));
+        assert_eq!(req.user.as_deref(), Some("user-123"));
     }
 
     #[test]

@@ -96,7 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 >
 > - **工具调用 / Function calling** 同时支持 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）以及 Anthropic、Gemini 的原生工具调用。非流式 `chat` 会返回 `ChatResponse.tool_calls`；流式 `stream` 会从分片中重建工具调用，并在终止 chunk 的 `StreamChunk.tool_calls` 中返回。
 > - **JSON 模式 / 结构化输出** 支持 OpenAI 兼容服务商，并会映射到 Gemini 的 `responseMimeType` / `responseSchema`。
-> - 除 `temperature` / `max_tokens` / `top_p` 之外的**采样参数**（如 `stop`、`seed`、`presence_penalty`、`frequency_penalty`、`logprobs`、`n`、`response_format`）会发送给 OpenAI 兼容服务商，并在 Gemini 有原生等价项时进行映射；Anthropic、Ollama 当前只支持较小的原生参数子集。
+> - 除 `temperature` / `max_tokens` / `top_p` 之外的**采样参数和请求元数据参数**（如 `stop`、`seed`、`presence_penalty`、`frequency_penalty`、`logprobs`、`n`、`response_format`、`parallel_tool_calls`、`service_tier`、`store`、`metadata`、`user`）会发送给 OpenAI 兼容服务商，并在 Gemini 有原生等价项时进行映射；Anthropic、Ollama 当前只支持较小的原生参数子集。
 
 ## 使用示例
 

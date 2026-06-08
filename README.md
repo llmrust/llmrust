@@ -42,7 +42,7 @@ cargo add llmrust
 
 | Feature | Default | Description |
 |---|---|---|
-| *(none)* | ✅ | LLM client — all providers + streaming; tool calling on OpenAI-compatible, Anthropic, and Gemini providers (chat + streaming); JSON mode on OpenAI-compatible providers |
+| *(none)* | ✅ | LLM client — all providers + streaming; tool calling on OpenAI-compatible, Anthropic, and Gemini providers (chat + streaming); JSON mode on OpenAI-compatible and Gemini providers |
 | `proxy` | ❌ | Built-in OpenAI-compatible HTTP proxy server (adds `axum`) |
 
 Enable the proxy server:
@@ -95,8 +95,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 > **Feature support notes**
 >
 > - **Tool calling / function calling** is supported on the OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter) and natively on Anthropic and Gemini, on both the non-streaming `chat` path and the streaming `stream` path (streamed tool calls are reconstructed and surfaced as `StreamChunk.tool_calls` on the terminal chunk).
-> - **JSON mode** is currently wired through the OpenAI-compatible providers.
-> - **Sampling parameters** beyond `temperature` / `max_tokens` / `top_p` (e.g. `stop`, `seed`, `presence_penalty`, `frequency_penalty`, `logprobs`, `n`, `response_format`) are sent to the OpenAI-compatible providers; Anthropic, Gemini, and Ollama currently honor the core sampling parameters only.
+> - **JSON mode / structured outputs** are wired through the OpenAI-compatible providers and mapped to Gemini's `responseMimeType` / `responseSchema`.
+> - **Sampling parameters** beyond `temperature` / `max_tokens` / `top_p` (e.g. `stop`, `seed`, `presence_penalty`, `frequency_penalty`, `logprobs`, `n`, `response_format`) are sent to OpenAI-compatible providers and mapped where Gemini has native equivalents. Anthropic and Ollama currently honor a smaller provider-native subset.
 
 ## Usage Examples
 
@@ -198,7 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### JSON Mode & Sampling Parameters
 
-> JSON mode and the extended sampling parameters below are currently applied on the OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter).
+> JSON mode and the extended sampling parameters below are applied on OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter) and mapped where Gemini has native equivalents.
 
 ```rust
 use llmrust::ChatRequest;

@@ -43,6 +43,9 @@ async fn main() {
 
     println!("\nllmrust proxy server starting on http://0.0.0.0:3000");
     println!("   Registered providers: {}", providers.join(", "));
+    if providers.len() == 1 && providers.iter().any(|p| p == "ollama") {
+        println!("   Only Ollama is registered; make sure the local Ollama server is running.");
+    }
     println!("   Try: curl http://localhost:3000/v1/chat/completions ...");
     println!("   Health: curl http://localhost:3000/health");
     println!("   Press Ctrl+C to stop.\n");

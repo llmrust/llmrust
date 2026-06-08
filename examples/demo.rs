@@ -27,17 +27,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let providers = llm.providers().await;
     if providers.is_empty() {
-        println!("No API keys found. Set at least one of:");
+        println!("No providers registered. Set at least one of:");
         println!("  OPENAI_API_KEY, ANTHROPIC_API_KEY, DEEPSEEK_API_KEY,");
         println!("  GOOGLE_API_KEY, MOONSHOT_API_KEY, OPENROUTER_API_KEY");
         println!("Ollama runs locally without a key (set OLLAMA_HOST if non-default).");
         return Ok(());
     }
     println!("Registered providers: {:?}\n", providers);
+    if providers.len() == 1 && providers.iter().any(|p| p == "ollama") {
+        println!(
+            "Only Ollama is registered. Make sure an Ollama server is running at OLLAMA_HOST or http://localhost:11434.\n"
+        );
+    }
 
     // --- Non-streaming example ---
-    // Each entry: (provider key, model string, prompt). Providers without a
-    // key are skipped gracefully.
+    // Each entry: (provider key, model string, prompt). Unregistered providers
+    // are skipped gracefully.
     let models = [
         ("openai", "openai/gpt-4o-mini", "Say hello in one sentence."),
         (

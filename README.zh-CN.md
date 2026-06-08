@@ -42,7 +42,7 @@ cargo add llmrust
 
 | Feature | 默认 | 说明 |
 |---|---|---|
-| *(无)* | ✅ | LLM 客户端 — 全部提供商 + 流式；工具调用支持 OpenAI 兼容、Anthropic、Gemini 提供商（非流式）；JSON 模式支持 OpenAI 兼容提供商 |
+| *(无)* | ✅ | LLM 客户端 — 全部提供商 + 流式；工具调用支持 OpenAI 兼容、Anthropic、Gemini 提供商（非流式 + 流式）；JSON 模式支持 OpenAI 兼容和 Gemini 提供商 |
 | `proxy` | ❌ | 内置 OpenAI 兼容 HTTP 代理服务器（会引入 `axum`）|
 
 启用代理服务器：
@@ -94,9 +94,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 > **功能支持说明**
 >
-> - **工具调用 / Function calling** 同时支持 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）以及 Anthropic、Gemini 的原生工具调用。工具调用通过非流式的 `chat` 路径返回；流式路径会输出文本增量与 `finish_reason`，但暂不从流式分片中重建工具调用。
-> - **JSON 模式** 目前通过 OpenAI 兼容服务商提供。
-> - 除 `temperature` / `max_tokens` / `top_p` 之外的**采样参数**（如 `stop`、`seed`、`presence_penalty`、`frequency_penalty`、`logprobs`、`n`、`response_format`）目前会发送给 OpenAI 兼容服务商；Anthropic、Gemini、Ollama 当前仅支持核心采样参数。
+> - **工具调用 / Function calling** 同时支持 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）以及 Anthropic、Gemini 的原生工具调用。非流式 `chat` 会返回 `ChatResponse.tool_calls`；流式 `stream` 会从分片中重建工具调用，并在终止 chunk 的 `StreamChunk.tool_calls` 中返回。
+> - **JSON 模式 / 结构化输出** 支持 OpenAI 兼容服务商，并会映射到 Gemini 的 `responseMimeType` / `responseSchema`。
+> - 除 `temperature` / `max_tokens` / `top_p` 之外的**采样参数**（如 `stop`、`seed`、`presence_penalty`、`frequency_penalty`、`logprobs`、`n`、`response_format`）会发送给 OpenAI 兼容服务商，并在 Gemini 有原生等价项时进行映射；Anthropic、Ollama 当前只支持较小的原生参数子集。
 
 ## 使用示例
 
@@ -198,7 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### JSON 模式 & 采样参数
 
-> JSON 模式以及下面的扩展采样参数目前在 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）上生效。
+> JSON 模式以及下面的扩展采样参数会在 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）上生效，并在 Gemini 有原生等价项时进行映射。
 
 ```rust
 use llmrust::ChatRequest;

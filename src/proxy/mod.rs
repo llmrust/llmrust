@@ -47,7 +47,8 @@ use tower_http::cors::{Any, CorsLayer};
 mod anthropic_proxy;
 
 use crate::{
-    ChatRequest, Content, LlmError, LmrsClient, Message, Role, Tool, ToolCall, ToolChoice,
+    ChatRequest, Content, LlmError, LmrsClient, LogProbs, Message, ResponseFormat, Role, Tool,
+    ToolCall, ToolChoice,
 };
 
 // ── ID generation ────────────────────────────
@@ -77,6 +78,7 @@ pub struct ProxyChatRequest {
     pub model: String,
     pub messages: Vec<ProxyMessage>,
     pub temperature: Option<f64>,
+    #[serde(alias = "max_completion_tokens")]
     pub max_tokens: Option<u64>,
     pub stream: bool,
     pub top_p: Option<f64>,
@@ -86,14 +88,32 @@ pub struct ProxyChatRequest {
     /// How the model should choose which tool to call.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<ToolChoice>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<ResponseFormat>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub n: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seed: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency_penalty: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_logprobs: Option<u32>,
 }
 
 /// OpenAI-compatible message. `content` accepts either a plain string or an
-/// array of content parts (text / image_url), matching the OpenAI schema.
+/// array of content parts (text / image_url), matching the OpenAI schema. It
+/// may also be `null` on assistant turns that only carry `tool_calls`.
 #[derive(Debug, Deserialize)]
 pub struct ProxyMessage {
     pub role: String,
-    pub content: Content,
+    #[serde(default)]
+    pub content: Option<Content>,
     /// The id of the tool call this message responds to (present on `tool`
     /// role messages in OpenAI's tool-calling protocol).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -102,6 +122,10 @@ pub struct ProxyMessage {
     /// invoke tools).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
+    /// Optional participant name (often the function name on legacy tool
+    /// result messages).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 /// OpenAI-compatible chat completion response (non-streaming).
@@ -122,13 +146,17 @@ pub struct ProxyChoice {
     pub index: u32,
     pub message: ProxyResponseMessage,
     pub finish_reason: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<LogProbs>,
 }
 
 /// Message inside a choice.
 #[derive(Debug, Serialize)]
 pub struct ProxyResponseMessage {
     pub role: String,
-    pub content: String,
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
 }
 
 /// OpenAI-compatible usage stats.
@@ -166,6 +194,8 @@ pub struct ProxyDelta {
     pub role: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
 }
 
 /// Proxy error response body.
@@ -230,7 +260,7 @@ fn default_cors() -> CorsLayer {
 ///
 /// The default CORS layer allows all origins for development convenience.
 /// **For production**, wrap the returned `Router` with a restrictive
-/// `CorsLayer` (see [`default_cors`] for an example).
+/// `CorsLayer` like the example above.
 pub fn router(llm: Arc<LmrsClient>) -> Router {
     let state = AppState { llm };
     Router::new()
@@ -406,6 +436,19 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
                 Ok(pair) => pair,
                 Err(_) => (model, model),
             };
+            let has_tool_calls = resp.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
+            let finish_reason = resp.finish_reason.unwrap_or_else(|| {
+                if has_tool_calls {
+                    "tool_calls".to_string()
+                } else {
+                    "stop".to_string()
+                }
+            });
+            let content = if has_tool_calls && resp.content.is_empty() {
+                None
+            } else {
+                Some(resp.content)
+            };
             Json(ProxyChatResponse {
                 id: generate_id(),
                 object: "chat.completion".to_string(),
@@ -415,9 +458,11 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
                     index: 0,
                     message: ProxyResponseMessage {
                         role: "assistant".to_string(),
-                        content: resp.content,
+                        content,
+                        tool_calls: resp.tool_calls,
                     },
-                    finish_reason: "stop".to_string(),
+                    finish_reason,
+                    logprobs: resp.logprobs,
                 }],
                 usage: resp.usage.map(|u| ProxyUsage {
                     prompt_tokens: u.prompt_tokens,
@@ -457,15 +502,25 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
 
             let sse_stream = inner_stream.map(move |chunk_result| match chunk_result {
                 Ok(chunk) => {
+                    let has_tool_calls = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
                     let mut finish_reason = chunk.finish_reason;
                     if finish_reason.is_none() && chunk.done {
-                        finish_reason = Some("stop".to_string());
+                        finish_reason = Some(if has_tool_calls {
+                            "tool_calls".to_string()
+                        } else {
+                            "stop".to_string()
+                        });
                     }
                     let usage = chunk.usage.map(|u| ProxyUsage {
                         prompt_tokens: u.prompt_tokens,
                         completion_tokens: u.completion_tokens,
                         total_tokens: u.total_tokens,
                     });
+                    let content = if chunk.delta.is_empty() {
+                        None
+                    } else {
+                        Some(chunk.delta)
+                    };
                     let payload = ProxyStreamChunk {
                         id: id.clone(),
                         object: "chat.completion.chunk".to_string(),
@@ -475,7 +530,8 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
                             index: 0,
                             delta: ProxyDelta {
                                 role: Some("assistant".to_string()),
-                                content: Some(chunk.delta),
+                                content,
+                                tool_calls: chunk.tool_calls,
                             },
                             finish_reason,
                         }],
@@ -531,10 +587,10 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
             };
             Ok(Message {
                 role,
-                content: m.content.clone(),
+                content: m.content.clone().unwrap_or_default(),
                 tool_calls: m.tool_calls.clone(),
                 tool_call_id: m.tool_call_id.clone(),
-                name: None,
+                name: m.name.clone(),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -548,7 +604,14 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         top_p: req.top_p,
         tools: req.tools.clone(),
         tool_choice: req.tool_choice.clone(),
-        ..Default::default()
+        response_format: req.response_format.clone(),
+        stop: req.stop.clone(),
+        n: req.n,
+        seed: req.seed,
+        presence_penalty: req.presence_penalty,
+        frequency_penalty: req.frequency_penalty,
+        logprobs: req.logprobs,
+        top_logprobs: req.top_logprobs,
     })
 }
 
@@ -587,7 +650,7 @@ fn error_response(status: StatusCode, message: &str) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{ChatResponse, StreamChunk, Usage};
+    use crate::types::{ChatResponse, FunctionCall, ResponseFormat, StreamChunk, Usage};
     use crate::{BoxStream, Provider, Result};
     use axum::body::{to_bytes, Body};
     use axum::http::Request;
@@ -642,6 +705,48 @@ mod tests {
         }
     }
 
+    struct ToolCallProvider;
+
+    #[async_trait::async_trait]
+    impl Provider for ToolCallProvider {
+        async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+            Ok(ChatResponse {
+                content: String::new(),
+                model: "tool-model".to_string(),
+                tool_calls: Some(vec![ToolCall {
+                    id: "call_1".to_string(),
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: "get_weather".to_string(),
+                        arguments: "{\"city\":\"SF\"}".to_string(),
+                    },
+                }]),
+                finish_reason: Some("tool_calls".to_string()),
+                ..Default::default()
+            })
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            let chunks: Vec<Result<StreamChunk>> = vec![Ok(StreamChunk {
+                done: true,
+                finish_reason: Some("tool_calls".to_string()),
+                tool_calls: Some(vec![ToolCall {
+                    id: "call_1".to_string(),
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: "get_weather".to_string(),
+                        arguments: "{\"city\":\"SF\"}".to_string(),
+                    },
+                }]),
+                ..Default::default()
+            })];
+            Ok(Box::pin(futures::stream::iter(chunks)))
+        }
+    }
+
     fn build_request(body: &str) -> Request<Body> {
         Request::builder()
             .method("POST")
@@ -690,6 +795,38 @@ mod tests {
         assert_eq!(json["usage"]["prompt_tokens"], 3);
         assert_eq!(json["usage"]["completion_tokens"], 5);
         assert_eq!(json["usage"]["total_tokens"], 8);
+    }
+
+    #[tokio::test]
+    async fn non_stream_forwards_tool_calls_and_finish_reason() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("tool", Arc::new(ToolCallProvider)).await;
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "tool/test-model",
+            "messages": [{"role": "user", "content": "weather?"}],
+            "tools": [{"type": "function", "function": {"name": "get_weather", "parameters": {}}}]
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+
+        assert_eq!(json["choices"][0]["finish_reason"], "tool_calls");
+        assert!(json["choices"][0]["message"]["content"].is_null());
+        assert_eq!(
+            json["choices"][0]["message"]["tool_calls"][0]["function"]["name"],
+            "get_weather"
+        );
     }
 
     #[tokio::test]
@@ -763,6 +900,34 @@ mod tests {
             text.contains("[DONE]"),
             "expected terminal [DONE] marker, got: {text}"
         );
+    }
+
+    #[tokio::test]
+    async fn stream_forwards_tool_calls() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("tool", Arc::new(ToolCallProvider)).await;
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "tool/test-model",
+            "messages": [{"role": "user", "content": "weather?"}],
+            "stream": true,
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let text = String::from_utf8(bytes.to_vec()).expect("stream body is valid UTF-8");
+        assert!(text.contains("\"finish_reason\":\"tool_calls\""));
+        assert!(text.contains("\"tool_calls\""));
+        assert!(text.contains("\"name\":\"get_weather\""));
     }
 
     #[tokio::test]
@@ -1047,8 +1212,8 @@ mod tests {
             "model": "openai/gpt-4o",
             "messages": [
                 {"role": "user", "content": "What's the weather?"},
-                {"role": "assistant", "content": "", "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "get_weather", "arguments": "{}"}}]},
-                {"role": "tool", "tool_call_id": "call_1", "content": "sunny"}
+                {"role": "assistant", "content": null, "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "get_weather", "arguments": "{}"}}]},
+                {"role": "tool", "tool_call_id": "call_1", "name": "get_weather", "content": "sunny"}
             ]
         })
         .to_string();
@@ -1057,7 +1222,9 @@ mod tests {
         assert_eq!(chat_req.messages.len(), 3);
         assert_eq!(chat_req.messages[2].role, Role::Tool);
         assert_eq!(chat_req.messages[2].tool_call_id.as_deref(), Some("call_1"));
+        assert_eq!(chat_req.messages[2].name.as_deref(), Some("get_weather"));
         assert!(chat_req.messages[1].tool_calls.is_some());
+        assert!(chat_req.messages[1].content.is_empty());
     }
 
     #[test]
@@ -1073,5 +1240,35 @@ mod tests {
         let chat_req = convert_request(&req).expect("should not fail");
         assert!(chat_req.tools.is_some());
         assert!(chat_req.tool_choice.is_some());
+    }
+
+    #[test]
+    fn convert_request_forwards_advanced_openai_fields() {
+        let raw = serde_json::json!({
+            "model": "openai/gpt-4o",
+            "messages": [{"role": "user", "content": "hi"}],
+            "response_format": {"type": "json_object"},
+            "stop": ["END"],
+            "n": 2,
+            "seed": 42,
+            "presence_penalty": 0.5,
+            "frequency_penalty": -0.25,
+            "logprobs": true,
+            "top_logprobs": 3,
+            "max_completion_tokens": 64
+        })
+        .to_string();
+        let req: ProxyChatRequest = serde_json::from_str(&raw).unwrap();
+        let chat_req = convert_request(&req).expect("should not fail");
+
+        assert_eq!(chat_req.response_format, Some(ResponseFormat::JsonObject));
+        assert_eq!(chat_req.stop, Some(vec!["END".to_string()]));
+        assert_eq!(chat_req.n, Some(2));
+        assert_eq!(chat_req.seed, Some(42));
+        assert_eq!(chat_req.presence_penalty, Some(0.5));
+        assert_eq!(chat_req.frequency_penalty, Some(-0.25));
+        assert_eq!(chat_req.logprobs, Some(true));
+        assert_eq!(chat_req.top_logprobs, Some(3));
+        assert_eq!(chat_req.max_tokens, Some(64));
     }
 }

@@ -5,6 +5,7 @@ use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
@@ -13,19 +14,6 @@ use crate::types::{
 };
 
 const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
-
-/// Build an HTTP client with explicit request/connect timeouts so a stalled
-/// connection can never block a caller indefinitely. Falls back to the default
-/// client if the builder fails (it will not in practice).
-fn build_http_client() -> Client {
-    Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .connect_timeout(std::time::Duration::from_secs(30))
-        .pool_max_idle_per_host(32)
-        .tcp_keepalive(std::time::Duration::from_secs(30))
-        .build()
-        .unwrap_or_else(|_| Client::new())
-}
 
 pub struct GoogleProvider {
     client: Client,
@@ -36,7 +24,7 @@ pub struct GoogleProvider {
 impl GoogleProvider {
     pub fn new(config: ProviderConfig) -> Self {
         Self {
-            client: build_http_client(),
+            client: build_http_client(Some(REQUEST_TIMEOUT)),
             api_key: config.api_key,
             base_url: config
                 .base_url

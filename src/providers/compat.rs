@@ -10,8 +10,8 @@ use async_trait::async_trait;
 use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 
+use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
@@ -19,12 +19,7 @@ use crate::types::{
     StreamChunk, Tool, ToolCall, ToolChoice, Usage,
 };
 
-// ── Defaults ────────────────────────────────
-
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
-
-// ── Shared request / response types ─────────────────────
+// ── Shared request / response types ───────────────────────
 
 #[derive(Serialize)]
 struct CompChatRequest<'a> {
@@ -257,18 +252,6 @@ impl ToolCallAccumulator {
     }
 }
 
-// ── HTTP client construction ──────────────────────
-
-fn build_http_client() -> Client {
-    Client::builder()
-        .timeout(REQUEST_TIMEOUT)
-        .connect_timeout(CONNECT_TIMEOUT)
-        .pool_max_idle_per_host(32)
-        .tcp_keepalive(Duration::from_secs(30))
-        .build()
-        .expect("reqwest::Client::builder() with valid options")
-}
-
 /// Parse a single SSE line from an OpenAI-compatible stream into zero or more
 /// [`StreamChunk`]s, threading a [`ToolCallAccumulator`] so streamed tool-call
 /// fragments can be reassembled across lines. Lines are guaranteed complete by
@@ -336,7 +319,7 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
     }
 }
 
-// ── The unified OpenAI-compatible provider ────────────────
+// ── The unified OpenAI-compatible provider ────────────
 
 /// A generic provider for any OpenAI-compatible `/chat/completions` API.
 ///
@@ -360,7 +343,7 @@ impl OpenAiCompatibleProvider {
     ) -> Self {
         let base_url = config.base_url.unwrap_or_default();
         Self {
-            client: build_http_client(),
+            client: build_http_client(Some(REQUEST_TIMEOUT)),
             api_key: config.api_key,
             base_url,
             extra_headers: extra_headers.into_iter().collect(),

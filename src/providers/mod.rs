@@ -4,6 +4,7 @@ pub mod anthropic;
 pub mod compat;
 pub mod deepseek;
 pub mod google;
+pub(crate) mod http;
 pub mod moonshot;
 pub mod ollama;
 pub mod openai;

@@ -50,6 +50,20 @@ struct OllamaRequest<'a> {
     options: Option<OllamaOptions>,
 }
 
+/// Build `OllamaOptions` only when at least one field is set, so the request
+/// body stays clean when the caller doesn't override any sampling parameter.
+fn build_ollama_options(req: &ChatRequest) -> Option<OllamaOptions> {
+    if req.temperature.is_some() || req.max_tokens.is_some() || req.top_p.is_some() {
+        Some(OllamaOptions {
+            temperature: req.temperature,
+            num_predict: req.max_tokens,
+            top_p: req.top_p,
+        })
+    } else {
+        None
+    }
+}
+
 #[derive(Serialize)]
 struct OllamaOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -155,11 +169,7 @@ impl Provider for OllamaProvider {
             model: &req.model,
             messages: &messages,
             stream: false,
-            options: Some(OllamaOptions {
-                temperature: req.temperature,
-                num_predict: req.max_tokens,
-                top_p: req.top_p,
-            }),
+            options: build_ollama_options(req),
         };
 
         tracing::debug!(
@@ -218,11 +228,7 @@ impl Provider for OllamaProvider {
             model: &req.model,
             messages: &messages,
             stream: true,
-            options: Some(OllamaOptions {
-                temperature: req.temperature,
-                num_predict: req.max_tokens,
-                top_p: req.top_p,
-            }),
+            options: build_ollama_options(req),
         };
 
         tracing::debug!(

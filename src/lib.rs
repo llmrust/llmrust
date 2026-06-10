@@ -214,10 +214,14 @@ impl LmrsClient {
     pub async fn set_anthropic(&self, api_key: impl Into<String>) {
         let config = ProviderConfig::new(api_key);
         let provider: Arc<dyn Provider> = Arc::new(AnthropicProvider::new(config));
-        self.providers
+        let prev = self
+            .providers
             .write()
             .await
             .insert("anthropic".to_string(), provider);
+        if prev.is_some() {
+            tracing::warn!("overwriting existing 'anthropic' provider registration");
+        }
         tracing::debug!(provider = "anthropic", "registered provider");
     }
 
@@ -225,10 +229,14 @@ impl LmrsClient {
     pub async fn set_deepseek(&self, api_key: impl Into<String>) {
         let config = ProviderConfig::new(api_key);
         let provider: Arc<dyn Provider> = Arc::new(DeepSeekProvider::new(config));
-        self.providers
+        let prev = self
+            .providers
             .write()
             .await
             .insert("deepseek".to_string(), provider);
+        if prev.is_some() {
+            tracing::warn!("overwriting existing 'deepseek' provider registration");
+        }
         tracing::debug!(provider = "deepseek", "registered provider");
     }
 
@@ -236,10 +244,14 @@ impl LmrsClient {
     pub async fn set_google(&self, api_key: impl Into<String>) {
         let config = ProviderConfig::new(api_key);
         let provider: Arc<dyn Provider> = Arc::new(GoogleProvider::new(config));
-        self.providers
+        let prev = self
+            .providers
             .write()
             .await
             .insert("google".to_string(), provider);
+        if prev.is_some() {
+            tracing::warn!("overwriting existing 'google' provider registration");
+        }
         tracing::debug!(provider = "google", "registered provider");
     }
 
@@ -253,10 +265,14 @@ impl LmrsClient {
             None => config,
         };
         let provider: Arc<dyn Provider> = Arc::new(OllamaProvider::new(config));
-        self.providers
+        let prev = self
+            .providers
             .write()
             .await
             .insert("ollama".to_string(), provider);
+        if prev.is_some() {
+            tracing::warn!("overwriting existing 'ollama' provider registration");
+        }
         tracing::debug!(provider = "ollama", custom_base_url, "registered provider");
     }
 
@@ -264,10 +280,14 @@ impl LmrsClient {
     pub async fn set_moonshot(&self, api_key: impl Into<String>) {
         let config = ProviderConfig::new(api_key);
         let provider: Arc<dyn Provider> = Arc::new(MoonshotProvider::new(config));
-        self.providers
+        let prev = self
+            .providers
             .write()
             .await
             .insert("moonshot".to_string(), provider);
+        if prev.is_some() {
+            tracing::warn!("overwriting existing 'moonshot' provider registration");
+        }
         tracing::debug!(provider = "moonshot", "registered provider");
     }
 
@@ -275,17 +295,24 @@ impl LmrsClient {
     pub async fn set_openrouter(&self, api_key: impl Into<String>) {
         let config = ProviderConfig::new(api_key);
         let provider: Arc<dyn Provider> = Arc::new(OpenRouterProvider::new(config));
-        self.providers
+        let prev = self
+            .providers
             .write()
             .await
             .insert("openrouter".to_string(), provider);
+        if prev.is_some() {
+            tracing::warn!("overwriting existing 'openrouter' provider registration");
+        }
         tracing::debug!(provider = "openrouter", "registered provider");
     }
 
     /// Register a custom provider under a name.
     pub async fn set_custom(&self, name: impl Into<String>, provider: Arc<dyn Provider>) {
         let name = name.into();
-        self.providers.write().await.insert(name.clone(), provider);
+        let prev = self.providers.write().await.insert(name.clone(), provider);
+        if prev.is_some() {
+            tracing::warn!(provider = %name, "overwriting existing provider registration");
+        }
         tracing::debug!(provider = %name, "registered custom provider");
     }
 
@@ -440,7 +467,7 @@ impl LmrsClient {
         }
         Ok(ChatResponse {
             content: text,
-            model: String::new(),
+            model: model.to_string(),
             usage,
             tool_calls,
             finish_reason,

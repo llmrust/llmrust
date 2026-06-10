@@ -134,6 +134,25 @@ struct GeminiGenerationConfig {
     logprobs: Option<u32>,
 }
 
+impl GeminiGenerationConfig {
+    /// True when every field is `None`, meaning the config would serialize as
+    /// an empty `{}`. Used by [`build_generation_config`] to omit the key.
+    fn is_empty(&self) -> bool {
+        self.temperature.is_none()
+            && self.max_output_tokens.is_none()
+            && self.top_p.is_none()
+            && self.stop_sequences.is_none()
+            && self.candidate_count.is_none()
+            && self.seed.is_none()
+            && self.presence_penalty.is_none()
+            && self.frequency_penalty.is_none()
+            && self.response_mime_type.is_none()
+            && self.response_schema.is_none()
+            && self.response_logprobs.is_none()
+            && self.logprobs.is_none()
+    }
+}
+
 /// A Gemini tool is a bundle of function declarations.
 #[derive(Serialize)]
 struct GeminiTool {
@@ -470,12 +489,16 @@ fn gemini_response_format(format: &ResponseFormat) -> (Option<String>, Option<se
 /// All fields are optional and omitted when unset, so the wire format stays
 /// backward compatible. OpenAI-style `logprobs` (enable) + `top_logprobs`
 /// (count) map to Gemini's `responseLogprobs` + `logprobs`.
-fn build_generation_config(req: &ChatRequest) -> GeminiGenerationConfig {
+///
+/// Returns `None` when every field is unset so the key is omitted entirely
+/// from the request body rather than serialized as an empty `{}`.
+fn build_generation_config(req: &ChatRequest) -> Option<GeminiGenerationConfig> {
     let (response_mime_type, response_schema) = match &req.response_format {
         Some(format) => gemini_response_format(format),
         None => (None, None),
     };
-    GeminiGenerationConfig {
+
+    let config = GeminiGenerationConfig {
         temperature: req.temperature,
         max_output_tokens: req.max_tokens,
         top_p: req.top_p,
@@ -488,6 +511,12 @@ fn build_generation_config(req: &ChatRequest) -> GeminiGenerationConfig {
         response_schema,
         response_logprobs: req.logprobs,
         logprobs: req.top_logprobs,
+    };
+
+    if config.is_empty() {
+        None
+    } else {
+        Some(config)
     }
 }
 
@@ -648,7 +677,7 @@ fn build_body<'a>(
     GeminiRequest {
         contents,
         system_instruction,
-        generation_config: Some(build_generation_config(req)),
+        generation_config: build_generation_config(req),
         tools: req.tools.as_deref().map(to_gemini_tools),
         tool_config: req.tool_choice.as_ref().map(to_gemini_tool_config),
     }
@@ -877,7 +906,7 @@ mod tests {
             .with_presence_penalty(0.5)
             .with_frequency_penalty(-0.3)
             .with_top_p(0.9);
-        let cfg = build_generation_config(&req);
+        let cfg = build_generation_config(&req).expect("non-empty config");
         let v = serde_json::to_value(&cfg).unwrap();
         assert_eq!(v["stopSequences"][0], "END");
         assert_eq!(v["seed"], 42);
@@ -890,7 +919,7 @@ mod tests {
     #[test]
     fn json_mode_sets_response_mime_type() {
         let req = ChatRequest::new("gemini", "hi").with_json_mode();
-        let cfg = build_generation_config(&req);
+        let cfg = build_generation_config(&req).expect("non-empty config");
         let v = serde_json::to_value(&cfg).unwrap();
         assert_eq!(v["responseMimeType"], "application/json");
         assert!(v.get("responseSchema").is_none());
@@ -901,7 +930,7 @@ mod tests {
         let schema = serde_json::json!({"name": "person", "schema": {"type": "object"}});
         let req = ChatRequest::new("gemini", "hi")
             .with_response_format(ResponseFormat::json_schema(schema));
-        let cfg = build_generation_config(&req);
+        let cfg = build_generation_config(&req).expect("non-empty config");
         let v = serde_json::to_value(&cfg).unwrap();
         assert_eq!(v["responseMimeType"], "application/json");
         assert_eq!(v["responseSchema"]["type"], "object");
@@ -912,18 +941,16 @@ mod tests {
         let req = ChatRequest::new("gemini", "hi")
             .with_logprobs(true)
             .with_top_logprobs(5);
-        let cfg = build_generation_config(&req);
+        let cfg = build_generation_config(&req).expect("non-empty config");
         let v = serde_json::to_value(&cfg).unwrap();
         assert_eq!(v["responseLogprobs"], true);
         assert_eq!(v["logprobs"], 5);
     }
 
     #[test]
-    fn empty_generation_config_omits_all_optional_fields() {
+    fn empty_generation_config_returns_none() {
         let req = ChatRequest::new("gemini", "hi");
-        let cfg = build_generation_config(&req);
-        let v = serde_json::to_value(&cfg).unwrap();
-        assert!(v.as_object().unwrap().is_empty());
+        assert!(build_generation_config(&req).is_none());
     }
 
     #[test]

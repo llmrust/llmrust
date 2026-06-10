@@ -586,91 +586,106 @@ async fn handle_stream(
             let model_clone = model_name.to_string();
             let mut role_sent = false;
 
-            let sse_stream = inner_stream.filter_map(move |chunk_result| {
-                let event = match chunk_result {
-                    Ok(chunk) => {
-                        let has_tool_calls =
-                            chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
-                        let mut finish_reason = chunk.finish_reason;
-                        if finish_reason.is_none() && chunk.done {
-                            finish_reason = Some(if has_tool_calls {
-                                "tool_calls".to_string()
-                            } else {
-                                "stop".to_string()
-                            });
+            // Map each upstream chunk to (Option<Event>, should_terminate).
+            // On error we emit the error event and signal termination so no
+            // further chunks are processed — the chained [DONE] event still
+            // fires, giving the client a clean stream end.
+            let sse_stream = inner_stream
+                .map(
+                    move |chunk_result| -> (Option<Result<Event, Infallible>>, bool) {
+                        match chunk_result {
+                            Ok(chunk) => {
+                                let has_tool_calls =
+                                    chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
+                                let mut finish_reason = chunk.finish_reason;
+                                if finish_reason.is_none() && chunk.done {
+                                    finish_reason = Some(if has_tool_calls {
+                                        "tool_calls".to_string()
+                                    } else {
+                                        "stop".to_string()
+                                    });
+                                }
+                                let has_usage = chunk.usage.is_some();
+                                let usage = if include_usage {
+                                    chunk.usage.map(|u| ProxyUsage {
+                                        prompt_tokens: u.prompt_tokens,
+                                        completion_tokens: u.completion_tokens,
+                                        total_tokens: u.total_tokens,
+                                    })
+                                } else {
+                                    None
+                                };
+                                let content = if chunk.delta.is_empty() {
+                                    None
+                                } else {
+                                    Some(chunk.delta)
+                                };
+                                let is_usage_only = has_usage
+                                    && content.is_none()
+                                    && finish_reason.is_none()
+                                    && !has_tool_calls;
+                                if is_usage_only && !include_usage {
+                                    return (None, false);
+                                }
+                                let choices = if is_usage_only {
+                                    Vec::new()
+                                } else {
+                                    let role = if role_sent {
+                                        None
+                                    } else {
+                                        role_sent = true;
+                                        Some("assistant".to_string())
+                                    };
+                                    vec![ProxyStreamChoice {
+                                        index: 0,
+                                        delta: ProxyDelta {
+                                            role,
+                                            content,
+                                            tool_calls: chunk.tool_calls,
+                                        },
+                                        finish_reason,
+                                    }]
+                                };
+                                let payload = ProxyStreamChunk {
+                                    id: id.clone(),
+                                    object: "chat.completion.chunk".to_string(),
+                                    created,
+                                    model: model_clone.clone(),
+                                    choices,
+                                    usage,
+                                };
+                                (
+                                    Some(Ok(Event::default().data(
+                                        serde_json::to_string(&payload).unwrap_or_default(),
+                                    ))),
+                                    false,
+                                )
+                            }
+                            Err(e) => {
+                                let error_payload = ProxyError {
+                                    error: ProxyErrorDetail {
+                                        message: e.to_string(),
+                                        error_type: "stream_error".to_string(),
+                                        param: None,
+                                        code: None,
+                                    },
+                                };
+                                (
+                                    Some(Ok(Event::default().data(
+                                        serde_json::to_string(&error_payload).unwrap_or_default(),
+                                    ))),
+                                    true, // terminate after error
+                                )
+                            }
                         }
-                        let has_usage = chunk.usage.is_some();
-                        let usage = if include_usage {
-                            chunk.usage.map(|u| ProxyUsage {
-                                prompt_tokens: u.prompt_tokens,
-                                completion_tokens: u.completion_tokens,
-                                total_tokens: u.total_tokens,
-                            })
-                        } else {
-                            None
-                        };
-                        let content = if chunk.delta.is_empty() {
-                            None
-                        } else {
-                            Some(chunk.delta)
-                        };
-                        let is_usage_only = has_usage
-                            && content.is_none()
-                            && finish_reason.is_none()
-                            && !has_tool_calls;
-                        if is_usage_only && !include_usage {
-                            return futures::future::ready(None);
-                        }
-                        let choices = if is_usage_only {
-                            Vec::new()
-                        } else {
-                            let role = if role_sent {
-                                None
-                            } else {
-                                role_sent = true;
-                                Some("assistant".to_string())
-                            };
-                            vec![ProxyStreamChoice {
-                                index: 0,
-                                delta: ProxyDelta {
-                                    role,
-                                    content,
-                                    tool_calls: chunk.tool_calls,
-                                },
-                                finish_reason,
-                            }]
-                        };
-                        let payload = ProxyStreamChunk {
-                            id: id.clone(),
-                            object: "chat.completion.chunk".to_string(),
-                            created,
-                            model: model_clone.clone(),
-                            choices,
-                            usage,
-                        };
-                        Some(Ok::<_, Infallible>(
-                            Event::default()
-                                .data(serde_json::to_string(&payload).unwrap_or_default()),
-                        ))
-                    }
-                    Err(e) => {
-                        let error_payload = ProxyError {
-                            error: ProxyErrorDetail {
-                                message: e.to_string(),
-                                error_type: "stream_error".to_string(),
-                                param: None,
-                                code: None,
-                            },
-                        };
-                        Some(Ok::<_, Infallible>(Event::default().data(
-                            serde_json::to_string(&error_payload).unwrap_or_default(),
-                        )))
-                    }
-                };
-                futures::future::ready(event)
-            });
+                    },
+                )
+                // Stop processing after an error so [DONE] is the final event
+                .take_while(|(_, terminate)| futures::future::ready(!terminate))
+                .filter_map(|(event, _)| futures::future::ready(event));
 
-            // Final [DONE] chunk matching OpenAI conventions
+            // Final [DONE] chunk matching OpenAI conventions — always emitted,
+            // even after a mid-stream error.
             let done = stream::once(async { Ok::<_, Infallible>(Event::default().data("[DONE]")) });
 
             Sse::new(sse_stream.chain(done))

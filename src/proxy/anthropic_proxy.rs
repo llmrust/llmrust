@@ -59,6 +59,7 @@ pub enum AnthropicSystemContent {
 #[derive(Debug, Deserialize)]
 pub struct AnthropicSystemBlock {
     #[serde(rename = "type", default)]
+    #[allow(dead_code)]
     pub block_type: Option<String>,
     pub text: String,
 }
@@ -110,6 +111,7 @@ pub enum AnthropicToolResultContent {
 #[derive(Debug, Deserialize)]
 pub struct AnthropicToolResultBlock {
     #[serde(rename = "type", default)]
+    #[allow(dead_code)]
     pub block_type: Option<String>,
     pub text: String,
 }

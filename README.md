@@ -15,10 +15,35 @@
 
 A high-performance, type-safe Rust library for calling multiple LLM providers through a unified interface. Inspired by Python's [LiteLLM](https://github.com/BerriAI/litellm), but built for Rust's performance and safety guarantees.
 
+## Why llmrust? — Differentiation & Advantages
+
+Rust already has several good multi-provider LLM crates (e.g. [`genai`](https://github.com/jeremychone/rust-genai), [`rig`](https://rig.rs/), [`llm`/`rllm`](https://github.com/graniet/llm)). Some are broader than us — `genai` supports many more providers, `rig` is a full agent framework. llmrust deliberately stays focused and wins on three things they don't all do:
+
+### 1. Built-in dual-protocol proxy (OpenAI **and** Anthropic)
+
+With `features = ["proxy"]`, llmrust runs as a translating API gateway that speaks **both** wire protocols at the same time:
+
+- `POST /v1/chat/completions` — OpenAI Chat Completions protocol
+- `POST /v1/messages` — Anthropic Messages protocol
+
+Any client SDK — one that only speaks OpenAI *or* one that only speaks Anthropic (e.g. tools built for Claude) — can point at llmrust and reach **any** registered backend (OpenAI, Anthropic, Gemini, DeepSeek, Moonshot, OpenRouter, Ollama) through automatic format conversion. Bearer-token auth, CORS, health checks, and graceful shutdown are included. Most competing crates are client libraries only; the few that ship a server usually expose the OpenAI format alone.
+
+### 2. Cross-provider logprobs, normalized
+
+llmrust normalizes token log-probabilities — including each position's top-N alternatives — into a single `ChatResponse.logprobs` shape across OpenAI-compatible providers **and** Google Gemini (whose native `logprobsResult` is reshaped to match). That gives you one uniform surface for evaluation, confidence scoring, and re-ranking, instead of per-provider special-casing.
+
+### 3. A lean, correct, type-safe core
+
+`default = []` — nothing is enabled unless you ask for it, the dependency tree stays small, and the scope is intentionally narrow (no embedding / vector-store / agent-framework bloat). You get native-protocol support for Anthropic and Gemini (not just OpenAI-compatible shims), full compile-time type safety, structured `tracing` that never logs secrets or prompt content, and built-in retry + router failover. When you want a clean, predictable multi-provider call layer rather than a heavyweight framework, that's the niche llmrust fills.
+
+> **Honest scope:** llmrust is young. If you need the widest provider catalog or a batteries-included agent/RAG framework today, `genai` or `rig` may fit better. llmrust's bet is the three areas above.
+
 ## Features
 
 - **Unified API** — One interface for OpenAI, Anthropic, DeepSeek, Google Gemini, Ollama, and more
 - **Streaming support** — First-class async streaming for all providers
+- **Dual-protocol proxy** — Serve any backend over both the OpenAI and Anthropic APIs (`proxy` feature)
+- **Normalized logprobs** — Uniform token log-probabilities across OpenAI-compatible providers and Gemini
 - **Type-safe** — Full compile-time guarantees with serde and thiserror
 - **High performance** — Built on reqwest + tokio, minimal overhead
 - **Zero runtime dependencies** — Single binary, no Python/Node required
@@ -43,7 +68,7 @@ cargo add llmrust
 | Feature | Default | Description |
 |---|---|---|
 | *(none)* | ✅ | LLM client — all providers + streaming; tool calling on OpenAI-compatible, Anthropic, and Gemini providers (chat + streaming); JSON mode on OpenAI-compatible and Gemini providers |
-| `proxy` | ❌ | Built-in OpenAI-compatible HTTP proxy server (adds `axum`) |
+| `proxy` | ❌ | Built-in **dual-protocol** HTTP proxy — exposes any backend over both OpenAI (`/v1/chat/completions`) and Anthropic (`/v1/messages`) APIs (adds `axum`) |
 
 Enable the proxy server:
 
@@ -213,7 +238,7 @@ let request = ChatRequest::new("gpt-4o", "List 3 cities as JSON")
 
 ### HTTP Proxy Server
 
-Run a local OpenAI-compatible API gateway (requires `features = ["proxy"]`):
+Run a local **dual-protocol** API gateway that speaks both the OpenAI and Anthropic wire formats (requires `features = ["proxy"]`):
 
 ```bash
 export LLMRUST_OPENAI_KEY="sk-..."
@@ -223,6 +248,8 @@ export LLMRUST_PROXY_KEY="some-shared-secret"
 cargo run --example proxy_server --features proxy
 ```
 
+Call it with the **OpenAI** Chat Completions API:
+
 ```bash
 curl http://localhost:3000/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -230,6 +257,19 @@ curl http://localhost:3000/v1/chat/completions \
   -d '{
     "model": "deepseek/deepseek-chat",
     "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+The same server also exposes the **Anthropic** Messages API, so Anthropic-only clients (such as tools built for Claude) work unchanged — even when the backend is OpenAI:
+
+```bash
+curl http://localhost:3000/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer some-shared-secret" \
+  -d '{
+    "model": "openai/gpt-4o",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "max_tokens": 256
   }'
 ```
 
@@ -325,6 +365,8 @@ We have not yet published formal benchmarks. The library adds a thin async layer
 
 ## Comparison
 
+### vs. Python LiteLLM
+
 | Feature | Python LiteLLM | llmrust |
 |---|---|---|
 | Startup time | ~hundreds ms (interpreter) | compiled binary, near-instant |
@@ -334,12 +376,25 @@ We have not yet published formal benchmarks. The library adds a thin async layer
 | Type safety | Runtime | Compile-time |
 | Providers | 100+ | 7 (growing) |
 
+### vs. other Rust crates
+
+| | llmrust | genai | rig | llm / rllm |
+|---|---|---|---|---|
+| Focus | Lean unified client + proxy | Broad unified client | Agent framework | Client + extras (TTS/STT/vision) |
+| Providers | 7 (growing) | 25+ | several | many |
+| Built-in proxy server | ✅ OpenAI **+** Anthropic | ➖ | ➖ | OpenAI REST only |
+| Normalized cross-provider logprobs | ✅ (incl. Gemini) | ➖ | ➖ | ➖ |
+| Default dependencies | minimal (`default = []`) | moderate | heavy (framework) | moderate+ |
+| Extra scope | none | client only | agents / RAG | embeddings / vision / audio |
+
+> Provider counts and feature sets for other crates move fast — treat this as a positioning sketch, not a benchmark. Pick the tool that matches your needs.
+
 ## Roadmap
 
 - [x] Core providers (OpenAI, Anthropic, DeepSeek)
 - [x] Streaming support
 - [x] Google Gemini, Ollama, Moonshot, OpenRouter
-- [x] HTTP proxy server
+- [x] HTTP proxy server (OpenAI + Anthropic protocols)
 - [x] Retry logic
 - [x] Tool-use / Function calling (OpenAI-compatible, Anthropic, Gemini; non-streaming)
 - [x] JSON mode & sampling parameters (OpenAI-compatible providers)

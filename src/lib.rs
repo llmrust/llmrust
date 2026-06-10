@@ -70,12 +70,13 @@ pub mod types;
 pub mod prelude;
 
 /// Truncate a string to at most `max_len` characters, appending "..." if
-/// truncated. Used to safely log potentially long SSE data lines.
+/// truncated. Counts and slices by `char` so multi-byte UTF-8 (e.g. CJK) is
+/// never split mid-character. Used to safely log potentially long SSE data
+/// lines.
 pub(crate) fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len])
+    match s.char_indices().nth(max_len) {
+        Some((byte_idx, _)) => format!("{}...", &s[..byte_idx]),
+        None => s.to_string(),
     }
 }
 

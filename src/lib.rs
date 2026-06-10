@@ -106,6 +106,9 @@ use providers::openai::OpenAIProvider;
 use providers::openrouter::OpenRouterProvider;
 
 /// The unified LLM client. Routes `provider/model` strings to the right backend.
+///
+/// Cheap to `Clone` — all clones share the same underlying provider table.
+#[derive(Clone)]
 pub struct LmrsClient {
     providers: Arc<RwLock<HashMap<String, Arc<dyn Provider>>>>,
 }
@@ -381,7 +384,7 @@ impl LmrsClient {
 
     /// Send a simple chat request with a single user message.
     pub async fn chat(&self, model: &str, prompt: &str) -> Result<ChatResponse> {
-        self.chat_with(model, ChatRequest::new("_", prompt)).await
+        self.chat_with(model, ChatRequest::new("", prompt)).await
     }
 
     /// Send a chat request with full control over parameters.

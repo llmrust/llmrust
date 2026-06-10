@@ -239,7 +239,7 @@ impl From<Vec<ContentPart>> for Content {
 }
 
 /// A single chat message.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Message {
     pub role: Role,
     pub content: Content,

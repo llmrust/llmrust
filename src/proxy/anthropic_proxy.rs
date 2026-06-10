@@ -368,36 +368,6 @@ pub fn convert_request(req: &AnthropicRequest) -> Result<ChatRequest, String> {
     Ok(chat_req)
 }
 
-/// Convert Anthropic content blocks to ContentParts.
-#[allow(dead_code)]
-fn blocks_to_content_parts(blocks: &[AnthropicContentBlock]) -> Result<Vec<ContentPart>, String> {
-    let mut parts = Vec::new();
-    for block in blocks {
-        match block {
-            AnthropicContentBlock::Text { text } => {
-                parts.push(ContentPart::text(text));
-            }
-            AnthropicContentBlock::Image { source } => {
-                let url = match source {
-                    AnthropicImageSource::Base64 { media_type, data } => {
-                        format!("data:{media_type};base64,{data}")
-                    }
-                    AnthropicImageSource::Url { url } => url.clone(),
-                };
-                parts.push(ContentPart::image_url(url));
-            }
-            _ => {
-                // tool_use / tool_result blocks are not expected in user messages
-                // that we convert to ContentParts; skip them.
-            }
-        }
-    }
-    if parts.is_empty() {
-        parts.push(ContentPart::text(""));
-    }
-    Ok(parts)
-}
-
 // ── Response conversion: ChatResponse → AnthropicResponse ────────
 
 /// Convert an internal ChatResponse into an Anthropic Messages API response.
@@ -552,12 +522,7 @@ impl AnthropicStreamState {
 
         // Open text block for text content
         if has_text && !self.in_text_block {
-            let index = if has_tools {
-                // Text comes before tools; use current text_block_index
-                self.text_block_index
-            } else {
-                self.text_block_index
-            };
+            let index = self.text_block_index;
             events.push(Self::sse_event(
                 "content_block_start",
                 &serde_json::json!({
@@ -643,13 +608,13 @@ impl AnthropicStreamState {
                 self.in_text_block = false;
             }
 
-            // If no content was emitted at all, emit an empty text block
-            if !self.started
-                || (!has_text
-                    && !has_tools
-                    && self.tool_block_index == 0
-                    && self.text_block_index == 0
-                    && events.is_empty())
+            // If no content was emitted at all, emit an empty text block.
+            // `self.started` is always true here (set on the first chunk).
+            if !has_text
+                && !has_tools
+                && self.tool_block_index == 0
+                && self.text_block_index == 0
+                && events.is_empty()
             {
                 events.push(Self::sse_event(
                     "content_block_start",

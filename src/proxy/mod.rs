@@ -840,7 +840,6 @@ fn api_error_type(status: StatusCode) -> &'static str {
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => "authentication_error",
         StatusCode::TOO_MANY_REQUESTS => "rate_limit_error",
         StatusCode::BAD_REQUEST => "invalid_request_error",
-        _ if status.is_server_error() => "api_error",
         _ => "api_error",
     }
 }

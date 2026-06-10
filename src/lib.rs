@@ -69,6 +69,16 @@ pub mod types;
 
 pub mod prelude;
 
+/// Truncate a string to at most `max_len` characters, appending "..." if
+/// truncated. Used to safely log potentially long SSE data lines.
+pub(crate) fn truncate_str(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max_len])
+    }
+}
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -370,7 +380,7 @@ impl LmrsClient {
 
     /// Send a simple chat request with a single user message.
     pub async fn chat(&self, model: &str, prompt: &str) -> Result<ChatResponse> {
-        self.chat_with(model, ChatRequest::new("", prompt)).await
+        self.chat_with(model, ChatRequest::new("_", prompt)).await
     }
 
     /// Send a chat request with full control over parameters.

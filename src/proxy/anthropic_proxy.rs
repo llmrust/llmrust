@@ -3,7 +3,6 @@
 //! Provides a `/v1/messages` endpoint that speaks Anthropic's native protocol,
 //! allowing Anthropic SDK clients (Claude Code, anthropic-python, etc.) to
 //! talk to any registered provider through automatic format conversion.
-#![allow(dead_code)]
 
 use axum::{
     extract::State,
@@ -746,47 +745,47 @@ pub fn build_stream_response(
     let state = AnthropicStreamState::new(inner_stream, id, model);
 
     let byte_stream = stream::unfold(state, |mut state| async move {
-        // Drain pending events first
-        if !state.pending_events.is_empty() {
-            let event = state.pending_events.remove(0);
-            return Some((Ok::<_, std::convert::Infallible>(Bytes::from(event)), state));
-        }
+        loop {
+            // Drain pending events first
+            if !state.pending_events.is_empty() {
+                let event = state.pending_events.remove(0);
+                return Some((Ok::<_, std::convert::Infallible>(Bytes::from(event)), state));
+            }
 
-        // Pull next chunk from inner stream
-        match state.inner.next().await {
-            Some(Ok(chunk)) => {
-                let events = state.process_chunk(chunk);
-                if events.is_empty() {
-                    // No events produced, recurse to get next chunk
-                    Some((Ok(Bytes::from("")), state))
-                } else {
+            // Pull next chunk from inner stream
+            match state.inner.next().await {
+                Some(Ok(chunk)) => {
+                    let events = state.process_chunk(chunk);
+                    if events.is_empty() {
+                        // No events produced, continue to next chunk
+                        continue;
+                    }
                     let first = events[0].clone();
                     state.pending_events = events[1..].to_vec();
-                    Some((Ok(Bytes::from(first)), state))
+                    return Some((Ok(Bytes::from(first)), state));
                 }
-            }
-            Some(Err(e)) => {
-                let error_event = AnthropicStreamState::sse_event(
-                    "error",
-                    &serde_json::json!({
-                        "type": "error",
-                        "error": {
-                            "type": "api_error",
-                            "message": e.to_string()
-                        }
-                    })
-                    .to_string(),
-                );
-                Some((Ok(Bytes::from(error_event)), state))
-            }
-            None => {
-                let events = state.flush();
-                if events.is_empty() {
-                    None
-                } else {
+                Some(Err(e)) => {
+                    let error_event = AnthropicStreamState::sse_event(
+                        "error",
+                        &serde_json::json!({
+                            "type": "error",
+                            "error": {
+                                "type": "api_error",
+                                "message": e.to_string()
+                            }
+                        })
+                        .to_string(),
+                    );
+                    return Some((Ok(Bytes::from(error_event)), state));
+                }
+                None => {
+                    let events = state.flush();
+                    if events.is_empty() {
+                        return None;
+                    }
                     let first = events[0].clone();
                     state.pending_events = events[1..].to_vec();
-                    Some((Ok(Bytes::from(first)), state))
+                    return Some((Ok(Bytes::from(first)), state));
                 }
             }
         }

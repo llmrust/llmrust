@@ -373,7 +373,7 @@ async fn check_bearer(expected: String, req: Request<axum::body::Body>, next: Ne
         .and_then(|v| v.to_str().ok())
     {
         Some(s) => match s.strip_prefix("Bearer ") {
-            Some(provided) if provided.trim() == expected => next.run(req).await,
+            Some(provided) if constant_time_eq(provided.trim().as_bytes(), expected.as_bytes()) => next.run(req).await,
             Some(_) => error_response(StatusCode::UNAUTHORIZED, "Invalid bearer token"),
             None => error_response(
                 StatusCode::UNAUTHORIZED,
@@ -389,6 +389,27 @@ async fn check_bearer(expected: String, req: Request<axum::body::Body>, next: Ne
             );
             response
         }
+    }
+}
+
+/// Compare two byte slices in constant time to prevent timing side-channel
+/// attacks. Returns `true` only if both slices are identical and have the
+/// same length.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        // Constant-time: still run the loop on the shorter buffer
+        let diff = a.len() ^ b.len();
+        let mut acc = diff as u8;
+        for (x, y) in a.iter().zip(b.iter()) {
+            acc |= x ^ y;
+        }
+        acc == 0 // always false when lengths differ
+    } else {
+        let mut acc: u8 = 0;
+        for (x, y) in a.iter().zip(b.iter()) {
+            acc |= x ^ y;
+        }
+        acc == 0
     }
 }
 
@@ -654,12 +675,18 @@ async fn handle_stream(
                                     choices,
                                     usage,
                                 };
-                                (
-                                    Some(Ok(Event::default().data(
-                                        serde_json::to_string(&payload).unwrap_or_default(),
-                                    ))),
-                                    false,
-                                )
+                                let event = match serde_json::to_string(&payload) {
+                                    Ok(json) => Some(Ok(Event::default().data(json))),
+                                    Err(e) => {
+                                        tracing::error!(
+                                            error = %e,
+                                            model = model_clone,
+                                            "failed to serialize SSE chunk, skipping event"
+                                        );
+                                        None
+                                    }
+                                };
+                                (event, false)
                             }
                             Err(e) => {
                                 let error_payload = ProxyError {

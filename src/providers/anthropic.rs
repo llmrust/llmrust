@@ -22,6 +22,8 @@ fn build_http_client() -> Client {
     Client::builder()
         .timeout(std::time::Duration::from_secs(120))
         .connect_timeout(std::time::Duration::from_secs(30))
+        .pool_max_idle_per_host(32)
+        .tcp_keepalive(std::time::Duration::from_secs(30))
         .build()
         .unwrap_or_else(|_| Client::new())
 }

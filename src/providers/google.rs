@@ -21,6 +21,8 @@ fn build_http_client() -> Client {
     Client::builder()
         .timeout(std::time::Duration::from_secs(120))
         .connect_timeout(std::time::Duration::from_secs(30))
+        .pool_max_idle_per_host(32)
+        .tcp_keepalive(std::time::Duration::from_secs(30))
         .build()
         .unwrap_or_else(|_| Client::new())
 }
@@ -334,12 +336,15 @@ struct GeminiStreamCandidate {
 #[derive(Default)]
 struct GeminiToolAccumulator {
     calls: Vec<ToolCall>,
+    counter: u64,
 }
 
 impl GeminiToolAccumulator {
     fn push(&mut self, name: String, args: serde_json::Value) {
+        let id = format!("{}_{}", name, self.counter);
+        self.counter += 1;
         self.calls.push(ToolCall {
-            id: name.clone(),
+            id,
             call_type: "function".to_string(),
             function: FunctionCall {
                 name,

@@ -117,6 +117,8 @@ struct OllamaStreamChunk {
     message: Option<OllamaMessageResponse>,
     done: bool,
     #[serde(default)]
+    done_reason: Option<String>,
+    #[serde(default)]
     eval_count: u64,
     #[serde(default)]
     prompt_eval_count: u64,
@@ -142,7 +144,7 @@ fn parse_ndjson_line(line: &str) -> Vec<Result<StreamChunk>> {
     if parsed.done {
         vec![Ok(StreamChunk {
             done: true,
-            finish_reason: Some("stop".to_string()),
+            finish_reason: Some(parsed.done_reason.unwrap_or_else(|| "stop".to_string())),
             usage: Some(Usage {
                 prompt_tokens: parsed.prompt_eval_count,
                 completion_tokens: parsed.eval_count,

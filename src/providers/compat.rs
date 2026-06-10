@@ -292,6 +292,11 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
         })];
     }
     let Ok(parsed) = serde_json::from_str::<CompStreamChunk>(data) else {
+        tracing::warn!(
+            provider = "openai-compatible",
+            data = %crate::truncate_str(data, 200),
+            "failed to parse SSE data line"
+        );
         return Vec::new();
     };
     let usage = parsed.usage.map(|u| Usage {

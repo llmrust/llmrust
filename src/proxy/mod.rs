@@ -373,7 +373,9 @@ async fn check_bearer(expected: String, req: Request<axum::body::Body>, next: Ne
         .and_then(|v| v.to_str().ok())
     {
         Some(s) => match s.strip_prefix("Bearer ") {
-            Some(provided) if constant_time_eq(provided.trim().as_bytes(), expected.as_bytes()) => next.run(req).await,
+            Some(provided) if constant_time_eq(provided.trim().as_bytes(), expected.as_bytes()) => {
+                next.run(req).await
+            }
             Some(_) => error_response(StatusCode::UNAUTHORIZED, "Invalid bearer token"),
             None => error_response(
                 StatusCode::UNAUTHORIZED,

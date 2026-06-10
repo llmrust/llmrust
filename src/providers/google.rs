@@ -228,7 +228,7 @@ struct GeminiLogprobCandidate {
 #[derive(Deserialize)]
 struct GeminiTopCandidatesAtPosition {
     #[serde(default)]
-    candidate: Vec<GeminiLogprobCandidate>,
+    candidates: Vec<GeminiLogprobCandidate>,
 }
 
 /// Convert Gemini logprobs into the OpenAI-normalized [`LogProbs`] shape.
@@ -245,7 +245,7 @@ fn gemini_logprobs_to_logprobs(lp: &GeminiLogprobsResult) -> Option<LogProbs> {
                 .top_candidates
                 .get(i)
                 .map(|tc| {
-                    tc.candidate
+                    tc.candidates
                         .iter()
                         .map(|c| TopLogProb {
                             token: c.token.clone().unwrap_or_default(),
@@ -1061,7 +1061,7 @@ mod tests {
                         {"token": "hi", "logProbability": -0.3, "bytes": [104, 105]}
                     ],
                     "topCandidates": [{
-                        "candidate": [
+                        "candidates": [
                             {"token": "hi", "logProbability": -0.3, "bytes": [104, 105]},
                             {"token": "hello", "logProbability": -1.2}
                         ]

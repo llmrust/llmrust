@@ -121,8 +121,6 @@ impl RetryProvider {
 #[async_trait]
 impl Provider for RetryProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
-        let mut last_error = None;
-
         for attempt in 0..=self.max_retries {
             match self.inner.chat(req).await {
                 Ok(resp) => {
@@ -132,32 +130,29 @@ impl Provider for RetryProvider {
                     return Ok(resp);
                 }
                 Err(e) => {
-                    if should_retry(&e) && attempt < self.max_retries {
-                        let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
-                        tracing::warn!(
-                            attempt = attempt + 1,
-                            max_retries = self.max_retries,
-                            delay_ms = delay.as_millis() as u64,
-                            error = %e,
-                            "retrying transient failure"
-                        );
-                        sleep(delay).await;
-                        last_error = Some(e);
-                    } else {
+                    // The final attempt (attempt == max_retries) never retries —
+                    // it returns immediately regardless of the error kind.
+                    if !(should_retry(&e) && attempt < self.max_retries) {
                         return Err(e);
                     }
+                    let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
+                    tracing::warn!(
+                        attempt = attempt + 1,
+                        max_retries = self.max_retries,
+                        delay_ms = delay.as_millis() as u64,
+                        error = %e,
+                        "retrying transient failure"
+                    );
+                    sleep(delay).await;
                 }
             }
         }
-
-        // Safety: we only exit the loop early via `return`, so this path
-        // is only reached when `max_retries > 0` AND every attempt failed.
-        Err(last_error.expect("retry loop exhausted without an error"))
+        // The loop body always returns on the final iteration, so this point
+        // is unreachable.
+        unreachable!("retry loop always returns on the final attempt")
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
-        let mut last_error = None;
-
         for attempt in 0..=self.max_retries {
             match self.inner.stream(req).await {
                 Ok(stream) => {
@@ -167,25 +162,22 @@ impl Provider for RetryProvider {
                     return Ok(stream);
                 }
                 Err(e) => {
-                    if should_retry(&e) && attempt < self.max_retries {
-                        let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
-                        tracing::warn!(
-                            attempt = attempt + 1,
-                            max_retries = self.max_retries,
-                            delay_ms = delay.as_millis() as u64,
-                            error = %e,
-                            "retrying transient failure (stream)"
-                        );
-                        sleep(delay).await;
-                        last_error = Some(e);
-                    } else {
+                    if !(should_retry(&e) && attempt < self.max_retries) {
                         return Err(e);
                     }
+                    let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
+                    tracing::warn!(
+                        attempt = attempt + 1,
+                        max_retries = self.max_retries,
+                        delay_ms = delay.as_millis() as u64,
+                        error = %e,
+                        "retrying transient failure (stream)"
+                    );
+                    sleep(delay).await;
                 }
             }
         }
-
-        Err(last_error.expect("retry loop exhausted without an error"))
+        unreachable!("retry loop always returns on the final attempt")
     }
 }
 

@@ -5,23 +5,12 @@ use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+use crate::providers::http::build_http_client;
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{ChatRequest, ChatResponse, Message, StreamChunk, Usage};
 
 const DEFAULT_BASE_URL: &str = "http://localhost:11434";
-
-/// Build an HTTP client for a local Ollama server. Only a connection timeout
-/// is enforced (to fail fast when the server is unreachable); no overall
-/// request timeout is set because local generation can legitimately run for a
-/// long time on large models. Falls back to the default client if the builder
-/// fails (it will not in practice).
-fn build_http_client() -> Client {
-    Client::builder()
-        .connect_timeout(std::time::Duration::from_secs(30))
-        .build()
-        .unwrap_or_else(|_| Client::new())
-}
 
 pub struct OllamaProvider {
     client: Client,
@@ -31,7 +20,10 @@ pub struct OllamaProvider {
 impl OllamaProvider {
     pub fn new(config: ProviderConfig) -> Self {
         Self {
-            client: build_http_client(),
+            // Local generation can run for a long time on large models, so opt
+            // out of the overall request timeout; only the connect timeout from
+            // the shared builder applies (to fail fast when unreachable).
+            client: build_http_client(None),
             base_url: config
                 .base_url
                 .unwrap_or_else(|| DEFAULT_BASE_URL.to_string()),

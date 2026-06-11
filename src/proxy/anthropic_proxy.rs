@@ -430,8 +430,8 @@ struct AnthropicStreamState {
     model: String,
     started: bool,
     in_text_block: bool,
-    text_block_index: usize,
-    tool_block_index: usize,
+    next_block_index: usize,
+    current_text_index: Option<usize>,
     pending_events: Vec<String>,
     usage: Option<Usage>,
     done_emitted: bool,
@@ -449,8 +449,8 @@ impl AnthropicStreamState {
             model,
             started: false,
             in_text_block: false,
-            text_block_index: 0,
-            tool_block_index: 0,
+            next_block_index: 0,
+            current_text_index: None,
             pending_events: Vec::new(),
             usage: None,
             done_emitted: false,
@@ -509,20 +509,25 @@ impl AnthropicStreamState {
 
         // Close text block before tool calls
         if has_tools && self.in_text_block {
-            events.push(Self::sse_event(
-                "content_block_stop",
-                &serde_json::json!({
-                    "type": "content_block_stop",
-                    "index": self.text_block_index
-                })
-                .to_string(),
-            ));
+            if let Some(idx) = self.current_text_index {
+                events.push(Self::sse_event(
+                    "content_block_stop",
+                    &serde_json::json!({
+                        "type": "content_block_stop",
+                        "index": idx
+                    })
+                    .to_string(),
+                ));
+            }
             self.in_text_block = false;
+            self.current_text_index = None;
         }
 
         // Open text block for text content
         if has_text && !self.in_text_block {
-            let index = self.text_block_index;
+            let index = self.next_block_index;
+            self.next_block_index += 1;
+            self.current_text_index = Some(index);
             events.push(Self::sse_event(
                 "content_block_start",
                 &serde_json::json!({
@@ -537,21 +542,24 @@ impl AnthropicStreamState {
 
         // Emit text delta
         if has_text {
-            events.push(Self::sse_event(
-                "content_block_delta",
-                &serde_json::json!({
-                    "type": "content_block_delta",
-                    "index": self.text_block_index,
-                    "delta": { "type": "text_delta", "text": chunk.delta }
-                })
-                .to_string(),
-            ));
+            if let Some(idx) = self.current_text_index {
+                events.push(Self::sse_event(
+                    "content_block_delta",
+                    &serde_json::json!({
+                        "type": "content_block_delta",
+                        "index": idx,
+                        "delta": { "type": "text_delta", "text": chunk.delta }
+                    })
+                    .to_string(),
+                ));
+            }
         }
 
         // Emit tool use blocks
         if let Some(tool_calls) = &chunk.tool_calls {
             for tc in tool_calls {
-                let index = self.text_block_index + 1 + self.tool_block_index;
+                let index = self.next_block_index;
+                self.next_block_index += 1;
 
                 events.push(Self::sse_event(
                     "content_block_start",
@@ -589,33 +597,27 @@ impl AnthropicStreamState {
                     })
                     .to_string(),
                 ));
-
-                self.tool_block_index += 1;
             }
         }
 
         // Terminal chunk: close blocks and emit message_delta + message_stop
         if chunk.done || chunk.finish_reason.is_some() {
-            if self.in_text_block {
+            if let Some(idx) = self.current_text_index {
                 events.push(Self::sse_event(
                     "content_block_stop",
                     &serde_json::json!({
                         "type": "content_block_stop",
-                        "index": self.text_block_index
+                        "index": idx
                     })
                     .to_string(),
                 ));
                 self.in_text_block = false;
+                self.current_text_index = None;
             }
 
             // If no content was emitted at all, emit an empty text block.
             // `self.started` is always true here (set on the first chunk).
-            if !has_text
-                && !has_tools
-                && self.tool_block_index == 0
-                && self.text_block_index == 0
-                && events.is_empty()
-            {
+            if !has_text && !has_tools && self.next_block_index == 0 && events.is_empty() {
                 events.push(Self::sse_event(
                     "content_block_start",
                     &serde_json::json!({
@@ -633,6 +635,7 @@ impl AnthropicStreamState {
                     })
                     .to_string(),
                 ));
+                self.next_block_index = 1;
             }
 
             let stop_reason = chunk
@@ -675,12 +678,12 @@ impl AnthropicStreamState {
             return Vec::new();
         }
         let mut events = Vec::new();
-        if self.in_text_block {
+        if let Some(idx) = self.current_text_index {
             events.push(Self::sse_event(
                 "content_block_stop",
                 &serde_json::json!({
                     "type": "content_block_stop",
-                    "index": self.text_block_index
+                    "index": idx
                 })
                 .to_string(),
             ));
@@ -1268,5 +1271,146 @@ mod tests {
         let req = crate::ChatRequest::new("noslash", "hi");
         let resp = handle_non_stream(state, "noslash", req).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    // ── block index tests ──────────────────────────────
+
+    fn block_start_indices(events: &[String]) -> Vec<usize> {
+        events
+            .iter()
+            .filter(|e| e.contains("\"content_block_start\""))
+            .filter_map(|e| {
+                e.split("\"index\":")
+                    .nth(1)?
+                    .split(',')
+                    .next()?
+                    .trim()
+                    .parse()
+                    .ok()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn tool_only_block_index_starts_at_zero() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state = AnthropicStreamState::new(
+            empty_stream,
+            "msg_tool".to_string(),
+            "test-model".to_string(),
+        );
+        let chunk = StreamChunk {
+            delta: String::new(),
+            done: true,
+            finish_reason: Some(FinishReason::ToolCalls),
+            tool_calls: Some(vec![ToolCall {
+                id: "t1".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "f".to_string(),
+                    arguments: "{}".to_string(),
+                },
+            }]),
+            ..Default::default()
+        };
+        let events = state.process_chunk(chunk);
+        assert_eq!(block_start_indices(&events), vec![0]);
+    }
+
+    #[test]
+    fn text_then_tool_block_indices() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state =
+            AnthropicStreamState::new(empty_stream, "msg_tt".to_string(), "test-model".to_string());
+        let e1 = state.process_chunk(StreamChunk {
+            delta: "Hello".to_string(),
+            ..Default::default()
+        });
+        let e2 = state.process_chunk(StreamChunk {
+            delta: String::new(),
+            done: true,
+            finish_reason: Some(FinishReason::ToolCalls),
+            tool_calls: Some(vec![ToolCall {
+                id: "t1".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "f".to_string(),
+                    arguments: "{}".to_string(),
+                },
+            }]),
+            ..Default::default()
+        });
+        let mut events = e1;
+        events.extend(e2);
+        assert_eq!(block_start_indices(&events), vec![0, 1]);
+    }
+
+    #[test]
+    fn text_tool_text_block_indices_no_reuse() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state = AnthropicStreamState::new(
+            empty_stream,
+            "msg_ttt".to_string(),
+            "test-model".to_string(),
+        );
+        let e1 = state.process_chunk(StreamChunk {
+            delta: "A".to_string(),
+            ..Default::default()
+        });
+        let e2 = state.process_chunk(StreamChunk {
+            delta: String::new(),
+            tool_calls: Some(vec![ToolCall {
+                id: "t1".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "f".to_string(),
+                    arguments: "{}".to_string(),
+                },
+            }]),
+            ..Default::default()
+        });
+        let e3 = state.process_chunk(StreamChunk {
+            delta: "B".to_string(),
+            done: true,
+            finish_reason: Some(FinishReason::Stop),
+            ..Default::default()
+        });
+        let mut events = e1;
+        events.extend(e2);
+        events.extend(e3);
+        assert_eq!(block_start_indices(&events), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn two_tools_block_indices() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state =
+            AnthropicStreamState::new(empty_stream, "msg_2t".to_string(), "test-model".to_string());
+        let chunk = StreamChunk {
+            delta: String::new(),
+            done: true,
+            finish_reason: Some(FinishReason::ToolCalls),
+            tool_calls: Some(vec![
+                ToolCall {
+                    id: "t1".to_string(),
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: "f".to_string(),
+                        arguments: "{}".to_string(),
+                    },
+                },
+                ToolCall {
+                    id: "t2".to_string(),
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: "g".to_string(),
+                        arguments: "[]".to_string(),
+                    },
+                },
+            ]),
+            ..Default::default()
+        };
+        let events = state.process_chunk(chunk);
+        assert_eq!(block_start_indices(&events), vec![0, 1]);
     }
 }

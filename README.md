@@ -125,6 +125,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 > - **Sampling and request metadata parameters** beyond `temperature` / `max_tokens` / `top_p` (e.g. `stop`, `seed`, `presence_penalty`, `frequency_penalty`, `logprobs`, `n`, `response_format`, `parallel_tool_calls`, `service_tier`, `store`, `metadata`, `user`) are sent to OpenAI-compatible providers and mapped where Gemini has native equivalents. Anthropic and Ollama currently honor a smaller provider-native subset.
 > - Non-streaming `logprobs` responses are normalized into `ChatResponse.logprobs` for OpenAI-compatible providers and Gemini.
 
+### `n` / Multiple Completions
+
+llmrust currently returns a single completion. Direct provider calls may forward `n` to OpenAI-compatible upstream APIs and will emit a warning when `n > 1`.
+
+The OpenAI-compatible proxy **rejects** `n` values other than `1` (or absent) because upstream APIs may bill for multiple completions while llmrust only returns the first one.
+
 ## Usage Examples
 
 ### Basic Chat

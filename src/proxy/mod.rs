@@ -779,6 +779,15 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         return Err("messages must contain at least one message".to_string());
     }
 
+    if let Some(n) = req.n {
+        if n != 1 {
+            return Err(
+                "n must be 1 when using the llmrust proxy; multiple completions are not supported"
+                    .to_string(),
+            );
+        }
+    }
+
     let messages: Vec<Message> = req
         .messages
         .iter()
@@ -1775,7 +1784,7 @@ mod tests {
             "messages": [{"role": "user", "content": "hi"}],
             "response_format": {"type": "json_object"},
             "stop": ["END"],
-            "n": 2,
+            "n": 1,
             "seed": 42,
             "presence_penalty": 0.5,
             "frequency_penalty": -0.25,
@@ -1794,7 +1803,7 @@ mod tests {
 
         assert_eq!(chat_req.response_format, Some(ResponseFormat::JsonObject));
         assert_eq!(chat_req.stop, Some(vec!["END".to_string()]));
-        assert_eq!(chat_req.n, Some(2));
+        assert_eq!(chat_req.n, Some(1));
         assert_eq!(chat_req.seed, Some(42));
         assert_eq!(chat_req.presence_penalty, Some(0.5));
         assert_eq!(chat_req.frequency_penalty, Some(-0.25));
@@ -1832,6 +1841,42 @@ mod tests {
         };
         let err = convert_request(&req).expect_err("empty messages should fail");
         assert!(err.contains("messages"));
+    }
+
+    #[test]
+    fn convert_request_accepts_missing_n() {
+        let raw = r#"{"model":"openai/gpt-4o","messages":[{"role":"user","content":"hi"}]}"#;
+        let req: ProxyChatRequest = serde_json::from_str(raw).unwrap();
+        let chat_req = convert_request(&req).expect("missing n should be accepted");
+        assert_eq!(chat_req.n, None);
+    }
+
+    #[test]
+    fn convert_request_accepts_n_one() {
+        let raw = r#"{"model":"openai/gpt-4o","messages":[{"role":"user","content":"hi"}],"n":1}"#;
+        let req: ProxyChatRequest = serde_json::from_str(raw).unwrap();
+        let chat_req = convert_request(&req).expect("n=1 should be accepted");
+        assert_eq!(chat_req.n, Some(1));
+    }
+
+    #[test]
+    fn convert_request_rejects_n_greater_than_one() {
+        let raw = r#"{"model":"openai/gpt-4o","messages":[{"role":"user","content":"hi"}],"n":2}"#;
+        let req: ProxyChatRequest = serde_json::from_str(raw).unwrap();
+        let err = convert_request(&req).expect_err("n>1 should be rejected");
+        assert!(err.contains("n"), "error should mention n: {err}");
+        assert!(
+            err.contains("multiple") || err.contains("not supported"),
+            "error should explain limitation: {err}"
+        );
+    }
+
+    #[test]
+    fn convert_request_rejects_n_zero() {
+        let raw = r#"{"model":"openai/gpt-4o","messages":[{"role":"user","content":"hi"}],"n":0}"#;
+        let req: ProxyChatRequest = serde_json::from_str(raw).unwrap();
+        let err = convert_request(&req).expect_err("n=0 should be rejected");
+        assert!(err.contains("n"), "error should mention n: {err}");
     }
 
     // ── OpenAI proxy stream error tests ───────────────

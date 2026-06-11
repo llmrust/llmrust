@@ -574,9 +574,14 @@ pub struct ChatRequest {
     /// Number of completions to generate.
     ///
     /// **Note:** llmrust currently returns only the first completion regardless
-    /// of `n`. Values > 1 are forwarded to OpenAI/Gemini (and billed) but the
-    /// extra choices are discarded; Anthropic ignores `n` entirely. Multi-
-    /// choice responses are tracked as a future enhancement.
+    /// of `n`.
+    ///
+    /// **Provider layer:** `n` may be forwarded to OpenAI/Gemini upstream APIs
+    /// and a warning is emitted when `n > 1`. Anthropic ignores `n` entirely.
+    ///
+    /// **OpenAI-compatible proxy:** `n` must be absent or exactly `1`. The
+    /// proxy rejects other values to avoid hidden multi-completion billing
+    /// (upstream charges for `n` completions but llmrust only returns one).
     pub n: Option<u32>,
     /// Seed for best-effort deterministic sampling.
     pub seed: Option<i64>,

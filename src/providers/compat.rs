@@ -426,6 +426,7 @@ impl OpenAiCompatibleProvider {
 #[async_trait]
 impl Provider for OpenAiCompatibleProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
+        crate::providers::warn_if_unsupported_n("openai-compatible", req.n);
         let messages: Vec<CompMessage> = req.messages.iter().map(CompMessage::from).collect();
 
         let body = CompChatRequest {
@@ -479,6 +480,7 @@ impl Provider for OpenAiCompatibleProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+        crate::providers::warn_if_unsupported_n("openai-compatible", req.n);
         let messages: Vec<CompMessage> = req.messages.iter().map(CompMessage::from).collect();
 
         let body = CompChatRequest {

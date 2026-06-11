@@ -538,6 +538,7 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
 #[async_trait]
 impl Provider for AnthropicProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
+        crate::providers::warn_if_unsupported_n("anthropic", req.n);
         let body = build_body(req, false);
 
         tracing::debug!(
@@ -625,6 +626,7 @@ impl Provider for AnthropicProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+        crate::providers::warn_if_unsupported_n("anthropic", req.n);
         let body = build_body(req, true);
 
         tracing::debug!(

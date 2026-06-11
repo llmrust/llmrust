@@ -90,6 +90,26 @@ pub(crate) fn make_tool_call_id(index: usize) -> String {
     format!("call_{index}")
 }
 
+/// True when `n` requests more than one completion. llmrust can only return
+/// the first choice; values > 1 are forwarded to OpenAI/Gemini (and billed)
+/// but the extra choices are discarded.
+pub(crate) fn n_is_unsupported(n: Option<u32>) -> bool {
+    matches!(n, Some(k) if k > 1)
+}
+
+/// Emit a one-shot warning when `n > 1`. Call once at the top of each
+/// provider's `chat`/`stream` so the message appears regardless of routing.
+pub(crate) fn warn_if_unsupported_n(provider: &str, n: Option<u32>) {
+    if n_is_unsupported(n) {
+        tracing::warn!(
+            provider,
+            n = n.unwrap(),
+            "n > 1 requested but llmrust returns only the first completion; \
+             the remaining choices are discarded and upstream providers may still bill for all N"
+        );
+    }
+}
+
 impl ProviderConfig {
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {
@@ -144,5 +164,18 @@ mod tests {
             "Debug output should not contain the base URL, got: {debug}"
         );
         assert!(debug.contains("***"));
+    }
+
+    #[test]
+    fn n_one_or_none_is_supported() {
+        assert!(!n_is_unsupported(None));
+        assert!(!n_is_unsupported(Some(1)));
+    }
+
+    #[test]
+    fn n_greater_than_one_is_unsupported() {
+        assert!(n_is_unsupported(Some(2)));
+        assert!(n_is_unsupported(Some(5)));
+        assert!(n_is_unsupported(Some(128)));
     }
 }

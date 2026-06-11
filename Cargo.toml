@@ -2,7 +2,7 @@
 name = "llmrust"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.86"
 description = "Unified Rust interface for 7 LLM providers (OpenAI, Anthropic, DeepSeek, Google Gemini, Ollama, Moonshot, OpenRouter) with HTTP proxy"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/llmrust/llmrust"

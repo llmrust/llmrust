@@ -23,3 +23,13 @@ jobs:
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
       - run: cargo fmt --check
+      - run: cargo publish --dry-run
+
+  msrv:
+    name: MSRV (1.86)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.86.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --all-targets

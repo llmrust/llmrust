@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added MSRV 1.74 and `cargo publish --dry-run` checks to CI.
+- Added `SECURITY.md` with proxy deployment and logging guidance.
+
+### Fixed
+
+- Fixed release README packaging so crates.io does not depend on excluded local image assets.
+- Fixed proxy server example command to include the `proxy` feature.
+
 - Native tool calling for Anthropic Claude and Google Gemini (non-streaming `chat`):
   - Requests map llmrust tools / `tool_choice` to each provider's native shape
     (`input_schema` + `tool_choice` for Claude; `functionDeclarations` +

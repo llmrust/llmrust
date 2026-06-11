@@ -8,7 +8,7 @@
 //! export GOOGLE_API_KEY="AIza..."         # or LLMRUST_GOOGLE_KEY
 //! export MOONSHOT_API_KEY="sk-..."        # or LLMRUST_MOONSHOT_KEY
 //! export OPENROUTER_API_KEY="sk-or-..."   # or LLMRUST_OPENROUTER_KEY
-//! cargo run --example proxy_server
+//! cargo run --features proxy --example proxy_server
 //! ```
 //!
 //! Then call:

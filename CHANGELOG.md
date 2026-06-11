@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed release README packaging so crates.io does not depend on excluded local image assets.
 - Fixed proxy server example command to include the `proxy` feature.
 
+### Changed
+
+- Clarified proxy model routing, authentication, and stream error semantics in docs and examples.
+- Fixed `router_with_auth` doc comment to match actual constant-time token comparison.
+
 - Native tool calling for Anthropic Claude and Google Gemini (non-streaming `chat`):
   - Requests map llmrust tools / `tool_choice` to each provider's native shape
     (`input_schema` + `tool_choice` for Claude; `functionDeclarations` +

@@ -8,14 +8,25 @@
 //! export GOOGLE_API_KEY="AIza..."         # or LLMRUST_GOOGLE_KEY
 //! export MOONSHOT_API_KEY="sk-..."        # or LLMRUST_MOONSHOT_KEY
 //! export OPENROUTER_API_KEY="sk-or-..."   # or LLMRUST_OPENROUTER_KEY
+//! # Optional: enable bearer-token authentication
+//! export LLMRUST_PROXY_KEY="dev-secret"
 //! cargo run --features proxy --example proxy_server
 //! ```
 //!
-//! Then call:
+//! Call the OpenAI Chat Completions endpoint:
 //! ```bash
 //! curl http://localhost:3000/v1/chat/completions \
 //!   -H "Content-Type: application/json" \
+//!   -H "Authorization: Bearer dev-secret" \
 //!   -d '{"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": "Hello!"}]}'
+//! ```
+//!
+//! Call the Anthropic Messages endpoint:
+//! ```bash
+//! curl http://localhost:3000/v1/messages \
+//!   -H "Content-Type: application/json" \
+//!   -H "Authorization: Bearer dev-secret" \
+//!   -d '{"model": "anthropic/claude-3-5-sonnet-latest", "max_tokens": 256, "messages": [{"role": "user", "content": "Hello!"}]}'
 //! ```
 //!
 //! Press Ctrl+C to stop gracefully.

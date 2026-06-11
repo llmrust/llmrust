@@ -357,10 +357,9 @@ pub fn router(llm: Arc<LmrsClient>) -> Router {
 /// token matches `expected_token`. Requests with a missing, malformed, or
 /// mismatched token receive a `401 Unauthorized` response.
 ///
-/// Note: token comparison uses standard string equality, which is **not**
-/// constant-time. This is acceptable when the proxy is reachable only by
-/// trusted clients (e.g., behind a reverse proxy). For higher security,
-/// consider a reverse proxy with TLS and rate limiting.
+/// Note: token comparison uses constant-time comparison to prevent timing
+/// side-channel attacks. For production deployments, also consider a reverse
+/// proxy with TLS and rate limiting.
 pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router {
     let state = AppState { llm };
     let token = expected_token.clone();

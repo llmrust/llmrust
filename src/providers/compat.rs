@@ -279,13 +279,13 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
             ..Default::default()
         })];
     }
-    let Ok(parsed) = serde_json::from_str::<CompStreamChunk>(data) else {
-        tracing::warn!(
-            provider = "openai-compatible",
-            data = %crate::truncate_str(data, 200),
-            "failed to parse SSE data line"
-        );
-        return Vec::new();
+    let parsed = match serde_json::from_str::<CompStreamChunk>(data) {
+        Ok(p) => p,
+        Err(e) => {
+            return vec![Err(LlmError::Parse(format!(
+                "failed to parse OpenAI-compatible stream chunk: {e}"
+            )))];
+        }
     };
     let usage = parsed.usage.map(|u| Usage {
         prompt_tokens: u.prompt_tokens,
@@ -829,5 +829,29 @@ mod tests {
         assert_eq!(chunk.delta, "hi");
         assert!(chunk.done);
         assert!(chunk.tool_calls.is_none());
+    }
+
+    #[test]
+    fn compat_stream_malformed_data_returns_parse_error() {
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(&mut tools, "data: {not valid json}");
+        let err = chunks.into_iter().next().unwrap().unwrap_err();
+        assert!(matches!(err, LlmError::Parse(_)));
+        assert!(err.to_string().contains("stream chunk"));
+    }
+
+    #[test]
+    fn compat_stream_ignores_non_data_lines() {
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(&mut tools, ": keep-alive");
+        assert!(chunks.is_empty());
+    }
+
+    #[test]
+    fn compat_stream_done_still_returns_done_chunk() {
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(&mut tools, "data: [DONE]");
+        let chunk = chunks.into_iter().next().unwrap().unwrap();
+        assert!(chunk.done);
     }
 }

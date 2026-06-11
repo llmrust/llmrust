@@ -134,8 +134,13 @@ fn parse_ndjson_line(line: &str) -> Vec<Result<StreamChunk>> {
     if line.is_empty() {
         return Vec::new();
     }
-    let Ok(parsed) = serde_json::from_str::<OllamaStreamChunk>(line) else {
-        return Vec::new();
+    let parsed = match serde_json::from_str::<OllamaStreamChunk>(line) {
+        Ok(p) => p,
+        Err(e) => {
+            return vec![Err(LlmError::Parse(format!(
+                "failed to parse Ollama stream chunk: {e}"
+            )))];
+        }
     };
     if parsed.done {
         vec![Ok(StreamChunk {
@@ -273,5 +278,31 @@ impl Provider for OllamaProvider {
         });
 
         Ok(stream.boxed())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ollama_stream_malformed_json_returns_parse_error() {
+        let chunks = parse_ndjson_line("{not valid json}");
+        let err = chunks.into_iter().next().unwrap().unwrap_err();
+        assert!(matches!(err, LlmError::Parse(_)));
+    }
+
+    #[test]
+    fn ollama_stream_ignores_empty_lines() {
+        let chunks = parse_ndjson_line("");
+        assert!(chunks.is_empty());
+    }
+
+    #[test]
+    fn ollama_stream_valid_chunk_still_parses() {
+        let chunks = parse_ndjson_line(r#"{"message":{"content":"hello"},"done":false}"#);
+        let chunk = chunks.into_iter().next().unwrap().unwrap();
+        assert_eq!(chunk.delta, "hello");
+        assert!(!chunk.done);
     }
 }

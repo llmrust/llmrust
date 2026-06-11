@@ -535,12 +535,13 @@ async fn handle_chat_completions(
 // ── Non-streaming handler ─────────────────
 
 async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Response {
+    let (_, model_name) = match split_model(model) {
+        Ok(pair) => pair,
+        Err(e) => return error_response(StatusCode::BAD_REQUEST, e),
+    };
+    let model_name = model_name.to_string();
     match state.llm.chat_with(model, req).await {
         Ok(resp) => {
-            let (_, model_name) = match split_model(model) {
-                Ok(pair) => pair,
-                Err(_) => (model, model),
-            };
             let has_tool_calls = resp.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
             let finish_reason = resp
                 .finish_reason
@@ -809,7 +810,7 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
 }
 
 /// Parse a "provider/model" string into (provider_name, model_name).
-fn split_model(model: &str) -> Result<(&str, &str), &'static str> {
+pub(crate) fn split_model(model: &str) -> Result<(&str, &str), &'static str> {
     let (provider, model) = model
         .split_once('/')
         .ok_or("model must be in 'provider/model' format")?;

@@ -235,6 +235,16 @@ pub struct ProxyUsage {
     pub total_tokens: u64,
 }
 
+impl From<crate::types::Usage> for ProxyUsage {
+    fn from(u: crate::types::Usage) -> Self {
+        Self {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+            total_tokens: u.total_tokens,
+        }
+    }
+}
+
 /// OpenAI-compatible streaming chunk.
 #[derive(Debug, Serialize)]
 pub struct ProxyStreamChunk {
@@ -572,11 +582,7 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
                     finish_reason,
                     logprobs: resp.logprobs,
                 }],
-                usage: resp.usage.map(|u| ProxyUsage {
-                    prompt_tokens: u.prompt_tokens,
-                    completion_tokens: u.completion_tokens,
-                    total_tokens: u.total_tokens,
-                }),
+                usage: resp.usage.map(ProxyUsage::from),
             })
             .into_response()
         }
@@ -635,11 +641,7 @@ async fn handle_stream(
                                 }
                                 let has_usage = chunk.usage.is_some();
                                 let usage = if include_usage {
-                                    chunk.usage.map(|u| ProxyUsage {
-                                        prompt_tokens: u.prompt_tokens,
-                                        completion_tokens: u.completion_tokens,
-                                        total_tokens: u.total_tokens,
-                                    })
+                                    chunk.usage.map(ProxyUsage::from)
                                 } else {
                                     None
                                 };

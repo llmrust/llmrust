@@ -38,6 +38,21 @@ const DEFAULT_MAX_DELAY_MS: u64 = 30_000; // 30 s ceiling
 // ── Retry decision ─────────────────────────────────────────────────────────
 
 /// Returns `true` when the error is (likely) transient and worth retrying.
+///
+/// ## Differences from [`crate::router`]'s `should_failover`
+///
+/// Both functions look similar but make **deliberately different choices** for
+/// `429` and `UnknownProvider`:
+///
+/// | Error              | `should_retry` | `should_failover` | Rationale |
+/// |--------------------|----------------|--------------------|-----------|
+/// | 5xx                | ✅ yes          | ✅ yes              | Transient server error — retry or failover both help. |
+/// | 429 (rate limit)   | ❌ no           | ✅ yes              | Retrying the **same deployment** when rate-limited only worsens the situation; but the Router can switch to a **different deployment** that may not be throttled. |
+/// | `UnknownProvider`  | ❌ no           | ✅ yes              | A missing provider is a configuration error when retrying a **single** deployment — retrying won't fix it. But a Router with **multiple** deployments can skip the broken one and try the next. |
+/// | `Parse`            | ❌ no           | ❌ no               | Malformed responses won't become valid on a second try (or a different deployment). |
+///
+/// **In short:** `should_retry` asks "should I try this same thing again?" while
+/// `should_failover` asks "should I try a different thing instead?".
 fn should_retry(e: &LlmError) -> bool {
     match e {
         // Network / transport errors are transient by nature.

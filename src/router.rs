@@ -51,6 +51,18 @@ pub enum RoutingStrategy {
 /// Returns `true` when an error should trigger a fallback to the next
 /// deployment. Transient / server-side failures fail over; client mistakes
 /// (4xx other than 429) and parse errors are treated as permanent.
+///
+/// ## Differences from `RetryProvider::should_retry`
+///
+/// Both functions look similar but make **deliberately different choices** for
+/// `429` and `UnknownProvider`:
+///
+/// - `should_failover` treats 429 as transient: switching deployments may land
+///   on one that is not rate-limited.
+/// - `should_failover` treats `UnknownProvider` as transient: a different
+///   deployment in the group may have the missing provider registered.
+/// - `should_retry` treats both as permanent: retrying the **same** deployment
+///   won't help when rate-limited or when the provider is unregistered.
 fn should_failover(e: &LlmError) -> bool {
     match e {
         LlmError::Http(_) => true,

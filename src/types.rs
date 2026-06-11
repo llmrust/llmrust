@@ -1,6 +1,7 @@
 //! Core types for llmrust — unified LLM API interface.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Chat message role.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -596,6 +597,11 @@ pub struct ChatRequest {
     pub metadata: Option<serde_json::Value>,
     /// End-user identifier for abuse monitoring on compatible providers.
     pub user: Option<String>,
+    /// Provider-specific extra fields that are flattened into the request
+    /// body by OpenAI-compatible providers. Useful for forward-compatibility
+    /// with provider features not yet first-class in llmrust. Only forwarded
+    /// to OpenAI-compatible providers; Anthropic and Google ignore this field.
+    pub extra: HashMap<String, serde_json::Value>,
 }
 
 impl ChatRequest {

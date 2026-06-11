@@ -42,6 +42,7 @@ use axum::{
 };
 use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tower_http::cors::{Any, CorsLayer};
 
 mod anthropic_proxy;
@@ -803,6 +804,7 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         store: req.store,
         metadata: req.metadata.clone(),
         user: req.user.clone(),
+        extra: HashMap::new(),
     })
 }
 

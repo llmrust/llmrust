@@ -405,8 +405,11 @@ fn content_to_parts(content: &Content) -> Vec<GeminiPart> {
     parts
 }
 
-/// Extract Gemini inline image data from a `data:` URL. Returns `None` for any
-/// non-data URL, since Gemini's `inlineData` requires the bytes inline.
+/// Extract Gemini inline image data from a `data:` URL.
+///
+/// Returns `None` for any non-data URL, since Gemini's `inlineData` requires
+/// the bytes inline. **Remote http(s) image URLs are not downloaded by
+/// llmrust** in v0.1.0 — convert remote images to data URLs before sending.
 fn gemini_inline_from_url(url: &str) -> Option<GeminiInlineData> {
     let rest = url.strip_prefix("data:")?;
     let (meta, data) = rest.split_once(',')?;

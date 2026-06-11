@@ -124,6 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 > - **JSON mode / structured outputs** are wired through the OpenAI-compatible providers and mapped to Gemini's `responseMimeType` / `responseSchema`.
 > - **Sampling and request metadata parameters** beyond `temperature` / `max_tokens` / `top_p` (e.g. `stop`, `seed`, `presence_penalty`, `frequency_penalty`, `logprobs`, `n`, `response_format`, `parallel_tool_calls`, `service_tier`, `store`, `metadata`, `user`) are sent to OpenAI-compatible providers and mapped where Gemini has native equivalents. Anthropic and Ollama currently honor a smaller provider-native subset.
 > - Non-streaming `logprobs` responses are normalized into `ChatResponse.logprobs` for OpenAI-compatible providers and Gemini.
+> - **Gemini image inputs:** Gemini currently supports image inputs only when the image is provided as a `data:` URL. Remote `http(s)` image URLs are skipped with a warning in v0.1.0; convert remote images to data URLs before sending them.
 
 ### `n` / Multiple Completions
 

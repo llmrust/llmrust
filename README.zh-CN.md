@@ -124,6 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 > - **JSON 模式 / 结构化输出** 支持 OpenAI 兼容服务商，并会映射到 Gemini 的 `responseMimeType` / `responseSchema`。
 > - 除 `temperature` / `max_tokens` / `top_p` 之外的**采样参数和请求元数据参数**（如 `stop`、`seed`、`presence_penalty`、`frequency_penalty`、`logprobs`、`n`、`response_format`、`parallel_tool_calls`、`service_tier`、`store`、`metadata`、`user`）会发送给 OpenAI 兼容服务商，并在 Gemini 有原生等价项时进行映射；Anthropic、Ollama 当前只支持较小的原生参数子集。
 > - 非流式 `logprobs` 响应会在 OpenAI 兼容服务商和 Gemini 中统一映射到 `ChatResponse.logprobs`。
+> - **Gemini 图片输入：** Gemini 当前只支持以 `data:` URL 形式传入的图片。远程 `http(s)` 图片 URL 在 v0.1.0 中会被跳过并输出 warning；如需发送远程图片，请先自行转换为 data URL。
 
 ### `n` / 多 completion
 

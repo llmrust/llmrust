@@ -9,8 +9,8 @@ use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, LogProbs, ResponseFormat,
-    StreamChunk, TokenLogProb, Tool, ToolCall, ToolChoice, TopLogProb, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, FinishReason, FunctionCall, LogProbs,
+    ResponseFormat, StreamChunk, TokenLogProb, Tool, ToolCall, ToolChoice, TopLogProb, Usage,
 };
 
 const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
@@ -585,6 +585,23 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
     (contents, system_instruction)
 }
 
+/// Convert a Gemini `finishReason` string (uppercase, e.g. `"STOP"`,
+/// `"MAX_TOKENS"`, `"SAFETY"`) to a [`FinishReason`].
+fn to_finish_reason(s: String) -> FinishReason {
+    match s.as_str() {
+        "STOP" => FinishReason::Stop,
+        "MAX_TOKENS" => FinishReason::MaxTokens,
+        "SAFETY"
+        | "RECITATION"
+        | "BLOCKLIST"
+        | "PROHIBITED_CONTENT"
+        | "SPII"
+        | "MALFORMED_FUNCTION_CALL" => FinishReason::ContentFilter,
+        "FINISH_REASON_UNSPECIFIED" => FinishReason::Stop,
+        _ => FinishReason::from(s),
+    }
+}
+
 /// Parse a single SSE line from a Gemini stream into zero or more
 /// [`StreamChunk`]s, threading a [`GeminiToolAccumulator`] so streamed
 /// `functionCall` parts can be surfaced as tool calls. Lines are guaranteed
@@ -620,7 +637,7 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
         return Vec::new();
     };
 
-    let mut finish_reason = candidate.finish_reason;
+    let mut finish_reason: Option<FinishReason> = candidate.finish_reason.map(to_finish_reason);
     let mut text = String::new();
     if let Some(content) = candidate.content {
         for part in content.parts {
@@ -639,7 +656,7 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
         None
     };
     if tool_calls.is_some() {
-        finish_reason = Some("tool_calls".to_string());
+        finish_reason = Some(FinishReason::ToolCalls);
     }
 
     let mut chunks = Vec::new();
@@ -750,9 +767,9 @@ impl Provider for GoogleProvider {
                     }
                     let tool_calls = if calls.is_empty() { None } else { Some(calls) };
                     let finish_reason = if tool_calls.is_some() {
-                        Some("tool_calls".to_string())
+                        Some(FinishReason::ToolCalls)
                     } else {
-                        candidate_finish
+                        candidate_finish.map(to_finish_reason)
                     };
                     (text, tool_calls, finish_reason, lp)
                 }
@@ -1017,7 +1034,7 @@ mod tests {
         }
         let chunk = final_chunk.expect("a terminal chunk");
         assert!(chunk.done);
-        assert_eq!(chunk.finish_reason.as_deref(), Some("tool_calls"));
+        assert_eq!(chunk.finish_reason, Some(FinishReason::ToolCalls));
         let calls = chunk.tool_calls.expect("tool calls present");
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].function.name, "get_weather");
@@ -1039,7 +1056,7 @@ mod tests {
         assert_eq!(chunks[0].delta, "Hello");
         let last = chunks.last().unwrap();
         assert!(last.done);
-        assert_eq!(last.finish_reason.as_deref(), Some("STOP"));
+        assert_eq!(last.finish_reason, Some(FinishReason::Stop));
         assert!(last.tool_calls.is_none());
     }
 

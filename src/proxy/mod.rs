@@ -46,6 +46,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 mod anthropic_proxy;
 
+use crate::types::FinishReason;
 use crate::{
     ChatRequest, Content, FunctionDef, LlmError, LmrsClient, LogProbs, Message, ResponseFormat,
     Role, Tool, ToolCall, ToolChoice,
@@ -540,13 +541,15 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
                 Err(_) => (model, model),
             };
             let has_tool_calls = resp.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
-            let finish_reason = resp.finish_reason.unwrap_or_else(|| {
-                if has_tool_calls {
-                    "tool_calls".to_string()
+            let finish_reason = resp
+                .finish_reason
+                .unwrap_or(if has_tool_calls {
+                    FinishReason::ToolCalls
                 } else {
-                    "stop".to_string()
-                }
-            });
+                    FinishReason::Stop
+                })
+                .as_str()
+                .to_string();
             let content = if has_tool_calls && resp.content.is_empty() {
                 None
             } else {
@@ -623,9 +626,9 @@ async fn handle_stream(
                                 let mut finish_reason = chunk.finish_reason;
                                 if finish_reason.is_none() && chunk.done {
                                     finish_reason = Some(if has_tool_calls {
-                                        "tool_calls".to_string()
+                                        FinishReason::ToolCalls
                                     } else {
-                                        "stop".to_string()
+                                        FinishReason::Stop
                                     });
                                 }
                                 let has_usage = chunk.usage.is_some();
@@ -666,7 +669,8 @@ async fn handle_stream(
                                             content,
                                             tool_calls: chunk.tool_calls,
                                         },
-                                        finish_reason,
+                                        finish_reason: finish_reason
+                                            .map(|r| r.as_str().to_string()),
                                     }]
                                 };
                                 let payload = ProxyStreamChunk {
@@ -877,7 +881,9 @@ fn error_response_with_type(status: StatusCode, message: &str, error_type: &str)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{ChatResponse, FunctionCall, ResponseFormat, StreamChunk, Usage};
+    use crate::types::{
+        ChatResponse, FinishReason, FunctionCall, ResponseFormat, StreamChunk, Usage,
+    };
     use crate::{BoxStream, Provider, Result};
     use axum::body::{to_bytes, Body};
     use axum::http::Request;
@@ -916,7 +922,7 @@ mod tests {
                 }),
                 Ok(StreamChunk {
                     done: true,
-                    finish_reason: Some("stop".to_string()),
+                    finish_reason: Some(FinishReason::Stop),
                     ..Default::default()
                 }),
                 Ok(StreamChunk {
@@ -948,7 +954,7 @@ mod tests {
                         arguments: "{\"city\":\"SF\"}".to_string(),
                     },
                 }]),
-                finish_reason: Some("tool_calls".to_string()),
+                finish_reason: Some(FinishReason::ToolCalls),
                 ..Default::default()
             })
         }
@@ -959,7 +965,7 @@ mod tests {
         ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
             let chunks: Vec<Result<StreamChunk>> = vec![Ok(StreamChunk {
                 done: true,
-                finish_reason: Some("tool_calls".to_string()),
+                finish_reason: Some(FinishReason::ToolCalls),
                 tool_calls: Some(vec![ToolCall {
                     id: "call_1".to_string(),
                     call_type: "function".to_string(),

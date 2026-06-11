@@ -10,8 +10,8 @@ use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, StreamChunk, Tool, ToolCall,
-    ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, FinishReason, FunctionCall, StreamChunk, Tool,
+    ToolCall, ToolChoice, Usage,
 };
 
 const DEFAULT_BASE_URL: &str = "https://api.anthropic.com/v1";
@@ -198,12 +198,12 @@ fn anthropic_image_source(url: &str) -> AnthropicImageSource {
 }
 
 /// Anthropic reports tool calls via the `tool_use` stop reason; normalize it
-/// to the cross-provider `tool_calls` value so callers can branch uniformly.
-fn normalize_stop_reason(reason: String) -> String {
+/// to the cross-provider [`FinishReason::ToolCalls`] so callers can branch uniformly.
+fn normalize_stop_reason(reason: String) -> FinishReason {
     if reason == "tool_use" {
-        "tool_calls".to_string()
+        FinishReason::ToolCalls
     } else {
-        reason
+        FinishReason::from(reason)
     }
 }
 
@@ -839,7 +839,7 @@ mod tests {
         assert_eq!(calls[0].function.name, "get_weather");
         assert_eq!(
             normalize_stop_reason(parsed.stop_reason.unwrap()),
-            "tool_calls"
+            FinishReason::ToolCalls
         );
     }
 
@@ -890,7 +890,7 @@ mod tests {
         }
         let chunk = final_chunk.expect("a terminal chunk");
         assert!(chunk.done);
-        assert_eq!(chunk.finish_reason.as_deref(), Some("tool_calls"));
+        assert_eq!(chunk.finish_reason, Some(FinishReason::ToolCalls));
         let calls = chunk.tool_calls.expect("tool calls present");
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].id, "toolu_1");
@@ -913,7 +913,7 @@ mod tests {
         assert_eq!(chunks[0].delta, "Hello");
         let last = chunks.last().unwrap();
         assert!(last.done);
-        assert_eq!(last.finish_reason.as_deref(), Some("end_turn"));
+        assert_eq!(last.finish_reason, Some(FinishReason::EndTurn));
         assert!(last.tool_calls.is_none());
     }
 }

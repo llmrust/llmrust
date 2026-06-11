@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::providers::http::build_http_client;
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
-use crate::types::{ChatRequest, ChatResponse, Message, StreamChunk, Usage};
+use crate::types::{ChatRequest, ChatResponse, FinishReason, Message, StreamChunk, Usage};
 
 const DEFAULT_BASE_URL: &str = "http://localhost:11434";
 
@@ -136,7 +136,12 @@ fn parse_ndjson_line(line: &str) -> Vec<Result<StreamChunk>> {
     if parsed.done {
         vec![Ok(StreamChunk {
             done: true,
-            finish_reason: Some(parsed.done_reason.unwrap_or_else(|| "stop".to_string())),
+            finish_reason: Some(
+                parsed
+                    .done_reason
+                    .map(FinishReason::from)
+                    .unwrap_or(FinishReason::Stop),
+            ),
             usage: Some(Usage {
                 prompt_tokens: parsed.prompt_eval_count,
                 completion_tokens: parsed.eval_count,

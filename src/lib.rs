@@ -90,9 +90,9 @@ pub use providers::retry::RetryProvider;
 pub use providers::{LlmError, Provider, ProviderConfig, Result};
 pub use router::{Router, RoutingStrategy};
 pub use types::{
-    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, FunctionDef, ImageUrl, LogProbs,
-    Message, ResponseFormat, Role, StreamChunk, TokenLogProb, Tool, ToolCall, ToolChoice,
-    TopLogProb, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, FinishReason, FunctionCall, FunctionDef,
+    ImageUrl, LogProbs, Message, ResponseFormat, Role, StreamChunk, TokenLogProb, Tool, ToolCall,
+    ToolChoice, TopLogProb, Usage,
 };
 
 pub(crate) use futures::stream::BoxStream;

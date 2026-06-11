@@ -151,9 +151,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn debug_hides_api_key() {
-        let config =
+    fn provider_config_debug_masks_sensitive_fields() {
+        let mut config =
             ProviderConfig::new("sk-secret-12345").with_base_url("https://gateway.example/v1");
+        config.custom_headers = Some(
+            [
+                ("Authorization".into(), "Bearer hidden-token".into()),
+                ("X-Api-Key".into(), "secret-key".into()),
+            ]
+            .into_iter()
+            .collect(),
+        );
         let debug = format!("{:?}", config);
         assert!(
             !debug.contains("sk-secret-12345"),
@@ -163,7 +171,18 @@ mod tests {
             !debug.contains("gateway.example"),
             "Debug output should not contain the base URL, got: {debug}"
         );
-        assert!(debug.contains("***"));
+        assert!(
+            !debug.contains("Bearer hidden-token"),
+            "Debug output should not contain custom header values, got: {debug}"
+        );
+        assert!(
+            !debug.contains("secret-key"),
+            "Debug output should not contain custom header values, got: {debug}"
+        );
+        assert!(
+            debug.contains("***"),
+            "Debug output should mask fields, got: {debug}"
+        );
     }
 
     #[test]

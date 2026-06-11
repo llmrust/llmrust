@@ -69,17 +69,6 @@ pub mod types;
 
 pub mod prelude;
 
-/// Truncate a string to at most `max_len` characters, appending "..." if
-/// truncated. Counts and slices by `char` so multi-byte UTF-8 (e.g. CJK) is
-/// never split mid-character. Used to safely log potentially long SSE data
-/// lines.
-pub(crate) fn truncate_str(s: &str, max_len: usize) -> String {
-    match s.char_indices().nth(max_len) {
-        Some((byte_idx, _)) => format!("{}...", &s[..byte_idx]),
-        None => s.to_string(),
-    }
-}
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -287,7 +276,11 @@ impl LmrsClient {
         if prev.is_some() {
             tracing::warn!("overwriting existing 'ollama' provider registration");
         }
-        tracing::debug!(provider = "ollama", custom_base_url, "registered provider");
+        tracing::debug!(
+            provider = "ollama",
+            base_url_set = custom_base_url,
+            "registered provider"
+        );
     }
 
     /// Register the Moonshot/Kimi provider.

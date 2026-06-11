@@ -160,7 +160,12 @@ impl Router {
             match self.client.chat_with(model, request.clone()).await {
                 Ok(resp) => return Ok(resp),
                 Err(e) if should_failover(&e) => {
-                    tracing::warn!(group, model, error = %e, "failing over to next deployment");
+                    tracing::warn!(
+                        group,
+                        model,
+                        error_kind = "api_error",
+                        "failing over to next deployment"
+                    );
                     last_error = Some(e);
                 }
                 Err(e) => return Err(e),
@@ -192,7 +197,12 @@ impl Router {
             match self.client.stream_with(model, request.clone()).await {
                 Ok(s) => return Ok(s),
                 Err(e) if should_failover(&e) => {
-                    tracing::warn!(group, model, error = %e, "failing over to next deployment");
+                    tracing::warn!(
+                        group,
+                        model,
+                        error_kind = "api_error",
+                        "failing over to next deployment"
+                    );
                     last_error = Some(e);
                 }
                 Err(e) => return Err(e),

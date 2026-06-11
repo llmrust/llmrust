@@ -565,7 +565,12 @@ impl Provider for AnthropicProvider {
                 status: status.as_u16(),
                 message: msg,
             };
-            tracing::error!(provider = "anthropic", status = status.as_u16(), error = %err, "API error");
+            tracing::error!(
+                provider = "anthropic",
+                status = status.as_u16(),
+                error_kind = "api_error",
+                "API error"
+            );
             return Err(err);
         }
 
@@ -653,7 +658,12 @@ impl Provider for AnthropicProvider {
                 status: status.as_u16(),
                 message: msg,
             };
-            tracing::error!(provider = "anthropic", status = status.as_u16(), error = %err, "API error");
+            tracing::error!(
+                provider = "anthropic",
+                status = status.as_u16(),
+                error_kind = "api_error",
+                "API error"
+            );
             return Err(err);
         }
 

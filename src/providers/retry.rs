@@ -155,7 +155,7 @@ impl Provider for RetryProvider {
                         attempt = attempt + 1,
                         max_retries = self.max_retries,
                         delay_ms = delay.as_millis() as u64,
-                        error = %e,
+                        error_kind = "transient",
                         "retrying transient failure"
                     );
                     sleep(delay).await;
@@ -185,7 +185,7 @@ impl Provider for RetryProvider {
                         attempt = attempt + 1,
                         max_retries = self.max_retries,
                         delay_ms = delay.as_millis() as u64,
-                        error = %e,
+                        error_kind = "transient",
                         "retrying transient failure (stream)"
                     );
                     sleep(delay).await;

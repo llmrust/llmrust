@@ -300,7 +300,7 @@ tracing_subscriber::fmt()
     .init();
 ```
 
-日志字段包含 `provider`、`model`、HTTP `status`、重试 `attempt`、router `group` 等运行元数据。API key、原始 base URL、prompt、消息内容、请求体和响应正文都不会被主动写入日志。
+llmrust 的 tracing 日志不会记录 API key、prompt 内容、模型响应文本、请求体、工具参数、图片数据或完整 URL。需要定位问题时，只记录数量或长度，例如 `message_count`、`tool_count`、`data_len`、`url_len`。`provider`、`model`、HTTP `status`、重试 `attempt`、router `group` 等运行元数据始终会被记录。
 
 ## 服务商配置
 

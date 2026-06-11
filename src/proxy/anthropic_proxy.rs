@@ -20,7 +20,7 @@ use crate::types::{
 };
 use crate::LlmError;
 
-use super::{generate_id, AppState};
+use super::{generate_id, split_model, AppState};
 
 // ── Anthropic API types (request) ──────────────────────
 
@@ -809,6 +809,9 @@ pub async fn handle_messages(
 }
 
 async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Response {
+    if let Err(e) = split_model(model) {
+        return anthropic_error(StatusCode::BAD_REQUEST, "invalid_request_error", e);
+    }
     let id = generate_id();
     match state.llm.chat_with(model, req).await {
         Ok(resp) => {
@@ -820,14 +823,10 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
 }
 
 async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Response {
-    let (provider_name, model_name) = match model.split_once('/') {
-        Some(pair) => pair,
-        None => {
-            return anthropic_error(
-                StatusCode::BAD_REQUEST,
-                "invalid_request_error",
-                "model must be in 'provider/model' format",
-            )
+    let (provider_name, model_name) = match split_model(model) {
+        Ok(pair) => pair,
+        Err(e) => {
+            return anthropic_error(StatusCode::BAD_REQUEST, "invalid_request_error", e);
         }
     };
 
@@ -878,6 +877,8 @@ fn anthropic_error_from_llm_error(e: LlmError) -> Response {
 mod tests {
     use super::*;
     use crate::types::{ChatResponse, FunctionCall, Role, StreamChunk, ToolCall, Usage};
+    use crate::LmrsClient;
+    use axum::http::StatusCode;
 
     #[test]
     fn text_request_converts() {
@@ -1231,5 +1232,41 @@ mod tests {
             .find(|e| e.starts_with("event: message_delta"))
             .unwrap();
         assert!(delta_event.contains("tool_use"));
+    }
+
+    #[tokio::test]
+    async fn stream_rejects_model_no_slash() {
+        let llm = std::sync::Arc::new(LmrsClient::new());
+        let state = AppState { llm };
+        let req = crate::ChatRequest::new("noslash", "hi");
+        let resp = handle_stream(state, "noslash", req).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn stream_rejects_empty_provider() {
+        let llm = std::sync::Arc::new(LmrsClient::new());
+        let state = AppState { llm };
+        let req = crate::ChatRequest::new("/gpt", "hi");
+        let resp = handle_stream(state, "/gpt", req).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn stream_rejects_empty_model() {
+        let llm = std::sync::Arc::new(LmrsClient::new());
+        let state = AppState { llm };
+        let req = crate::ChatRequest::new("openai/", "hi");
+        let resp = handle_stream(state, "openai/", req).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn non_stream_rejects_model_no_slash() {
+        let llm = std::sync::Arc::new(LmrsClient::new());
+        let state = AppState { llm };
+        let req = crate::ChatRequest::new("noslash", "hi");
+        let resp = handle_non_stream(state, "noslash", req).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 }

@@ -736,6 +736,8 @@ pub fn build_stream_response(
                     return Some((Ok(Bytes::from(first)), state));
                 }
                 Some(Err(e)) => {
+                    state.pending_events.clear();
+                    state.done_emitted = true;
                     let error_event = AnthropicStreamState::sse_event(
                         "error",
                         &serde_json::json!({
@@ -1476,6 +1478,41 @@ mod tests {
                 ("content_block_stop".to_string(), 1),
             ],
             "same-chunk text+tool must close text before starting tool"
+        );
+    }
+
+    #[tokio::test]
+    async fn stream_error_does_not_flush_normal_message_stop() {
+        // inner stream: Ok chunk then Err — error must NOT be followed by
+        // normal message_delta / message_stop from flush().
+        let inner = futures::stream::iter([
+            Ok(StreamChunk {
+                delta: "hello".to_string(),
+                ..Default::default()
+            }),
+            Err(LlmError::Stream("upstream disconnected".to_string())),
+        ]);
+        let resp = super::build_stream_response(
+            Box::pin(inner),
+            "msg_err".to_string(),
+            "test-model".to_string(),
+        );
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .expect("body read");
+        let text = String::from_utf8(body.to_vec()).expect("valid UTF-8");
+
+        assert!(
+            text.contains("event: error"),
+            "must emit error event: {text}"
+        );
+        assert!(
+            !text.contains("event: message_stop") || {
+                // message_stop must not appear AFTER the error
+                let err_pos = text.find("event: error").unwrap();
+                !text[err_pos..].contains("event: message_stop")
+            },
+            "error event must not be followed by normal message_stop: {text}"
         );
     }
 }

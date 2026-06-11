@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added MSRV 1.74 and `cargo publish --dry-run` checks to CI.
+- Added MSRV 1.86 and `cargo publish --dry-run` checks to CI.
 - Added `SECURITY.md` with proxy deployment and logging guidance.
 
 ### Fixed

@@ -507,22 +507,6 @@ impl AnthropicStreamState {
         let has_text = !chunk.delta.is_empty();
         let has_tools = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
 
-        // Close text block before tool calls
-        if has_tools && self.in_text_block {
-            if let Some(idx) = self.current_text_index {
-                events.push(Self::sse_event(
-                    "content_block_stop",
-                    &serde_json::json!({
-                        "type": "content_block_stop",
-                        "index": idx
-                    })
-                    .to_string(),
-                ));
-            }
-            self.in_text_block = false;
-            self.current_text_index = None;
-        }
-
         // Open text block for text content
         if has_text && !self.in_text_block {
             let index = self.next_block_index;
@@ -553,6 +537,23 @@ impl AnthropicStreamState {
                     .to_string(),
                 ));
             }
+        }
+
+        // Close text block before tool calls — handles both
+        // prior-chunk text and same-chunk text.
+        if has_tools && self.in_text_block {
+            if let Some(idx) = self.current_text_index {
+                events.push(Self::sse_event(
+                    "content_block_stop",
+                    &serde_json::json!({
+                        "type": "content_block_stop",
+                        "index": idx
+                    })
+                    .to_string(),
+                ));
+            }
+            self.in_text_block = false;
+            self.current_text_index = None;
         }
 
         // Emit tool use blocks
@@ -1412,5 +1413,62 @@ mod tests {
         };
         let events = state.process_chunk(chunk);
         assert_eq!(block_start_indices(&events), vec![0, 1]);
+    }
+
+    #[test]
+    fn same_chunk_text_and_tool_closes_text_before_tool_start() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state = AnthropicStreamState::new(
+            empty_stream,
+            "msg_mix".to_string(),
+            "test-model".to_string(),
+        );
+        let chunk = StreamChunk {
+            delta: "text".to_string(),
+            done: true,
+            finish_reason: Some(FinishReason::ToolCalls),
+            tool_calls: Some(vec![ToolCall {
+                id: "t1".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "f".to_string(),
+                    arguments: "{}".to_string(),
+                },
+            }]),
+            ..Default::default()
+        };
+        let events = state.process_chunk(chunk);
+
+        // Extract the ordered sequence of block event types + indices
+        let seq: Vec<(String, usize)> = events
+            .iter()
+            .filter(|e| e.contains("content_block_"))
+            .map(|e| {
+                let type_start = e.find("\"type\":\"").unwrap() + 8;
+                let type_end = e[type_start..].find('\"').unwrap();
+                let ev_type = e[type_start..type_start + type_end].to_string();
+                let idx_start = e.find("\"index\":").unwrap() + 8;
+                let idx_end = e[idx_start..]
+                    .find(|c: char| !c.is_ascii_digit())
+                    .unwrap_or(e.len() - idx_start);
+                let index: usize = e[idx_start..idx_start + idx_end].parse().unwrap();
+                (ev_type, index)
+            })
+            .collect();
+
+        // Text block must be fully closed (start→delta→stop) at index 0
+        // before the tool block (start→delta→stop) at index 1.
+        assert_eq!(
+            seq,
+            vec![
+                ("content_block_start".to_string(), 0),
+                ("content_block_delta".to_string(), 0),
+                ("content_block_stop".to_string(), 0),
+                ("content_block_start".to_string(), 1),
+                ("content_block_delta".to_string(), 1),
+                ("content_block_stop".to_string(), 1),
+            ],
+            "same-chunk text+tool must close text before starting tool"
+        );
     }
 }

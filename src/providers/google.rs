@@ -716,6 +716,7 @@ fn build_body<'a>(
 #[async_trait]
 impl Provider for GoogleProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
+        crate::providers::warn_if_unsupported_n("google", req.n);
         let (contents, system_instruction) = build_contents(req);
         let body = build_body(req, &contents, system_instruction);
 
@@ -812,6 +813,7 @@ impl Provider for GoogleProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+        crate::providers::warn_if_unsupported_n("google", req.n);
         let (contents, system_instruction) = build_contents(req);
         let body = build_body(req, &contents, system_instruction);
 

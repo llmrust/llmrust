@@ -465,7 +465,12 @@ impl Provider for OpenAiCompatibleProvider {
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
             let err = Self::parse_error(resp).await;
-            tracing::error!(provider = "openai-compatible", status, error = %err, "API error");
+            tracing::error!(
+                provider = "openai-compatible",
+                status,
+                error_kind = "api_error",
+                "API error"
+            );
             return Err(err);
         }
 
@@ -521,7 +526,12 @@ impl Provider for OpenAiCompatibleProvider {
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
             let err = Self::parse_error(resp).await;
-            tracing::error!(provider = "openai-compatible", status, error = %err, "API error");
+            tracing::error!(
+                provider = "openai-compatible",
+                status,
+                error_kind = "api_error",
+                "API error"
+            );
             return Err(err);
         }
 

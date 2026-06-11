@@ -388,7 +388,7 @@ fn content_to_parts(content: &Content) -> Vec<GeminiPart> {
                             parts.push(GeminiPart::InlineData { inline_data });
                         } else {
                             tracing::warn!(
-                                url = %crate::truncate_str(&image_url.url, 80),
+                                url_len = image_url.url.len(),
                                 "Gemini cannot fetch remote image URLs; only data: URLs are inlined"
                             );
                         }
@@ -753,7 +753,12 @@ impl Provider for GoogleProvider {
                 status: status.as_u16(),
                 message: msg,
             };
-            tracing::error!(provider = "google", status = status.as_u16(), error = %err, "API error");
+            tracing::error!(
+                provider = "google",
+                status = status.as_u16(),
+                error_kind = "api_error",
+                "API error"
+            );
             return Err(err);
         }
 
@@ -853,7 +858,12 @@ impl Provider for GoogleProvider {
                 status: status.as_u16(),
                 message: msg,
             };
-            tracing::error!(provider = "google", status = status.as_u16(), error = %err, "API error");
+            tracing::error!(
+                provider = "google",
+                status = status.as_u16(),
+                error_kind = "api_error",
+                "API error"
+            );
             return Err(err);
         }
 

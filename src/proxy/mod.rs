@@ -509,7 +509,7 @@ async fn handle_chat_completions(
     let Json(req) = match payload {
         Ok(req) => req,
         Err(e) => {
-            tracing::error!(error = %e, "proxy: request JSON extraction failed");
+            tracing::error!("proxy: request JSON extraction failed");
             return json_rejection_response(e);
         }
     };
@@ -524,7 +524,7 @@ async fn handle_chat_completions(
         Err(e) => {
             tracing::error!(
                 model = &req.model,
-                error = &e,
+                error_kind = "request_conversion",
                 "proxy: request conversion failed"
             );
             return error_response(StatusCode::BAD_REQUEST, &e);
@@ -686,9 +686,8 @@ fn build_openai_sse_response(
                         Ok(json) => {
                             std::result::Result::<_, Infallible>::Ok(Event::default().data(json))
                         }
-                        Err(e) => {
+                        Err(_) => {
                             tracing::error!(
-                                error = %e,
                                 model = state.model,
                                 "failed to serialize SSE chunk, skipping event"
                             );

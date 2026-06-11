@@ -800,7 +800,7 @@ pub async fn handle_messages(
         Err(e) => {
             tracing::error!(
                 model = &model,
-                error = &e,
+                error_kind = "request_conversion",
                 "proxy: Anthropic request conversion failed"
             );
             return anthropic_error(StatusCode::BAD_REQUEST, "invalid_request_error", &e);

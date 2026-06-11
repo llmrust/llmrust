@@ -300,7 +300,7 @@ tracing_subscriber::fmt()
     .init();
 ```
 
-Log fields include operational metadata such as `provider`, `model`, HTTP `status`, retry `attempt`, and router `group`. API keys, raw base URLs, prompts, message content, request bodies, and response text are intentionally not logged.
+llmrust tracing events do not include API keys, prompt content, response text, request bodies, tool arguments, image data, or full URLs. When helpful, logs use counts and lengths such as `message_count`, `tool_count`, `data_len`, or `url_len`. Operational metadata like `provider`, `model`, HTTP `status`, retry `attempt`, and router `group` are always recorded.
 
 ## Provider Configuration
 

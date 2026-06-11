@@ -125,6 +125,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 > - 除 `temperature` / `max_tokens` / `top_p` 之外的**采样参数和请求元数据参数**（如 `stop`、`seed`、`presence_penalty`、`frequency_penalty`、`logprobs`、`n`、`response_format`、`parallel_tool_calls`、`service_tier`、`store`、`metadata`、`user`）会发送给 OpenAI 兼容服务商，并在 Gemini 有原生等价项时进行映射；Anthropic、Ollama 当前只支持较小的原生参数子集。
 > - 非流式 `logprobs` 响应会在 OpenAI 兼容服务商和 Gemini 中统一映射到 `ChatResponse.logprobs`。
 
+### `n` / 多 completion
+
+llmrust 当前只返回一个 completion。直接 provider 调用可能会把 `n` 透传给 OpenAI 兼容上游，并在 `n > 1` 时发出警告。
+
+OpenAI 兼容代理会**拒绝** `n != 1`（或缺失）的请求，因为上游可能会按多个 completion 计费，但 llmrust 目前只返回第一条结果。
+
 ## 使用示例
 
 ### 基础对话

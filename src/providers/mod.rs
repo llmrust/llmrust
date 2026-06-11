@@ -50,12 +50,20 @@ pub trait Provider: Send + Sync {
 
 /// Configuration for a provider.
 ///
-/// The `Debug` implementation masks the `api_key` and configured `base_url`
-/// values to prevent accidental leakage in logs or panic messages.
+/// The `Debug` implementation masks the `api_key`, `base_url`, and
+/// `custom_headers` values to prevent accidental leakage in logs or panic
+/// messages.
 #[derive(Clone)]
 pub struct ProviderConfig {
     pub api_key: String,
     pub base_url: Option<String>,
+    /// Per-request timeout in seconds. `None` means use the provider default
+    /// (120 s for hosted APIs; no overall timeout for local backends).
+    pub timeout_secs: Option<u64>,
+    /// Custom HTTP headers attached to every request. Useful for
+    /// provider-specific extensions (e.g. `x-api-key`, organisation IDs,
+    /// OpenRouter app attribution).
+    pub custom_headers: Option<std::collections::HashMap<String, String>>,
 }
 
 impl std::fmt::Debug for ProviderConfig {
@@ -63,6 +71,11 @@ impl std::fmt::Debug for ProviderConfig {
         f.debug_struct("ProviderConfig")
             .field("api_key", &"***")
             .field("base_url", &self.base_url.as_ref().map(|_| "***"))
+            .field("timeout_secs", &self.timeout_secs)
+            .field(
+                "custom_headers",
+                &self.custom_headers.as_ref().map(|_| "***"),
+            )
             .finish()
     }
 }
@@ -72,11 +85,33 @@ impl ProviderConfig {
         Self {
             api_key: api_key.into(),
             base_url: None,
+            timeout_secs: None,
+            custom_headers: None,
         }
     }
 
     pub fn with_base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = Some(url.into());
+        self
+    }
+
+    /// Set a per-request timeout in seconds.
+    pub fn with_timeout_secs(mut self, secs: u64) -> Self {
+        self.timeout_secs = Some(secs);
+        self
+    }
+
+    /// Add a single custom HTTP header.
+    pub fn with_header(mut self, key: impl Into<String>, val: impl Into<String>) -> Self {
+        self.custom_headers
+            .get_or_insert_with(std::collections::HashMap::new)
+            .insert(key.into(), val.into());
+        self
+    }
+
+    /// Replace all custom headers at once.
+    pub fn with_headers(mut self, headers: impl IntoIterator<Item = (String, String)>) -> Self {
+        self.custom_headers = Some(headers.into_iter().collect());
         self
     }
 }

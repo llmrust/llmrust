@@ -17,11 +17,14 @@ impl OpenAIProvider {
     /// Create a new OpenAI provider. Uses the default `api.openai.com` base
     /// URL unless overridden via `config.base_url`.
     pub fn new(config: ProviderConfig) -> Self {
-        let config = ProviderConfig::new(&config.api_key).with_base_url(
-            config
-                .base_url
-                .unwrap_or_else(|| DEFAULT_BASE_URL.to_string()),
-        );
+        let config = ProviderConfig {
+            base_url: Some(
+                config
+                    .base_url
+                    .unwrap_or_else(|| DEFAULT_BASE_URL.to_string()),
+            ),
+            ..config
+        };
         Self(OpenAiCompatibleProvider::new(config, []))
     }
 }

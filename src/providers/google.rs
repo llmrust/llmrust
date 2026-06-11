@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
@@ -23,8 +24,12 @@ pub struct GoogleProvider {
 
 impl GoogleProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let timeout = config
+            .timeout_secs
+            .map(Duration::from_secs)
+            .or(Some(REQUEST_TIMEOUT));
         Self {
-            client: build_http_client(Some(REQUEST_TIMEOUT)),
+            client: build_http_client(timeout, config.custom_headers.as_ref()),
             api_key: config.api_key,
             base_url: config
                 .base_url

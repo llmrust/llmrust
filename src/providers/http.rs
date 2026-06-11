@@ -10,6 +10,7 @@
 //! across providers and gives us a single place to evolve it.
 
 use reqwest::Client;
+use std::collections::HashMap;
 use std::time::Duration;
 
 /// Overall per-request timeout applied to hosted provider APIs.
@@ -29,9 +30,15 @@ const POOL_MAX_IDLE_PER_HOST: usize = 32;
 /// because generation can legitimately run for a long time on large models. A
 /// connect timeout is always enforced so a stalled handshake fails fast.
 ///
+/// `custom_headers` are injected as **default headers** on the client. Per-
+/// request `.header()` calls (e.g. `Authorization`) take precedence over these.
+///
 /// Falls back to a default client if the builder somehow fails (it will not in
 /// practice with these static options).
-pub(crate) fn build_http_client(request_timeout: Option<Duration>) -> Client {
+pub(crate) fn build_http_client(
+    request_timeout: Option<Duration>,
+    custom_headers: Option<&HashMap<String, String>>,
+) -> Client {
     let mut builder = Client::builder()
         .connect_timeout(CONNECT_TIMEOUT)
         .pool_max_idle_per_host(POOL_MAX_IDLE_PER_HOST)
@@ -39,6 +46,18 @@ pub(crate) fn build_http_client(request_timeout: Option<Duration>) -> Client {
     if let Some(timeout) = request_timeout {
         builder = builder.timeout(timeout);
     }
+    let mut default_headers = reqwest::header::HeaderMap::new();
+    if let Some(headers) = custom_headers {
+        for (k, v) in headers {
+            if let (Ok(name), Ok(val)) = (
+                reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                reqwest::header::HeaderValue::from_str(v),
+            ) {
+                default_headers.insert(name, val);
+            }
+        }
+    }
+    builder = builder.default_headers(default_headers);
     builder.build().unwrap_or_else(|_| Client::new())
 }
 
@@ -49,12 +68,12 @@ mod tests {
     #[test]
     fn builds_hosted_client_with_overall_timeout() {
         // Hosted-provider configuration carries an overall request timeout.
-        let _ = build_http_client(Some(REQUEST_TIMEOUT));
+        let _ = build_http_client(Some(REQUEST_TIMEOUT), None);
     }
 
     #[test]
     fn builds_local_client_without_overall_timeout() {
         // Local-backend configuration (e.g. Ollama) opts out of the overall timeout.
-        let _ = build_http_client(None);
+        let _ = build_http_client(None, None);
     }
 }

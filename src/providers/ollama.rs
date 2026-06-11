@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 use crate::providers::http::build_http_client;
 use crate::providers::stream_util::line_stream;
@@ -23,7 +24,10 @@ impl OllamaProvider {
             // Local generation can run for a long time on large models, so opt
             // out of the overall request timeout; only the connect timeout from
             // the shared builder applies (to fail fast when unreachable).
-            client: build_http_client(None),
+            client: build_http_client(
+                config.timeout_secs.map(Duration::from_secs),
+                config.custom_headers.as_ref(),
+            ),
             base_url: config
                 .base_url
                 .unwrap_or_else(|| DEFAULT_BASE_URL.to_string()),

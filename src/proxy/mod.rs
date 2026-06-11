@@ -49,8 +49,8 @@ mod anthropic_proxy;
 
 use crate::types::FinishReason;
 use crate::{
-    ChatRequest, Content, FunctionDef, LlmError, LmrsClient, LogProbs, Message, ResponseFormat,
-    Role, Tool, ToolCall, ToolChoice,
+    BoxStream, ChatRequest, Content, FunctionDef, LlmError, LmrsClient, LogProbs, Message,
+    ResponseFormat, Role, StreamChunk, Tool, ToolCall, ToolChoice,
 };
 
 // ── ID generation ────────────────────────────
@@ -592,6 +592,148 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
 
 // ── Streaming handler ─────────────────────
 
+/// Build an OpenAI-compatible SSE byte stream from inner provider stream.
+/// Factored out so tests can drive it directly without a full provider setup.
+fn build_openai_sse_response(
+    inner_stream: BoxStream<'static, Result<StreamChunk, LlmError>>,
+    id: String,
+    created: u64,
+    model: String,
+    include_usage: bool,
+) -> Response {
+    struct StreamState {
+        inner: BoxStream<'static, Result<StreamChunk, LlmError>>,
+        id: String,
+        created: u64,
+        model: String,
+        include_usage: bool,
+        role_sent: bool,
+        terminated: bool,
+    }
+
+    let state = StreamState {
+        inner: inner_stream,
+        id,
+        created,
+        model,
+        include_usage,
+        role_sent: false,
+        terminated: false,
+    };
+
+    let sse_stream = stream::unfold(state, |mut state| async move {
+        loop {
+            if state.terminated {
+                return None;
+            }
+            match state.inner.next().await {
+                Some(Ok(chunk)) => {
+                    let has_tool_calls = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
+                    let mut finish_reason = chunk.finish_reason;
+                    if finish_reason.is_none() && chunk.done {
+                        finish_reason = Some(if has_tool_calls {
+                            FinishReason::ToolCalls
+                        } else {
+                            FinishReason::Stop
+                        });
+                    }
+                    let has_usage = chunk.usage.is_some();
+                    let usage = if state.include_usage {
+                        chunk.usage.map(ProxyUsage::from)
+                    } else {
+                        None
+                    };
+                    let content = if chunk.delta.is_empty() {
+                        None
+                    } else {
+                        Some(chunk.delta)
+                    };
+                    let is_usage_only = has_usage
+                        && content.is_none()
+                        && finish_reason.is_none()
+                        && !has_tool_calls;
+                    if is_usage_only && !state.include_usage {
+                        continue;
+                    }
+                    let choices = if is_usage_only {
+                        Vec::new()
+                    } else {
+                        let role = if state.role_sent {
+                            None
+                        } else {
+                            state.role_sent = true;
+                            Some("assistant".to_string())
+                        };
+                        vec![ProxyStreamChoice {
+                            index: 0,
+                            delta: ProxyDelta {
+                                role,
+                                content,
+                                tool_calls: chunk.tool_calls,
+                            },
+                            finish_reason: finish_reason.map(|r| r.as_str().to_string()),
+                        }]
+                    };
+                    let payload = ProxyStreamChunk {
+                        id: state.id.clone(),
+                        object: "chat.completion.chunk".to_string(),
+                        created: state.created,
+                        model: state.model.clone(),
+                        choices,
+                        usage,
+                    };
+                    let event = match serde_json::to_string(&payload) {
+                        Ok(json) => {
+                            std::result::Result::<_, Infallible>::Ok(Event::default().data(json))
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                error = %e,
+                                model = state.model,
+                                "failed to serialize SSE chunk, skipping event"
+                            );
+                            continue;
+                        }
+                    };
+                    return Some((event, state));
+                }
+                Some(Err(e)) => {
+                    state.terminated = true;
+                    let error_payload = ProxyError {
+                        error: ProxyErrorDetail {
+                            message: e.to_string(),
+                            error_type: "stream_error".to_string(),
+                            param: None,
+                            code: None,
+                        },
+                    };
+                    let event = std::result::Result::<_, Infallible>::Ok(
+                        Event::default()
+                            .data(serde_json::to_string(&error_payload).unwrap_or_default()),
+                    );
+                    return Some((event, state));
+                }
+                None => return None,
+            }
+        }
+    });
+
+    let sse_stream: BoxStream<'static, std::result::Result<Event, Infallible>> =
+        Box::pin(sse_stream);
+
+    let done: BoxStream<'static, std::result::Result<Event, Infallible>> =
+        Box::pin(stream::once(async {
+            std::result::Result::<_, Infallible>::Ok(Event::default().data("[DONE]"))
+        }));
+    Sse::new(sse_stream.chain(done))
+        .keep_alive(
+            axum::response::sse::KeepAlive::new()
+                .interval(std::time::Duration::from_secs(15))
+                .text("keep-alive"),
+        )
+        .into_response()
+}
+
 async fn handle_stream(
     state: AppState,
     model: &str,
@@ -617,121 +759,13 @@ async fn handle_stream(
         Ok(inner_stream) => {
             let id = generate_id();
             let created = unix_timestamp();
-            let model_clone = model_name.to_string();
-            let mut role_sent = false;
-
-            // Map each upstream chunk to (Option<Event>, should_terminate).
-            // On error we emit the error event and signal termination so no
-            // further chunks are processed — the chained [DONE] event still
-            // fires, giving the client a clean stream end.
-            let sse_stream = inner_stream
-                .map(
-                    move |chunk_result| -> (Option<Result<Event, Infallible>>, bool) {
-                        match chunk_result {
-                            Ok(chunk) => {
-                                let has_tool_calls =
-                                    chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
-                                let mut finish_reason = chunk.finish_reason;
-                                if finish_reason.is_none() && chunk.done {
-                                    finish_reason = Some(if has_tool_calls {
-                                        FinishReason::ToolCalls
-                                    } else {
-                                        FinishReason::Stop
-                                    });
-                                }
-                                let has_usage = chunk.usage.is_some();
-                                let usage = if include_usage {
-                                    chunk.usage.map(ProxyUsage::from)
-                                } else {
-                                    None
-                                };
-                                let content = if chunk.delta.is_empty() {
-                                    None
-                                } else {
-                                    Some(chunk.delta)
-                                };
-                                let is_usage_only = has_usage
-                                    && content.is_none()
-                                    && finish_reason.is_none()
-                                    && !has_tool_calls;
-                                if is_usage_only && !include_usage {
-                                    return (None, false);
-                                }
-                                let choices = if is_usage_only {
-                                    Vec::new()
-                                } else {
-                                    let role = if role_sent {
-                                        None
-                                    } else {
-                                        role_sent = true;
-                                        Some("assistant".to_string())
-                                    };
-                                    vec![ProxyStreamChoice {
-                                        index: 0,
-                                        delta: ProxyDelta {
-                                            role,
-                                            content,
-                                            tool_calls: chunk.tool_calls,
-                                        },
-                                        finish_reason: finish_reason
-                                            .map(|r| r.as_str().to_string()),
-                                    }]
-                                };
-                                let payload = ProxyStreamChunk {
-                                    id: id.clone(),
-                                    object: "chat.completion.chunk".to_string(),
-                                    created,
-                                    model: model_clone.clone(),
-                                    choices,
-                                    usage,
-                                };
-                                let event = match serde_json::to_string(&payload) {
-                                    Ok(json) => Some(Ok(Event::default().data(json))),
-                                    Err(e) => {
-                                        tracing::error!(
-                                            error = %e,
-                                            model = model_clone,
-                                            "failed to serialize SSE chunk, skipping event"
-                                        );
-                                        None
-                                    }
-                                };
-                                (event, false)
-                            }
-                            Err(e) => {
-                                let error_payload = ProxyError {
-                                    error: ProxyErrorDetail {
-                                        message: e.to_string(),
-                                        error_type: "stream_error".to_string(),
-                                        param: None,
-                                        code: None,
-                                    },
-                                };
-                                (
-                                    Some(Ok(Event::default().data(
-                                        serde_json::to_string(&error_payload).unwrap_or_default(),
-                                    ))),
-                                    true, // terminate after error
-                                )
-                            }
-                        }
-                    },
-                )
-                // Stop processing after an error so [DONE] is the final event
-                .take_while(|(_, terminate)| futures::future::ready(!terminate))
-                .filter_map(|(event, _)| futures::future::ready(event));
-
-            // Final [DONE] chunk matching OpenAI conventions — always emitted,
-            // even after a mid-stream error.
-            let done = stream::once(async { Ok::<_, Infallible>(Event::default().data("[DONE]")) });
-
-            Sse::new(sse_stream.chain(done))
-                .keep_alive(
-                    axum::response::sse::KeepAlive::new()
-                        .interval(std::time::Duration::from_secs(15))
-                        .text("keep-alive"),
-                )
-                .into_response()
+            build_openai_sse_response(
+                inner_stream,
+                id,
+                created,
+                model_name.to_string(),
+                include_usage,
+            )
         }
         Err(e) => proxy_error_from_llm_error(e),
     }
@@ -1798,5 +1832,151 @@ mod tests {
         };
         let err = convert_request(&req).expect_err("empty messages should fail");
         assert!(err.contains("messages"));
+    }
+
+    // ── OpenAI proxy stream error tests ───────────────
+
+    async fn collect_sse(resp: Response) -> String {
+        let bytes = to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .expect("body read");
+        String::from_utf8(bytes.to_vec()).expect("valid UTF-8")
+    }
+
+    #[tokio::test]
+    async fn openai_stream_error_event_is_emitted_before_done() {
+        let inner = Box::pin(futures::stream::iter([
+            Ok(StreamChunk {
+                delta: "hello".to_string(),
+                ..Default::default()
+            }),
+            Err(LlmError::Stream("upstream disconnected".to_string())),
+        ]));
+        let sse = build_openai_sse_response(inner, "id1".into(), 0, "m".into(), true);
+        let text = collect_sse(sse).await;
+        let err_pos = text
+            .find("stream_error")
+            .expect("stream_error must be emitted");
+        let done_pos = text.find("[DONE]").expect("DONE must be emitted");
+        assert!(err_pos < done_pos, "stream_error must appear before [DONE]");
+    }
+
+    #[tokio::test]
+    async fn openai_stream_error_stops_after_first_error() {
+        let inner = Box::pin(futures::stream::iter([
+            Ok(StreamChunk {
+                delta: "before".to_string(),
+                ..Default::default()
+            }),
+            Err(LlmError::Stream("boom".to_string())),
+            Ok(StreamChunk {
+                delta: "after".to_string(),
+                ..Default::default()
+            }),
+        ]));
+        let sse = build_openai_sse_response(inner, "id2".into(), 0, "m".into(), true);
+        let text = collect_sse(sse).await;
+        assert!(text.contains("before"));
+        assert!(text.contains("stream_error"));
+        assert!(
+            !text.contains("after"),
+            "must not consume chunks after error"
+        );
+    }
+
+    #[tokio::test]
+    async fn openai_stream_normal_text_still_emits_role_and_done() {
+        let inner = Box::pin(futures::stream::iter([
+            Ok(StreamChunk {
+                delta: "hello".to_string(),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                delta: " world".to_string(),
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            }),
+        ]));
+        let sse = build_openai_sse_response(inner, "id3".into(), 0, "m".into(), false);
+        let text = collect_sse(sse).await;
+        assert!(text.contains(r#""role":"assistant""#));
+        assert_eq!(
+            text.matches(r#""role":"assistant""#).count(),
+            1,
+            "role must appear only once"
+        );
+        assert!(text.contains("hello"));
+        assert!(text.contains(" world"));
+        assert!(text.contains("[DONE]"));
+    }
+
+    #[tokio::test]
+    async fn openai_stream_usage_only_emits_when_requested() {
+        let inner = Box::pin(futures::stream::iter([
+            Ok(StreamChunk {
+                delta: "hi".to_string(),
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                usage: Some(Usage {
+                    prompt_tokens: 10,
+                    completion_tokens: 5,
+                    total_tokens: 15,
+                }),
+                ..Default::default()
+            }),
+        ]));
+        let sse = build_openai_sse_response(inner, "id4".into(), 0, "m".into(), true);
+        let text = collect_sse(sse).await;
+        assert!(text.contains(r#""prompt_tokens":10"#));
+    }
+
+    #[tokio::test]
+    async fn openai_stream_usage_only_skipped_when_not_requested() {
+        let inner = Box::pin(futures::stream::iter([
+            Ok(StreamChunk {
+                usage: Some(Usage {
+                    prompt_tokens: 10,
+                    completion_tokens: 5,
+                    total_tokens: 15,
+                }),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                delta: "next".to_string(),
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            }),
+        ]));
+        let sse = build_openai_sse_response(inner, "id5".into(), 0, "m".into(), false);
+        let text = collect_sse(sse).await;
+        assert!(!text.contains("\"usage\""));
+        assert!(text.contains("next"));
+        assert!(text.contains("[DONE]"));
+    }
+
+    #[tokio::test]
+    async fn openai_stream_tool_calls_still_serialize() {
+        let inner = Box::pin(futures::stream::iter([Ok(StreamChunk {
+            tool_calls: Some(vec![ToolCall {
+                id: "call_0".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "lookup".to_string(),
+                    arguments: r#"{"q":"rust"}"#.to_string(),
+                },
+            }]),
+            finish_reason: Some(FinishReason::ToolCalls),
+            ..Default::default()
+        })]));
+        let sse = build_openai_sse_response(inner, "id6".into(), 0, "m".into(), false);
+        let text = collect_sse(sse).await;
+        assert!(text.contains("tool_calls"));
+        assert!(text.contains("call_0"));
+        assert!(text.contains("lookup"));
     }
 }

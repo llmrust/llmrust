@@ -586,10 +586,20 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
 }
 
 /// Convert a Gemini `finishReason` string (uppercase, e.g. `"STOP"`,
-/// `"MAX_TOKENS"`, `"SAFETY"`) to a [`FinishReason`]. Unknown values are
-/// preserved verbatim via [`FinishReason::Other`].
+/// `"MAX_TOKENS"`, `"SAFETY"`) to a [`FinishReason`].
 fn to_finish_reason(s: String) -> FinishReason {
-    FinishReason::from(s)
+    match s.as_str() {
+        "STOP" => FinishReason::Stop,
+        "MAX_TOKENS" => FinishReason::MaxTokens,
+        "SAFETY"
+        | "RECITATION"
+        | "BLOCKLIST"
+        | "PROHIBITED_CONTENT"
+        | "SPII"
+        | "MALFORMED_FUNCTION_CALL" => FinishReason::ContentFilter,
+        "FINISH_REASON_UNSPECIFIED" => FinishReason::Stop,
+        _ => FinishReason::from(s),
+    }
 }
 
 /// Parse a single SSE line from a Gemini stream into zero or more
@@ -1046,10 +1056,7 @@ mod tests {
         assert_eq!(chunks[0].delta, "Hello");
         let last = chunks.last().unwrap();
         assert!(last.done);
-        assert_eq!(
-            last.finish_reason,
-            Some(FinishReason::Other("STOP".to_string()))
-        );
+        assert_eq!(last.finish_reason, Some(FinishReason::Stop));
         assert!(last.tool_calls.is_none());
     }
 

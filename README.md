@@ -280,10 +280,21 @@ curl http://localhost:3000/v1/messages \
   }'
 ```
 
-> **Security note:** Without `LLMRUST_PROXY_KEY` set, the proxy has no authentication. Run it on localhost or behind a reverse proxy.
+> **Security note:** Without `LLMRUST_PROXY_KEY` set, the proxy has no authentication. Run it on localhost or behind a reverse proxy. With `LLMRUST_PROXY_KEY` set, every request must include an `Authorization: Bearer <key>` header; the token is compared in constant time.
 >
-> The proxy follows OpenAI chat-completions request conventions, including `stop` as either a string or an array, and returns JSON error bodies for malformed requests.
+> The proxy follows OpenAI chat-completions request conventions, including `stop` as either a string or an array, and returns JSON error bodies for malformed requests. Stream errors are surfaced to clients as error events rather than being silently converted to successful completions.
 > Streaming responses use OpenAI-style SSE chunks, including a single initial `assistant` role delta. When `stream_options.include_usage` is `true`, usage-only chunks use empty `choices`.
+
+### Proxy model names
+
+The proxy routes requests by the `model` string. Use the same provider-prefixed model names as the client API, for example:
+
+- `openai/gpt-4o`
+- `anthropic/claude-3-5-sonnet-latest`
+- `gemini/gemini-1.5-pro`
+- `ollama/llama3.2`
+
+The prefix selects the provider. The remaining model name is sent to the provider after llmrust resolves the route.
 
 ## Logging
 

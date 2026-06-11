@@ -280,10 +280,21 @@ curl http://localhost:3000/v1/messages \
   }'
 ```
 
-> **安全提示：** 若不设置 `LLMRUST_PROXY_KEY`，代理没有任何认证。仅在 localhost 或反向代理之后运行。
+> **安全提示：** 若不设置 `LLMRUST_PROXY_KEY`，代理没有任何认证。仅在 localhost 或反向代理之后运行。设置了 `LLMRUST_PROXY_KEY` 后，每个请求必须带 `Authorization: Bearer <key>` 头，token 使用恒定时间比较。
 >
-> 代理遵循 OpenAI chat completions 请求约定，包括 `stop` 可为字符串或数组，并会对格式错误的请求返回 JSON 错误体。
+> 代理遵循 OpenAI chat completions 请求约定，包括 `stop` 可为字符串或数组，并会对格式错误的请求返回 JSON 错误体。流式错误会以 error event 返回给客户端，不会静默伪装成成功 completion。
 > 流式响应使用 OpenAI 风格 SSE chunk，包括只在首个 delta 中发送一次 `assistant` role。设置 `stream_options.include_usage = true` 时，仅包含 usage 的 chunk 会返回空 `choices`。
+
+### Proxy model 名称
+
+proxy 通过 `model` 字段路由请求。请使用和 client API 一致的 provider 前缀模型名，例如：
+
+- `openai/gpt-4o`
+- `anthropic/claude-3-5-sonnet-latest`
+- `gemini/gemini-1.5-pro`
+- `ollama/llama3.2`
+
+前缀用于选择 provider，后面的模型名会在 llmrust 完成路由解析后发送给对应 provider。
 
 ## 日志
 

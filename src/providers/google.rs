@@ -334,7 +334,7 @@ struct GeminiToolAccumulator {
 
 impl GeminiToolAccumulator {
     fn push(&mut self, name: String, args: serde_json::Value) {
-        let id = format!("{}_{}", name, self.counter);
+        let id = crate::providers::make_tool_call_id(self.counter as usize);
         self.counter += 1;
         self.calls.push(ToolCall {
             id,
@@ -527,6 +527,16 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
     let mut contents = Vec::new();
     let mut system_parts: Vec<GeminiPart> = Vec::new();
 
+    // Build a tool_call_id → function_name map from assistant turns so
+    // that tool-result messages that only carry the synthetic id still
+    // produce the correct `functionResponse.name`.
+    let id_to_name: std::collections::HashMap<&str, &str> = req
+        .messages
+        .iter()
+        .flat_map(|m| m.tool_calls.iter().flatten())
+        .map(|tc| (tc.id.as_str(), tc.function.name.as_str()))
+        .collect();
+
     for msg in &req.messages {
         match msg.role {
             crate::types::Role::System => system_parts.push(GeminiPart::Text {
@@ -536,6 +546,11 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
                 let name = msg
                     .name
                     .clone()
+                    .or_else(|| {
+                        msg.tool_call_id
+                            .as_deref()
+                            .and_then(|id| id_to_name.get(id).map(|n| n.to_string()))
+                    })
                     .or_else(|| msg.tool_call_id.clone())
                     .unwrap_or_default();
                 contents.push(GeminiContent {
@@ -754,14 +769,17 @@ impl Provider for GoogleProvider {
                         .and_then(gemini_logprobs_to_logprobs);
                     let mut text = String::new();
                     let mut calls: Vec<ToolCall> = Vec::new();
+                    let mut call_index = 0usize;
                     for part in candidate.content.parts {
                         if let Some(t) = part.text {
                             text.push_str(&t);
                         }
                         if let Some(fc) = part.function_call {
+                            let id = crate::providers::make_tool_call_id(call_index);
+                            call_index += 1;
                             let arguments = fc.args.to_string();
                             calls.push(ToolCall {
-                                id: fc.name.clone(),
+                                id,
                                 call_type: "function".to_string(),
                                 function: FunctionCall {
                                     name: fc.name,
@@ -1099,5 +1117,54 @@ mod tests {
         assert_eq!(lp.content[0].bytes, Some(vec![104, 105]));
         assert_eq!(lp.content[0].top_logprobs.len(), 2);
         assert_eq!(lp.content[0].top_logprobs[1].token, "hello");
+    }
+
+    #[test]
+    fn stream_and_chat_produce_same_id_format() {
+        // Stream path
+        let mut tools = GeminiToolAccumulator::default();
+        tools.push("f".to_string(), serde_json::json!({}));
+        let stream_calls = tools.take().unwrap();
+
+        // Non-stream path produces the same deterministic id
+        let stream_id = &stream_calls[0].id;
+        assert_eq!(stream_id, "call_0");
+    }
+
+    #[test]
+    fn concurrent_same_name_tool_calls_get_unique_ids() {
+        let mut tools = GeminiToolAccumulator::default();
+        tools.push("get_weather".to_string(), serde_json::json!({"city":"SF"}));
+        tools.push("get_weather".to_string(), serde_json::json!({"city":"NY"}));
+        let calls = tools.take().unwrap();
+        assert_eq!(calls.len(), 2);
+        assert_ne!(calls[0].id, calls[1].id);
+        assert_eq!(calls[0].id, "call_0");
+        assert_eq!(calls[1].id, "call_1");
+    }
+
+    #[test]
+    fn roundtrip_resolves_name_from_tool_call_id() {
+        // Simulate: assistant calls tool with call_0 id, user replies with
+        // only tool_call_id (no name) — OpenAI-style consumer. Gemini must
+        // resolve the function name from the assistant's tool_calls.
+        let req = ChatRequest::from_messages(
+            "gemini",
+            vec![
+                Message::user("weather?"),
+                Message::assistant_tool_calls(vec![ToolCall {
+                    id: "call_0".to_string(),
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: "get_weather".to_string(),
+                        arguments: "{\"city\":\"SF\"}".to_string(),
+                    },
+                }]),
+                Message::tool("call_0", "sunny"),
+            ],
+        );
+        let (contents, _system) = build_contents(&req);
+        let v = serde_json::to_value(&contents).unwrap();
+        assert_eq!(v[2]["parts"][0]["functionResponse"]["name"], "get_weather");
     }
 }

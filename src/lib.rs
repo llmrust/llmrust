@@ -461,6 +461,7 @@ impl LmrsClient {
     /// Returns a [`ChatResponse`] with concatenated text, the last reported
     /// `usage`, `tool_calls`, and `finish_reason` from the terminal chunk(s).
     pub async fn stream_collect_full(&self, model: &str, prompt: &str) -> Result<ChatResponse> {
+        let (_, model_name) = Self::parse_model(model)?;
         let mut stream = self.stream(model, prompt).await?;
         let mut text = String::new();
         let mut usage = None;
@@ -481,7 +482,7 @@ impl LmrsClient {
         }
         Ok(ChatResponse {
             content: text,
-            model: model.to_string(),
+            model: model_name.to_string(),
             usage,
             tool_calls,
             finish_reason,

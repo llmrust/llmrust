@@ -80,6 +80,16 @@ impl std::fmt::Debug for ProviderConfig {
     }
 }
 
+// ── Shared helpers ────────────────────────────────────────
+
+/// Deterministic, collision-free tool-call id. Uses a simple `call_{index}`
+/// prefix matching the OpenAI convention so that chat and stream paths produce
+/// identical ids for the same function calls, and same-name concurrent calls
+/// never collide.
+pub(crate) fn make_tool_call_id(index: usize) -> String {
+    format!("call_{index}")
+}
+
 impl ProviderConfig {
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {

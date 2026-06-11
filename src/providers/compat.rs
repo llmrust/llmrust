@@ -19,6 +19,7 @@ use crate::types::{
     ChatRequest, ChatResponse, Content, FinishReason, FunctionCall, LogProbs, Message,
     ResponseFormat, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
 };
+use std::collections::HashMap;
 
 // ── Shared request / response types ───────────────────────
 
@@ -65,6 +66,9 @@ struct CompChatRequest<'a> {
     metadata: Option<&'a serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     user: Option<&'a str>,
+    /// Provider-specific extra fields flattened into the request body.
+    #[serde(flatten)]
+    extra: &'a HashMap<String, serde_json::Value>,
 }
 
 /// Asks OpenAI-compatible servers to emit a terminal chunk carrying token
@@ -447,6 +451,7 @@ impl Provider for OpenAiCompatibleProvider {
             store: req.store,
             metadata: req.metadata.as_ref(),
             user: req.user.as_deref(),
+            extra: &req.extra,
         };
 
         tracing::debug!(
@@ -501,6 +506,7 @@ impl Provider for OpenAiCompatibleProvider {
             store: req.store,
             metadata: req.metadata.as_ref(),
             user: req.user.as_deref(),
+            extra: &req.extra,
         };
 
         tracing::debug!(
@@ -572,6 +578,7 @@ mod tests {
             store: None,
             metadata: None,
             user: None,
+            extra: &HashMap::new(),
         };
 
         let v = serde_json::to_value(&body).unwrap();
@@ -721,6 +728,7 @@ mod tests {
             store: Some(true),
             metadata: Some(&metadata),
             user: Some("user-123"),
+            extra: &HashMap::new(),
         };
 
         let v = serde_json::to_value(&body).unwrap();
@@ -765,6 +773,7 @@ mod tests {
             store: None,
             metadata: None,
             user: None,
+            extra: &HashMap::new(),
         };
 
         let v = serde_json::to_value(&body).unwrap();

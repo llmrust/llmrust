@@ -1439,14 +1439,21 @@ mod tests {
         };
         let events = state.process_chunk(chunk);
 
-        // Extract the ordered sequence of block event types + indices
+        // Extract SSE event names and block indices from content_block_* events.
         let seq: Vec<(String, usize)> = events
             .iter()
-            .filter(|e| e.contains("content_block_"))
+            .filter(|e| {
+                e.starts_with("event: content_block_start")
+                    || e.starts_with("event: content_block_delta")
+                    || e.starts_with("event: content_block_stop")
+            })
             .map(|e| {
-                let type_start = e.find("\"type\":\"").unwrap() + 8;
-                let type_end = e[type_start..].find('\"').unwrap();
-                let ev_type = e[type_start..type_start + type_end].to_string();
+                let ev_type = e
+                    .lines()
+                    .next()
+                    .unwrap()
+                    .trim_start_matches("event: ")
+                    .to_string();
                 let idx_start = e.find("\"index\":").unwrap() + 8;
                 let idx_end = e[idx_start..]
                     .find(|c: char| !c.is_ascii_digit())

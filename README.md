@@ -1,6 +1,6 @@
 # llmrust
 
-![llmrust](images/llmrust-banner.png)
+![llmrust](https://raw.githubusercontent.com/llmrust/llmrust/main/images/llmrust-banner.png)
 
 [![Crates.io](https://img.shields.io/crates/v/llmrust)](https://crates.io/crates/llmrust)
 [![Documentation](https://docs.rs/llmrust/badge.svg)](https://docs.rs/llmrust)

@@ -15,8 +15,8 @@ use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Content, FunctionCall, LogProbs, Message, ResponseFormat,
-    StreamChunk, Tool, ToolCall, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, FinishReason, FunctionCall, LogProbs, Message,
+    ResponseFormat, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
 };
 
 // ── Shared request / response types ───────────────────────
@@ -292,7 +292,7 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
             if let Some(deltas) = &choice.delta.tool_calls {
                 tools.ingest(deltas);
             }
-            let finish_reason = choice.finish_reason.clone();
+            let finish_reason = choice.finish_reason.clone().map(FinishReason::from);
             let tool_calls = if finish_reason.is_some() {
                 tools.take()
             } else {
@@ -396,7 +396,7 @@ impl OpenAiCompatibleProvider {
                 (
                     content,
                     choice.message.tool_calls,
-                    choice.finish_reason,
+                    choice.finish_reason.map(FinishReason::from),
                     choice.logprobs,
                 )
             }
@@ -597,7 +597,7 @@ mod tests {
         let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
         let resp = OpenAiCompatibleProvider::parse_response(parsed);
         assert_eq!(resp.content, "");
-        assert_eq!(resp.finish_reason.as_deref(), Some("tool_calls"));
+        assert_eq!(resp.finish_reason, Some(FinishReason::ToolCalls));
         let calls = resp.tool_calls.expect("tool_calls present");
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].function.name, "get_weather");
@@ -632,7 +632,7 @@ mod tests {
         let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
         let resp = OpenAiCompatibleProvider::parse_response(parsed);
         assert_eq!(resp.content, "Hi");
-        assert_eq!(resp.finish_reason.as_deref(), Some("stop"));
+        assert_eq!(resp.finish_reason, Some(FinishReason::Stop));
 
         let logprobs = resp.logprobs.expect("logprobs present");
         assert_eq!(logprobs.content.len(), 1);
@@ -794,7 +794,7 @@ mod tests {
         }
         let chunk = final_chunk.expect("a terminal chunk");
         assert!(chunk.done);
-        assert_eq!(chunk.finish_reason.as_deref(), Some("tool_calls"));
+        assert_eq!(chunk.finish_reason, Some(FinishReason::ToolCalls));
         let calls = chunk.tool_calls.expect("tool calls present");
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].id, "call_1");

@@ -15,8 +15,8 @@ use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, Message, StreamChunk, Tool,
-    ToolCall, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, FinishReason, FunctionCall, Message,
+    StreamChunk, Tool, ToolCall, ToolChoice, Usage,
 };
 use crate::LlmError;
 
@@ -390,7 +390,7 @@ pub fn build_response(resp: ChatResponse, id: &str) -> AnthropicResponse {
         }
     }
 
-    let stop_reason = resp.finish_reason.as_deref().map(normalize_stop_reason);
+    let stop_reason = resp.finish_reason.as_ref().map(normalize_stop_reason);
     let (input_tokens, output_tokens) = match &resp.usage {
         Some(u) => (u.prompt_tokens, u.completion_tokens),
         None => (0, 0),
@@ -412,12 +412,12 @@ pub fn build_response(resp: ChatResponse, id: &str) -> AnthropicResponse {
 }
 
 /// Normalize a provider-specific stop reason to Anthropic conventions.
-fn normalize_stop_reason(reason: &str) -> String {
+fn normalize_stop_reason(reason: &FinishReason) -> String {
     match reason {
-        "stop" | "end_turn" => "end_turn".to_string(),
-        "tool_calls" | "tool_use" => "tool_use".to_string(),
-        "length" => "max_tokens".to_string(),
-        other => other.to_string(),
+        FinishReason::Stop | FinishReason::EndTurn => "end_turn".to_string(),
+        FinishReason::ToolCalls | FinishReason::ToolUse => "tool_use".to_string(),
+        FinishReason::Length | FinishReason::MaxTokens => "max_tokens".to_string(),
+        other => other.as_str().to_string(),
     }
 }
 
@@ -637,7 +637,7 @@ impl AnthropicStreamState {
 
             let stop_reason = chunk
                 .finish_reason
-                .as_deref()
+                .as_ref()
                 .map(normalize_stop_reason)
                 .unwrap_or_else(|| {
                     if has_tools {
@@ -1046,7 +1046,7 @@ mod tests {
                 total_tokens: 15,
             }),
             tool_calls: None,
-            finish_reason: Some("stop".to_string()),
+            finish_reason: Some(FinishReason::Stop),
             logprobs: None,
         };
         let resp = build_response(chat_resp, "msg_1");
@@ -1081,7 +1081,7 @@ mod tests {
                     arguments: "{\"city\":\"SF\"}".to_string(),
                 },
             }]),
-            finish_reason: Some("tool_calls".to_string()),
+            finish_reason: Some(FinishReason::ToolCalls),
             logprobs: None,
         };
         let resp = build_response(chat_resp, "msg_2");
@@ -1111,7 +1111,7 @@ mod tests {
                     arguments: "{}".to_string(),
                 },
             }]),
-            finish_reason: Some("tool_calls".to_string()),
+            finish_reason: Some(FinishReason::ToolCalls),
             logprobs: None,
         };
         let resp = build_response(chat_resp, "msg_3");
@@ -1128,11 +1128,11 @@ mod tests {
 
     #[test]
     fn stop_reason_normalization() {
-        assert_eq!(normalize_stop_reason("stop"), "end_turn");
-        assert_eq!(normalize_stop_reason("end_turn"), "end_turn");
-        assert_eq!(normalize_stop_reason("tool_calls"), "tool_use");
-        assert_eq!(normalize_stop_reason("tool_use"), "tool_use");
-        assert_eq!(normalize_stop_reason("length"), "max_tokens");
+        assert_eq!(normalize_stop_reason(&FinishReason::Stop), "end_turn");
+        assert_eq!(normalize_stop_reason(&FinishReason::EndTurn), "end_turn");
+        assert_eq!(normalize_stop_reason(&FinishReason::ToolCalls), "tool_use");
+        assert_eq!(normalize_stop_reason(&FinishReason::ToolUse), "tool_use");
+        assert_eq!(normalize_stop_reason(&FinishReason::Length), "max_tokens");
     }
 
     #[test]
@@ -1170,7 +1170,7 @@ mod tests {
         let chunk2 = StreamChunk {
             delta: " world".to_string(),
             done: true,
-            finish_reason: Some("stop".to_string()),
+            finish_reason: Some(FinishReason::Stop),
             ..Default::default()
         };
         let events2 = state.process_chunk(chunk2);
@@ -1201,7 +1201,7 @@ mod tests {
         let chunk = StreamChunk {
             delta: String::new(),
             done: true,
-            finish_reason: Some("tool_calls".to_string()),
+            finish_reason: Some(FinishReason::ToolCalls),
             tool_calls: Some(vec![ToolCall {
                 id: "toolu_1".to_string(),
                 call_type: "function".to_string(),

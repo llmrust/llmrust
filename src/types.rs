@@ -380,6 +380,84 @@ pub struct TopLogProb {
     pub bytes: Option<Vec<u8>>,
 }
 
+// ── Finish reason ──────────────────────────────────
+
+/// The reason the model stopped generating.
+///
+/// Covers both OpenAI semantics (`"stop"`, `"length"`, `"tool_calls"`,
+/// `"content_filter"`) and Anthropic semantics (`"end_turn"`, `"max_tokens"`,
+/// `"stop_sequence"`, `"tool_use"`).
+///
+/// [`FinishReason::Other`] acts as an escape hatch for provider-specific or
+/// future values not yet in the enum.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FinishReason {
+    /// Model reached a natural stopping point.
+    Stop,
+    /// Model output was truncated due to `max_tokens` or a provider token limit.
+    Length,
+    /// Model decided to call one or more tools (OpenAI `"tool_calls"`).
+    ToolCalls,
+    /// Output was omitted due to a content filter flag.
+    ContentFilter,
+    /// Natural end of a conversational turn (Anthropic `"end_turn"`).
+    EndTurn,
+    /// Output was truncated due to a token limit (Anthropic / Gemini `"max_tokens"`).
+    MaxTokens,
+    /// A custom stop sequence was encountered (Anthropic `"stop_sequence"`).
+    StopSequence,
+    /// Model decided to call a tool (Anthropic `"tool_use"`).
+    ToolUse,
+    /// Unknown reason (captured verbatim for forward-compatibility).
+    Other(String),
+}
+
+impl FinishReason {
+    /// Human-readable string form matching the llmrust JSON wire format.
+    pub fn as_str(&self) -> &str {
+        match self {
+            FinishReason::Stop => "stop",
+            FinishReason::Length => "length",
+            FinishReason::ToolCalls => "tool_calls",
+            FinishReason::ContentFilter => "content_filter",
+            FinishReason::EndTurn => "end_turn",
+            FinishReason::MaxTokens => "max_tokens",
+            FinishReason::StopSequence => "stop_sequence",
+            FinishReason::ToolUse => "tool_use",
+            FinishReason::Other(s) => s.as_str(),
+        }
+    }
+}
+
+impl From<String> for FinishReason {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "stop" => FinishReason::Stop,
+            "length" => FinishReason::Length,
+            "tool_calls" => FinishReason::ToolCalls,
+            "content_filter" => FinishReason::ContentFilter,
+            "end_turn" => FinishReason::EndTurn,
+            "max_tokens" => FinishReason::MaxTokens,
+            "stop_sequence" => FinishReason::StopSequence,
+            "tool_use" => FinishReason::ToolUse,
+            _ => FinishReason::Other(s),
+        }
+    }
+}
+
+impl Serialize for FinishReason {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for FinishReason {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Ok(FinishReason::from(s))
+    }
+}
+
 /// A complete chat completion response.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ChatResponse {
@@ -389,10 +467,9 @@ pub struct ChatResponse {
     /// Tool calls requested by the model, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
-    /// The reason the model stopped generating (e.g. `"stop"`, `"length"`,
-    /// `"tool_calls"`), when reported.
+    /// The reason the model stopped generating, when reported.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub finish_reason: Option<String>,
+    pub finish_reason: Option<FinishReason>,
     /// Log probabilities for the generated tokens, when requested via
     /// `logprobs` / `top_logprobs` and reported by the provider.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -406,10 +483,10 @@ pub struct StreamChunk {
     pub delta: String,
     /// Set to true when the stream is complete.
     pub done: bool,
-    /// The provider-reported reason the stream stopped (e.g. `"stop"`,
-    /// `"length"`), when available. Populated on the terminal content chunk.
+    /// The provider-reported reason the stream stopped, when available.
+    /// Populated on the terminal content chunk.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub finish_reason: Option<String>,
+    pub finish_reason: Option<FinishReason>,
     /// Token usage for the request. Only populated on the terminal usage
     /// chunk, and only for providers that report usage while streaming.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -834,7 +911,7 @@ mod tests {
 
         let chunk = StreamChunk {
             done: true,
-            finish_reason: Some("tool_calls".to_string()),
+            finish_reason: Some(FinishReason::ToolCalls),
             tool_calls: Some(vec![ToolCall {
                 id: "call_1".to_string(),
                 call_type: "function".to_string(),

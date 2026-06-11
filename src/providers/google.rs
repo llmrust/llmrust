@@ -386,6 +386,11 @@ fn content_to_parts(content: &Content) -> Vec<GeminiPart> {
                     ContentPart::ImageUrl { image_url } => {
                         if let Some(inline_data) = gemini_inline_from_url(&image_url.url) {
                             parts.push(GeminiPart::InlineData { inline_data });
+                        } else {
+                            tracing::warn!(
+                                url = %crate::truncate_str(&image_url.url, 80),
+                                "Gemini cannot fetch remote image URLs; only data: URLs are inlined"
+                            );
                         }
                     }
                 }

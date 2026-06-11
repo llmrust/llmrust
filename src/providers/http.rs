@@ -49,12 +49,21 @@ pub(crate) fn build_http_client(
     let mut default_headers = reqwest::header::HeaderMap::new();
     if let Some(headers) = custom_headers {
         for (k, v) in headers {
-            if let (Ok(name), Ok(val)) = (
-                reqwest::header::HeaderName::from_bytes(k.as_bytes()),
-                reqwest::header::HeaderValue::from_str(v),
-            ) {
-                default_headers.insert(name, val);
-            }
+            let name = match reqwest::header::HeaderName::from_bytes(k.as_bytes()) {
+                Ok(n) => n,
+                Err(_) => {
+                    tracing::warn!(header = %k, "skipping invalid custom header name");
+                    continue;
+                }
+            };
+            let val = match reqwest::header::HeaderValue::from_str(v) {
+                Ok(v) => v,
+                Err(_) => {
+                    tracing::warn!(header = %k, "skipping custom header with invalid value");
+                    continue;
+                }
+            };
+            default_headers.insert(name, val);
         }
     }
     builder = builder.default_headers(default_headers);

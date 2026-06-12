@@ -12,6 +12,7 @@
 //! - HTTP 4xx (client errors — your request is bad)
 //! - `LlmError::Parse` (response format changed — retrying won't help)
 //! - `LlmError::UnknownProvider` (wrong wiring)
+//! - `LlmError::Unsupported` (feature not implemented — retrying won't help)
 //!
 //! # Example
 //!
@@ -28,7 +29,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use crate::providers::{LlmError, Provider, Result};
-use crate::types::{ChatRequest, ChatResponse, StreamChunk};
+use crate::types::{ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingResponse, StreamChunk};
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -92,6 +93,9 @@ fn backoff(attempt: u32, base_ms: u64, max_ms: u64) -> Duration {
 ///
 /// Internally holds an `Arc<dyn Provider>`, making it possible to wrap an
 /// already-boxed provider without knowing its concrete type.
+///
+/// **Embeddings:** non-streaming [`Provider::embed`] requests are retried with
+/// the same transient-error policy as [`Provider::chat`].
 ///
 /// **Note on streaming:** `stream()` retries only the **initial connection**
 /// (the call to `inner.stream(req)`). Once a byte stream is established,
@@ -187,6 +191,34 @@ impl Provider for RetryProvider {
                         delay_ms = delay.as_millis() as u64,
                         error_kind = "transient",
                         "retrying transient failure (stream)"
+                    );
+                    sleep(delay).await;
+                }
+            }
+        }
+        unreachable!("retry loop always returns on the final attempt")
+    }
+
+    async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+        for attempt in 0..=self.max_retries {
+            match self.inner.embed(req).await {
+                Ok(resp) => {
+                    if attempt > 0 {
+                        tracing::info!(attempt, "retry succeeded (embeddings)");
+                    }
+                    return Ok(resp);
+                }
+                Err(e) => {
+                    if !(should_retry(&e) && attempt < self.max_retries) {
+                        return Err(e);
+                    }
+                    let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
+                    tracing::warn!(
+                        attempt = attempt + 1,
+                        max_retries = self.max_retries,
+                        delay_ms = delay.as_millis() as u64,
+                        error_kind = "transient",
+                        "retrying transient failure (embeddings)"
                     );
                     sleep(delay).await;
                 }
@@ -361,5 +393,129 @@ mod tests {
             values.iter().any(|&v| v != first),
             "jitter should produce varying values, got all {first}"
         );
+    }
+
+    // ── embed retry tests ─────────────────────────────────────────
+
+    struct EmbedOkProvider;
+
+    #[async_trait]
+    impl Provider for EmbedOkProvider {
+        async fn chat(&self, _: &ChatRequest) -> Result<ChatResponse> {
+            unimplemented!()
+        }
+
+        async fn stream(&self, _: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            unimplemented!()
+        }
+
+        async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+            Ok(EmbeddingResponse {
+                model: req.model.clone(),
+                data: vec![crate::Embedding {
+                    index: 0,
+                    embedding: vec![0.1, 0.2],
+                }],
+                usage: None,
+            })
+        }
+    }
+
+    /// A provider that only implements chat/stream — embed uses the default unsupported.
+    struct EmbedUnsupportedProvider;
+
+    #[async_trait]
+    impl Provider for EmbedUnsupportedProvider {
+        async fn chat(&self, _: &ChatRequest) -> Result<ChatResponse> {
+            Ok(ChatResponse::default())
+        }
+
+        async fn stream(&self, _: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            Ok(Box::pin(stream::empty()))
+        }
+        // embed() is NOT overridden — uses default Unsupported
+    }
+
+    #[tokio::test]
+    async fn retry_provider_delegates_embed() {
+        let provider = Arc::new(EmbedOkProvider);
+        let retry = RetryProvider::new(provider, 0);
+        let resp = retry
+            .embed(&EmbeddingRequest::new("test", "hello"))
+            .await
+            .expect("embed should succeed through RetryProvider");
+        assert_eq!(resp.data.len(), 1);
+        assert_eq!(resp.data[0].embedding, vec![0.1, 0.2]);
+    }
+
+    #[tokio::test]
+    async fn retry_provider_keeps_unsupported_for_chat_only_provider() {
+        let provider = Arc::new(EmbedUnsupportedProvider);
+        let retry = RetryProvider::new(provider, 0);
+        let err = retry
+            .embed(&EmbeddingRequest::new("test", "hello"))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, LlmError::Unsupported { .. }),
+            "chat-only provider should return Unsupported through RetryProvider, got: {err:?}"
+        );
+    }
+
+    struct FlakyEmbedProvider {
+        fail_count: Arc<std::sync::atomic::AtomicU32>,
+        max_fails: u32,
+    }
+
+    impl FlakyEmbedProvider {
+        fn new(max_fails: u32) -> Self {
+            Self {
+                fail_count: Arc::new(std::sync::atomic::AtomicU32::new(0)),
+                max_fails,
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Provider for FlakyEmbedProvider {
+        async fn chat(&self, _: &ChatRequest) -> Result<ChatResponse> {
+            unimplemented!()
+        }
+
+        async fn stream(&self, _: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            unimplemented!()
+        }
+
+        async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+            let fails = self
+                .fail_count
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if fails < self.max_fails {
+                Err(LlmError::Api {
+                    status: 502,
+                    message: "bad gateway".into(),
+                })
+            } else {
+                Ok(EmbeddingResponse {
+                    model: req.model.clone(),
+                    data: vec![crate::Embedding {
+                        index: 0,
+                        embedding: vec![1.0],
+                    }],
+                    usage: None,
+                })
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn retry_provider_retries_transient_embedding_failure() {
+        let provider = Arc::new(FlakyEmbedProvider::new(1)); // fail 1st, succeed 2nd
+        let retry = RetryProvider::new(provider, 1);
+        let resp = retry
+            .embed(&EmbeddingRequest::new("test", "hello"))
+            .await
+            .expect("embed should succeed after retry");
+        assert_eq!(resp.data[0].embedding, vec![1.0]);
     }
 }

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Embeddings API foundation: `EmbeddingRequest`, `EmbeddingResponse`, `Embedding`, `EmbeddingUsage` types, `Provider::embed` default method, and `LmrsClient` embed routing methods.
 - Opt-in passive cooldown for Router deployments after failoverable errors, with fail-open on all-cooling groups.
 - Local contract tests for client model routing, stream error propagation, stream metadata collection (`stream_collect_full`), and proxy `n` policy.
 - CI validation for agent-facing docs, examples index, and capability metadata (`tests/agent_docs_validation.rs`).

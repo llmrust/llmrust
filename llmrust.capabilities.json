@@ -147,6 +147,13 @@
       "auth": "Optional Bearer token (LLMRUST_PROXY_KEY)"
     }
   },
+  "embeddings": {
+    "api": true,
+    "status": "foundation",
+    "provider_implementations": [],
+    "default_provider_behavior": "unsupported",
+    "notes": "Embedding vector dimensions and upstream model support vary by provider/model."
+  },
   "client": {
     "model_format": "provider/model",
     "routing": {

@@ -95,6 +95,7 @@ fn should_failover(e: &LlmError) -> bool {
         // remaining deployments still get a chance.
         LlmError::UnknownProvider(_) => true,
         LlmError::Parse(_) => false,
+        LlmError::Unsupported { .. } => false,
     }
 }
 

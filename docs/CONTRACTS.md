@@ -77,3 +77,12 @@ Every implementation of `Provider` must satisfy:
 6. **Cooldown filtering**: When cooldown is enabled, routing prefers deployments not in cooldown. Deployments in cooldown are deprioritized but not permanently excluded.
 7. **Fail-open on all-cooling**: If all deployments in a group are in cooldown, the Router fails open: all deployments are attempted in their original order rather than returning an error.
 8. **No background health check**: Cooldown is purely passive. No pings, probes, or background tasks. Deployment state is updated only as a side effect of routing.
+
+## Embeddings contract
+
+1. **Model routing**: Embeddings use the same `provider/model` format. `LmrsClient::embed` / `embed_batch` / `embed_with` all parse the prefix and strip it before calling the provider.
+2. **Unknown provider**: Returns `LlmError::UnknownProvider(name)`.
+3. **Unsupported provider**: Providers that do not override `embed()` return `LlmError::Unsupported { feature: "embeddings", ... }`. Do not return `Api 501`.
+4. **Input order**: `data[].index` must reflect the original `input` order. llmrust does not reorder.
+5. **Vector dimensions**: Defined by the upstream provider/model. llmrust does not normalize or pad vectors.
+6. **Foundation status**: #68 defines the API contract and types. Real provider implementations are separate PRs (#69+).

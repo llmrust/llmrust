@@ -15,7 +15,7 @@ pub mod stream_util;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use crate::types::{ChatRequest, ChatResponse, StreamChunk};
+use crate::types::{ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingResponse, StreamChunk};
 
 /// Errors that can occur when calling an LLM provider.
 #[derive(Debug, thiserror::Error)]
@@ -34,6 +34,10 @@ pub enum LlmError {
 
     #[error("Unknown provider: {0}")]
     UnknownProvider(String),
+
+    /// A requested feature this provider does not implement.
+    #[error("unsupported feature `{feature}`: {message}")]
+    Unsupported { feature: String, message: String },
 }
 
 pub type Result<T> = std::result::Result<T, LlmError>;
@@ -46,6 +50,17 @@ pub trait Provider: Send + Sync {
 
     /// Send a streaming chat completion request.
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>>;
+
+    /// Generate embeddings for one or more input strings.
+    ///
+    /// Default returns [`LlmError::Unsupported`]. Providers that support
+    /// embeddings must override this method.
+    async fn embed(&self, _req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+        Err(LlmError::Unsupported {
+            feature: "embeddings".to_string(),
+            message: "provider does not implement embeddings".to_string(),
+        })
+    }
 }
 
 /// Configuration for a provider.

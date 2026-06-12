@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Local contract tests for client model routing, stream error propagation, stream metadata collection (`stream_collect_full`), and proxy `n` policy.
-- CI validation for agent-facing docs, examples index, and capability metadata (`scripts/validate_agent_docs.py`).
+- CI validation for agent-facing docs, examples index, and capability metadata (`tests/agent_docs_validation.rs`).
 - **Agent-native codebase**: repositioned llmrust as an AI-agent-friendly infrastructure library.
   - `AGENT_MANIFESTO.md` — project philosophy for human-agent collaboration.
   - `AGENTS.md` — operational instructions for AI coding agents.
@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replaced Python agent-doc validation script with a Rust integration test to keep the repository toolchain Rust-native.
 - README (English and 中文) now leads with the human-agent collaboration narrative, with the original provider-unification message as secondary description.
 - README contributing sections now point to `CONTRIBUTING.md` and `AGENTS.md`.
 

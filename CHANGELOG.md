@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- CI validation for agent-facing docs, examples index, and capability metadata (`scripts/validate_agent_docs.py`).
 - **Agent-native codebase**: repositioned llmrust as an AI-agent-friendly infrastructure library.
   - `AGENT_MANIFESTO.md` — project philosophy for human-agent collaboration.
   - `AGENTS.md` — operational instructions for AI coding agents.

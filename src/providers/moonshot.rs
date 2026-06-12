@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures::stream::BoxStream;
 
 use crate::providers::{compat::OpenAiCompatibleProvider, Provider, ProviderConfig, Result};
-use crate::types::{ChatRequest, ChatResponse, StreamChunk};
+use crate::types::{ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingResponse, StreamChunk};
 
 const DEFAULT_BASE_URL: &str = "https://api.moonshot.cn/v1";
 
@@ -36,5 +36,9 @@ impl Provider for MoonshotProvider {
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         self.0.stream(req).await
+    }
+
+    async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+        self.0.embed(req).await
     }
 }

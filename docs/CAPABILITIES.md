@@ -19,6 +19,9 @@ Which features each provider supports, and how they map across providers.
 | **system message** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **multi-turn** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **custom base URL** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **embeddings** | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ |
+
+> ✅ for embeddings means llmrust implements OpenAI-compatible `/embeddings` transport. Actual upstream provider/model support may vary.
 
 ## Sampling parameter support
 
@@ -51,6 +54,7 @@ llmrust normalizes errors into `LlmError`:
 | Malformed stream data | `LlmError::Stream(String)` |
 | JSON parse failure | `LlmError::Parse(String)` |
 | Unregistered provider name | `LlmError::UnknownProvider(String)` |
+| Unsupported provider feature | `LlmError::Unsupported { feature, message }` |
 
 ### Proxy error mapping
 

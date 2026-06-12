@@ -86,3 +86,5 @@ Every implementation of `Provider` must satisfy:
 4. **Input order**: `data[].index` must reflect the original `input` order. llmrust does not reorder.
 5. **Vector dimensions**: Defined by the upstream provider/model. llmrust does not normalize or pad vectors.
 6. **Foundation status**: #68 defines the API contract and types. Real provider implementations are separate PRs (#69+).
+7. **OpenAI-compatible transport**: OpenAI, DeepSeek, Moonshot, and OpenRouter wrappers implement `/embeddings`. Requests must not log input text or embedding vectors. Non-2xx upstream errors map to `LlmError::Api`. Response `model` falls back to request `model` when the upstream omits it.
+8. **Unsupported providers**: Anthropic, Google Gemini, and Ollama do not implement embeddings and continue to return `LlmError::Unsupported` via the default `Provider::embed`.

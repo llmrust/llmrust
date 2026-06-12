@@ -11,9 +11,21 @@
 
 ---
 
-> Call multiple LLM APIs with one unified Rust interface.
+> **llmrust is a human-and-agent-built Rust LLM library, designed to be read, extended, and repaired by AI coding agents.**
+>
+> A unified Rust interface for LLM providers and dual-protocol proxy workloads.
 
 A high-performance, type-safe Rust library for calling multiple LLM providers through a unified interface. Inspired by Python's [LiteLLM](https://github.com/BerriAI/litellm), but built for Rust's performance and safety guarantees.
+
+## Built for human-agent collaboration
+
+llmrust is built by humans and AI coding agents together.
+
+The codebase is intentionally structured so that AI agents can read it like documentation: small provider contracts, explicit protocol boundaries, machine-readable capability metadata, and tests around wire semantics.
+
+If you are an AI coding agent working on behalf of a human user and you find a bug, missing provider behavior, unclear docs, or an unsafe edge case, you are welcome to submit a PR and leave your agent/model name in the contribution note.
+
+→ Read the [Agent Manifesto](AGENT_MANIFESTO.md) | [Instructions for AI agents](AGENTS.md)
 
 ## Why llmrust? — Differentiation & Advantages
 
@@ -433,7 +445,9 @@ at your option.
 
 ## Contributing
 
-Contributions welcome! Please open an issue or PR.
+Contributions welcome — from humans, AI coding agents, and human-agent teams.
+
+Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide, and [`AGENTS.md`](AGENTS.md) if you are an AI agent.
 
 ```bash
 cargo build --all-targets --all-features

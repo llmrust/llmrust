@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "llmrust",
+  "version": "0.1.0",
+  "description": "Machine-readable capability metadata for llmrust. AI agents can use this to discover what features each provider supports without reading source code.",
+  "protocol_version": "1",
+  "providers": {
+    "openai": {
+      "provider_key": "openai",
+      "description": "OpenAI GPT models (gpt-4o, gpt-4o-mini, etc.)",
+      "protocol": "openai-compatible",
+      "chat": true,
+      "stream": true,
+      "tool_calling": true,
+      "tool_calling_stream": true,
+      "json_mode": true,
+      "json_schema": true,
+      "logprobs": true,
+      "image_input": true,
+      "system_message": true,
+      "multi_turn": true,
+      "env_vars": ["OPENAI_API_KEY", "LLMRUST_OPENAI_KEY"],
+      "default_base_url": "https://api.openai.com/v1",
+      "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "seed", "presence_penalty", "frequency_penalty", "logprobs", "top_logprobs", "response_format", "n", "parallel_tool_calls", "service_tier", "store", "metadata", "user"]
+    },
+    "deepseek": {
+      "provider_key": "deepseek",
+      "description": "DeepSeek models (deepseek-chat, deepseek-coder)",
+      "protocol": "openai-compatible",
+      "chat": true,
+      "stream": true,
+      "tool_calling": true,
+      "tool_calling_stream": true,
+      "json_mode": true,
+      "json_schema": false,
+      "logprobs": false,
+      "image_input": false,
+      "system_message": true,
+      "multi_turn": true,
+      "env_vars": ["DEEPSEEK_API_KEY", "LLMRUST_DEEPSEEK_KEY"],
+      "default_base_url": "https://api.deepseek.com/v1",
+      "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "response_format"]
+    },
+    "moonshot": {
+      "provider_key": "moonshot",
+      "description": "Moonshot / Kimi models (moonshot-v1-8k, kimi-latest)",
+      "protocol": "openai-compatible",
+      "chat": true,
+      "stream": true,
+      "tool_calling": true,
+      "tool_calling_stream": true,
+      "json_mode": true,
+      "json_schema": false,
+      "logprobs": false,
+      "image_input": false,
+      "system_message": true,
+      "multi_turn": true,
+      "env_vars": ["MOONSHOT_API_KEY", "LLMRUST_MOONSHOT_KEY"],
+      "default_base_url": "https://api.moonshot.cn/v1",
+      "sampling_params": ["temperature", "max_tokens", "top_p", "stop"]
+    },
+    "openrouter": {
+      "provider_key": "openrouter",
+      "description": "OpenRouter (access any model through OpenRouter)",
+      "protocol": "openai-compatible",
+      "chat": true,
+      "stream": true,
+      "tool_calling": true,
+      "tool_calling_stream": true,
+      "json_mode": true,
+      "json_schema": true,
+      "logprobs": true,
+      "image_input": true,
+      "system_message": true,
+      "multi_turn": true,
+      "env_vars": ["OPENROUTER_API_KEY", "LLMRUST_OPENROUTER_KEY"],
+      "default_base_url": "https://openrouter.ai/api/v1",
+      "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "seed", "presence_penalty", "frequency_penalty", "response_format", "n"]
+    },
+    "anthropic": {
+      "provider_key": "anthropic",
+      "description": "Anthropic Claude models (claude-sonnet-4-20250514, claude-3-5-sonnet, etc.)",
+      "protocol": "anthropic-native",
+      "chat": true,
+      "stream": true,
+      "tool_calling": true,
+      "tool_calling_stream": true,
+      "json_mode": false,
+      "json_schema": false,
+      "logprobs": false,
+      "image_input": true,
+      "system_message": true,
+      "multi_turn": true,
+      "env_vars": ["ANTHROPIC_API_KEY", "LLMRUST_ANTHROPIC_KEY"],
+      "default_base_url": "https://api.anthropic.com/v1",
+      "sampling_params": ["temperature", "max_tokens", "top_p", "stop_sequences"],
+      "notes": ["Uses native Anthropic Messages API (not OpenAI-compatible)", "Images via base64 in content blocks", "Tool calling via tool_use/tool_result content blocks"]
+    },
+    "google": {
+      "provider_key": "google",
+      "description": "Google Gemini models (gemini-2.0-flash, gemini-1.5-pro)",
+      "protocol": "gemini-native",
+      "chat": true,
+      "stream": true,
+      "tool_calling": true,
+      "tool_calling_stream": true,
+      "json_mode": true,
+      "json_schema": true,
+      "logprobs": true,
+      "image_input": true,
+      "system_message": true,
+      "multi_turn": true,
+      "env_vars": ["GOOGLE_API_KEY", "LLMRUST_GOOGLE_KEY"],
+      "default_base_url": "https://generativelanguage.googleapis.com/v1beta",
+      "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "logprobs", "top_logprobs", "response_format"],
+      "notes": ["Remote http(s) image URLs are skipped. Use data: URLs only.", "API key sent via x-goog-api-key header"]
+    },
+    "ollama": {
+      "provider_key": "ollama",
+      "description": "Ollama local models (llama3.2, qwen2.5, any local model)",
+      "protocol": "ollama-native",
+      "chat": true,
+      "stream": true,
+      "tool_calling": false,
+      "tool_calling_stream": false,
+      "json_mode": false,
+      "json_schema": false,
+      "logprobs": false,
+      "image_input": false,
+      "system_message": true,
+      "multi_turn": true,
+      "env_vars": ["OLLAMA_HOST", "LLMRUST_OLLAMA_HOST"],
+      "default_base_url": "http://localhost:11434",
+      "sampling_params": ["temperature", "max_tokens"],
+      "notes": ["No API key required", "Always registered", "No request timeout (local generation can be long-running)", "Image content is flattened to text"]
+    }
+  },
+  "features": {
+    "default": {
+      "description": "LLM client — all providers + streaming + tool calling",
+      "dependencies": ["reqwest", "tokio", "serde", "serde_json", "async-trait", "futures", "thiserror", "fastrand", "tracing"]
+    },
+    "proxy": {
+      "description": "Built-in dual-protocol HTTP proxy (OpenAI + Anthropic wire formats)",
+      "extra_dependencies": ["axum", "tower-http", "bytes"],
+      "endpoints": ["POST /v1/chat/completions", "POST /v1/messages", "GET /health"],
+      "auth": "Optional Bearer token (LLMRUST_PROXY_KEY)"
+    }
+  },
+  "client": {
+    "model_format": "provider/model",
+    "routing": {
+      "description": "LmrsClient parses provider/model prefix to select the registered provider",
+      "example": "openai/gpt-4o → OpenAIProvider with model 'gpt-4o'"
+    },
+    "registry_methods": ["set_openai", "set_anthropic", "set_deepseek", "set_google", "set_ollama", "set_moonshot", "set_openrouter", "set_openai_compatible", "set_custom", "from_env"],
+    "retry": {
+      "mechanism": "RetryProvider wraps any Provider with exponential backoff",
+      "max_retries": "configurable",
+      "retry_on": ["HTTP 5xx", "429 (rate limit)", "network errors", "stream transient errors"],
+      "no_retry_on": ["HTTP 4xx (except 429)", "Parse errors", "UnknownProvider errors"]
+    },
+    "router": {
+      "description": "Multi-deployment routing with failover and load balancing",
+      "strategies": ["Ordered", "RoundRobin"],
+      "groups": "Logical group names mapped to ordered deployment lists"
+    }
+  },
+  "proxy": {
+    "description": "Dual-protocol API gateway (feature = 'proxy')",
+    "openai_endpoint": {
+      "path": "/v1/chat/completions",
+      "format": "OpenAI Chat Completions API",
+      "sse_streaming": true
+    },
+    "anthropic_endpoint": {
+      "path": "/v1/messages",
+      "format": "Anthropic Messages API",
+      "sse_streaming": true
+    },
+    "health_endpoint": "GET /health",
+    "auth": {
+      "type": "Bearer token",
+      "config": "LLMRUST_PROXY_KEY environment variable",
+      "comparison": "constant-time (subtle crate)"
+    },
+    "n_policy": "Reject n != 1 (or absent) — prevents silent multi-completion billing"
+  },
+  "design_principles": [
+    "default = [] — no optional dependencies unless explicitly requested",
+    "Native protocols for Anthropic and Gemini (not OpenAI-compatible shims)",
+    "Stream errors are surfaced, never silently dropped",
+    "No logging of API keys, prompts, responses, request bodies, tool arguments, image data, or full URLs",
+    "All providers implement both chat and stream",
+    "Provider trait is minimal: chat() + stream() only"
+  ]
+}

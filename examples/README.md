@@ -18,10 +18,7 @@ Some examples require API keys. Check the source for `std::env::var` calls to se
 | `multimodal` | Send an image + text message (GPT-4o vision) | Yes (OPENAI_API_KEY) |
 | `tool_calling` | Full tool-call loop: define tool, receive call, simulate execution, return result | Yes (OPENAI_API_KEY) |
 | `retry_e2e` | End-to-end retry with `RetryProvider` and `LmrsClient::with_retry()` | Yes (any one provider) |
-| `router` | Multi-deployment routing with Ordered and RoundRobin strategies | Yes (any one provider) |
 | `proxy_server` | Start the HTTP proxy server (dual-protocol OpenAI + Anthropic) | Yes (need `--features proxy`) |
-| `e2e_openai_compat` | 6-test suite against any OpenAI-compatible endpoint | Yes (E2E_API_KEY, E2E_BASE_URL, E2E_MODEL) |
-| `e2e_anthropic_compat` | 4-test suite against any Anthropic-compatible endpoint | Yes (E2E_API_KEY, E2E_BASE_URL, E2E_MODEL) |
 
 ## Quick run
 
@@ -53,18 +50,6 @@ export LLMRUST_OPENAI_KEY="sk-..."
 # Optional auth
 export LLMRUST_PROXY_KEY="some-shared-secret"
 cargo run --example proxy_server --features proxy
-```
-
-### End-to-end test suites
-
-```bash
-# OpenAI-compatible endpoint
-E2E_API_KEY=sk-... E2E_BASE_URL=https://api.openai.com/v1 E2E_MODEL=gpt-4o-mini \
-  cargo run --example e2e_openai_compat
-
-# Anthropic endpoint
-E2E_API_KEY=sk-ant-... E2E_BASE_URL=https://api.anthropic.com/v1 E2E_MODEL=claude-3-5-sonnet-20241022 \
-  cargo run --example e2e_anthropic_compat
 ```
 
 ## Adding a new example

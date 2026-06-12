@@ -2,6 +2,8 @@
 
 Which features each provider supports, and how they map across providers.
 
+> **Note on capabilities**: "Support" means llmrust maps the field or protocol. Actual upstream model support may vary by model. For example, llmrust sends `response_format` to DeepSeek and Moonshot, but some of their models may ignore or reject it. A ✅ in this matrix does not guarantee every model under that provider supports the feature.
+
 ## Provider support matrix
 
 | Capability | OpenAI | DeepSeek | Moonshot | OpenRouter | Anthropic | Gemini | Ollama |

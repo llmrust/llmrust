@@ -43,8 +43,8 @@ These rules are non-negotiable. Violating them will likely cause a PR to be reje
 
 - The proxy speaks two protocols: OpenAI at `/v1/chat/completions` and Anthropic at `/v1/messages`.
 - Do not change proxy wire semantics without corresponding tests in `src/proxy/mod.rs`.
-- The proxy must reject `n` values other than `1` (or absent).
-- Proxy authentication uses constant-time token comparison via `subtle`.
+- The proxy accepts missing `n` or `n = 1`, and rejects `n = 0` or `n > 1`.
+- Proxy authentication uses constant-time token comparison.
 - Stream errors must be surfaced to clients as error SSE events, not silently converted to successful completions.
 
 ### Logging
@@ -73,7 +73,7 @@ Every PR must include:
 ## Common pitfalls
 
 - Do not use `unwrap()` on network or parse results; use `?` or proper error handling.
-- Do not change the `Provider` trait signature without updating all 8 provider implementations.
+- Do not change the `Provider` trait signature without updating all provider implementations, including the shared `OpenAiCompatibleProvider`.
 - Do not assume that all providers support `temperature`, `top_p`, or `max_tokens`. Check `docs/CAPABILITIES.md`.
 - Do not add heavy dependencies (e.g. `serde_yaml`, large framework crates) without discussion.
 - Do not make remote image fetching implicit.

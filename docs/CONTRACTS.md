@@ -34,7 +34,7 @@ Every implementation of `Provider` must satisfy:
 ### OpenAI `/v1/chat/completions`
 
 1. **Model routing**: Parse `model` as `provider/model`. Return 400 if format is invalid.
-2. **n policy**: Reject requests with `n != 1` (or `n` missing). Return 400 with a clear error message.
+2. **n policy**: Accept missing `n` or `n = 1`. Reject `n = 0` or `n > 1` with a 400 error.
 3. **Message validation**: Return 400 if `messages` is empty or contains invalid roles.
 4. **Legacy function support**: Accept `functions`/`function_call` and normalize to `tools`/`tool_choice`.
 5. **Non-streaming response**: Return OpenAI-shaped JSON: `{"id":"chatcmpl-...","object":"chat.completion","choices":[...],"usage":{...}}`.
@@ -55,7 +55,7 @@ Every implementation of `Provider` must satisfy:
 
 1. **No key set**: All requests pass through (no auth).
 2. **Key set via `LLMRUST_PROXY_KEY`**: Every request must include `Authorization: Bearer <key>`. Missing/malformed/wrong → 401.
-3. **Token comparison**: Use constant-time comparison (`subtle`), not standard string equality.
+3. **Token comparison**: Use constant-time comparison, not standard string equality.
 
 ## Client contract (`LmrsClient`)
 

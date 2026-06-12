@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "llmrust",
   "version": "0.1.0",
-  "description": "Machine-readable capability metadata for llmrust. AI agents can use this to discover what features each provider supports without reading source code.",
+  "description": "Machine-readable capability metadata for llmrust. AI agents can use this to discover what features each provider supports without reading source code. Note: 'support' means llmrust maps the field or protocol; actual upstream model support may vary.",
   "protocol_version": "1",
   "providers": {
     "openai": {
@@ -182,9 +182,9 @@
     "auth": {
       "type": "Bearer token",
       "config": "LLMRUST_PROXY_KEY environment variable",
-      "comparison": "constant-time (subtle crate)"
+      "comparison": "constant-time comparison"
     },
-    "n_policy": "Reject n != 1 (or absent) — prevents silent multi-completion billing"
+    "n_policy": "Accepts missing n or n = 1; rejects n = 0 or n > 1 to prevent silent multi-completion billing"
   },
   "design_principles": [
     "default = [] — no optional dependencies unless explicitly requested",

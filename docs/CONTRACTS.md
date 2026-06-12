@@ -66,3 +66,14 @@ Every implementation of `Provider` must satisfy:
 3. **Convenience methods**: `chat(model, prompt)` and `stream(model, prompt)` construct a `ChatRequest` with a single user message and delegate to `chat_with`/`stream_with`.
 4. **Stream collection**: `stream_collect` returns concatenated text. `stream_collect_full` returns a full `ChatResponse` with `usage`, `tool_calls`, and `finish_reason`.
 5. **Retry wrapping**: `with_retry(max_retries)` wraps all registered providers in `RetryProvider`. Retry logic applies exponential backoff and only retries on transient errors (5xx, network errors).
+
+## Router contract
+
+1. **Failover scope**: Router failover only on `should_failover` errors (HTTP, Stream, 5xx API, 429, UnknownProvider). Non-failoverable errors (4xx, Parse) return immediately.
+2. **Stream failover**: Failover applies only to the initial stream connection. Mid-stream errors propagate to the caller.
+3. **Cooldown is opt-in**: Default Router behavior is unchanged. Calling `Router::with_cooldown(duration)` enables passive cooldown.
+4. **Cooldown marks**: Only failoverable errors mark a deployment as cooling. A successful `chat` or `stream` connection clears the deployment's cooldown immediately.
+5. **Cooldown expiry**: Deployments exit cooldown automatically after `duration`. The next routing attempt may retry them.
+6. **Cooldown filtering**: When cooldown is enabled, routing prefers deployments not in cooldown. Deployments in cooldown are deprioritized but not permanently excluded.
+7. **Fail-open on all-cooling**: If all deployments in a group are in cooldown, the Router fails open: all deployments are attempted in their original order rather than returning an error.
+8. **No background health check**: Cooldown is purely passive. No pings, probes, or background tasks. Deployment state is updated only as a side effect of routing.

@@ -149,10 +149,10 @@
   },
   "embeddings": {
     "api": true,
-    "status": "foundation",
-    "provider_implementations": [],
+    "status": "openai_compatible_implemented",
+    "provider_implementations": ["openai", "deepseek", "moonshot", "openrouter"],
     "default_provider_behavior": "unsupported",
-    "notes": "Embedding vector dimensions and upstream model support vary by provider/model."
+    "notes": "OpenAI-compatible embeddings transport is implemented. Actual upstream model support varies by provider/model."
   },
   "client": {
     "model_format": "provider/model",

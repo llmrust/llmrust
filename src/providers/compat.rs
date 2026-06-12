@@ -16,8 +16,9 @@ use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Content, FinishReason, FunctionCall, LogProbs, Message,
-    ResponseFormat, StreamChunk, Tool, ToolCall, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, Embedding, EmbeddingRequest, EmbeddingResponse,
+    EmbeddingUsage, FinishReason, FunctionCall, LogProbs, Message, ResponseFormat, StreamChunk,
+    Tool, ToolCall, ToolChoice, Usage,
 };
 use std::collections::HashMap;
 
@@ -190,6 +191,41 @@ struct CompErrorBody {
 #[derive(Deserialize)]
 struct CompErrorDetail {
     message: String,
+}
+
+// ── Embedding request / response types ────────────────────────────
+
+#[derive(Serialize)]
+struct CompEmbeddingRequest<'a> {
+    model: &'a str,
+    input: &'a [String],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dimensions: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user: Option<&'a str>,
+    #[serde(flatten)]
+    extra: &'a HashMap<String, serde_json::Value>,
+}
+
+#[derive(Deserialize)]
+struct CompEmbeddingResponse {
+    #[serde(default)]
+    model: Option<String>,
+    data: Vec<CompEmbedding>,
+    #[serde(default)]
+    usage: Option<CompEmbeddingUsage>,
+}
+
+#[derive(Deserialize)]
+struct CompEmbedding {
+    index: usize,
+    embedding: Vec<f32>,
+}
+
+#[derive(Deserialize)]
+struct CompEmbeddingUsage {
+    prompt_tokens: u64,
+    total_tokens: u64,
 }
 
 /// Accumulates streamed tool-call fragments across SSE lines. OpenAI-style
@@ -387,6 +423,21 @@ impl OpenAiCompatibleProvider {
         }
     }
 
+    /// Send an embeddings request and return the raw HTTP response.
+    async fn send_embed(&self, body: &CompEmbeddingRequest<'_>) -> Result<reqwest::Response> {
+        let mut rb = self
+            .client
+            .post(format!("{}/embeddings", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key));
+
+        for (k, v) in &self.extra_headers {
+            rb = rb.header(k.as_str(), v.as_str());
+        }
+
+        let resp = rb.json(body).send().await?;
+        Ok(resp)
+    }
+
     /// Parse a non-streaming response into [`ChatResponse`].
     fn parse_response(parsed: CompResponse) -> ChatResponse {
         let usage = parsed.usage.map(|u| Usage {
@@ -550,6 +601,68 @@ impl Provider for OpenAiCompatibleProvider {
             .flatten();
 
         Ok(stream.boxed())
+    }
+
+    async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+        tracing::debug!(
+            provider = "openai-compatible",
+            model = %req.model,
+            input_count = req.input.len(),
+            "sending embedding request"
+        );
+
+        let body = CompEmbeddingRequest {
+            model: &req.model,
+            input: &req.input,
+            dimensions: req.dimensions,
+            user: req.user.as_deref(),
+            extra: &req.extra,
+        };
+
+        let resp = self.send_embed(&body).await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status().as_u16();
+            let err = Self::parse_error(resp).await;
+            tracing::error!(
+                provider = "openai-compatible",
+                status,
+                error_kind = "api_error",
+                "embedding API error"
+            );
+            return Err(err);
+        }
+
+        let parsed: CompEmbeddingResponse = resp
+            .json()
+            .await
+            .map_err(|e| LlmError::Parse(format!("OpenAI-compatible embeddings parse: {e}")))?;
+
+        let data: Vec<Embedding> = parsed
+            .data
+            .into_iter()
+            .map(|d| Embedding {
+                index: d.index,
+                embedding: d.embedding,
+            })
+            .collect();
+
+        let usage = parsed.usage.map(|u| EmbeddingUsage {
+            prompt_tokens: u.prompt_tokens,
+            total_tokens: u.total_tokens,
+        });
+
+        let model = parsed.model.unwrap_or_else(|| req.model.clone());
+
+        let result = EmbeddingResponse { model, data, usage };
+
+        tracing::debug!(
+            provider = "openai-compatible",
+            model = %result.model,
+            embedding_count = result.data.len(),
+            "embedding response received"
+        );
+        Ok(result)
     }
 }
 
@@ -863,5 +976,115 @@ mod tests {
         let chunks = parse_sse_line(&mut tools, "data: [DONE]");
         let chunk = chunks.into_iter().next().unwrap().unwrap();
         assert!(chunk.done);
+    }
+
+    // ── embedding contract tests ──────────────────────────────────
+
+    use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn embed_request_serializes_correctly() {
+        let req = EmbeddingRequest::new("model", "hi")
+            .with_dimensions(1024)
+            .with_user("user-1")
+            .with_extra("task", "search");
+        let body = CompEmbeddingRequest {
+            model: &req.model,
+            input: &req.input,
+            dimensions: req.dimensions,
+            user: req.user.as_deref(),
+            extra: &req.extra,
+        };
+        let v = serde_json::to_value(&body).expect("embedding request should serialize");
+        assert_eq!(v["model"], "model");
+        assert_eq!(v["input"][0], "hi");
+        assert_eq!(v["dimensions"], 1024);
+        assert_eq!(v["user"], "user-1");
+        assert_eq!(v["task"], "search");
+    }
+
+    #[test]
+    fn embed_response_parses_correctly() {
+        let json = r#"{"model":"text-embedding-3-small","data":[{"index":0,"embedding":[0.1,0.2]},{"index":1,"embedding":[0.3,0.4]}],"usage":{"prompt_tokens":5,"total_tokens":5}}"#;
+        let parsed: CompEmbeddingResponse =
+            serde_json::from_str(json).expect("embedding response should parse");
+        assert_eq!(parsed.model.as_deref(), Some("text-embedding-3-small"));
+        assert_eq!(parsed.data.len(), 2);
+        assert_eq!(parsed.data[0].index, 0);
+        assert_eq!(parsed.data[0].embedding, vec![0.1_f32, 0.2]);
+        assert_eq!(parsed.data[1].index, 1);
+        assert_eq!(parsed.data[1].embedding, vec![0.3_f32, 0.4]);
+        let usage = parsed.usage.expect("usage present");
+        assert_eq!(usage.prompt_tokens, 5);
+        assert_eq!(usage.total_tokens, 5);
+    }
+
+    #[test]
+    fn embed_response_falls_back_to_request_model() {
+        let json = r#"{"data":[]}"#;
+        let parsed: CompEmbeddingResponse =
+            serde_json::from_str(json).expect("should parse without model");
+        assert!(parsed.model.is_none());
+        let resp = EmbeddingResponse {
+            model: parsed.model.unwrap_or_else(|| "fallback".to_string()),
+            data: vec![],
+            usage: None,
+        };
+        assert_eq!(resp.model, "fallback");
+    }
+
+    #[test]
+    fn embed_error_response_parses_message() {
+        let json = r#"{"error":{"message":"bad input"}}"#;
+        let parsed: CompErrorBody = serde_json::from_str(json).expect("error body should parse");
+        assert!(parsed.error.message.contains("bad input"));
+    }
+
+    #[tokio::test]
+    async fn openai_compatible_embed_via_lmrs_client_strips_prefix() {
+        use crate::LmrsClient;
+        let llm = LmrsClient::new();
+        let seen: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+        let seen_clone = Arc::clone(&seen);
+
+        struct CapturingEmbedProvider {
+            seen: Arc<Mutex<Option<String>>>,
+        }
+
+        #[async_trait]
+        impl Provider for CapturingEmbedProvider {
+            async fn chat(&self, _: &ChatRequest) -> Result<ChatResponse> {
+                unimplemented!()
+            }
+            async fn stream(
+                &self,
+                _: &ChatRequest,
+            ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+                unimplemented!()
+            }
+            async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+                *self.seen.lock().unwrap() = Some(req.model.clone());
+                Ok(EmbeddingResponse {
+                    model: req.model.clone(),
+                    data: vec![],
+                    usage: None,
+                })
+            }
+        }
+
+        llm.set_custom(
+            "openai",
+            Arc::new(CapturingEmbedProvider { seen: seen_clone }),
+        )
+        .await;
+
+        llm.embed("openai/text-embedding-3-small", "hello")
+            .await
+            .expect("embed should succeed via LmrsClient");
+
+        assert_eq!(
+            seen.lock().unwrap().as_deref(),
+            Some("text-embedding-3-small")
+        );
     }
 }

@@ -181,7 +181,7 @@
     "health_endpoint": "GET /health",
     "auth": {
       "type": "Bearer token",
-      "config": "LLMRUST_PROXY_KEY environment variable",
+      "config": "LLMRUST_PROXY_KEY",
       "comparison": "constant-time comparison"
     },
     "n_policy": "Accepts missing n or n = 1; rejects n = 0 or n > 1 to prevent silent multi-completion billing"

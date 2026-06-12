@@ -772,6 +772,100 @@ impl ChatRequest {
     }
 }
 
+// ── Embeddings ────────────────────────────────────────────────────
+
+/// A single embedding request, wrapping one or more input strings.
+///
+/// llmrust uses float (`f32`) vectors. Base64 encoding is not supported.
+/// Vector dimensions are defined by the upstream provider/model.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EmbeddingRequest {
+    pub model: String,
+    pub input: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dimensions: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+    /// Provider-specific extra fields.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty", flatten)]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+impl EmbeddingRequest {
+    /// Create an embedding request for a single input string.
+    pub fn new(model: impl Into<String>, input: impl Into<String>) -> Self {
+        Self {
+            model: model.into(),
+            input: vec![input.into()],
+            dimensions: None,
+            user: None,
+            extra: HashMap::new(),
+        }
+    }
+
+    /// Create an embedding request for multiple input strings.
+    pub fn batch<I, S>(model: impl Into<String>, inputs: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        Self {
+            model: model.into(),
+            input: inputs.into_iter().map(Into::into).collect(),
+            dimensions: None,
+            user: None,
+            extra: HashMap::new(),
+        }
+    }
+
+    /// Request a specific embedding dimension (provider-dependent).
+    pub fn with_dimensions(mut self, dimensions: u32) -> Self {
+        self.dimensions = Some(dimensions);
+        self
+    }
+
+    /// Set an end-user identifier for compatible providers.
+    pub fn with_user(mut self, user: impl Into<String>) -> Self {
+        self.user = Some(user.into());
+        self
+    }
+
+    /// Attach a provider-specific extra field.
+    pub fn with_extra(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
+        self.extra.insert(key.into(), value.into());
+        self
+    }
+}
+
+/// A single embedding vector.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Embedding {
+    /// Positional index in the batch (0-based, matches `input` order).
+    pub index: usize,
+    /// The embedding vector itself.
+    pub embedding: Vec<f32>,
+}
+
+/// Usage statistics reported by the upstream API.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EmbeddingUsage {
+    pub prompt_tokens: u64,
+    pub total_tokens: u64,
+}
+
+/// The response from an embeddings provider.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EmbeddingResponse {
+    pub model: String,
+    pub data: Vec<Embedding>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<EmbeddingUsage>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

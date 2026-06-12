@@ -79,9 +79,10 @@ pub use providers::retry::RetryProvider;
 pub use providers::{LlmError, Provider, ProviderConfig, Result};
 pub use router::{Router, RoutingStrategy};
 pub use types::{
-    ChatRequest, ChatResponse, Content, ContentPart, FinishReason, FunctionCall, FunctionDef,
-    ImageUrl, LogProbs, Message, ResponseFormat, Role, StreamChunk, TokenLogProb, Tool, ToolCall,
-    ToolChoice, TopLogProb, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, Embedding, EmbeddingRequest,
+    EmbeddingResponse, EmbeddingUsage, FinishReason, FunctionCall, FunctionDef, ImageUrl, LogProbs,
+    Message, ResponseFormat, Role, StreamChunk, TokenLogProb, Tool, ToolCall, ToolChoice,
+    TopLogProb, Usage,
 };
 
 pub(crate) use futures::stream::BoxStream;
@@ -486,6 +487,45 @@ impl LmrsClient {
     /// List registered provider names.
     pub async fn providers(&self) -> Vec<String> {
         self.providers.read().await.keys().cloned().collect()
+    }
+
+    // ── Embeddings ────────────────────────────────────────────────
+
+    /// Generate an embedding for a single input string.
+    pub async fn embed(&self, model: &str, input: &str) -> Result<EmbeddingResponse> {
+        self.embed_with(model, EmbeddingRequest::new("", input))
+            .await
+    }
+
+    /// Generate embeddings for multiple input strings.
+    pub async fn embed_batch<I, S>(&self, model: &str, inputs: I) -> Result<EmbeddingResponse>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.embed_with(model, EmbeddingRequest::batch("", inputs))
+            .await
+    }
+
+    /// Send a fully-specified embedding request.
+    ///
+    /// The `model` string must use the `provider/model` format.
+    /// The provider prefix is stripped before calling the provider.
+    pub async fn embed_with(
+        &self,
+        model: &str,
+        mut req: EmbeddingRequest,
+    ) -> Result<EmbeddingResponse> {
+        let (provider_name, model_name) = Self::parse_model(model)?;
+        tracing::debug!(
+            provider = provider_name,
+            model = model_name,
+            input_count = req.input.len(),
+            "sending embedding request"
+        );
+        let provider = self.get_provider(provider_name).await?;
+        req.model = model_name.to_string();
+        provider.embed(&req).await
     }
 }
 

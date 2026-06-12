@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Local contract tests for client model routing, stream error propagation, stream metadata collection (`stream_collect_full`), and proxy `n` policy.
 - CI validation for agent-facing docs, examples index, and capability metadata (`scripts/validate_agent_docs.py`).
 - **Agent-native codebase**: repositioned llmrust as an AI-agent-friendly infrastructure library.
   - `AGENT_MANIFESTO.md` — project philosophy for human-agent collaboration.

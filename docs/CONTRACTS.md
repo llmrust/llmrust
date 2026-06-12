@@ -2,6 +2,8 @@
 
 This document defines the behavioral contracts that every provider, the proxy, and the client must honor. These are not type-level guarantees — they're about runtime semantics. Tests should verify these.
 
+> These contracts are covered by local contract tests in `tests/contract_tests.rs`. Changes to provider, client, proxy, or stream behavior should update both this document and the relevant tests.
+
 ## Provider contract
 
 Every implementation of `Provider` must satisfy:

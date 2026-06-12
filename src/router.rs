@@ -1,4 +1,5 @@
-//! Multi-deployment routing with automatic fallback.
+//! Multi-deployment routing with automatic fallback and optional
+//! passive cooldown.
 //!
 //! [`Router`] sits on top of an [`LmrsClient`] and maps a logical *group* name
 //! to an ordered list of concrete `provider/model` deployments. A request to a
@@ -11,17 +12,38 @@
 //! deployment, so a [`Router`] is a drop-in replacement for calling
 //! [`LmrsClient`] directly.
 //!
-//! # Example
+//! ## Passive cooldown
+//!
+//! Calling [`Router::with_cooldown`] enables opt-in passive cooldown: when a
+//! deployment fails with a failoverable error (HTTP 5xx, 429, stream error,
+//! network error, UnknownProvider), it enters a short cooldown period. During
+//! cooldown, subsequent routing attempts prefer other deployments. Cooldown
+//! expires after the configured duration; a subsequent successful call clears it
+//! immediately.
+//!
+//! Cooldown is **passive** — no background health checker, no active pings.
+//! Deployment state is updated only as a side effect of routing decisions.
+//!
+//! If all deployments in a group are in cooldown, the router fails open:
+//! all deployments are still attempted in order rather than returning an error.
+//!
+//! Streaming is only affected on the initial connection. Once a stream is
+//! established, mid-stream errors are the caller's responsibility.
+//!
+//! ## Example
 //!
 //! ```rust,no_run
 //! use llmrust::{LmrsClient, Router};
 //! use std::sync::Arc;
+//! use std::time::Duration;
 //!
 //! let client = Arc::new(LmrsClient::new());
-//! let router = Router::new(client).route(
-//!     "smart",
-//!     ["openai/gpt-4o", "anthropic/claude-sonnet-4-20250514"],
-//! );
+//! let router = Router::new(client)
+//!     .with_cooldown(Duration::from_secs(30))
+//!     .route(
+//!         "smart",
+//!         ["openai/gpt-4o", "anthropic/claude-sonnet-4-20250514"],
+//!     );
 //! // Then, inside an async context:
 //! // let resp = router.chat("smart", "Hello!").await?;
 //! let _ = router;
@@ -30,7 +52,8 @@
 use futures::stream::BoxStream;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use crate::providers::{LlmError, Result};
 use crate::types::{ChatRequest, ChatResponse, StreamChunk};
@@ -84,11 +107,18 @@ fn no_deployments(group: &str) -> LlmError {
 /// **Streaming note:** like [`crate::RetryProvider`], `stream*` only fails over
 /// on the **initial connection**. Once a stream is established, mid-stream
 /// errors propagate to the caller rather than retrying on another deployment.
+///
+/// **Cooldown note:** when enabled via [`Router::with_cooldown`], deployments
+/// that fail with a transient error are temporarily deprioritized. This is
+/// passive — no background health check runs. Failed deployments are
+/// automatically retried after the cooldown duration expires.
 pub struct Router {
     client: Arc<LmrsClient>,
     groups: HashMap<String, Vec<String>>,
     strategy: RoutingStrategy,
     counter: AtomicUsize,
+    cooldown: Option<Duration>,
+    cooldown_until: Mutex<HashMap<String, Instant>>,
 }
 
 impl Router {
@@ -100,12 +130,29 @@ impl Router {
             groups: HashMap::new(),
             strategy: RoutingStrategy::Ordered,
             counter: AtomicUsize::new(0),
+            cooldown: None,
+            cooldown_until: Mutex::new(HashMap::new()),
         }
     }
 
     /// Set the routing strategy (defaults to [`RoutingStrategy::Ordered`]).
     pub fn with_strategy(mut self, strategy: RoutingStrategy) -> Self {
         self.strategy = strategy;
+        self
+    }
+
+    /// Enable passive cooldown with the given duration.
+    ///
+    /// When a deployment fails with a failoverable error, it enters cooldown
+    /// for `duration`. Subsequent routing within that window deprioritizes
+    /// this deployment. A duration of zero disables cooldown (equivalent to
+    /// the default).
+    ///
+    /// Cooldown is opt-in: the default Router behavior is unchanged.
+    pub fn with_cooldown(mut self, duration: Duration) -> Self {
+        if duration > Duration::ZERO {
+            self.cooldown = Some(duration);
+        }
         self
     }
 
@@ -119,6 +166,70 @@ impl Router {
         let list: Vec<String> = deployments.into_iter().map(Into::into).collect();
         self.groups.insert(group.into(), list);
         self
+    }
+
+    // ── cooldown helpers ──────────────────────────────────────────
+
+    fn is_in_cooldown(&self, deployment: &str) -> bool {
+        if self.cooldown.is_none() {
+            return false;
+        }
+        let guard = self
+            .cooldown_until
+            .lock()
+            .expect("cooldown lock not poisoned");
+        match guard.get(deployment) {
+            Some(deadline) => Instant::now() < *deadline,
+            None => false,
+        }
+    }
+
+    fn mark_cooldown(&self, deployment: &str) {
+        let dur = match self.cooldown {
+            Some(d) => d,
+            None => return,
+        };
+        let mut guard = self
+            .cooldown_until
+            .lock()
+            .expect("cooldown lock not poisoned");
+        guard.insert(deployment.to_string(), Instant::now() + dur);
+    }
+
+    fn clear_cooldown(&self, deployment: &str) {
+        let mut guard = self
+            .cooldown_until
+            .lock()
+            .expect("cooldown lock not poisoned");
+        guard.remove(deployment);
+    }
+
+    /// Return the ordered deployments to attempt for `group`, with cooldown
+    /// filtering applied when enabled. If all deployments are in cooldown,
+    /// returns the full list (fail-open).
+    fn candidates(&self, group: &str) -> Vec<String> {
+        let deployments = self.resolve(group);
+        if self.cooldown.is_none() || deployments.len() <= 1 {
+            return deployments;
+        }
+
+        let mut ready: Vec<String> = Vec::with_capacity(deployments.len());
+        let mut cooling: Vec<String> = Vec::with_capacity(deployments.len());
+
+        for d in deployments {
+            if self.is_in_cooldown(&d) {
+                cooling.push(d);
+            } else {
+                ready.push(d);
+            }
+        }
+
+        if ready.is_empty() {
+            // All deployments cooling — fail open
+            cooling
+        } else {
+            ready
+        }
     }
 
     /// Resolve the ordered deployments to attempt for `group`, applying the
@@ -153,12 +264,15 @@ impl Router {
     /// Send a fully-specified chat request to `group`, failing over across
     /// deployments. The request's `model` field is overwritten per deployment.
     pub async fn chat_with(&self, group: &str, request: ChatRequest) -> Result<ChatResponse> {
-        let deployments = self.resolve(group);
+        let deployments = self.candidates(group);
         tracing::debug!(group, deployments = ?deployments, "routing chat request");
         let mut last_error: Option<LlmError> = None;
         for model in &deployments {
             match self.client.chat_with(model, request.clone()).await {
-                Ok(resp) => return Ok(resp),
+                Ok(resp) => {
+                    self.clear_cooldown(model);
+                    return Ok(resp);
+                }
                 Err(e) if should_failover(&e) => {
                     tracing::warn!(
                         group,
@@ -166,6 +280,7 @@ impl Router {
                         error_kind = "api_error",
                         "failing over to next deployment"
                     );
+                    self.mark_cooldown(model);
                     last_error = Some(e);
                 }
                 Err(e) => return Err(e),
@@ -190,12 +305,15 @@ impl Router {
         group: &str,
         request: ChatRequest,
     ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
-        let deployments = self.resolve(group);
+        let deployments = self.candidates(group);
         tracing::debug!(group, deployments = ?deployments, "routing stream request");
         let mut last_error: Option<LlmError> = None;
         for model in &deployments {
             match self.client.stream_with(model, request.clone()).await {
-                Ok(s) => return Ok(s),
+                Ok(s) => {
+                    self.clear_cooldown(model);
+                    return Ok(s);
+                }
                 Err(e) if should_failover(&e) => {
                     tracing::warn!(
                         group,
@@ -203,6 +321,7 @@ impl Router {
                         error_kind = "api_error",
                         "failing over to next deployment"
                     );
+                    self.mark_cooldown(model);
                     last_error = Some(e);
                 }
                 Err(e) => return Err(e),
@@ -363,5 +482,360 @@ mod tests {
         let mut s = router.stream("grp", "hi").await.unwrap();
         let chunk = s.next().await.unwrap().unwrap();
         assert_eq!(chunk.delta, "stream-ok");
+    }
+
+    // ── cooldown test helpers ─────────────────────────────────────
+
+    /// Wraps an inner provider and counts how many times `chat` is called.
+    struct CountedProvider {
+        inner: Arc<dyn crate::providers::Provider>,
+        calls: AtomicUsize,
+    }
+
+    impl CountedProvider {
+        fn new(inner: Arc<dyn crate::providers::Provider>) -> Self {
+            Self {
+                inner,
+                calls: AtomicUsize::new(0),
+            }
+        }
+
+        fn calls(&self) -> usize {
+            self.calls.load(Ordering::Relaxed)
+        }
+    }
+
+    #[async_trait]
+    impl crate::providers::Provider for CountedProvider {
+        async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+            self.inner.chat(req).await
+        }
+
+        async fn stream(
+            &self,
+            req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+            self.inner.stream(req).await
+        }
+    }
+
+    /// A provider that always returns a Parse error.
+    struct ParseFailingProvider;
+
+    #[async_trait]
+    impl crate::providers::Provider for ParseFailingProvider {
+        async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+            Err(LlmError::Parse("bad model response".into()))
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            Err(LlmError::Parse("bad model response".into()))
+        }
+    }
+
+    // ── cooldown tests ────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn default_router_does_not_skip_failed_primary() {
+        let client = Arc::new(LmrsClient::new());
+        let primary = Arc::new(CountedProvider::new(Arc::new(FailingProvider::new(500))));
+        let secondary = Arc::new(CountedProvider::new(Arc::new(OkProvider::new("secondary"))));
+        client.set_custom("p", primary.clone()).await;
+        client.set_custom("s", secondary.clone()).await;
+
+        let router = Router::new(client).route("grp", ["p/m", "s/m"]);
+
+        // 1st request: primary fails, secondary succeeds
+        let r1 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r1.content, "secondary");
+        assert_eq!(primary.calls(), 1, "primary should have been called once");
+        assert_eq!(
+            secondary.calls(),
+            1,
+            "secondary should have been called once"
+        );
+
+        // 2nd request: without cooldown, primary is tried again
+        let r2 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r2.content, "secondary");
+        assert_eq!(primary.calls(), 2, "primary should have been called again");
+        assert_eq!(
+            secondary.calls(),
+            2,
+            "secondary should have been called again"
+        );
+    }
+
+    #[tokio::test]
+    async fn cooldown_skips_recently_failed_primary() {
+        let client = Arc::new(LmrsClient::new());
+        let primary = Arc::new(CountedProvider::new(Arc::new(FailingProvider::new(500))));
+        let secondary = Arc::new(CountedProvider::new(Arc::new(OkProvider::new("secondary"))));
+        client.set_custom("p", primary.clone()).await;
+        client.set_custom("s", secondary.clone()).await;
+
+        let router = Router::new(client)
+            .with_cooldown(Duration::from_secs(60))
+            .route("grp", ["p/m", "s/m"]);
+
+        // 1st request: primary fails, enters cooldown; secondary succeeds
+        let r1 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r1.content, "secondary");
+        assert_eq!(primary.calls(), 1);
+        assert_eq!(secondary.calls(), 1);
+
+        // 2nd request: primary in cooldown — skipped; secondary succeeds again
+        let r2 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r2.content, "secondary");
+        assert_eq!(
+            primary.calls(),
+            1,
+            "primary must be skipped while in cooldown"
+        );
+        assert_eq!(secondary.calls(), 2);
+    }
+
+    #[tokio::test]
+    async fn cooldown_expires_and_retries_primary() {
+        let client = Arc::new(LmrsClient::new());
+
+        struct RecoveryProvider {
+            name: String,
+            failed: Mutex<bool>,
+        }
+
+        #[async_trait]
+        impl crate::providers::Provider for RecoveryProvider {
+            async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+                let mut guard = self.failed.lock().unwrap();
+                if !*guard {
+                    *guard = true;
+                    Err(LlmError::Api {
+                        status: 500,
+                        message: "simulated failure".into(),
+                    })
+                } else {
+                    Ok(ChatResponse {
+                        content: self.name.clone(),
+                        model: "m".into(),
+                        ..Default::default()
+                    })
+                }
+            }
+
+            async fn stream(
+                &self,
+                _req: &ChatRequest,
+            ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+                let mut guard = self.failed.lock().unwrap();
+                if !*guard {
+                    *guard = true;
+                    Err(LlmError::Api {
+                        status: 500,
+                        message: "simulated failure".into(),
+                    })
+                } else {
+                    let name = self.name.clone();
+                    Ok(Box::pin(stream::once(async move {
+                        Ok(StreamChunk {
+                            delta: name,
+                            done: true,
+                            ..Default::default()
+                        })
+                    })))
+                }
+            }
+        }
+
+        let primary = Arc::new(RecoveryProvider {
+            name: "primary-ok".into(),
+            failed: Mutex::new(false),
+        });
+        let secondary = Arc::new(OkProvider::new("secondary"));
+        client.set_custom("p", primary).await;
+        client.set_custom("s", secondary).await;
+
+        let router = Router::new(client)
+            .with_cooldown(Duration::from_millis(30))
+            .route("grp", ["p/m", "s/m"]);
+
+        // 1st request: primary fails (500), enters cooldown, secondary succeeds
+        let r1 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r1.content, "secondary");
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // 2nd request: cooldown expired, primary now succeeds
+        let r2 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r2.content, "primary-ok");
+    }
+
+    #[tokio::test]
+    async fn cooldown_not_marked_for_api_400() {
+        let client = Arc::new(LmrsClient::new());
+        let bad = Arc::new(CountedProvider::new(Arc::new(FailingProvider::new(400))));
+        let good = Arc::new(CountedProvider::new(Arc::new(OkProvider::new("secondary"))));
+        client.set_custom("bad", bad.clone()).await;
+        client.set_custom("good", good.clone()).await;
+
+        let router = Router::new(client)
+            .with_cooldown(Duration::from_secs(60))
+            .route("grp", ["bad/m", "good/m"]);
+
+        let err = router.chat("grp", "hi").await.unwrap_err();
+        assert!(matches!(err, LlmError::Api { status: 400, .. }));
+        assert_eq!(bad.calls(), 1, "400 is permanent, called once");
+        assert_eq!(good.calls(), 0, "should not fail over to secondary on 400");
+    }
+
+    #[tokio::test]
+    async fn cooldown_not_marked_for_parse_error() {
+        let client = Arc::new(LmrsClient::new());
+        let bad = Arc::new(CountedProvider::new(Arc::new(ParseFailingProvider)));
+        let good = Arc::new(CountedProvider::new(Arc::new(OkProvider::new("secondary"))));
+        client.set_custom("bad", bad.clone()).await;
+        client.set_custom("good", good.clone()).await;
+
+        let router = Router::new(client)
+            .with_cooldown(Duration::from_secs(60))
+            .route("grp", ["bad/m", "good/m"]);
+
+        let err = router.chat("grp", "hi").await.unwrap_err();
+        assert!(matches!(err, LlmError::Parse(_)));
+        assert_eq!(bad.calls(), 1, "Parse is permanent, called once");
+        assert_eq!(
+            good.calls(),
+            0,
+            "should not fail over to secondary on Parse"
+        );
+    }
+
+    #[tokio::test]
+    async fn cooldown_fail_open_when_all_deployments_are_cooling() {
+        let client = Arc::new(LmrsClient::new());
+        let p1 = Arc::new(CountedProvider::new(Arc::new(FailingProvider::new(503))));
+        let p2 = Arc::new(CountedProvider::new(Arc::new(FailingProvider::new(502))));
+        let p3 = Arc::new(CountedProvider::new(Arc::new(FailingProvider::new(500))));
+        client.set_custom("p1", p1.clone()).await;
+        client.set_custom("p2", p2.clone()).await;
+        client.set_custom("p3", p3.clone()).await;
+
+        let router = Router::new(client)
+            .with_cooldown(Duration::from_secs(60))
+            .route("grp", ["p1/m", "p2/m", "p3/m"]);
+
+        // First request: all fail, all enter cooldown
+        let err1 = router.chat("grp", "hi").await.unwrap_err();
+        assert!(matches!(err1, LlmError::Api { .. }));
+        assert_eq!(p1.calls(), 1);
+        assert_eq!(p2.calls(), 1);
+        assert_eq!(p3.calls(), 1);
+
+        // Second request: all in cooldown, must fail-open — still attempt ALL
+        let err2 = router.chat("grp", "hi").await.unwrap_err();
+        assert!(matches!(err2, LlmError::Api { .. }));
+        assert_eq!(p1.calls(), 2, "fail-open: p1 must be retried");
+        assert_eq!(p2.calls(), 2, "fail-open: p2 must be retried");
+        assert_eq!(p3.calls(), 2, "fail-open: p3 must be retried");
+    }
+
+    #[tokio::test]
+    async fn stream_initial_failure_marks_cooldown() {
+        let client = Arc::new(LmrsClient::new());
+        let bad = Arc::new(CountedProvider::new(Arc::new(FailingProvider::new(502))));
+        let good = Arc::new(CountedProvider::new(Arc::new(OkProvider::new(
+            "stream-good",
+        ))));
+        client.set_custom("bad", bad.clone()).await;
+        client.set_custom("good", good.clone()).await;
+
+        let router = Router::new(client)
+            .with_cooldown(Duration::from_secs(60))
+            .route("grp", ["bad/m", "good/m"]);
+
+        // 1st stream: bad fails, marked cooldown; good succeeds
+        let mut s1 = router.stream("grp", "hi").await.unwrap();
+        let c1 = s1.next().await.unwrap().unwrap();
+        assert_eq!(c1.delta, "stream-good");
+        assert_eq!(bad.calls(), 1);
+        assert_eq!(good.calls(), 1);
+
+        // 2nd stream: bad in cooldown, skipped
+        let mut s2 = router.stream("grp", "hi").await.unwrap();
+        let c2 = s2.next().await.unwrap().unwrap();
+        assert_eq!(c2.delta, "stream-good");
+        assert_eq!(bad.calls(), 1, "bad must be skipped while in cooldown");
+        assert_eq!(good.calls(), 2);
+    }
+
+    #[tokio::test]
+    async fn successful_deployment_clears_cooldown() {
+        let client = Arc::new(LmrsClient::new());
+
+        struct ClearVerifyProvider {
+            name: String,
+            attempt: Mutex<u32>,
+        }
+
+        #[async_trait]
+        impl crate::providers::Provider for ClearVerifyProvider {
+            async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+                let mut guard = self.attempt.lock().unwrap();
+                *guard += 1;
+                // 1st attempt: fail, 2nd and 3rd: succeed
+                if *guard == 1 {
+                    Err(LlmError::Api {
+                        status: 500,
+                        message: "first fail".into(),
+                    })
+                } else {
+                    Ok(ChatResponse {
+                        content: self.name.clone(),
+                        model: "m".into(),
+                        ..Default::default()
+                    })
+                }
+            }
+
+            async fn stream(
+                &self,
+                _req: &ChatRequest,
+            ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+                unimplemented!()
+            }
+        }
+
+        let primary = Arc::new(ClearVerifyProvider {
+            name: "primary-ok".into(),
+            attempt: Mutex::new(0),
+        });
+        let secondary = Arc::new(OkProvider::new("secondary"));
+        client.set_custom("p", primary).await;
+        client.set_custom("s", secondary).await;
+
+        let router = Router::new(client)
+            .with_cooldown(Duration::from_millis(30))
+            .route("grp", ["p/m", "s/m"]);
+
+        // 1st request: primary fails, enters cooldown
+        let r1 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r1.content, "secondary");
+
+        // Wait for cooldown to expire
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // 2nd request: cooldown expired, primary now succeeds — cooldown cleared
+        let r2 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r2.content, "primary-ok");
+
+        // 3rd request: primary should NOT be in cooldown (cleared by success)
+        // so it should be tried and succeed again
+        let r3 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r3.content, "primary-ok");
     }
 }

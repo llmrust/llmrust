@@ -161,9 +161,12 @@
       "no_retry_on": ["HTTP 4xx (except 429)", "Parse errors", "UnknownProvider errors"]
     },
     "router": {
-      "description": "Multi-deployment routing with failover and load balancing",
+      "description": "Multi-deployment routing with failover, load balancing, and optional passive cooldown",
       "strategies": ["Ordered", "RoundRobin"],
-      "groups": "Logical group names mapped to ordered deployment lists"
+      "groups": "Logical group names mapped to ordered deployment lists",
+      "passive_cooldown": true,
+      "cooldown_default": "disabled",
+      "cooldown_policy": "opt-in; failoverable errors mark deployments cooling; all-cooling groups fail open"
     }
   },
   "proxy": {

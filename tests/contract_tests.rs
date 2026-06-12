@@ -197,7 +197,49 @@ mod stream_contracts {
 
 #[cfg(test)]
 mod model_routing_contracts {
-    use llmrust::{LlmError, LmrsClient};
+    use futures::stream::{self, BoxStream};
+    use llmrust::{ChatRequest, ChatResponse, LlmError, LmrsClient, Provider, StreamChunk};
+    use std::sync::{Arc, Mutex};
+
+    // ── Capturing provider: records the req.model value ───────────
+
+    struct CapturingProvider {
+        seen_model: Arc<Mutex<Option<String>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl Provider for CapturingProvider {
+        async fn chat(&self, req: &ChatRequest) -> llmrust::Result<ChatResponse> {
+            *self.seen_model.lock().unwrap() = Some(req.model.clone());
+            Ok(ChatResponse::default())
+        }
+
+        async fn stream(
+            &self,
+            req: &ChatRequest,
+        ) -> llmrust::Result<BoxStream<'static, llmrust::Result<StreamChunk>>> {
+            *self.seen_model.lock().unwrap() = Some(req.model.clone());
+            Ok(Box::pin(stream::empty()))
+        }
+    }
+
+    /// Per CONTRACTS.md: "model is the model name *after* the `/`.
+    /// The client sets req.model before calling the provider."
+    #[tokio::test]
+    async fn forwards_model_name_without_provider_prefix() {
+        let llm = LmrsClient::new();
+        let seen_model = Arc::new(Mutex::new(None));
+        let provider = CapturingProvider {
+            seen_model: Arc::clone(&seen_model),
+        };
+        llm.set_custom("fake", Arc::new(provider)).await;
+
+        llm.chat_with("fake/my-model", ChatRequest::new("ignored", "hi"))
+            .await
+            .expect("fake provider should succeed");
+
+        assert_eq!(seen_model.lock().unwrap().as_deref(), Some("my-model"));
+    }
 
     /// Per CONTRACTS.md: "All chat/stream methods require provider/model format.
     /// Parse errors return LlmError::Parse."
@@ -216,7 +258,7 @@ mod model_routing_contracts {
     }
 
     #[tokio::test]
-    async fn rejects_empty_provider() {
+    async fn rejects_empty_model() {
         let llm = LmrsClient::new();
         match llm.chat("openai/", "test").await {
             Err(LlmError::Parse(msg)) => {
@@ -227,7 +269,7 @@ mod model_routing_contracts {
     }
 
     #[tokio::test]
-    async fn rejects_empty_model() {
+    async fn rejects_empty_provider() {
         let llm = LmrsClient::new();
         match llm.chat("/gpt-4o", "test").await {
             Err(LlmError::Parse(msg)) => {
@@ -267,55 +309,110 @@ mod model_routing_contracts {
 #[cfg(feature = "proxy")]
 #[cfg(test)]
 mod proxy_n_policy_contracts {
+    use axum::body::{to_bytes, Body};
+    use axum::http::{Request, StatusCode};
+    use futures::stream::{self, BoxStream};
+    use llmrust::{ChatRequest, ChatResponse, LmrsClient, Provider, StreamChunk};
+    use std::sync::Arc;
+    use tower::ServiceExt;
 
-    /// Per CONTRACTS.md: "Accept missing n or n = 1. Reject n = 0 or n > 1."
-    #[test]
-    fn n_policy_accepts_missing_n() {
-        let body = serde_json::json!({
-            "model": "openai/gpt-4o",
+    /// A trivial provider that always returns "ok".
+    struct OkProvider;
+
+    #[async_trait::async_trait]
+    impl Provider for OkProvider {
+        async fn chat(&self, req: &ChatRequest) -> llmrust::Result<ChatResponse> {
+            Ok(ChatResponse {
+                content: "ok".to_string(),
+                model: req.model.clone(),
+                ..Default::default()
+            })
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> llmrust::Result<BoxStream<'static, llmrust::Result<StreamChunk>>> {
+            Ok(Box::pin(stream::empty()))
+        }
+    }
+
+    fn build_request(n: Option<u32>) -> Request<Body> {
+        let mut body = serde_json::json!({
+            "model": "mock/test-model",
             "messages": [{"role": "user", "content": "hi"}]
         });
-        // Must not reject
-        let request: llmrust::proxy::ProxyChatRequest =
-            serde_json::from_value(body).expect("missing n should be accepted");
-        assert!(request.n.is_none() || request.n == Some(1));
+        if let Some(n) = n {
+            body["n"] = serde_json::json!(n);
+        }
+
+        Request::builder()
+            .method("POST")
+            .uri("/v1/chat/completions")
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .expect("failed to build test request")
     }
 
-    #[test]
-    fn n_policy_accepts_n_one() {
-        let body = serde_json::json!({
-            "model": "openai/gpt-4o",
-            "messages": [{"role": "user", "content": "hi"}],
-            "n": 1
-        });
-        let request: llmrust::proxy::ProxyChatRequest =
-            serde_json::from_value(body).expect("n=1 should be accepted");
-        assert_eq!(request.n, Some(1));
+    async fn post_with_n(n: Option<u32>) -> (StatusCode, serde_json::Value) {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(OkProvider)).await;
+        let app = llmrust::proxy::router(llm);
+
+        let response = app
+            .oneshot(build_request(n))
+            .await
+            .expect("proxy request failed");
+
+        let status = response.status();
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let json = serde_json::from_slice(&bytes).expect("response body is JSON");
+        (status, json)
     }
 
-    #[test]
-    fn n_policy_rejects_n_zero() {
-        let body = serde_json::json!({
-            "model": "openai/gpt-4o",
-            "messages": [{"role": "user", "content": "hi"}],
-            "n": 0
-        });
-        // Rejection happens at the convert_request level, not deserialization.
-        // Deserialization accepts n=0; the proxy handler must reject it.
-        let request: llmrust::proxy::ProxyChatRequest =
-            serde_json::from_value(body).expect("n=0 should deserialize");
-        assert_eq!(request.n, Some(0));
+    fn assert_n_policy_error(json: &serde_json::Value) {
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert!(json["error"]["param"].is_null());
+        assert!(json["error"]["code"].is_null());
+
+        let message = json["error"]["message"]
+            .as_str()
+            .expect("error.message is a string");
+        assert!(
+            message.contains("n must be 1"),
+            "expected n policy error message, got: {message}"
+        );
     }
 
-    #[test]
-    fn n_policy_rejects_n_greater_than_one() {
-        let body = serde_json::json!({
-            "model": "openai/gpt-4o",
-            "messages": [{"role": "user", "content": "hi"}],
-            "n": 3
-        });
-        let request: llmrust::proxy::ProxyChatRequest =
-            serde_json::from_value(body).expect("n=3 should deserialize");
-        assert_eq!(request.n, Some(3));
+    /// Per CONTRACTS.md: "Accept missing n or n = 1. Reject n = 0 or n > 1."
+
+    #[tokio::test]
+    async fn n_policy_accepts_missing_n() {
+        let (status, json) = post_with_n(None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json["choices"][0]["message"]["content"], "ok");
+    }
+
+    #[tokio::test]
+    async fn n_policy_accepts_n_one() {
+        let (status, json) = post_with_n(Some(1)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json["choices"][0]["message"]["content"], "ok");
+    }
+
+    #[tokio::test]
+    async fn n_policy_rejects_n_zero() {
+        let (status, json) = post_with_n(Some(0)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_n_policy_error(&json);
+    }
+
+    #[tokio::test]
+    async fn n_policy_rejects_n_greater_than_one() {
+        let (status, json) = post_with_n(Some(3)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_n_policy_error(&json);
     }
 }

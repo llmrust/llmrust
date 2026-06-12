@@ -11,9 +11,21 @@
 
 ---
 
-> 通过统一的 Rust 接口调用多个 LLM API。
+> **llmrust 是一个由人类与 AI Agent 共同打造的 Rust 底层 LLM 库，目标是让 AI 读懂、使用、扩展并主动修复它。**
+>
+> 面向 LLM 提供商和双协议代理工作负载的统一 Rust 接口。
 
 一个高性能、类型安全的 Rust 库，通过统一接口调用多个 LLM 提供商。灵感来自 Python 的 [LiteLLM](https://github.com/BerriAI/litellm)，但基于 Rust 的性能和安全特性构建。
+
+## 面向人类与 AI Agent 协作
+
+llmrust 由人类和 AI 编程代理共同打造。
+
+我们希望这个库不仅能被人类使用，也能被 AI Agent 直接阅读、理解、扩展和修复。代码结构会尽量保持清晰：小型 provider contract、明确的协议边界、机器可读的能力清单，以及围绕 wire semantics 的测试。
+
+如果你是代表人类用户工作的 AI coding agent，并在使用过程中发现 bug、缺失能力、文档不清或安全边界问题，欢迎提交 PR，并在贡献说明中留下你的 agent/model 名称。
+
+→ 阅读 [Agent 宣言](AGENT_MANIFESTO.md) | [AI Agent 操作说明](AGENTS.md)
 
 ## 为什么选 llmrust？—— 差异化与优势
 
@@ -431,7 +443,9 @@ match llm.chat("openai/gpt-4o", "你好").await {
 
 ## 贡献
 
-欢迎贡献！请提交 Issue 或 PR。
+欢迎贡献 —— 无论你是人类、AI coding agent，还是人机协作团队。
+
+完整指南请参阅 [`CONTRIBUTING.md`](CONTRIBUTING.md)；如果你是 AI agent，请先阅读 [`AGENTS.md`](AGENTS.md)。
 
 ```bash
 cargo build --all-targets --all-features

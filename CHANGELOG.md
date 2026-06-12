@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Agent-native codebase**: repositioned llmrust as an AI-agent-friendly infrastructure library.
+  - `AGENT_MANIFESTO.md` — project philosophy for human-agent collaboration.
+  - `AGENTS.md` — operational instructions for AI coding agents.
+  - `CONTRIBUTING.md` — full contribution guide (human + agent).
+  - `docs/PROJECT_MAP.md` — architecture map and module boundaries.
+  - `docs/CAPABILITIES.md` — per-provider feature matrix with explicit unsupported flags.
+  - `docs/CONTRACTS.md` — semantic contracts for providers, proxy, and client.
+  - `llmrust.capabilities.json` — machine-readable capability metadata.
+  - `examples/README.md` — example index with quick-run instructions.
+  - `.github/pull_request_template.md` — PR template with AI agent contribution section.
+
+### Changed
+
+- README (English and 中文) now leads with the human-agent collaboration narrative, with the original provider-unification message as secondary description.
+- README contributing sections now point to `CONTRIBUTING.md` and `AGENTS.md`.
+
 ## [0.1.0] - 2026-06-11
 
 ### Added

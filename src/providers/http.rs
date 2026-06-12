@@ -40,6 +40,7 @@ pub(crate) fn build_http_client(
     custom_headers: Option<&HashMap<String, String>>,
 ) -> Client {
     let mut builder = Client::builder()
+        .no_proxy()
         .connect_timeout(CONNECT_TIMEOUT)
         .pool_max_idle_per_host(POOL_MAX_IDLE_PER_HOST)
         .tcp_keepalive(TCP_KEEPALIVE);

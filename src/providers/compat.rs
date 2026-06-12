@@ -1087,4 +1087,122 @@ mod tests {
             Some("text-embedding-3-small")
         );
     }
+
+    // ── HTTP integration tests (axum, requires proxy feature) ────
+
+    #[cfg(feature = "proxy")]
+    #[tokio::test]
+    async fn openai_compatible_embed_posts_to_embeddings_endpoint() {
+        let embed_ok = axum::Router::new().route(
+            "/embeddings",
+            axum::routing::post(
+                |headers: axum::http::HeaderMap,
+                 axum::Json(body): axum::Json<serde_json::Value>| async move {
+                    assert!(headers.get("authorization").is_some());
+                    assert_eq!(body["model"], "text-embedding-3-small");
+                    assert_eq!(body["input"][0], "hello");
+                    assert_eq!(body["input"][1], "world");
+                    axum::Json(serde_json::json!({"data":[],"model":"m"}))
+                },
+            ),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let url = format!("http://{}", addr);
+        tokio::spawn(async move { axum::serve(listener, embed_ok).await.unwrap() });
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let config = ProviderConfig::new("sk-test").with_base_url(&url);
+        let provider = OpenAiCompatibleProvider::new(config, []);
+        let req = EmbeddingRequest::batch("text-embedding-3-small", ["hello", "world"]);
+        provider.embed(&req).await.expect("embed should succeed");
+    }
+
+    #[cfg(feature = "proxy")]
+    #[tokio::test]
+    async fn openai_compatible_embed_sends_dimensions_user_and_extra() {
+        let embed_ok = axum::Router::new().route(
+            "/embeddings",
+            axum::routing::post(
+                |axum::Json(body): axum::Json<serde_json::Value>| async move {
+                    assert_eq!(body["dimensions"], 1024);
+                    assert_eq!(body["user"], "u");
+                    assert_eq!(body["task"], "search");
+                    axum::Json(serde_json::json!({"data":[],"model":"m"}))
+                },
+            ),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let url = format!("http://{}", addr);
+        tokio::spawn(async move { axum::serve(listener, embed_ok).await.unwrap() });
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let config = ProviderConfig::new("sk-test").with_base_url(&url);
+        let provider = OpenAiCompatibleProvider::new(config, []);
+        let req = EmbeddingRequest::new("m", "hi")
+            .with_dimensions(1024)
+            .with_user("u")
+            .with_extra("task", "search");
+        provider.embed(&req).await.expect("embed should succeed");
+    }
+
+    #[cfg(feature = "proxy")]
+    #[tokio::test]
+    async fn openai_compatible_embed_maps_api_error() {
+        let embed_400 = axum::Router::new().route(
+            "/embeddings",
+            axum::routing::post(|| async {
+                (
+                    axum::http::StatusCode::BAD_REQUEST,
+                    axum::Json(serde_json::json!({"error":{"message":"bad input"}})),
+                )
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let url = format!("http://{}", addr);
+        tokio::spawn(async move { axum::serve(listener, embed_400).await.unwrap() });
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let config = ProviderConfig::new("sk-test").with_base_url(&url);
+        let provider = OpenAiCompatibleProvider::new(config, []);
+        let req = EmbeddingRequest::new("m", "hi");
+        let err = provider.embed(&req).await.unwrap_err();
+        assert!(
+            matches!(&err, LlmError::Api { status: 400, message } if message.contains("bad input")),
+            "expected Api 400, got: {err:?}"
+        );
+    }
+
+    #[cfg(feature = "proxy")]
+    #[tokio::test]
+    async fn openai_provider_embed_strips_prefix_with_real_wrapper() {
+        use crate::providers::openai::OpenAIProvider;
+
+        let embed_ok = axum::Router::new().route(
+            "/embeddings",
+            axum::routing::post(
+                |axum::Json(body): axum::Json<serde_json::Value>| async move {
+                    assert_eq!(body["model"], "text-embedding-3-small");
+                    axum::Json(serde_json::json!({"data":[],"model":"text-embedding-3-small"}))
+                },
+            ),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let url = format!("http://{}", addr);
+        tokio::spawn(async move { axum::serve(listener, embed_ok).await.unwrap() });
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let config = ProviderConfig::new("sk-test").with_base_url(&url);
+        let provider: Arc<dyn Provider> = Arc::new(OpenAIProvider::new(config));
+
+        use crate::LmrsClient;
+        let llm = LmrsClient::new();
+        llm.set_custom("openai", provider).await;
+        llm.embed("openai/text-embedding-3-small", "hello")
+            .await
+            .expect("embed should succeed via real OpenAIProvider");
+    }
 }

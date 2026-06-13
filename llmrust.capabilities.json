@@ -149,10 +149,10 @@
   },
   "embeddings": {
     "api": true,
-    "status": "openai_compatible_implemented",
-    "provider_implementations": ["openai", "deepseek", "moonshot", "openrouter"],
+    "status": "openai_compatible_and_ollama_implemented",
+    "provider_implementations": ["openai", "deepseek", "moonshot", "openrouter", "ollama"],
     "default_provider_behavior": "unsupported",
-    "notes": "OpenAI-compatible embeddings transport is implemented. Actual upstream model support varies by provider/model."
+    "notes": "OpenAI-compatible embeddings transport is implemented. Ollama uses native /api/embed. Actual upstream model support varies by provider/model."
   },
   "client": {
     "model_format": "provider/model",

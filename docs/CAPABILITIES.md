@@ -19,7 +19,7 @@ Which features each provider supports, and how they map across providers.
 | **system message** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **multi-turn** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **custom base URL** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **embeddings** | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ |
+| **embeddings** | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 
 > ✅ for embeddings means llmrust implements OpenAI-compatible `/embeddings` transport. Actual upstream provider/model support may vary.
 

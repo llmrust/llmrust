@@ -9,7 +9,10 @@ use std::time::Duration;
 use crate::providers::http::build_http_client;
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
-use crate::types::{ChatRequest, ChatResponse, FinishReason, Message, StreamChunk, Usage};
+use crate::types::{
+    ChatRequest, ChatResponse, Embedding, EmbeddingRequest, EmbeddingResponse, EmbeddingUsage,
+    FinishReason, Message, StreamChunk, Usage,
+};
 
 const DEFAULT_BASE_URL: &str = "http://localhost:11434";
 
@@ -123,6 +126,31 @@ struct OllamaStreamChunk {
 #[derive(Deserialize)]
 struct OllamaErrorBody {
     error: String,
+}
+
+// ── Ollama embeddings types ───────────────────────────────────────
+
+#[derive(Serialize)]
+struct OllamaEmbedRequest<'a> {
+    model: &'a str,
+    input: &'a [String],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dimensions: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    truncate: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    options: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    keep_alive: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize)]
+struct OllamaEmbedResponse {
+    #[serde(default)]
+    model: Option<String>,
+    embeddings: Vec<Vec<f32>>,
+    #[serde(default)]
+    prompt_eval_count: Option<u64>,
 }
 
 /// Parse a single newline-delimited JSON line from an Ollama stream into zero
@@ -289,11 +317,93 @@ impl Provider for OllamaProvider {
 
         Ok(stream.boxed())
     }
+
+    async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+        // Pick known Ollama-specific fields from extra; ignore everything else
+        let truncate = req.extra.get("truncate").and_then(|v| v.as_bool());
+        let options = req.extra.get("options").cloned();
+        let keep_alive = req.extra.get("keep_alive").cloned();
+
+        let body = OllamaEmbedRequest {
+            model: &req.model,
+            input: &req.input,
+            dimensions: req.dimensions,
+            truncate,
+            options,
+            keep_alive,
+        };
+
+        tracing::debug!(
+            provider = "ollama",
+            model = %req.model,
+            input_count = req.input.len(),
+            "sending embedding request"
+        );
+
+        let resp = self
+            .client
+            .post(format!("{}/api/embed", self.base_url))
+            .json(&body)
+            .send()
+            .await?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let text = resp.text().await.unwrap_or_default();
+            let msg = serde_json::from_str::<OllamaErrorBody>(&text)
+                .map(|e| e.error)
+                .unwrap_or(text);
+            let err = LlmError::Api {
+                status: status.as_u16(),
+                message: msg,
+            };
+            tracing::error!(
+                provider = "ollama",
+                status = status.as_u16(),
+                error_kind = "api_error",
+                "embedding API error"
+            );
+            return Err(err);
+        }
+
+        let parsed: OllamaEmbedResponse = resp
+            .json()
+            .await
+            .map_err(|e| LlmError::Parse(format!("Ollama embed parse: {e}")))?;
+
+        let data: Vec<Embedding> = parsed
+            .embeddings
+            .into_iter()
+            .enumerate()
+            .map(|(i, vec)| Embedding {
+                index: i,
+                embedding: vec,
+            })
+            .collect();
+
+        let usage = parsed.prompt_eval_count.map(|c| EmbeddingUsage {
+            prompt_tokens: c,
+            total_tokens: c,
+        });
+
+        let model = parsed.model.unwrap_or_else(|| req.model.clone());
+
+        let result = EmbeddingResponse { model, data, usage };
+
+        tracing::debug!(
+            provider = "ollama",
+            model = %result.model,
+            embedding_count = result.data.len(),
+            "embedding response received"
+        );
+        Ok(result)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn ollama_stream_malformed_json_returns_parse_error() {
@@ -314,5 +424,199 @@ mod tests {
         let chunk = chunks.into_iter().next().unwrap().unwrap();
         assert_eq!(chunk.delta, "hello");
         assert!(!chunk.done);
+    }
+
+    // ── embedding fake server tests ───────────────────────────────
+
+    use std::io::{Read, Write};
+    use std::net::TcpListener as StdTcpListener;
+    use std::sync::Barrier;
+
+    fn fake_ollama_server(
+        handler: impl Fn(&str, &str, &[u8]) -> (u16, String) + Send + 'static,
+    ) -> String {
+        let listener = StdTcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let url = format!("http://{}", addr);
+        let barrier = Arc::new(Barrier::new(2));
+        let b = Arc::clone(&barrier);
+
+        std::thread::spawn(move || {
+            b.wait();
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut buf = vec![0u8; 16384];
+                let n = stream.read(&mut buf).unwrap_or(0);
+                let raw = String::from_utf8_lossy(&buf[..n]).to_string();
+                let first_line = raw.lines().next().unwrap_or("");
+                let mut parts = first_line.split_whitespace();
+                let method = parts.next().unwrap_or("GET");
+                let path = parts.next().unwrap_or("/");
+                let body_start = raw.find("\r\n\r\n").map(|i| i + 4).unwrap_or(raw.len());
+                let body_bytes = &buf[body_start..n];
+                let (status, body) = handler(method, path, body_bytes);
+                let resp = format!(
+                    "HTTP/1.1 {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    status,
+                    body.len(),
+                    body
+                );
+                stream.write_all(resp.as_bytes()).ok();
+                stream.flush().ok();
+                let _ = stream.read(&mut [0u8; 1]);
+            }
+        });
+        barrier.wait();
+        url
+    }
+
+    #[test]
+    fn ollama_embed_posts_to_api_embed() {
+        let url = fake_ollama_server(|method, path, body| {
+            assert_eq!(method, "POST");
+            assert_eq!(path, "/api/embed");
+            let json: serde_json::Value = serde_json::from_slice(body).unwrap();
+            assert_eq!(json["model"], "all-minilm");
+            assert_eq!(json["input"][0], "hello");
+            (200, r#"{"model":"all-minilm","embeddings":[[0.1]]}"#.into())
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = EmbeddingRequest::new("all-minilm", "hello");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(provider.embed(&req)).unwrap();
+    }
+
+    #[test]
+    fn ollama_embed_accepts_batch_and_preserves_order() {
+        let url = fake_ollama_server(|_m, _p, _b| {
+            (200, r#"{"model":"m","embeddings":[[0.1],[0.2]]}"#.into())
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = EmbeddingRequest::batch("m", ["a", "b"]);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let resp = rt.block_on(provider.embed(&req)).unwrap();
+        assert_eq!(resp.data.len(), 2);
+        assert_eq!(resp.data[0].index, 0);
+        assert_eq!(resp.data[0].embedding, vec![0.1_f32]);
+        assert_eq!(resp.data[1].index, 1);
+        assert_eq!(resp.data[1].embedding, vec![0.2_f32]);
+    }
+
+    #[test]
+    fn ollama_embed_sends_dimensions() {
+        let url = fake_ollama_server(|_m, _p, body| {
+            let json: serde_json::Value = serde_json::from_slice(body).unwrap();
+            assert_eq!(json["dimensions"], 384);
+            (200, r#"{"model":"m","embeddings":[[0.1]]}"#.into())
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = EmbeddingRequest::new("m", "hi").with_dimensions(384);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(provider.embed(&req)).unwrap();
+    }
+
+    #[test]
+    fn ollama_embed_forwards_truncate_options_keep_alive_from_extra() {
+        let url = fake_ollama_server(|_m, _p, body| {
+            let json: serde_json::Value = serde_json::from_slice(body).unwrap();
+            assert_eq!(json["truncate"], false);
+            assert_eq!(json["options"]["temperature"], 0);
+            assert_eq!(json["keep_alive"], "10m");
+            (200, r#"{"model":"m","embeddings":[[0.1]]}"#.into())
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = EmbeddingRequest::new("m", "hi")
+            .with_extra("truncate", false)
+            .with_extra("options", serde_json::json!({"temperature": 0}))
+            .with_extra("keep_alive", "10m");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(provider.embed(&req)).unwrap();
+    }
+
+    #[test]
+    fn ollama_embed_parses_usage_from_prompt_eval_count() {
+        let url = fake_ollama_server(|_m, _p, _b| {
+            (
+                200,
+                r#"{"model":"m","embeddings":[[0.1,0.2]],"prompt_eval_count":8}"#.into(),
+            )
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = EmbeddingRequest::new("m", "hi");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let resp = rt.block_on(provider.embed(&req)).unwrap();
+        let usage = resp.usage.expect("usage should be present");
+        assert_eq!(usage.prompt_tokens, 8);
+        assert_eq!(usage.total_tokens, 8);
+    }
+
+    #[test]
+    fn ollama_embed_model_falls_back_to_request_model() {
+        let url = fake_ollama_server(|_m, _p, _b| (200, r#"{"embeddings":[[0.1]]}"#.into()));
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = EmbeddingRequest::new("fallback-model", "hi");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let resp = rt.block_on(provider.embed(&req)).unwrap();
+        assert_eq!(resp.model, "fallback-model");
+    }
+
+    #[test]
+    fn ollama_embed_maps_api_error() {
+        let url = fake_ollama_server(|_m, _p, _b| (404, r#"{"error":"model not found"}"#.into()));
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = EmbeddingRequest::new("nonexistent", "hi");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let err = rt.block_on(provider.embed(&req)).unwrap_err();
+        assert!(
+            matches!(&err, LlmError::Api { status: 404, message } if message.contains("model not found"))
+        );
+    }
+
+    #[test]
+    fn lmrs_client_ollama_embed_strips_prefix() {
+        use crate::LmrsClient;
+        let url = fake_ollama_server(|_m, _p, body| {
+            let json: serde_json::Value = serde_json::from_slice(body).unwrap();
+            assert_eq!(json["model"], "all-minilm");
+            (200, r#"{"model":"all-minilm","embeddings":[[0.1]]}"#.into())
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = Arc::new(OllamaProvider::new(config));
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let llm = LmrsClient::new();
+        rt.block_on(llm.set_custom("ollama", provider));
+        rt.block_on(llm.embed("ollama/all-minilm", "hello"))
+            .unwrap();
+    }
+
+    #[test]
+    fn ollama_embed_does_not_send_user() {
+        let url = fake_ollama_server(|_m, _p, body| {
+            let json: serde_json::Value = serde_json::from_slice(body).unwrap();
+            assert!(json.get("user").is_none(), "user should not be sent");
+            (200, r#"{"model":"m","embeddings":[[0.1]]}"#.into())
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = EmbeddingRequest::new("m", "hi").with_user("u");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(provider.embed(&req)).unwrap();
+    }
+
+    #[test]
+    fn ollama_embed_malformed_response_returns_parse() {
+        let url = fake_ollama_server(|_m, _p, _b| (200, r#"not json"#.into()));
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = EmbeddingRequest::new("m", "hi");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let err = rt.block_on(provider.embed(&req)).unwrap_err();
+        assert!(matches!(err, LlmError::Parse(_)));
     }
 }

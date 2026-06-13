@@ -188,6 +188,14 @@
       "format": "Anthropic Messages API",
       "sse_streaming": true
     },
+    "embeddings_endpoint": {
+      "path": "/v1/embeddings",
+      "protocol": "OpenAI-compatible",
+      "input": ["string", "string_array"],
+      "encoding_format": ["float"],
+      "unsupported": ["base64", "token_array"],
+      "auth": "same as proxy auth"
+    },
     "health_endpoint": "GET /health",
     "auth": {
       "type": "Bearer token",

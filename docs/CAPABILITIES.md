@@ -21,7 +21,7 @@ Which features each provider supports, and how they map across providers.
 | **custom base URL** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **embeddings** | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
 
-> ✅ for embeddings means llmrust implements OpenAI-compatible `/embeddings` transport. Actual upstream provider/model support may vary.
+> ✅ for embeddings means llmrust implements an embeddings transport for that provider. OpenAI, DeepSeek, Moonshot, and OpenRouter use OpenAI-compatible `/embeddings`; Ollama uses native `/api/embed`. Actual upstream/local model support may vary.
 
 ## Sampling parameter support
 

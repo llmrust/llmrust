@@ -33,10 +33,11 @@ Rust 生态里已经有几个不错的多服务商 LLM crate（例如 [`genai`](
 
 ### 1. 内置双协议代理（OpenAI **与** Anthropic）
 
-启用 `features = ["proxy"]` 后，llmrust 会作为一个转译型 API 网关运行，**同时**说两种协议：
+启用 `features = ["proxy"]` 后，llmrust 会作为一个转译型 API 网关运行，同时说三种协议：
 
 - `POST /v1/chat/completions` — OpenAI Chat Completions 协议
 - `POST /v1/messages` — Anthropic Messages 协议
+- `POST /v1/embeddings` — OpenAI Embeddings 协议
 
 任何客户端 SDK——无论它只会说 OpenAI，还是只会说 Anthropic（例如为 Claude 构建的工具）——都可以指向 llmrust，通过自动格式转换访问**任何**已注册的后端（OpenAI、Anthropic、Gemini、DeepSeek、Moonshot、OpenRouter、Ollama）。还内置了 Bearer Token 认证、CORS、健康检查和优雅关闭。大多数竞品 crate 只是客户端库；少数附带服务器的，也通常只暴露 OpenAI 格式。
 
@@ -46,7 +47,7 @@ llmrust 会把 token 的对数概率——包括每个位置的 top-N 候选—�
 
 ### 3. 精简、正确、类型安全的核心
 
-`default = []` — 不主动启用任何可选项，依赖树保持精简，范围刻意收敛（没有 embedding / 向量库 / agent 框架等臃肿功能）。你获得的是 Anthropic 和 Gemini 的原生协议支持（而不只是 OpenAI 兼容的套壳）、完整的编译期类型安全、从不记录密钥或 prompt 内容的结构化 `tracing`，以及内置的重试 + router failover。当你需要的是一个干净、可预测的多服务商调用层，而不是一个重型框架时，这正是 llmrust 填补的位置。
+`default = []` — 不主动启用任何可选项，依赖树保持精简，范围刻意收敛（不做向量库 / agent 框架等臃肿功能）。你获得的是 Anthropic 和 Gemini 的原生协议支持（而不只是 OpenAI 兼容的套壳）、OpenAI 兼容后端和 Ollama 的跨服务商 embeddings、完整的编译期类型安全、从不记录密钥或 prompt 内容的结构化 `tracing`，以及内置的重试 + router failover。当你需要的是一个干净、可预测的多服务商调用层，而不是一个重型框架时，这正是 llmrust 填补的位置。
 
 > **客观的范围说明：** llmrust 还很年轻。如果你现在需要最广的服务商目录，或者一个开箱即用的 agent / RAG 框架，`genai` 或 `rig` 可能更合适。llmrust 压注的是上面三个领域。
 
@@ -54,7 +55,8 @@ llmrust 会把 token 的对数概率——包括每个位置的 top-N 候选—�
 
 - **统一 API** — 同一接口支持 OpenAI、Anthropic、DeepSeek、Google Gemini、Ollama 等
 - **流式支持** — 所有提供商都支持异步流式响应
-- **双协议代理** — 同一个后端可同时通过 OpenAI 和 Anthropic 两种 API 对外提供（`proxy` feature）
+- **Embeddings 支持** — OpenAI 兼容服务商和 Ollama 的文本 embeddings（provider 级别，非向量数据库）
+- **双协议代理** — 同一个后端可同时通过 OpenAI（chat + embeddings）和 Anthropic 两种 API 对外提供（`proxy` feature）
 - **归一化 logprobs** — 在 OpenAI 兼容服务商和 Gemini 之间统一的 token 对数概率
 - **类型安全** — 基于 serde 和 thiserror 的完整编译期保证
 - **高性能** — 基于 reqwest + tokio 构建，极低开销
@@ -79,8 +81,8 @@ cargo add llmrust
 
 | Feature | 默认 | 说明 |
 |---|---|---|
-| *(无)* | ✅ | LLM 客户端 — 全部提供商 + 流式；工具调用支持 OpenAI 兼容、Anthropic、Gemini 提供商（非流式 + 流式）；JSON 模式支持 OpenAI 兼容和 Gemini 提供商 |
-| `proxy` | ❌ | 内置**双协议** HTTP 代理 — 同一后端同时通过 OpenAI（`/v1/chat/completions`）和 Anthropic（`/v1/messages`）两种 API 对外提供（会引入 `axum`）|
+| *(无)* | ✅ | LLM 客户端 — 全部提供商 + 流式 + embeddings；工具调用支持 OpenAI 兼容、Anthropic、Gemini 提供商（非流式 + 流式）；JSON 模式支持 OpenAI 兼容和 Gemini 提供商 |
+| `proxy` | ❌ | 内置 HTTP 代理 — 同一后端同时通过 OpenAI（`/v1/chat/completions`、`/v1/embeddings`）和 Anthropic（`/v1/messages`）API 对外提供（会引入 `axum`）|
 
 启用代理服务器：
 
@@ -119,18 +121,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 支持的服务商
 
-| 服务商 | 模型 | 流式 | 工具调用 | 状态 |
-|---|---|---|---|---|
-| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | 稳定 |
-| DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | 稳定 |
-| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | 稳定 |
-| OpenRouter | 通过 OpenRouter 访问任意模型 | ✅ | ✅ | 稳定 |
-| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | ✅ | 稳定 |
-| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | ✅ | 稳定 |
-| Ollama | llama3.2, qwen2.5 等本地模型 | ✅ | ➖ | 稳定（对话）|
+| 服务商 | 模型 | 流式 | 工具调用 | Embeddings | 状态 |
+|---|---|---|---|---|---|
+| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | ✅ | 稳定 |
+| DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | ✅ | 稳定 |
+| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | ✅ | 稳定 |
+| OpenRouter | 通过 OpenRouter 访问任意模型 | ✅ | ✅ | ✅ | 稳定 |
+| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | ✅ | ➖ | 稳定 |
+| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | ✅ | ➖ | 稳定 |
+| Ollama | llama3.2, qwen2.5 等本地模型 | ✅ | ➖ | ✅ | 稳定（对话）|
 
 > **功能支持说明**
 >
+> - **Embeddings** 支持 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）通过 `/embeddings` 以及 Ollama 通过原生 `/api/embed`。Anthropic 和 Gemini 不支持 embeddings，返回 `LlmError::Unsupported`。这是 provider 级别的 embeddings——不是向量数据库或 RAG pipeline。实际上游模型支持可能不同。
 > - **工具调用 / Function calling** 同时支持 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）以及 Anthropic、Gemini 的原生工具调用，非流式 `chat` 和流式 `stream` 两条路径都支持（流式工具调用会从分片中重建，并在终止 chunk 的 `StreamChunk.tool_calls` 中返回）。
 > - OpenAI 兼容代理同时接受现代 `tools` / `tool_choice` 和旧版 `functions` / `function_call` 请求字段，并统一转换为 llmrust 的工具模型。
 > - **JSON 模式 / 结构化输出** 支持 OpenAI 兼容服务商，并会映射到 Gemini 的 `responseMimeType` / `responseSchema`。
@@ -257,7 +260,7 @@ let request = ChatRequest::new("gpt-4o", "以 JSON 格式列出 3 个城市")
 
 ### HTTP 代理服务器
 
-运行一个本地**双协议** API 网关，同时说 OpenAI 和 Anthropic 两种协议格式（需要 `features = ["proxy"]`）：
+运行一个本地 API 网关，暴露 OpenAI 兼容 chat + embeddings 和 Anthropic 协议（需要 `features = ["proxy"]`）：
 
 ```bash
 export LLMRUST_OPENAI_KEY="sk-..."
@@ -429,7 +432,7 @@ match llm.chat("openai/gpt-4o", "你好").await {
 - [x] 工具调用 / Function calling（OpenAI 兼容、Anthropic、Gemini；非流式）
 - [x] JSON 模式 & 采样参数（OpenAI 兼容服务商）
 - [x] 流式工具调用（从流式分片中重建工具调用）
-- [ ] Embeddings API
+- [x] Embeddings API（OpenAI 兼容 + Ollama，proxy `/v1/embeddings`）
 - [ ] 批量 API
 - [ ] 速率限制
 - [ ] 更多服务商（Cohere、Mistral、Groq 等）

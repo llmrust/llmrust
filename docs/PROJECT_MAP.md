@@ -21,12 +21,12 @@ llmrust/
 │   │   ├── openrouter.rs   # OpenRouterProvider (wraps compat, adds referer headers)
 │   │   ├── anthropic.rs    # Native Anthropic Messages API
 │   │   ├── google.rs       # Native Gemini generateContent API
-│   │   ├── ollama.rs       # Native Ollama /api/chat
+│   │   ├── ollama.rs       # Native Ollama /api/chat + /api/embed
 │   │   ├── retry.rs        # RetryProvider: exponential backoff decorator
 │   │   ├── stream_util.rs  # Line-streaming utility for SSE/NDJSON
 │   │   └── http.rs         # Shared reqwest client builder
 │   └── proxy/              # HTTP proxy server (feature = "proxy")
-│       ├── mod.rs          # Axum server, OpenAI /v1/chat/completions handler
+│       ├── mod.rs          # Axum server, OpenAI /v1/chat/completions + /v1/embeddings
 │       └── anthropic_proxy.rs  # Anthropic /v1/messages handler + format conversion
 ├── examples/               # Runnable examples
 │   └── README.md           # Example index
@@ -61,6 +61,17 @@ LmrsClient::chat("openai/gpt-4o", "Hello")
        ├─ AnthropicProvider       → POST /v1/messages (SSE, different format)
        ├─ GoogleProvider          → POST /v1/models/{model}:generateContent
        └─ OllamaProvider          → POST /api/chat (NDJSON)
+
+Embeddings flow:
+
+LmrsClient::embed("openai/text-embedding-3-small", "hello")
+  │
+  ├─ parse_model("openai/text-embedding-3-small") → ("openai", "text-embedding-3-small")
+  ├─ get_provider("openai") → Arc<dyn Provider>
+  └─ provider.embed(&EmbeddingRequest { model: "text-embedding-3-small", ... })
+       │
+       ├─ OpenAiCompatibleProvider → POST /v1/embeddings
+       └─ OllamaProvider          → POST /api/embed
 ```
 
 ## Proxy request flow
@@ -69,16 +80,18 @@ LmrsClient::chat("openai/gpt-4o", "Hello")
 Client SDK (OpenAI format)          Client SDK (Anthropic format)
   │                                   │
   │ POST /v1/chat/completions         │ POST /v1/messages
+  │ POST /v1/embeddings               │
   ▼                                   ▼
 proxy::mod.rs                     proxy::anthropic_proxy.rs
   │                                   │
   ├─ deserialize OpenAI JSON          ├─ deserialize Anthropic JSON
   ├─ convert to ChatRequest           ├─ convert to ChatRequest
+  │  / EmbeddingRequest               │
   ├─ parse provider from model        ├─ parse provider from model
   │                                   │
   └──────────────┬───────────────────-┘
                  ▼
-         provider.chat() / provider.stream()
+         provider.chat() / provider.stream() / provider.embed()
                  │
                  ▼
          format response back to protocol-specific JSON/SSE
@@ -87,12 +100,12 @@ proxy::mod.rs                     proxy::anthropic_proxy.rs
 ## Key architectural decisions
 
 1. **`default = []`**: No dependencies unless you ask. The proxy feature pulls in `axum`; the base client is pure `reqwest` + `tokio`.
-2. **Provider trait is minimal**: Only `chat()` and `stream()`. No optional methods. Every provider implements both.
+2. **Provider trait is minimal**: Required `chat()` and `stream()`, plus optional default `embed()`. Every provider implements chat/stream; providers that support embeddings override `embed()`; others rely on the default `Unsupported`.
 3. **OpenAI-compatible providers share code**: `OpenAiCompatibleProvider` in `compat.rs` handles OpenAI, DeepSeek, Moonshot, and OpenRouter. Each is a thin wrapper setting the base URL.
 4. **Anthropic and Gemini are native**: They don't go through OpenAI-compatible shims. They implement the provider's actual wire format.
 5. **Stream errors are surfaced**: Malformed stream data returns `LlmError::Parse`, not silently skipped.
 6. **`n` policy**: Direct calls warn on `n > 1`. The proxy rejects `n != 1`. This prevents billing surprises.
-7. **Logging is sanitized**: API keys, prompts, responses, tool args, and URLs are never logged.
+7. **Logging is sanitized**: API keys, prompts, responses, tool args, embedding vectors, embedding input text, and full URLs are never logged.
 
 ## Where to add things
 
@@ -102,6 +115,7 @@ proxy::mod.rs                     proxy::anthropic_proxy.rs
 | New provider (custom protocol) | `src/providers/<name>.rs` (implement `Provider` directly) |
 | New shared type | `src/types.rs` |
 | New LmrsClient method | `src/lib.rs` |
+| New embedding type (shared) | `src/types.rs` |
 | New proxy route/feature | `src/proxy/mod.rs` or `src/proxy/anthropic_proxy.rs` |
 | New example | `examples/<name>.rs` + add to `examples/README.md` |
 | New test (unit) | Inline `#[cfg(test)] mod tests` in the relevant source file |

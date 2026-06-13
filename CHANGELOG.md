@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Aligned docs, README, PROJECT_MAP, AGENTS.md, and capabilities.json with embeddings support for 0.1.1.
 - Replaced Python agent-doc validation script with a Rust integration test to keep the repository toolchain Rust-native.
 - README (English and 中文) now leads with the human-agent collaboration narrative, with the original provider-unification message as secondary description.
 - README contributing sections now point to `CONTRIBUTING.md` and `AGENTS.md`.

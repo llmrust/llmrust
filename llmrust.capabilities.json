@@ -143,7 +143,7 @@
     "proxy": {
       "description": "Built-in dual-protocol HTTP proxy (OpenAI + Anthropic wire formats)",
       "extra_dependencies": ["axum", "tower-http", "bytes"],
-      "endpoints": ["POST /v1/chat/completions", "POST /v1/messages", "GET /health"],
+      "endpoints": ["POST /v1/chat/completions", "POST /v1/messages", "POST /v1/embeddings", "GET /health"],
       "auth": "Optional Bearer token (LLMRUST_PROXY_KEY)"
     }
   },
@@ -210,6 +210,6 @@
     "Stream errors are surfaced, never silently dropped",
     "No logging of API keys, prompts, responses, request bodies, tool arguments, image data, or full URLs",
     "All providers implement both chat and stream",
-    "Provider trait is minimal: chat() + stream() only"
+    "Provider trait is minimal: required chat() + stream(), optional default embed()"
   ]
 }

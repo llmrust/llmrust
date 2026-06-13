@@ -69,3 +69,7 @@ path = "examples/tool_calling.rs"
 [[example]]
 name = "multimodal"
 path = "examples/multimodal.rs"
+
+[[example]]
+name = "embeddings"
+path = "examples/embeddings.rs"

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Embeddings quickstart example demonstrating `LmrsClient::embed` and `embed_batch`.
 - Ollama embeddings provider implementation using native `/api/embed`.
 - OpenAI-compatible proxy `/v1/embeddings` endpoint for float embeddings.
 - OpenAI-compatible embeddings provider implementation for OpenAI, DeepSeek, Moonshot, and OpenRouter wrappers.

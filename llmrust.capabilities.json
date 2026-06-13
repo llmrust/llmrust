@@ -137,7 +137,7 @@
   },
   "features": {
     "default": {
-      "description": "LLM client — all providers + streaming + tool calling",
+      "description": "LLM client — all providers + streaming + embeddings + tool calling",
       "dependencies": ["reqwest", "tokio", "serde", "serde_json", "async-trait", "futures", "thiserror", "fastrand", "tracing"]
     },
     "proxy": {
@@ -208,7 +208,7 @@
     "default = [] — no optional dependencies unless explicitly requested",
     "Native protocols for Anthropic and Gemini (not OpenAI-compatible shims)",
     "Stream errors are surfaced, never silently dropped",
-    "No logging of API keys, prompts, responses, request bodies, tool arguments, image data, or full URLs",
+    "No logging of API keys, prompts, responses, request bodies, tool arguments, image data, embedding input text, embedding vectors, or full URLs",
     "All providers implement both chat and stream",
     "Provider trait is minimal: required chat() + stream(), optional default embed()"
   ]

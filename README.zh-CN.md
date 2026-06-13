@@ -33,7 +33,7 @@ Rust 生态里已经有几个不错的多服务商 LLM crate（例如 [`genai`](
 
 ### 1. 内置双协议代理（OpenAI **与** Anthropic）
 
-启用 `features = ["proxy"]` 后，llmrust 会作为一个转译型 API 网关运行，同时说三种协议：
+启用 `features = ["proxy"]` 后，llmrust 会作为一个转译型 API 网关运行，暴露两种协议族下的三个端点：
 
 - `POST /v1/chat/completions` — OpenAI Chat Completions 协议
 - `POST /v1/messages` — Anthropic Messages 协议

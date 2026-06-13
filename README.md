@@ -122,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Supported Providers
 
 | Provider | Models | Streaming | Tool calling | Embeddings | Status |
-|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|
 | OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | ✅ | Stable |
 | DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | ✅ | Stable |
 | Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | ✅ | Stable |

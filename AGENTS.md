@@ -9,8 +9,8 @@ The codebase intentionally prioritizes clarity so that AI agents can read it as 
 2. `docs/PROJECT_MAP.md` — architecture map and module boundaries
 3. `docs/CAPABILITIES.md` — per-provider feature matrix
 4. `docs/CONTRACTS.md` — semantic contracts every provider must honor
-  5. `src/types.rs` — the shared type system (ChatRequest, ChatResponse, EmbeddingRequest, StreamChunk, Tool, etc.)
-  6. `src/providers/mod.rs` — the `Provider` trait and error types
+5. `src/types.rs` — the shared type system (ChatRequest, ChatResponse, EmbeddingRequest, StreamChunk, Tool, etc.)
+6. `src/providers/mod.rs` — the `Provider` trait and error types
 7. The relevant provider file under `src/providers/` for the provider you intend to change
 8. `examples/README.md` — which example demonstrates what
 
@@ -23,7 +23,7 @@ These rules are non-negotiable. Violating them will likely cause a PR to be reje
 - Model names use the `provider/model` format (e.g. `openai/gpt-4o`). Never change the separator.
 - The default feature set (`default = []`) must stay lightweight. Do not add dependencies to default features unless strictly required.
 - `ChatRequest` is `#[non_exhaustive]`. Add new fields but never remove or rename existing ones.
-- `FinishReason` and `EmbeddingRequest` variants are cross-provider. New variants must have a clear, documented meaning.
+- `FinishReason` variants are cross-provider. `EmbeddingRequest` fields are cross-provider; provider-specific knobs belong in `extra`. New variants or fields must have a clear, documented meaning.
 
 ### Providers
 

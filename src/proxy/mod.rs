@@ -47,7 +47,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 mod anthropic_proxy;
 
-use crate::types::FinishReason;
+use crate::types::{EmbeddingRequest, EmbeddingUsage, FinishReason};
 use crate::{
     BoxStream, ChatRequest, Content, FunctionDef, LlmError, LmrsClient, LogProbs, Message,
     ResponseFormat, Role, StreamChunk, Tool, ToolCall, ToolChoice,
@@ -276,6 +276,79 @@ pub struct ProxyDelta {
     pub tool_calls: Option<Vec<ToolCall>>,
 }
 
+// ── OpenAI-compatible embeddings types ────────────────────────────
+
+/// OpenAI-compatible embeddings request.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct ProxyEmbeddingRequest {
+    pub model: String,
+    pub input: ProxyEmbeddingInput,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dimensions: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encoding_format: Option<String>,
+}
+
+/// OpenAI-compatible embeddings input: either a single string or an array.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum ProxyEmbeddingInput {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl Default for ProxyEmbeddingInput {
+    fn default() -> Self {
+        ProxyEmbeddingInput::Many(Vec::new())
+    }
+}
+
+impl ProxyEmbeddingInput {
+    fn into_vec(self) -> Vec<String> {
+        match self {
+            ProxyEmbeddingInput::One(s) => vec![s],
+            ProxyEmbeddingInput::Many(v) => v,
+        }
+    }
+}
+
+/// OpenAI-compatible embeddings response.
+#[derive(Debug, Serialize)]
+pub struct ProxyEmbeddingResponse {
+    pub object: String,
+    pub data: Vec<ProxyEmbedding>,
+    pub model: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<ProxyEmbeddingUsage>,
+}
+
+/// A single embedding in an OpenAI-compatible response.
+#[derive(Debug, Serialize)]
+pub struct ProxyEmbedding {
+    pub object: String,
+    pub index: usize,
+    pub embedding: Vec<f32>,
+}
+
+/// OpenAI-compatible embeddings usage stats.
+#[derive(Debug, Serialize)]
+pub struct ProxyEmbeddingUsage {
+    pub prompt_tokens: u64,
+    pub total_tokens: u64,
+}
+
+impl From<EmbeddingUsage> for ProxyEmbeddingUsage {
+    fn from(u: EmbeddingUsage) -> Self {
+        Self {
+            prompt_tokens: u.prompt_tokens,
+            total_tokens: u.total_tokens,
+        }
+    }
+}
+
 /// Proxy error response body.
 #[derive(Debug, Serialize)]
 pub struct ProxyError {
@@ -334,6 +407,7 @@ fn default_cors() -> CorsLayer {
 /// Routes:
 /// - `POST /v1/chat/completions` — OpenAI-compatible chat endpoint
 /// - `POST /v1/messages` — Anthropic Messages API endpoint
+/// - `POST /v1/embeddings` — OpenAI-compatible embeddings endpoint
 /// - `GET /health` — health check (not rate-limited, no auth)
 ///
 /// # CORS
@@ -346,6 +420,7 @@ pub fn router(llm: Arc<LmrsClient>) -> Router {
     Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
+        .route("/v1/embeddings", post(handle_embeddings))
         .route("/health", get(health_check))
         .layer(default_cors())
         .with_state(state)
@@ -366,6 +441,7 @@ pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router 
     Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
+        .route("/v1/embeddings", post(handle_embeddings))
         .route("/health", get(health_check))
         .with_state(state)
         .layer(from_fn(move |req, next| {
@@ -582,6 +658,87 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
                     logprobs: resp.logprobs,
                 }],
                 usage: resp.usage.map(ProxyUsage::from),
+            })
+            .into_response()
+        }
+        Err(e) => proxy_error_from_llm_error(e),
+    }
+}
+
+// ── Embeddings handler ────────────────────
+
+/// Handle POST /v1/embeddings.
+async fn handle_embeddings(
+    State(state): State<AppState>,
+    payload: std::result::Result<Json<ProxyEmbeddingRequest>, JsonRejection>,
+) -> Response {
+    let Json(req) = match payload {
+        Ok(req) => req,
+        Err(e) => {
+            tracing::error!("proxy: embeddings JSON extraction failed");
+            return json_rejection_response(e);
+        }
+    };
+
+    // Validate encoding_format
+    if let Some(ref fmt) = req.encoding_format {
+        if fmt != "float" {
+            tracing::error!(
+                model = %req.model,
+                encoding_format = %fmt,
+                "proxy: unsupported encoding_format"
+            );
+            return error_response_with_type(
+                StatusCode::BAD_REQUEST,
+                "unsupported encoding_format: only float is supported",
+                "invalid_request_error",
+            );
+        }
+    }
+
+    let inputs = req.input.into_vec();
+    if inputs.is_empty() {
+        return error_response_with_type(
+            StatusCode::BAD_REQUEST,
+            "input must not be empty",
+            "invalid_request_error",
+        );
+    }
+
+    tracing::info!(
+        model = %req.model,
+        input_count = inputs.len(),
+        "proxy: embedding request"
+    );
+
+    // Build EmbeddingRequest
+    let mut embed_req = EmbeddingRequest::batch("", inputs);
+    if let Some(dim) = req.dimensions {
+        embed_req = embed_req.with_dimensions(dim);
+    }
+    if let Some(user) = req.user {
+        embed_req = embed_req.with_user(user);
+    }
+
+    match state.llm.embed_with(&req.model, embed_req).await {
+        Ok(resp) => {
+            let data: Vec<ProxyEmbedding> = resp
+                .data
+                .into_iter()
+                .map(|e| ProxyEmbedding {
+                    object: "embedding".into(),
+                    index: e.index,
+                    embedding: e.embedding,
+                })
+                .collect();
+
+            let usage = resp.usage.map(ProxyEmbeddingUsage::from);
+
+            Json(ProxyEmbeddingResponse {
+                object: "list".into(),
+                data,
+                model: resp.model,
+                usage,
             })
             .into_response()
         }
@@ -880,6 +1037,11 @@ fn proxy_error_from_llm_error(e: LlmError) -> Response {
             e.to_string(),
             "invalid_request_error",
         ),
+        LlmError::Unsupported { .. } => (
+            StatusCode::BAD_REQUEST,
+            e.to_string(),
+            "invalid_request_error",
+        ),
         _ => (StatusCode::BAD_GATEWAY, e.to_string(), "api_error"),
     };
     error_response_with_type(status, &message, error_type)
@@ -928,11 +1090,14 @@ fn error_response_with_type(status: StatusCode, message: &str, error_type: &str)
 mod tests {
     use super::*;
     use crate::types::{
-        ChatResponse, FinishReason, FunctionCall, ResponseFormat, StreamChunk, Usage,
+        ChatResponse, Embedding, EmbeddingResponse, FinishReason, FunctionCall, ResponseFormat,
+        StreamChunk, Usage,
     };
     use crate::{BoxStream, Provider, Result};
+    use async_trait::async_trait;
     use axum::body::{to_bytes, Body};
     use axum::http::Request;
+    use std::sync::Mutex;
     use tower::ServiceExt;
 
     /// Mock provider that returns a fixed response, for proxy tests.
@@ -2021,5 +2186,335 @@ mod tests {
         assert!(text.contains("tool_calls"));
         assert!(text.contains("call_0"));
         assert!(text.contains("lookup"));
+    }
+
+    // ── proxy embeddings tests ───────────────────────────────────
+
+    struct EmbedMockProvider {
+        captured: Arc<Mutex<Option<EmbeddingRequest>>>,
+    }
+
+    #[async_trait]
+    impl Provider for EmbedMockProvider {
+        async fn chat(&self, _: &ChatRequest) -> Result<ChatResponse> {
+            unimplemented!()
+        }
+        async fn stream(&self, _: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            unimplemented!()
+        }
+        async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+            *self.captured.lock().unwrap() = Some(req.clone());
+            Ok(EmbeddingResponse {
+                model: req.model.clone(),
+                data: req
+                    .input
+                    .iter()
+                    .enumerate()
+                    .map(|(i, _)| Embedding {
+                        index: i,
+                        embedding: vec![1.0_f32],
+                    })
+                    .collect(),
+                usage: Some(EmbeddingUsage {
+                    prompt_tokens: req.input.len() as u64,
+                    total_tokens: req.input.len() as u64,
+                }),
+            })
+        }
+    }
+
+    fn embed_body(model: &str, input: serde_json::Value) -> Request<Body> {
+        let body = serde_json::json!({
+            "model": model,
+            "input": input
+        });
+        Request::builder()
+            .method("POST")
+            .uri("/v1/embeddings")
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .expect("build request")
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_route_returns_openai_shape() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom(
+            "fake",
+            Arc::new(EmbedMockProvider {
+                captured: Arc::new(Mutex::new(None)),
+            }),
+        )
+        .await;
+        let app = router(llm);
+
+        let resp = app
+            .oneshot(embed_body("fake/text-emb", serde_json::json!("hello")))
+            .await
+            .expect("request failed");
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["object"], "list");
+        assert_eq!(json["data"][0]["object"], "embedding");
+        assert_eq!(json["data"][0]["index"], 0);
+        assert_eq!(json["data"][0]["embedding"][0], 1.0);
+        assert_eq!(json["model"], "text-emb");
+        assert!(json["usage"]["prompt_tokens"].as_u64().unwrap() > 0);
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_accepts_batch() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom(
+            "fake",
+            Arc::new(EmbedMockProvider {
+                captured: Arc::new(Mutex::new(None)),
+            }),
+        )
+        .await;
+        let app = router(llm);
+
+        let resp = app
+            .oneshot(embed_body("fake/m", serde_json::json!(["a", "b", "c"])))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["data"].as_array().unwrap().len(), 3);
+        assert_eq!(json["data"][0]["index"], 0);
+        assert_eq!(json["data"][2]["index"], 2);
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_forwards_dimensions_and_user() {
+        let llm = Arc::new(LmrsClient::new());
+        let captured = Arc::new(Mutex::new(None));
+        llm.set_custom(
+            "fake",
+            Arc::new(EmbedMockProvider {
+                captured: Arc::clone(&captured),
+            }),
+        )
+        .await;
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "fake/m",
+            "input": "hi",
+            "dimensions": 1024,
+            "user": "user-1"
+        });
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/embeddings")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let req = captured.lock().unwrap();
+        let req = req.as_ref().unwrap();
+        assert_eq!(req.dimensions, Some(1024));
+        assert_eq!(req.user.as_deref(), Some("user-1"));
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_rejects_base64_encoding_format() {
+        let llm = Arc::new(LmrsClient::new());
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "fake/m",
+            "input": "hi",
+            "encoding_format": "base64"
+        });
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/embeddings")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let bytes = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert!(json["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("encoding_format"));
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_rejects_empty_input_array() {
+        let llm = Arc::new(LmrsClient::new());
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "fake/m",
+            "input": []
+        });
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/embeddings")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_unknown_provider_maps_404() {
+        let llm = Arc::new(LmrsClient::new());
+        let app = router(llm);
+
+        let resp = app
+            .oneshot(embed_body("missing/text-emb", serde_json::json!("hi")))
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        let bytes = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_unsupported_maps_invalid_request() {
+        struct ChatOnly;
+        #[async_trait]
+        impl Provider for ChatOnly {
+            async fn chat(&self, _: &ChatRequest) -> Result<ChatResponse> {
+                Ok(ChatResponse::default())
+            }
+            async fn stream(
+                &self,
+                _: &ChatRequest,
+            ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+                Ok(Box::pin(stream::empty()))
+            }
+            // embed() not overridden → default Unsupported
+        }
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("no-emb", Arc::new(ChatOnly)).await;
+        let app = router(llm);
+
+        let resp = app
+            .oneshot(embed_body("no-emb/m", serde_json::json!("hi")))
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let bytes = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert!(json["error"]["message"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("unsupported"));
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_auth_required_with_router_with_auth() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom(
+            "fake",
+            Arc::new(EmbedMockProvider {
+                captured: Arc::new(Mutex::new(None)),
+            }),
+        )
+        .await;
+        let app = router_with_auth(llm, "secret".into());
+
+        // No auth → 401
+        let resp = app
+            .clone()
+            .oneshot(embed_body("fake/m", serde_json::json!("hi")))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+
+        // Correct auth → 200
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/embeddings")
+                    .header("content-type", "application/json")
+                    .header("authorization", "Bearer secret")
+                    .body(Body::from(
+                        serde_json::json!({"model":"fake/m","input":"hi"}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_invalid_json_returns_json_error() {
+        let llm = Arc::new(LmrsClient::new());
+        let app = router(llm);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/embeddings")
+                    .header("content-type", "application/json")
+                    .body(Body::from("not json"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let bytes = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_model_prefix_is_stripped() {
+        let llm = Arc::new(LmrsClient::new());
+        let captured = Arc::new(Mutex::new(None));
+        llm.set_custom(
+            "fake",
+            Arc::new(EmbedMockProvider {
+                captured: Arc::clone(&captured),
+            }),
+        )
+        .await;
+        let app = router(llm);
+
+        let resp = app
+            .oneshot(embed_body("fake/text-embedding", serde_json::json!("hi")))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let req = captured.lock().unwrap();
+        assert_eq!(req.as_ref().unwrap().model, "text-embedding");
     }
 }

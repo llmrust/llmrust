@@ -137,13 +137,13 @@
   },
   "features": {
     "default": {
-      "description": "LLM client — all providers + streaming + tool calling",
+      "description": "LLM client — all providers + streaming + embeddings + tool calling",
       "dependencies": ["reqwest", "tokio", "serde", "serde_json", "async-trait", "futures", "thiserror", "fastrand", "tracing"]
     },
     "proxy": {
       "description": "Built-in dual-protocol HTTP proxy (OpenAI + Anthropic wire formats)",
       "extra_dependencies": ["axum", "tower-http", "bytes"],
-      "endpoints": ["POST /v1/chat/completions", "POST /v1/messages", "GET /health"],
+      "endpoints": ["POST /v1/chat/completions", "POST /v1/messages", "POST /v1/embeddings", "GET /health"],
       "auth": "Optional Bearer token (LLMRUST_PROXY_KEY)"
     }
   },
@@ -208,8 +208,8 @@
     "default = [] — no optional dependencies unless explicitly requested",
     "Native protocols for Anthropic and Gemini (not OpenAI-compatible shims)",
     "Stream errors are surfaced, never silently dropped",
-    "No logging of API keys, prompts, responses, request bodies, tool arguments, image data, or full URLs",
+    "No logging of API keys, prompts, responses, request bodies, tool arguments, image data, embedding input text, embedding vectors, or full URLs",
     "All providers implement both chat and stream",
-    "Provider trait is minimal: chat() + stream() only"
+    "Provider trait is minimal: required chat() + stream(), optional default embed()"
   ]
 }

@@ -37,6 +37,7 @@ With `features = ["proxy"]`, llmrust runs as a translating API gateway that spea
 
 - `POST /v1/chat/completions` — OpenAI Chat Completions protocol
 - `POST /v1/messages` — Anthropic Messages protocol
+- `POST /v1/embeddings` — OpenAI Embeddings protocol
 
 Any client SDK — one that only speaks OpenAI *or* one that only speaks Anthropic (e.g. tools built for Claude) — can point at llmrust and reach **any** registered backend (OpenAI, Anthropic, Gemini, DeepSeek, Moonshot, OpenRouter, Ollama) through automatic format conversion. Bearer-token auth, CORS, health checks, and graceful shutdown are included. Most competing crates are client libraries only; the few that ship a server usually expose the OpenAI format alone.
 
@@ -46,7 +47,7 @@ llmrust normalizes token log-probabilities — including each position's top-N a
 
 ### 3. A lean, correct, type-safe core
 
-`default = []` — nothing is enabled unless you ask for it, the dependency tree stays small, and the scope is intentionally narrow (no embedding / vector-store / agent-framework bloat). You get native-protocol support for Anthropic and Gemini (not just OpenAI-compatible shims), full compile-time type safety, structured `tracing` that never logs secrets or prompt content, and built-in retry + router failover. When you want a clean, predictable multi-provider call layer rather than a heavyweight framework, that's the niche llmrust fills.
+`default = []` — nothing is enabled unless you ask for it, the dependency tree stays small, and the scope is intentionally narrow (no vector-store / agent-framework bloat). You get native-protocol support for Anthropic and Gemini (not just OpenAI-compatible shims), cross-provider embeddings for OpenAI-compatible backends and Ollama, full compile-time type safety, structured `tracing` that never logs secrets or prompt content, and built-in retry + router failover. When you want a clean, predictable multi-provider call layer rather than a heavyweight framework, that's the niche llmrust fills.
 
 > **Honest scope:** llmrust is young. If you need the widest provider catalog or a batteries-included agent/RAG framework today, `genai` or `rig` may fit better. llmrust's bet is the three areas above.
 
@@ -54,7 +55,8 @@ llmrust normalizes token log-probabilities — including each position's top-N a
 
 - **Unified API** — One interface for OpenAI, Anthropic, DeepSeek, Google Gemini, Ollama, and more
 - **Streaming support** — First-class async streaming for all providers
-- **Dual-protocol proxy** — Serve any backend over both the OpenAI and Anthropic APIs (`proxy` feature)
+- **Embeddings support** — Text embeddings for OpenAI-compatible providers and Ollama (provider-level, not a vector database)
+- **Dual-protocol proxy** — Serve any backend over both the OpenAI (chat + embeddings) and Anthropic APIs (`proxy` feature)
 - **Normalized logprobs** — Uniform token log-probabilities across OpenAI-compatible providers and Gemini
 - **Type-safe** — Full compile-time guarantees with serde and thiserror
 - **High performance** — Built on reqwest + tokio, minimal overhead
@@ -79,8 +81,8 @@ cargo add llmrust
 
 | Feature | Default | Description |
 |---|---|---|
-| *(none)* | ✅ | LLM client — all providers + streaming; tool calling on OpenAI-compatible, Anthropic, and Gemini providers (chat + streaming); JSON mode on OpenAI-compatible and Gemini providers |
-| `proxy` | ❌ | Built-in **dual-protocol** HTTP proxy — exposes any backend over both OpenAI (`/v1/chat/completions`) and Anthropic (`/v1/messages`) APIs (adds `axum`) |
+| *(none)* | ✅ | LLM client — all providers + streaming + embeddings; tool calling on OpenAI-compatible, Anthropic, and Gemini providers (chat + streaming); JSON mode on OpenAI-compatible and Gemini providers |
+| `proxy` | ❌ | Built-in HTTP proxy — exposes any backend over OpenAI (`/v1/chat/completions`, `/v1/embeddings`) and Anthropic (`/v1/messages`) APIs (adds `axum`) |
 
 Enable the proxy server:
 
@@ -119,18 +121,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Supported Providers
 
-| Provider | Models | Streaming | Tool calling | Status |
-|---|---|---|---|---|
-| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | Stable |
-| DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | Stable |
-| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | Stable |
-| OpenRouter | any model via OpenRouter | ✅ | ✅ | Stable |
-| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | ✅ | Stable |
-| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | ✅ | Stable |
-| Ollama | llama3.2, qwen2.5, any local model | ✅ | ➖ | Stable (chat) |
+| Provider | Models | Streaming | Tool calling | Embeddings | Status |
+|---|---|---|---|---|---|
+| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | ✅ | Stable |
+| DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | ✅ | Stable |
+| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | ✅ | Stable |
+| OpenRouter | any model via OpenRouter | ✅ | ✅ | ✅ | Stable |
+| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | ✅ | ➖ | Stable |
+| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | ✅ | ➖ | Stable |
+| Ollama | llama3.2, qwen2.5, any local model | ✅ | ➖ | ✅ | Stable (chat) |
 
 > **Feature support notes**
 >
+> - **Embeddings** are supported on OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter) via `/embeddings` and on Ollama via native `/api/embed`. Anthropic and Gemini do not support embeddings and return `LlmError::Unsupported`. This is provider-level embeddings — not a vector database or RAG pipeline. Actual upstream model support may vary.
 > - **Tool calling / function calling** is supported on the OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter) and natively on Anthropic and Gemini, on both the non-streaming `chat` path and the streaming `stream` path (streamed tool calls are reconstructed and surfaced as `StreamChunk.tool_calls` on the terminal chunk).
 > - The OpenAI-compatible proxy accepts both modern `tools` / `tool_choice` and legacy `functions` / `function_call` request fields, normalizing them to llmrust's unified tool model.
 > - **JSON mode / structured outputs** are wired through the OpenAI-compatible providers and mapped to Gemini's `responseMimeType` / `responseSchema`.
@@ -257,7 +260,7 @@ let request = ChatRequest::new("gpt-4o", "List 3 cities as JSON")
 
 ### HTTP Proxy Server
 
-Run a local **dual-protocol** API gateway that speaks both the OpenAI and Anthropic wire formats (requires `features = ["proxy"]`):
+Run a local API gateway that exposes OpenAI-compatible chat + embeddings and Anthropic wire formats (requires `features = ["proxy"]`):
 
 ```bash
 export LLMRUST_OPENAI_KEY="sk-..."
@@ -415,7 +418,7 @@ We have not yet published formal benchmarks. The library adds a thin async layer
 | Built-in proxy server | ✅ OpenAI **+** Anthropic | ➖ | ➖ | OpenAI REST only |
 | Normalized cross-provider logprobs | ✅ (incl. Gemini) | ➖ | ➖ | ➖ |
 | Default dependencies | minimal (`default = []`) | moderate | heavy (framework) | moderate+ |
-| Extra scope | none | client only | agents / RAG | embeddings / vision / audio |
+| Extra scope | embeddings | client only | agents / RAG | embeddings / vision / audio |
 
 > Provider counts and feature sets for other crates move fast — treat this as a positioning sketch, not a benchmark. Pick the tool that matches your needs.
 
@@ -429,7 +432,7 @@ We have not yet published formal benchmarks. The library adds a thin async layer
 - [x] Tool-use / Function calling (OpenAI-compatible, Anthropic, Gemini; non-streaming)
 - [x] JSON mode & sampling parameters (OpenAI-compatible providers)
 - [x] Streaming tool calls (reconstruct tool calls from streamed chunks)
-- [ ] Embeddings API
+- [x] Embeddings API (OpenAI-compatible + Ollama, proxy `/v1/embeddings`)
 - [ ] Batch API
 - [ ] Rate limiting
 - [ ] More providers (Cohere, Mistral, Groq, etc.)

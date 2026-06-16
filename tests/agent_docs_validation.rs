@@ -10,6 +10,8 @@
 //!    includes --features proxy
 //! 3. AGENTS.md / docs/CONTRACTS.md free of known incorrect phrases
 //! 4. Capability disclaimer present in docs
+//! 5. Release metadata: capability version matches the crate version and the
+//!    proxy embeddings endpoint is listed
 
 use std::collections::HashSet;
 use std::fs;
@@ -313,5 +315,33 @@ fn capabilities_md_has_disclaimer() {
     assert!(
         text.contains("Actual upstream model support may vary"),
         "docs/CAPABILITIES.md missing disclaimer: 'Actual upstream model support may vary'"
+    );
+}
+
+// ── test 5: release metadata consistency ──────────────────────────
+
+#[test]
+fn capabilities_json_version_matches_crate_version() {
+    let text = fs::read_to_string(repo_root().join("llmrust.capabilities.json")).unwrap();
+    let cap: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(
+        cap["version"].as_str().unwrap_or(""),
+        env!("CARGO_PKG_VERSION"),
+        "llmrust.capabilities.json version must match the crate version in Cargo.toml"
+    );
+}
+
+#[test]
+fn capabilities_json_proxy_lists_embeddings_endpoint() {
+    let text = fs::read_to_string(repo_root().join("llmrust.capabilities.json")).unwrap();
+    let cap: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let endpoints = cap["features"]["proxy"]["endpoints"]
+        .as_array()
+        .expect("features.proxy.endpoints must be an array");
+    assert!(
+        endpoints
+            .iter()
+            .any(|e| e.as_str() == Some("POST /v1/embeddings")),
+        "features.proxy.endpoints must include 'POST /v1/embeddings'"
     );
 }

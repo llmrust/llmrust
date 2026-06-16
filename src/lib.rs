@@ -61,6 +61,7 @@
 //!     .init();
 //! ```
 
+pub mod pricing;
 pub mod providers;
 #[cfg(feature = "proxy")]
 pub mod proxy;
@@ -75,6 +76,7 @@ use std::sync::Arc;
 use futures::StreamExt;
 use tokio::sync::RwLock;
 
+pub use pricing::ModelPricing;
 pub use providers::retry::RetryProvider;
 pub use providers::{LlmError, Provider, ProviderConfig, Result};
 pub use router::{Router, RoutingStrategy};

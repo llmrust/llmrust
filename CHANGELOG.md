@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ModelPricing` and `Usage::estimated_cost` for estimating request cost in US dollars from token usage, using per-1,000-token prompt and completion rates. Pure, additive utility with no new dependencies.
 - Ollama embeddings provider implementation using native `/api/embed`.
 - OpenAI-compatible proxy `/v1/embeddings` endpoint for float embeddings.
 - OpenAI-compatible embeddings provider implementation for OpenAI, DeepSeek, Moonshot, and OpenRouter wrappers.

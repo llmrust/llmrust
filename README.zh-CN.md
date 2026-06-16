@@ -56,6 +56,7 @@ llmrust 会把 token 的对数概率——包括每个位置的 top-N 候选—�
 - **统一 API** — 同一接口支持 OpenAI、Anthropic、DeepSeek、Google Gemini、Ollama 等
 - **流式支持** — 所有提供商都支持异步流式响应
 - **Embeddings 支持** — OpenAI 兼容服务商和 Ollama 的文本 embeddings（provider 级别，非向量数据库）
+- **成本估算** — 可选的 `ModelPricing` 助手，把 token `Usage` 换算成预估美元成本
 - **双协议代理** — 同一个后端可同时通过 OpenAI（chat + embeddings）和 Anthropic 两种 API 对外提供（`proxy` feature）
 - **归一化 logprobs** — 在 OpenAI 兼容服务商和 Gemini 之间统一的 token 对数概率
 - **类型安全** — 基于 serde 和 thiserror 的完整编译期保证
@@ -257,6 +258,23 @@ let request = ChatRequest::new("gpt-4o", "以 JSON 格式列出 3 个城市")
     .with_seed(42)
     .with_temperature(0.2);
 ```
+
+### 成本估算
+
+用 `ModelPricing` 把 token 用量换算成预估美元成本。价格以每 1,000 token 的美元计价，prompt（输入）与 completion（输出）分别计费：
+
+```rust
+use llmrust::{ModelPricing, Usage};
+
+// prompt $0.0025 / 1K，completion $0.01 / 1K
+let pricing = ModelPricing::new(0.0025, 0.01);
+
+let usage = Usage { prompt_tokens: 1_000, completion_tokens: 500, total_tokens: 1_500 };
+let cost = usage.estimated_cost(&pricing); // 0.0075
+println!("预估成本: ${cost:.6}");
+```
+
+把它和 `ChatResponse` 返回的 `usage` 搭配，即可为真实请求估算成本。该估算只反映你提供的价格，不考虑服务商折扣或缓存 token 费率。
 
 ### HTTP 代理服务器
 

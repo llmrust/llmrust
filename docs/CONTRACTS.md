@@ -85,7 +85,7 @@ Every implementation of `Provider` must satisfy:
 3. **Unsupported provider**: Providers that do not override `embed()` return `LlmError::Unsupported { feature: "embeddings", ... }`. Do not return `Api 501`.
 4. **Input order**: `data[].index` must reflect the original `input` order. llmrust does not reorder.
 5. **Vector dimensions**: Defined by the upstream provider/model. llmrust does not normalize or pad vectors.
-6. **Foundation status**: #68 defines the API contract and types. Real provider implementations are separate PRs (#69+).
+6. **Implementation status**: The embeddings API (shared types, the `Provider::embed` method, and client routing) plus the OpenAI-compatible and Ollama provider implementations all ship as of v0.1.1. A new provider adds embeddings support by overriding `Provider::embed`.
 7. **OpenAI-compatible transport**: OpenAI, DeepSeek, Moonshot, and OpenRouter wrappers implement `/embeddings`. Requests must not log input text or embedding vectors. Non-2xx upstream errors map to `LlmError::Api`. Response `model` falls back to request `model` when the upstream omits it.
 8. **Unsupported providers**: Anthropic and Google Gemini do not implement embeddings and continue to return `LlmError::Unsupported` via the default `Provider::embed`.
 9. **Proxy endpoint**: `POST /v1/embeddings` accepts string or string-array input, float encoding only. Base64 and token arrays return 400 `invalid_request_error`. Provider/model routing works identically to chat proxy. Unsupported providers map to 400 (not 502).

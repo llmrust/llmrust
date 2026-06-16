@@ -778,7 +778,15 @@ impl ChatRequest {
 ///
 /// llmrust uses float (`f32`) vectors. Base64 encoding is not supported.
 /// Vector dimensions are defined by the upstream provider/model.
+///
+/// Like [`ChatRequest`], this struct is marked `#[non_exhaustive]`, which lets
+/// new optional fields be added in minor releases without breaking downstream
+/// code. Because of that attribute, code **outside this crate** cannot build an
+/// `EmbeddingRequest` with struct-literal syntax; use [`EmbeddingRequest::new`]
+/// or [`EmbeddingRequest::batch`] and the builder methods below instead.
+/// Public fields may still be assigned directly after construction.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[non_exhaustive]
 pub struct EmbeddingRequest {
     pub model: String,
     pub input: Vec<String>,
@@ -786,7 +794,11 @@ pub struct EmbeddingRequest {
     pub dimensions: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user: Option<String>,
-    /// Provider-specific extra fields.
+    /// Provider-specific extra fields, merged into the request body by
+    /// providers that support it (e.g. Ollama reads `truncate`, `options`, and
+    /// `keep_alive` from here). Keys should not shadow the first-class fields
+    /// above (`model`, `input`, `dimensions`, `user`), as doing so can produce
+    /// duplicate keys in the serialized body.
     #[serde(default, skip_serializing_if = "HashMap::is_empty", flatten)]
     pub extra: HashMap<String, serde_json::Value>,
 }

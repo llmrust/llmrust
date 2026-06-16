@@ -18,6 +18,7 @@ Some examples require API keys. Check the source for `std::env::var` calls to se
 | `multimodal` | Send an image + text message (GPT-4o vision) | Yes (OPENAI_API_KEY) |
 | `tool_calling` | Full tool-call loop: define tool, receive call, simulate execution, return result | Yes (OPENAI_API_KEY) |
 | `retry_e2e` | End-to-end retry with `RetryProvider` and `LmrsClient::with_retry()` | Yes (any one provider) |
+| `embeddings` | Generate single and batch text embeddings with `LmrsClient::embed` / `embed_batch` | Yes (OpenAI-compatible key) or local Ollama |
 | `proxy_server` | Start the HTTP proxy server (dual-protocol OpenAI + Anthropic) | Yes (need `--features proxy`) |
 
 ## Quick run
@@ -50,6 +51,21 @@ export LLMRUST_OPENAI_KEY="sk-..."
 # Optional auth
 export LLMRUST_PROXY_KEY="some-shared-secret"
 cargo run --example proxy_server --features proxy
+```
+
+### Embeddings (OpenAI)
+
+```bash
+export OPENAI_API_KEY="sk-..."
+cargo run --example embeddings
+```
+
+### Embeddings (Ollama)
+
+```bash
+ollama pull nomic-embed-text
+export LLMRUST_EMBEDDINGS_MODEL="ollama/nomic-embed-text"
+cargo run --example embeddings
 ```
 
 ## Adding a new example

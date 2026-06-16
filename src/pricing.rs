@@ -1,8 +1,8 @@
-//! Cost estimation for token [`Usage`](crate::types::Usage).
+//! Cost estimation for token [`Usage`].
 //!
-//! llmrust reports raw token counts in [`Usage`](crate::types::Usage); it has
+//! llmrust reports raw token counts in [`Usage`]; it has
 //! no idea what any given model charges. [`ModelPricing`] lets a caller attach
-//! per-1K-token prices and turn a [`Usage`](crate::types::Usage) into an
+//! per-1K-token prices and turn a [`Usage`] into an
 //! estimated dollar amount, which is handy for budget tracking and request
 //! tracing.
 //!
@@ -32,7 +32,7 @@ use crate::types::Usage;
 ///
 /// Prompt (input) and completion (output) tokens are usually billed at
 /// different rates, so they are tracked separately. Construct one with
-/// [`ModelPricing::new`] and combine it with a [`Usage`](crate::types::Usage)
+/// [`ModelPricing::new`] and combine it with a [`Usage`]
 /// via [`ModelPricing::estimate_cost`] (or the
 /// [`Usage::estimated_cost`](crate::types::Usage::estimated_cost) convenience
 /// method).

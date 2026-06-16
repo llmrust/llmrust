@@ -56,6 +56,7 @@ llmrust normalizes token log-probabilities — including each position's top-N a
 - **Unified API** — One interface for OpenAI, Anthropic, DeepSeek, Google Gemini, Ollama, and more
 - **Streaming support** — First-class async streaming for all providers
 - **Embeddings support** — Text embeddings for OpenAI-compatible providers and Ollama (provider-level, not a vector database)
+- **Cost estimation** — Optional `ModelPricing` helper to turn token `Usage` into an estimated dollar cost
 - **Dual-protocol proxy** — Serve any backend over both the OpenAI (chat + embeddings) and Anthropic APIs (`proxy` feature)
 - **Normalized logprobs** — Uniform token log-probabilities across OpenAI-compatible providers and Gemini
 - **Type-safe** — Full compile-time guarantees with serde and thiserror
@@ -257,6 +258,23 @@ let request = ChatRequest::new("gpt-4o", "List 3 cities as JSON")
     .with_seed(42)
     .with_temperature(0.2);
 ```
+
+### Cost Estimation
+
+Turn token usage into an estimated dollar cost with `ModelPricing`. Prices are in US dollars per 1,000 tokens, with prompt (input) and completion (output) tokens billed separately:
+
+```rust
+use llmrust::{ModelPricing, Usage};
+
+// $0.0025 per 1K prompt tokens, $0.01 per 1K completion tokens
+let pricing = ModelPricing::new(0.0025, 0.01);
+
+let usage = Usage { prompt_tokens: 1_000, completion_tokens: 500, total_tokens: 1_500 };
+let cost = usage.estimated_cost(&pricing); // 0.0075
+println!("Estimated cost: ${cost:.6}");
+```
+
+Pair it with the `usage` returned on a `ChatResponse` to price real requests. The estimate reflects only the prices you supply and ignores provider-specific discounts or cached-token rates.
 
 ### HTTP Proxy Server
 

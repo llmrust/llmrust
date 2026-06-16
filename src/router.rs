@@ -24,6 +24,11 @@
 //! Cooldown is **passive** — no background health checker, no active pings.
 //! Deployment state is updated only as a side effect of routing decisions.
 //!
+//! Cooldown state is keyed by the full `provider/model` deployment string and
+//! is **shared across groups**: if the same deployment appears in more than one
+//! group, a failure recorded while routing one group also deprioritizes it in
+//! the others until the cooldown expires.
+//!
 //! If all deployments in a group are in cooldown, the router fails open:
 //! all deployments are still attempted in order rather than returning an error.
 //!
@@ -113,6 +118,10 @@ fn no_deployments(group: &str) -> LlmError {
 /// that fail with a transient error are temporarily deprioritized. This is
 /// passive — no background health check runs. Failed deployments are
 /// automatically retried after the cooldown duration expires.
+///
+/// **Embeddings note:** routing, failover, and cooldown apply to `chat` and
+/// `stream` only. Embeddings are not routed through groups; call
+/// [`LmrsClient::embed`] directly with a `provider/model` string.
 pub struct Router {
     client: Arc<LmrsClient>,
     groups: HashMap<String, Vec<String>>,

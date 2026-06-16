@@ -56,7 +56,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let batch_resp = llm
         .embed_batch(
             &model,
-            ["hello from llmrust", "embeddings are useful", "rust is fast"],
+            [
+                "hello from llmrust",
+                "embeddings are useful",
+                "rust is fast",
+            ],
         )
         .await?;
 
@@ -74,7 +78,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Confirm index order matches input order
     for emb in &batch_resp.data {
-        eprintln!("  data[{}]:  vector of length {}", emb.index, emb.embedding.len());
+        eprintln!(
+            "  data[{}]:  vector of length {}",
+            emb.index,
+            emb.embedding.len()
+        );
     }
 
     eprintln!("\nDone.");

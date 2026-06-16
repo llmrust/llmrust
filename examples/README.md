@@ -20,6 +20,9 @@ Some examples require API keys. Check the source for `std::env::var` calls to se
 | `retry_e2e` | End-to-end retry with `RetryProvider` and `LmrsClient::with_retry()` | Yes (any one provider) |
 | `embeddings` | Generate single and batch text embeddings with `LmrsClient::embed` / `embed_batch` | Yes (OpenAI-compatible key) or local Ollama |
 | `proxy_server` | Start the HTTP proxy server (dual-protocol OpenAI + Anthropic) | Yes (need `--features proxy`) |
+| `router` | Multi-deployment routing with fallback and round-robin load balancing via `Router` | Yes (OPENAI_API_KEY + ANTHROPIC_API_KEY) |
+| `e2e_openai_compat` | End-to-end checks against a live OpenAI-compatible endpoint (chat, stream, tools, multi-turn, image) | Yes (E2E_API_KEY + E2E_BASE_URL + E2E_MODEL) |
+| `e2e_anthropic_compat` | End-to-end checks against a live Anthropic endpoint (chat, stream, image, streaming tool calls) | Yes (E2E_API_KEY + E2E_BASE_URL + E2E_MODEL) |
 
 ## Quick run
 
@@ -66,6 +69,14 @@ cargo run --example embeddings
 ollama pull nomic-embed-text
 export LLMRUST_EMBEDDINGS_MODEL="ollama/nomic-embed-text"
 cargo run --example embeddings
+```
+
+### Router (fallback + round-robin)
+
+```bash
+export OPENAI_API_KEY="sk-..."
+export ANTHROPIC_API_KEY="sk-ant-..."
+cargo run --example router
 ```
 
 ## Adding a new example

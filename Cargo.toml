@@ -73,3 +73,15 @@ path = "examples/multimodal.rs"
 [[example]]
 name = "embeddings"
 path = "examples/embeddings.rs"
+
+[[example]]
+name = "router"
+path = "examples/router.rs"
+
+[[example]]
+name = "e2e_openai_compat"
+path = "examples/e2e_openai_compat.rs"
+
+[[example]]
+name = "e2e_anthropic_compat"
+path = "examples/e2e_anthropic_compat.rs"

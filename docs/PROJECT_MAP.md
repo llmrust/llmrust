@@ -12,6 +12,7 @@ llmrust/
 │   ├── prelude.rs          # Convenience glob imports
 │   ├── types.rs            # Shared types: Message, ChatRequest, ChatResponse, Tool, etc.
 │   ├── router.rs           # Multi-deployment routing with failover
+│   ├── pricing.rs          # ModelPricing + Usage::estimated_cost (token cost estimation)
 │   ├── providers/          # Provider implementations
 │   │   ├── mod.rs          # Provider trait, ProviderConfig, LlmError
 │   │   ├── compat.rs       # OpenAiCompatibleProvider (shared OpenAI-protocol logic)

@@ -36,8 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `EmbeddingRequest` is now marked `#[non_exhaustive]` (matching `ChatRequest`), so future optional fields can be added without a breaking change. Build it with `EmbeddingRequest::new` / `EmbeddingRequest::batch` and the builder methods rather than struct-literal syntax from outside the crate.
 - Aligned docs, README, PROJECT_MAP, AGENTS.md, and capabilities.json with embeddings support for 0.1.1.
 - Replaced Python agent-doc validation script with a Rust integration test to keep the repository toolchain Rust-native.
+- Tightened agent-doc validation (`tests/agent_docs_validation.rs`): the capability metadata version is now checked against the crate version (`CARGO_PKG_VERSION`), and the proxy embeddings endpoint (`POST /v1/embeddings`) must be listed, so release-metadata drift is caught in CI.
 - README (English and 中文) now leads with the human-agent collaboration narrative, with the original provider-unification message as secondary description.
 - README contributing sections now point to `CONTRIBUTING.md` and `AGENTS.md`.
+
+### Fixed
+
+- Corrected the `version` field in `llmrust.capabilities.json`, which had been left at `0.1.0` while the crate had already moved to `0.1.1`.
 
 ## [0.1.0] - 2026-06-11
 

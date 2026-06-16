@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "llmrust",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Machine-readable capability metadata for llmrust. AI agents can use this to discover what features each provider supports without reading source code. Note: 'support' means llmrust maps the field or protocol; actual upstream model support may vary.",
   "protocol_version": "1",
   "providers": {

@@ -183,6 +183,7 @@ fn parse_ndjson_line(line: &str) -> Vec<Result<StreamChunk>> {
                 prompt_tokens: parsed.prompt_eval_count,
                 completion_tokens: parsed.eval_count,
                 total_tokens: parsed.prompt_eval_count.saturating_add(parsed.eval_count),
+                ..Default::default()
             }),
             ..Default::default()
         })]
@@ -251,6 +252,7 @@ impl Provider for OllamaProvider {
                 prompt_tokens: parsed.prompt_eval_count,
                 completion_tokens: parsed.eval_count,
                 total_tokens: parsed.prompt_eval_count.saturating_add(parsed.eval_count),
+                ..Default::default()
             }),
             ..Default::default()
         };

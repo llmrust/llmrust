@@ -554,6 +554,24 @@ async fn shutdown_signal() {
 ///     .with_graceful_shutdown(shutdown_signal())
 ///     .await
 /// ```
+/// Returns `true` when `addr` (e.g. `"127.0.0.1:3000"` or `"[::1]:8080"`)
+/// binds only to the loopback interface. Addresses such as `"0.0.0.0"`,
+/// `"[::]"`, or a concrete LAN/IP are treated as **public** and must not be
+/// served without authentication.
+fn is_loopback_addr(addr: &str) -> bool {
+    let host = addr.rsplit_once(':').map(|(h, _)| h).unwrap_or(addr);
+    let host = host.trim_start_matches('[').trim_end_matches(']');
+    matches!(host, "127.0.0.1" | "::1" | "localhost")
+}
+
+/// Bind to `addr` and serve the proxy with graceful shutdown.
+///
+/// Authentication policy (M2-20 — secure by default):
+/// - If `LLMRUST_PROXY_KEY` is set and non-empty, bearer-token auth is required.
+/// - If no token is set, the proxy is only served when `addr` is a **loopback**
+///   address (e.g. `127.0.0.1`, `localhost`, `[::1]`). Binding a non-loopback
+///   address without a token is **refused** so the proxy is never silently
+///   exposed on a public interface.
 pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
     let token = std::env::var("LLMRUST_PROXY_KEY")
         .ok()
@@ -564,8 +582,25 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
             router_with_auth(llm, key)
         }
         None => {
-            eprintln!("[auth] DISABLED — set LLMRUST_PROXY_KEY=<secret> to require bearer auth");
-            router(llm)
+            if is_loopback_addr(addr) {
+                eprintln!(
+                    "[auth] DISABLED — serving UNAUTHENTICATED on loopback {addr}; \
+                     set LLMRUST_PROXY_KEY=<secret> to require bearer auth"
+                );
+                router(llm)
+            } else {
+                eprintln!(
+                    "[auth] REFUSED — refusing to serve UNAUTHENTICATED on non-loopback \
+                     address {addr}; set LLMRUST_PROXY_KEY=<secret> to enable auth"
+                );
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    format!(
+                        "refusing to serve unauthenticated proxy on non-loopback address {addr}; \
+                         set LLMRUST_PROXY_KEY to enable bearer auth"
+                    ),
+                ));
+            }
         }
     };
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -1006,6 +1041,7 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         metadata: req.metadata.clone(),
         user: req.user.clone(),
         extra: HashMap::new(),
+        ..Default::default()
     })
 }
 
@@ -1113,6 +1149,7 @@ mod tests {
                     prompt_tokens: 3,
                     completion_tokens: 5,
                     total_tokens: 8,
+                    ..Default::default()
                 }),
                 ..Default::default()
             })
@@ -1141,6 +1178,7 @@ mod tests {
                         prompt_tokens: 3,
                         completion_tokens: 5,
                         total_tokens: 8,
+                        ..Default::default()
                     }),
                     ..Default::default()
                 }),
@@ -1842,6 +1880,19 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
     }
 
+    #[tokio::test]
+    async fn serve_refuses_unauthenticated_on_public_addr() {
+        // Guarantee no token is present for this test.
+        std::env::remove_var("LLMRUST_PROXY_KEY");
+        let llm = Arc::new(LmrsClient::new());
+        // `0.0.0.0` binds every interface (public) — must be refused without a token.
+        let result = serve(llm, "0.0.0.0:0").await;
+        assert!(
+            result.is_err(),
+            "serve must refuse to run unauthenticated on a non-loopback address"
+        );
+    }
+
     #[test]
     fn convert_request_handles_tool_role() {
         let raw = serde_json::json!({
@@ -2133,6 +2184,7 @@ mod tests {
                     prompt_tokens: 10,
                     completion_tokens: 5,
                     total_tokens: 15,
+                    ..Default::default()
                 }),
                 ..Default::default()
             }),
@@ -2150,6 +2202,7 @@ mod tests {
                     prompt_tokens: 10,
                     completion_tokens: 5,
                     total_tokens: 15,
+                    ..Default::default()
                 }),
                 ..Default::default()
             }),

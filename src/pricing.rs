@@ -18,6 +18,7 @@
 //!     prompt_tokens: 1_000,
 //!     completion_tokens: 500,
 //!     total_tokens: 1_500,
+//!     ..Default::default()
 //! };
 //! // 1.0 * 0.0025 + 0.5 * 0.01 = 0.0075
 //! let cost = pricing.estimate_cost(&usage);
@@ -86,6 +87,7 @@ mod tests {
             prompt_tokens: prompt,
             completion_tokens: completion,
             total_tokens: prompt + completion,
+            ..Default::default()
         }
     }
 

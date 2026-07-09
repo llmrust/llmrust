@@ -160,6 +160,9 @@ struct CompDelta {
     content: Option<String>,
     #[serde(default)]
     tool_calls: Option<Vec<CompToolCallDelta>>,
+    /// M2-16：reasoning 增量（OpenAI o-series `reasoning` 字段）。
+    #[serde(default)]
+    reasoning: Option<String>,
 }
 
 /// A streamed tool-call fragment. OpenAI-compatible servers stream tool calls
@@ -327,6 +330,7 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
         prompt_tokens: u.prompt_tokens,
         completion_tokens: u.completion_tokens,
         total_tokens: u.total_tokens,
+        ..Default::default()
     });
     match parsed.choices.first() {
         Some(choice) => {
@@ -345,6 +349,8 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
                 finish_reason,
                 usage,
                 tool_calls,
+                thinking: choice.delta.reasoning.clone(),
+                ..Default::default()
             })]
         }
         None => {
@@ -444,6 +450,7 @@ impl OpenAiCompatibleProvider {
             prompt_tokens: u.prompt_tokens,
             completion_tokens: u.completion_tokens,
             total_tokens: u.total_tokens,
+            ..Default::default()
         });
 
         let (content, tool_calls, finish_reason, logprobs) = match parsed.choices.into_iter().next()
@@ -968,6 +975,19 @@ mod tests {
         let mut tools = ToolCallAccumulator::default();
         let chunks = parse_sse_line(&mut tools, ": keep-alive");
         assert!(chunks.is_empty());
+    }
+
+    #[test]
+    fn stream_reasoning_delta_mapped_to_thinking() {
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"choices":[{"delta":{"reasoning":"thinking...","content":"hi"},"finish_reason":"stop"}]}"#,
+        );
+        let chunk = chunks.into_iter().next().unwrap().unwrap();
+        assert_eq!(chunk.thinking.as_deref(), Some("thinking..."));
+        assert_eq!(chunk.delta, "hi");
+        assert!(chunk.done);
     }
 
     #[test]

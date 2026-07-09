@@ -1051,6 +1051,7 @@ mod tests {
                 prompt_tokens: 10,
                 completion_tokens: 5,
                 total_tokens: 15,
+                ..Default::default()
             }),
             tool_calls: None,
             finish_reason: Some(FinishReason::Stop),
@@ -1079,6 +1080,7 @@ mod tests {
                 prompt_tokens: 10,
                 completion_tokens: 5,
                 total_tokens: 15,
+                ..Default::default()
             }),
             tool_calls: Some(vec![ToolCall {
                 id: "toolu_1".to_string(),

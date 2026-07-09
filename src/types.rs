@@ -338,6 +338,15 @@ pub struct Usage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
     pub total_tokens: u64,
+    /// 缓存读取 token（提示缓存命中，Anthropic/OpenAI）。M2-16：additive。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_read_tokens: Option<u64>,
+    /// 缓存写入 token（写入提示缓存）。M2-16：additive。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_write_tokens: Option<u64>,
+    /// 思考/reasoning 专用 token 数。M2-16：additive。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_tokens: Option<u64>,
 }
 
 /// Log-probability information for the generated tokens, returned when
@@ -498,6 +507,13 @@ pub struct StreamChunk {
     /// that do not reconstruct tool calls while streaming).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
+    /// 思考/reasoning 增量（Anthropic `thinking_delta` / OpenAI `reasoning`）。
+    /// M2-16：additive，逐块追加而非覆盖。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<String>,
+    /// 思考块结束标记（M2-16）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thinking_done: Option<bool>,
 }
 
 /// The format the model's response must take, mirroring OpenAI's
@@ -531,6 +547,24 @@ impl ResponseFormat {
     }
 }
 
+/// 思考/reasoning 控制配置（M2-16）。
+///
+/// 对齐 Anthropic `thinking`（`enabled` + `budget_tokens`）与 OpenAI-style reasoning。
+/// 序列化为 provider 友好形态（`disabled` / `enabled`）。
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ThinkingConfig {
+    /// 关闭思考（默认）。
+    #[default]
+    Disabled,
+    /// 启用思考，可选预算 token。
+    Enabled {
+        /// 思考预算 token 数（Anthropic `budget_tokens`）。
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        budget_tokens: Option<u64>,
+    },
+}
+
 /// A chat completion request.
 ///
 /// This struct is marked `#[non_exhaustive]`, which lets new optional fields
@@ -554,7 +588,7 @@ impl ResponseFormat {
 /// let req = ChatRequest::from_messages("gpt-4o", vec![Message::user("Hello!")])
 ///     .with_stream();
 /// ```
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ChatRequest {
     pub model: String,
@@ -612,6 +646,10 @@ pub struct ChatRequest {
     /// with provider features not yet first-class in llmrust. Only forwarded
     /// to OpenAI-compatible providers; Anthropic and Google ignore this field.
     pub extra: HashMap<String, serde_json::Value>,
+    /// 思考/reasoning 控制（Anthropic `thinking` / OpenAI-style reasoning）。
+    /// M2-16：additive，缺省为 `None`（关闭）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<ThinkingConfig>,
 }
 
 impl ChatRequest {
@@ -695,6 +733,12 @@ impl ChatRequest {
     /// Shortcut for JSON mode (`response_format = {"type":"json_object"}`).
     pub fn with_json_mode(mut self) -> Self {
         self.response_format = Some(ResponseFormat::JsonObject);
+        self
+    }
+
+    /// 设置思考/reasoning 控制（M2-16）。
+    pub fn with_thinking(mut self, thinking: ThinkingConfig) -> Self {
+        self.thinking = Some(thinking);
         self
     }
 

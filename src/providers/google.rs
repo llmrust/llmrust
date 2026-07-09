@@ -276,6 +276,9 @@ struct GeminiPartResponse {
     text: Option<String>,
     #[serde(default, rename = "functionCall")]
     function_call: Option<GeminiFunctionCallResponse>,
+    /// M2-16：Gemini 将思考内容标记为 `thought: true` 的 part。
+    #[serde(default, rename = "thought")]
+    thought: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -653,6 +656,7 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
         prompt_tokens: u.prompt_token_count,
         completion_tokens: u.candidates_token_count,
         total_tokens: u.total_token_count,
+        ..Default::default()
     });
 
     let Some(candidate) = event.candidates.into_iter().next() else {
@@ -667,10 +671,19 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
 
     let mut finish_reason: Option<FinishReason> = candidate.finish_reason.map(to_finish_reason);
     let mut text = String::new();
+    let mut chunks = Vec::new();
     if let Some(content) = candidate.content {
         for part in content.parts {
             if let Some(t) = part.text {
-                text.push_str(&t);
+                if part.thought == Some(true) {
+                    // M2-16：Gemini thought 作为 thinking 增量单独产出。
+                    chunks.push(Ok(StreamChunk {
+                        thinking: Some(t),
+                        ..Default::default()
+                    }));
+                } else {
+                    text.push_str(&t);
+                }
             }
             if let Some(fc) = part.function_call {
                 tools.push(fc.name, fc.args);
@@ -687,7 +700,6 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
         finish_reason = Some(FinishReason::ToolCalls);
     }
 
-    let mut chunks = Vec::new();
     if !text.is_empty() {
         chunks.push(Ok(StreamChunk {
             delta: text,
@@ -771,6 +783,7 @@ impl Provider for GoogleProvider {
             prompt_tokens: u.prompt_token_count,
             completion_tokens: u.candidates_token_count,
             total_tokens: u.total_token_count,
+            ..Default::default()
         });
 
         let (content, tool_calls, finish_reason, logprobs) =
@@ -1101,6 +1114,24 @@ mod tests {
         assert!(last.done);
         assert_eq!(last.finish_reason, Some(FinishReason::Stop));
         assert!(last.tool_calls.is_none());
+    }
+
+    #[test]
+    fn stream_thought_part_mapped_to_thinking() {
+        let mut tools = GeminiToolAccumulator::default();
+        let mut chunks = Vec::new();
+        for line in [
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"Let me think","thought":true}]}}]}"#,
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"Hi"}]}}]}"#,
+            r#"data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}]}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                chunks.push(chunk.unwrap());
+            }
+        }
+        assert_eq!(chunks[0].thinking.as_deref(), Some("Let me think"));
+        assert_eq!(chunks[1].delta, "Hi");
+        assert!(chunks.last().unwrap().done);
     }
 
     #[test]

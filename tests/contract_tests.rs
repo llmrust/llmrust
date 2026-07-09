@@ -79,6 +79,7 @@ mod stream_contracts {
                         prompt_tokens: 10,
                         completion_tokens: 2,
                         total_tokens: 12,
+                        ..Default::default()
                     }),
                     tool_calls: Some(vec![ToolCall {
                         id: "call_1".into(),
@@ -88,6 +89,7 @@ mod stream_contracts {
                             arguments: r#"{"name":"world"}"#.into(),
                         },
                     }]),
+                    ..Default::default()
                 }),
             ])))
         }

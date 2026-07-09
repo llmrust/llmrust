@@ -395,6 +395,9 @@ struct AnthropicDelta {
     partial_json: Option<String>,
     #[serde(default)]
     stop_reason: Option<String>,
+    /// M2-16：thinking 增量文本（Anthropic `thinking_delta`）。
+    #[serde(default)]
+    thinking: Option<String>,
 }
 
 /// Accumulates streamed `tool_use` blocks from an Anthropic stream, keyed by
@@ -504,6 +507,18 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
                         tools.push_arguments(index, &partial);
                     }
                     Vec::new()
+                }
+                Some("thinking_delta") => {
+                    // M2-16：思考增量，逐块产出 thinking 字段。
+                    let text = delta.thinking.clone().unwrap_or_default();
+                    if text.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![Ok(StreamChunk {
+                            thinking: Some(text),
+                            ..Default::default()
+                        })]
+                    }
                 }
                 _ => {
                     let text = delta.text.unwrap_or_default();
@@ -621,6 +636,7 @@ impl Provider for AnthropicProvider {
                 prompt_tokens: u.input_tokens,
                 completion_tokens: u.output_tokens,
                 total_tokens: u.input_tokens.saturating_add(u.output_tokens),
+                ..Default::default()
             }),
             tool_calls,
             finish_reason: parsed.stop_reason.map(normalize_stop_reason),
@@ -932,5 +948,25 @@ mod tests {
         assert!(last.done);
         assert_eq!(last.finish_reason, Some(FinishReason::EndTurn));
         assert!(last.tool_calls.is_none());
+    }
+
+    #[test]
+    fn stream_thinking_delta_produces_thinking_chunk() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let mut chunks = Vec::new();
+        for line in [
+            r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Let me think"}}"#,
+            r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}}"#,
+            r#"data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                chunks.push(chunk.unwrap());
+            }
+        }
+        assert_eq!(chunks[0].thinking.as_deref(), Some("Let me think"));
+        assert_eq!(chunks[1].delta, "Hi");
+        let last = chunks.last().unwrap();
+        assert!(last.done);
+        assert_eq!(last.finish_reason, Some(FinishReason::EndTurn));
     }
 }

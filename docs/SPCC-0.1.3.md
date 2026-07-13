@@ -121,7 +121,7 @@ llmrust 是一个以 Rust 为核心的统一 LLM SDK，并可选提供 OpenAI/An
 | 阶段 | Owner | 架构师 | 执行者 | 状态 |
 |---|---|---|---|---|
 | 事故处置 | llmrust Owner（用户） | Codex | Grok | `DONE` — `INC-001`、`INC-002` 均已通过 |
-| Phase 0–2 | llmrust Owner（用户） | Codex | Grok | `READY` — M0 下一任务 `CI-001` |
+| Phase 0–2 | llmrust Owner（用户） | Codex | Grok | `ACTIVE` — Grok 正在执行 `CI-001` |
 | Phase 3–5 | llmrust Owner（用户） | Codex | Grok | `BLOCKED` — 等待前置阶段 |
 
 本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限：Codex 负责 SPCC 的初次入库、持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；Grok 负责 Codex 下发的产品代码、配置、测试和实现文档任务。Codex 不代写自己将要评审的产品实现，Grok 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Codex 负责把决定写入本表并记录生效时间。
@@ -645,7 +645,7 @@ Codex 在治理初始化中建立并维护下列七个 GitHub Milestones。每�
 | Milestone | 目标 | 完成/总数 | 进度 | 当前状态 | 下一任务 | 退出判据 |
 |---|---|---:|---:|---|---|---|
 | `0.1.3 / INC Incident` | 清除发布事故影响 | 2/2 | 100% | `DONE` | — | 账户/产物核验完成且 0.1.2 已 yank |
-| `0.1.3 / M0 Foundation` | 建立不可绕过的治理与发布门禁 | 1/5 | 20% | `READY` | `CI-001` | 五项任务 DONE，负向门禁证据齐全 |
+| `0.1.3 / M0 Foundation` | 建立不可绕过的治理与发布门禁 | 1/5 | 20% | `ACTIVE` | `CI-001` | 五项任务 DONE，负向门禁证据齐全 |
 | `0.1.3 / M1 API Freeze` | 冻结 0.1.x 公开 API | 0/4 | 0% | `BLOCKED` | `API-001` | 相对 0.1.2 零新增破坏，兼容性说明完成 |
 | `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 0/10 | 0% | `BLOCKED` | `STR-001` | 十项任务 DONE，能力声明与 fixture 一致 |
 | `0.1.3 / M3 Proxy Security` | 收紧代理默认安全与 wire 行为 | 0/5 | 0% | `BLOCKED` | `PRX-001` | 五项任务 DONE，安全负例全部通过 |
@@ -674,7 +674,7 @@ flowchart TD
 | `INC-001` | INC | `DONE` | 无 | N/A（入库前） | N/A（报告 + 补充扫描） | N/A | N/A（入库前） |
 | `INC-002` | INC | `DONE` | `INC-001` | N/A（入库前） | N/A（只读验证） | N/A | N/A（入库前） |
 | `SPEC-000` | M0 | `DONE` | INC DONE | N/A（架构治理） | [#81](https://github.com/llmrust/llmrust/pull/81) | `4b9d7cac865db8645cba1946673a172162d739e4` | [#82](https://github.com/llmrust/llmrust/pull/82) |
-| `CI-001` | M0 | `READY` | `SPEC-000` | — | — | — | — |
+| `CI-001` | M0 | `ACTIVE` | `SPEC-000` | [#83](https://github.com/llmrust/llmrust/issues/83) | — | — | — |
 | `CI-002` | M0 | `BLOCKED` | `CI-001`,`INC-001` | — | — | — | — |
 | `CI-003` | M0 | `BLOCKED` | `CI-001` | — | — | — | — |
 | `REL-001` | M0 | `BLOCKED` | `CI-002`,`CI-003`,`INC-002` | — | — | — | — |
@@ -785,6 +785,7 @@ flowchart TD
 #### `CI-001` — 固定工具链与基础工作流
 
 - **初始状态/依赖/分支**：`BLOCKED`；`SPEC-000`；`task/CI-001-pin-ci-foundation`。
+- **派发记录**：Codex 于 2026-07-14 创建 [Issue #83](https://github.com/llmrust/llmrust/issues/83)；Grok 完成 stale main 的 fast-forward 修复并回执有效 `ACK CI-001`；Codex 已裁定 `ACTIVE`，授权基线为 `92a942a8c0b5a3a135d38a9ab5757b988c42dc85`。
 - **任务目标**：消除 action/toolchain 漂移，保留并明确现有 build/test/lint/doc/MSRV 基线。
 - **允许范围**：`.github/workflows/ci.yml`、`rust-toolchain.toml` 或等效版本文件、与 CI 直接相关的缓存配置。
 - **禁止范围**：业务源码、依赖升级、增加功能、修改 MSRV 1.86。

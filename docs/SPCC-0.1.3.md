@@ -645,7 +645,7 @@ Codex 在治理初始化中建立并维护下列七个 GitHub Milestones。每�
 | Milestone | 目标 | 完成/总数 | 进度 | 当前状态 | 下一任务 | 退出判据 |
 |---|---|---:|---:|---|---|---|
 | `0.1.3 / INC Incident` | 清除发布事故影响 | 2/2 | 100% | `DONE` | — | 账户/产物核验完成且 0.1.2 已 yank |
-| `0.1.3 / M0 Foundation` | 建立不可绕过的治理与发布门禁 | 1/5 | 20% | `ACTIVE` | `CI-001` | 五项任务 DONE，负向门禁证据齐全 |
+| `0.1.3 / M0 Foundation` | 建立不可绕过的治理与发布门禁 | 2/5 | 40% | `ACTIVE` | `CI-002` | 五项任务 DONE，负向门禁证据齐全 |
 | `0.1.3 / M1 API Freeze` | 冻结 0.1.x 公开 API | 0/4 | 0% | `BLOCKED` | `API-001` | 相对 0.1.2 零新增破坏，兼容性说明完成 |
 | `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 0/10 | 0% | `BLOCKED` | `STR-001` | 十项任务 DONE，能力声明与 fixture 一致 |
 | `0.1.3 / M3 Proxy Security` | 收紧代理默认安全与 wire 行为 | 0/5 | 0% | `BLOCKED` | `PRX-001` | 五项任务 DONE，安全负例全部通过 |
@@ -674,8 +674,8 @@ flowchart TD
 | `INC-001` | INC | `DONE` | 无 | N/A（入库前） | N/A（报告 + 补充扫描） | N/A | N/A（入库前） |
 | `INC-002` | INC | `DONE` | `INC-001` | N/A（入库前） | N/A（只读验证） | N/A | N/A（入库前） |
 | `SPEC-000` | M0 | `DONE` | INC DONE | N/A（架构治理） | [#81](https://github.com/llmrust/llmrust/pull/81) | `4b9d7cac865db8645cba1946673a172162d739e4` | [#82](https://github.com/llmrust/llmrust/pull/82) |
-| `CI-001` | M0 | `ACTIVE` | `SPEC-000` | [#83](https://github.com/llmrust/llmrust/issues/83) | — | — | — |
-| `CI-002` | M0 | `BLOCKED` | `CI-001`,`INC-001` | — | — | — | — |
+| `CI-001` | M0 | `DONE` | `SPEC-000` | [#83](https://github.com/llmrust/llmrust/issues/83) | [#85](https://github.com/llmrust/llmrust/pull/85) | `c01239d548d50df4b299e166d67f5faf86d2f24c` | [#86](https://github.com/llmrust/llmrust/pull/86) |
+| `CI-002` | M0 | `READY` | `CI-001`,`INC-001` | — | — | — | — |
 | `CI-003` | M0 | `BLOCKED` | `CI-001` | — | — | — | — |
 | `REL-001` | M0 | `BLOCKED` | `CI-002`,`CI-003`,`INC-002` | — | — | — | — |
 | `API-001` | M1 | `BLOCKED` | M0 DONE | — | — | — | — |
@@ -715,6 +715,7 @@ flowchart TD
 | `INC-001` | N/A（入库前） | Grok `INC-001 REPORT` + `SUPPLEMENT` | N/A | 2026-07-14 架构裁定 | N/A（入库前） | INC 1/2（50%） | `PASS` — Codex |
 | `INC-002` | N/A（入库前） | Grok `INC-002 REPORT`（registry + fresh Cargo resolution） | N/A | 2026-07-14 架构裁定 | N/A（入库前） | INC 2/2（100%） | `PASS` — Codex |
 | `SPEC-000` | N/A（架构治理） | [PR #81](https://github.com/llmrust/llmrust/pull/81) | CI run `29264874941`（MSRV、Test 全绿） | `4b9d7cac865db8645cba1946673a172162d739e4` | [PR #82](https://github.com/llmrust/llmrust/pull/82) | M0 1/5（20%） | `DONE` — Codex |
+| `CI-001` | [#83](https://github.com/llmrust/llmrust/issues/83) | [PR #85](https://github.com/llmrust/llmrust/pull/85) | CI run `29268965499`（MSRV、Test 全绿；run `29268920362` 提供真实取消证据） | `c01239d548d50df4b299e166d67f5faf86d2f24c`（2026-07-14 01:38 CST） | [PR #86](https://github.com/llmrust/llmrust/pull/86) | M0 2/5（40%） | `DONE` — Codex |
 
 状态 PR必须同时更新：§11.1.2 Milestone 计数、§11.1.3 任务状态与引用、§11.1.4 回证账本。三处不一致直接 REJECT。
 

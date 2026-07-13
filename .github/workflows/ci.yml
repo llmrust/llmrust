@@ -44,7 +44,7 @@ jobs:
       - name: Docs
         run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
       - name: Format
-        run: cargo fmt --check
+        run: cargo fmt --check && exit 1
       - name: Publish dry-run
         run: cargo publish --dry-run
 

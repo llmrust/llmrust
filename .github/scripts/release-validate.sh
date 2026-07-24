@@ -73,12 +73,25 @@ fi
 
 # ---------------------------------------------------------------------------
 # Gate 4 (DoD step 5): the DEFAULT feature must NOT pull in the proxy-only
-# dependency `axum`. `axum` is an optional dependency enabled solely by the
-# `proxy` feature; under default features it must be absent from the graph.
-# (`tower` / `tower-http` are non-optional deps already compiled for the
-# proxy module and are intentionally always present — they are NOT the
-# proxy-only gate; the CI-003 guard already covers `lib.rs -> axum/tower`
-# code edges.) `cargo tree -i axum` exits non-zero when absent => PASS.
+# dependency `axum`.
+#
+# `axum`, `tower-http`, and `bytes` are ALL declared `optional = true` and ALL
+# three are listed under the `proxy` feature (Cargo.toml). So why gate on
+# `axum` alone? Because the default graph is built differently:
+#
+#   * `tower-http` and `bytes` are optional + gated on `proxy`, BUT they are
+#     also pulled into the DEFAULT graph TRANSITIVELY by `reqwest` (a
+#     non-optional default dependency). They are therefore legitimately
+#     present even with `default = []` — they are NOT a proxy-only signal.
+#   * `axum` is NOT a transitive dependency of any default (non-optional)
+#     dependency. It is introduced ONLY by the `proxy` feature. Hence under
+#     `default = []` it is absent from the graph.
+#
+# So `axum` is the sole dependency the `proxy` feature injects that is not
+# otherwise present in the default build. If `cargo tree -i axum` finds it,
+# the proxy feature leaked into the default build. Adding `tower-http` /
+# `bytes` to this gate would make it permanently red (reqwest pulls them
+# regardless of `proxy`). `cargo tree -i axum` exits non-zero when absent => PASS.
 # ---------------------------------------------------------------------------
 if cargo tree -e no-dev -i axum >/dev/null 2>&1; then
   echo "::error::default feature pulls in proxy-only dependency: axum"

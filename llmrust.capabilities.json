@@ -164,8 +164,8 @@
     "retry": {
       "mechanism": "RetryProvider wraps any Provider with exponential backoff",
       "max_retries": "configurable",
-      "retry_on": ["HTTP 5xx", "429 (rate limit)", "network errors", "stream transient errors"],
-      "no_retry_on": ["HTTP 4xx (except 429)", "Parse errors", "UnknownProvider errors"]
+      "retry_on": ["HTTP 5xx", "network errors", "stream transient errors"],
+      "no_retry_on": ["HTTP 4xx (incl. 429)", "Parse errors", "UnknownProvider errors"]
     },
     "router": {
       "description": "Multi-deployment routing with failover, load balancing, and optional passive cooldown",

@@ -32,6 +32,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   enable the semver baseline comparison (current version must be greater than the `0.1.2`
   baseline). `llmrust.capabilities.json` version synced accordingly.
 
+### Fixed
+
+- Retry contract clarification (API-003): `RetryProvider` does **not** retry HTTP `429`
+  (rate-limit) responses — only `HTTP 5xx`, network errors, and transient stream errors are
+  retried. The previously published `llmrust.capabilities.json` incorrectly listed
+  `"429 (rate limit)"` under `retry_on`; this is corrected to match the implementation
+  (`should_retry` returns `false` for all 4xx, including `429`). Important distinction from
+  routing: the **Router** *does* fail over on `429` (treats it as transient and switches
+  deployment), but that is a separate mechanism from `RetryProvider`'s retry policy and is
+  unchanged.
+- `n > 1` advisory is now emitted once per `(provider, n)` for the process lifetime instead of
+  being repeated on every `RetryProvider` retry attempt (E-002). Pure log-noise reduction; no
+  functional change.
+
 ## [0.1.1] - 2026-06-16
 
 ### Added

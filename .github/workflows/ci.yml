@@ -48,6 +48,37 @@ jobs:
       - name: Publish dry-run
         run: cargo publish --dry-run
 
+  semver-freeze:
+    name: API-002 semver gate (vs 0.1.2 baseline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.97.0
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Install cargo-semver-checks (pinned)
+        run: cargo install cargo-semver-checks --version 0.48.0 --locked
+      - name: Fetch 0.1.2 baseline source
+        # 0.1.2 was published to crates.io and later yanked, so a registry
+        # `--baseline-version 0.1.2` lookup is rejected ("version 0.1.2 is
+        # yanked"). The published .crate artifact is still served by
+        # static.crates.io, so we download it and use it as the baseline via
+        # `--baseline-root`. This is the exact 0.1.2 public API that downstream
+        # installed — the faithful "vs 0.1.2" gate the API-002 execution order
+        # requires.
+        run: |
+          curl -fsSL https://static.crates.io/crates/llmrust/llmrust-0.1.2.crate -o /tmp/llmrust-0.1.2.crate
+          mkdir -p /tmp/llmrust-0.1.2
+          tar xzf /tmp/llmrust-0.1.2.crate -C /tmp/llmrust-0.1.2
+      - name: Run semver gate against 0.1.2 baseline
+        # Tracks the consumer-facing public API (default features). The proxy
+        # DTO module is feature-gated and therefore not compiled here, which is
+        # the mechanism that realizes the UNSTABLE proxy exemption (D6) without
+        # weakening the gate for STABLE types.
+        run: cargo semver-checks check-release --baseline-root /tmp/llmrust-0.1.2/llmrust-0.1.2
+
   msrv:
     name: MSRV (1.86)
     runs-on: ubuntu-latest

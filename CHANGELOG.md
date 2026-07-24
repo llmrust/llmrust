@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-24
+
+### Added
+
+- API freeze gate (Track ① of API-002): a `cargo-semver-checks` CI job comparing the
+  public API against the `0.1.2` crates.io baseline. Proxy DTOs are exempt from this
+  gate — they are classified `UNSTABLE` and feature-gated, so they are not compiled into
+  the default-feature build that the gate checks.
+- Response-compatibility regression tests freezing the wire shapes of `Usage`,
+  `ChatResponse`, and `StreamChunk`, pinning the `None` vs `Some(0)` distinction for the
+  `Option<u64>` token counters (`cache_read_tokens`, `cache_write_tokens`,
+  `reasoning_tokens`), and round-tripping unknown `finish_reason` values through
+  `FinishReason::Other` (the §5.1 wire escape hatch).
+- `api_freeze` integration test that consumes `docs/api-inventory.json` and asserts the
+  API-001 classification boundaries: `FinishReason`/`ChatResponse` variants and fields are
+  frozen (D1/D2), `ThinkingConfig` is `STABLE` but not root-reexported (D3),
+  `STABLE-ADDITIVE` symbols require `#[non_exhaustive]`, and the proxy module is
+  `UNSTABLE`. Editing the classification to permit a change fails the gate (fail-closed).
+- Pricing regression test asserting `Usage::estimated_cost` does not double-count
+  cache/reasoning tokens.
+
+### Changed
+
+- Bumped crate version `0.1.1` → `0.1.3` to align with the 0.1.3 development line and to
+  enable the semver baseline comparison (current version must be greater than the `0.1.2`
+  baseline). `llmrust.capabilities.json` version synced accordingly.
+
 ## [0.1.1] - 2026-06-16
 
 ### Added

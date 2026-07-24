@@ -1,6 +1,6 @@
 [package]
 name = "llmrust"
-version = "0.1.1"
+version = "0.1.3"
 edition = "2021"
 rust-version = "1.86"
 description = "Unified Rust interface for 7 LLM providers (OpenAI, Anthropic, DeepSeek, Google Gemini, Ollama, Moonshot, OpenRouter) with HTTP proxy"

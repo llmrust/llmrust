@@ -1,0 +1,76 @@
+{
+  "schema": "llmrust-api-inventory/1.0",
+  "task": "API-001",
+  "issue": 100,
+  "generated_at_head": "ceccd9b",
+  "baselines": {
+    "v0_1_1": {
+      "kind": "git-tag",
+      "ref": "v0.1.1",
+      "archive_sha256": "0B6BA5304CF67E517F03C7866E0022988D71DA857F87A41B50999548D3AA90B0",
+      "note": "clean source"
+    },
+    "v0_1_2": {
+      "kind": "crates.io-published-crate",
+      "version": "0.1.2",
+      "crate_sha256": "1DFB0E25B02AF20AD562FDF4C8C4492B71BDB37D9A66B6DC181A951B4879C481",
+      "note": "dirty/yanked release artifact; contains .cargo_vcs_info.json + publish.log"
+    },
+    "current_main": {
+      "kind": "git-rev",
+      "rev": "ceccd9b",
+      "note": "API-001 baseline HEAD"
+    }
+  },
+  "symbols": [
+    { "name": "Role", "kind": "enum", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:9", "classification": "STABLE", "reason": "Closed enum of roles; not #[non_exhaustive] so adding a variant is breaking — frozen in 0.1.x.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "Tool", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:20", "classification": "STABLE", "reason": "Tool definition; shape frozen in 0.1.x.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "FunctionDef", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:28", "classification": "STABLE", "reason": "Function/tool schema; shape frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "ToolChoice", "kind": "enum", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:61", "classification": "STABLE", "reason": "Tool-choice enum; not non_exhaustive, frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "ToolChoiceFunction", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:74", "classification": "STABLE", "reason": "Tool-choice function payload; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "ToolCall", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:105", "classification": "STABLE", "reason": "Tool call result; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "FunctionCall", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:114", "classification": "STABLE", "reason": "Legacy function-call payload; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "ContentPart", "kind": "enum", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:127", "classification": "STABLE", "reason": "Content part enum; not non_exhaustive, frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "ImageUrl", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:156", "classification": "STABLE", "reason": "Image URL detail; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "Content", "kind": "enum", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:171", "classification": "STABLE", "reason": "Message content enum; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "Message", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:244", "classification": "STABLE", "reason": "Chat message; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "Usage", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:337", "classification": "STABLE", "reason": "Token usage; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "LogProbs", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:358", "classification": "STABLE", "reason": "Logprobs container; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "TokenLogProb", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:367", "classification": "STABLE", "reason": "Per-token logprob; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "TopLogProb", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:383", "classification": "STABLE", "reason": "Top logprob; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "FinishReason", "kind": "enum", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:404", "classification": "STABLE", "reason": "DRIFT D1: AGENTS.md claims variants are cross-provider (extensible), but not #[non_exhaustive] => adding a variant in 0.1.x is BREAKING. Adjudication required.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "ChatResponse", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:473", "classification": "STABLE", "reason": "DRIFT D2: response body not #[non_exhaustive]; adding a field would break 0.1.x. Inconsistent with ChatRequest. Proposal: mark non_exhaustive.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "StreamChunk", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:491", "classification": "STABLE", "reason": "SSE stream chunk; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "ResponseFormat", "kind": "enum", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:526", "classification": "STABLE", "reason": "Response format enum; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "ThinkingConfig", "kind": "enum", "module": "types", "root_reexported": false, "non_exhaustive": false, "source": "src/types.rs:556", "classification": "STABLE", "reason": "DRIFT D3: NEW in 0.1.2 (absent in 0.1.1). Not root-reexported (peer types are) and NOT #[non_exhaustive]. Reachable only via llmrust::types. Adjudication: root-reexport + add non_exhaustive?", "present_in": { "v0_1_1": false, "v0_1_2": true, "current_main": true } },
+    { "name": "ChatRequest", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": true, "source": "src/types.rs:593", "classification": "STABLE-ADDITIVE", "reason": "#[non_exhaustive]; existing fields frozen, new optional fields allowed in 0.1.x. Gained `thinking` field in 0.1.2 (additive, non-breaking).", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "EmbeddingRequest", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": true, "source": "src/types.rs:834", "classification": "STABLE-ADDITIVE", "reason": "#[non_exhaustive]; provider-specific knobs belong in `extra`. AGENTS.md claim matches code.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "Embedding", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:902", "classification": "STABLE", "reason": "Embedding vector; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "EmbeddingUsage", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:911", "classification": "STABLE", "reason": "Embedding usage; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "EmbeddingResponse", "kind": "struct", "module": "types", "root_reexported": true, "non_exhaustive": false, "source": "src/types.rs:918", "classification": "STABLE", "reason": "Embedding response; frozen.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+
+    { "name": "LmrsClient", "kind": "struct(facade)", "module": "lib", "root_reexported": true, "non_exhaustive": false, "source": "src/lib.rs:110", "classification": "STABLE", "reason": "Client facade. 23 pub methods (lib.rs:110-516), identical across all three baselines (verified line-by-line).", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "Provider", "kind": "trait", "module": "providers", "root_reexported": true, "non_exhaustive": false, "source": "src/providers/mod.rs", "classification": "STABLE", "reason": "Core contract: chat/stream/embed. Identical across all three baselines.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "RetryProvider", "kind": "struct", "module": "providers::retry", "root_reexported": true, "non_exhaustive": false, "source": "src/providers/retry.rs", "classification": "STABLE", "reason": "Retry wrapper implementing Provider; identical across baselines.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "Router", "kind": "struct", "module": "router", "root_reexported": true, "non_exhaustive": false, "source": "src/router.rs", "classification": "STABLE", "reason": "Multi-provider router; identical across baselines.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "RoutingStrategy", "kind": "enum", "module": "router", "root_reexported": true, "non_exhaustive": false, "source": "src/router.rs", "classification": "STABLE", "reason": "Routing strategy enum; identical across baselines.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+    { "name": "ModelPricing", "kind": "struct", "module": "pricing", "root_reexported": true, "non_exhaustive": false, "source": "src/pricing.rs", "classification": "STABLE", "reason": "Pricing data; identical across baselines.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } },
+
+    { "name": "proxy module (group)", "kind": "module-dtos", "module": "proxy", "root_reexported": true, "non_exhaustive": false, "source": "src/proxy/mod.rs + src/proxy/anthropic_proxy.rs", "classification": "UNSTABLE", "reason": "35 DTOs (ProxyChatRequest, ProxyMessage, ProxyChatResponse, ProxyStreamChunk, ProxyEmbedding*, ProxyError*, ProxyFunctionCallChoice, ProxyStop, ProxyDelta, ProxyUsage, ProxyResponseMessage, ProxyChoice, ProxyStreamOptions, ProxyStreamChoice, AppState; AnthropicRequest/Response* + system/message/content/tool/error DTOs). ALL identical across the three baselines (38 grep matches, same line numbers). Proposal UNSTABLE (wire-facing HTTP shim; shape may evolve in 0.1.x). AppState is INTERNAL-PUB. Architect adjudication requested.", "present_in": { "v0_1_1": true, "v0_1_2": true, "current_main": true } }
+  ],
+  "diffs": {
+    "v0_1_1_to_v0_1_2": [
+      { "change": "added", "symbol": "ThinkingConfig", "kind": "enum", "source": "src/types.rs:556", "semver_impact": "non-breaking", "note": "New public enum, reachable via llmrust::types (not root-reexported)." },
+      { "change": "added", "symbol": "ChatRequest.thinking", "kind": "field", "source": "src/types.rs:652", "semver_impact": "non-breaking", "note": "Optional field on #[non_exhaustive] ChatRequest; additive." },
+      { "change": "added", "symbol": "ChatRequest::with_thinking", "kind": "method", "source": "src/types.rs:740", "semver_impact": "non-breaking", "note": "Builder method; adding a method is non-breaking." }
+    ],
+    "v0_1_2_to_current_main": []
+  },
+  "drift_findings": [
+    { "id": "D1", "symbol": "FinishReason", "source": "src/types.rs:404", "claim": "AGENTS.md: variants are cross-provider (extensible)", "actual": "not #[non_exhaustive] => adding a variant is breaking", "severity": "contradiction", "adjudication": "pending (architect)" },
+    { "id": "D2", "symbol": "ChatResponse", "source": "src/types.rs:473", "claim": "should be frozen like ChatRequest", "actual": "not #[non_exhaustive]", "severity": "inconsistency", "adjudication": "pending (architect)" },
+    { "id": "D3", "symbol": "ThinkingConfig", "source": "src/types.rs:556", "claim": "should mirror peer types", "actual": "not root-reexported AND not #[non_exhaustive]", "severity": "inconsistency", "adjudication": "pending (architect)" },
+    { "id": "D4", "symbol": "ThinkingConfig", "source": "src/types.rs:556", "claim": "documented in AGENTS.md/CAPABILITIES.md", "actual": "undocumented", "severity": "doc-gap", "adjudication": "pending (architect)" },
+    { "id": "D5", "symbol": "AGENTS.md", "source": "AGENTS.md", "claim": "ChatRequest/EmbeddingRequest non_exhaustive", "actual": "matches code", "severity": "ok", "adjudication": "none" }
+  ]
+}

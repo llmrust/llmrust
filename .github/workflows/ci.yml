@@ -60,3 +60,20 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Check (MSRV)
         run: cargo check --all-targets
+
+  architecture:
+    name: Architecture & package guards (CI-003)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          # Pin the stable compiler so CI does not float with latest stable day-to-day.
+          toolchain: 1.97.0
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Dependency-edge + hotspot guards
+        run: cargo test --test architecture_guard
+      - name: Package allowlist guard
+        run: cargo test --test package_guard

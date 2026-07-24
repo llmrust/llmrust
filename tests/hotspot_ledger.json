@@ -1,0 +1,13 @@
+{
+  "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task explicitly authorizes a transition. Do not inflate a number to turn a guard green.",
+  "threshold": 800,
+  "baseline_lines": {
+    "src/proxy/mod.rs": 2573,
+    "src/proxy/anthropic_proxy.rs": 1520,
+    "src/providers/compat.rs": 1228,
+    "src/providers/google.rs": 1221,
+    "src/types.rs": 1132,
+    "src/providers/anthropic.rs": 972,
+    "src/router.rs": 851
+  }
+}

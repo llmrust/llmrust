@@ -1823,7 +1823,10 @@ mod tests {
         // Give the server a moment to start
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-        let resp = reqwest::Client::new()
+        let resp = reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .expect("noop proxy client")
             .get(format!("http://{}/health", bound_addr))
             .send()
             .await
@@ -1859,7 +1862,10 @@ mod tests {
             "messages": [{"role": "user", "content": "hi"}],
         })
         .to_string();
-        let resp = reqwest::Client::new()
+        let resp = reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .expect("noop proxy client")
             .post(format!("http://{}/v1/chat/completions", bound_addr))
             .header("content-type", "application/json")
             .body(body.clone())
@@ -1869,7 +1875,10 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 
         // With auth — should pass
-        let resp = reqwest::Client::new()
+        let resp = reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .expect("noop proxy client")
             .post(format!("http://{}/v1/chat/completions", bound_addr))
             .header("content-type", "application/json")
             .header("authorization", "Bearer test-secret")

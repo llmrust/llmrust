@@ -13,3 +13,8 @@ Thumbs.db
 .idea/
 *.swp
 
+# Scratch / temporary working files — keep them OUT of the repo root.
+# Put transient artifacts (CI run dumps, audit scratch, logs) here and
+# delete them when the task is done. Never commit anything under /.tmp/.
+/.tmp/
+

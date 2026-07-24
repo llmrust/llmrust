@@ -1,0 +1,25 @@
+# .gitleaks.toml — llmrust secret-scan policy (CI-002, Issue #88)
+#
+# Extends gitleaks' built-in default rules and adds a repo-specific allowlist so
+# the green run does not trip on documented/example tokens. Real secrets in src/
+# are still scanned. The synthetic negative fixture lives under security/_neg/
+# (NOT allowlisted) and is reverted before merge.
+
+title = "llmrust gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+# Paths that are allowed to contain example/placeholder tokens (never real secrets).
+paths = [
+  '''.*\.md$''',
+  '''docs/.*''',
+  '''examples/.*''',
+  '''tests/.*''',
+]
+# Allowlist of example/placeholder strings that are safe and must not fail the gate.
+regexes = [
+  # AWS published example access key — documented, never a real credential.
+  '''AKIAIOSFODNN7EXAMPLE''',
+]

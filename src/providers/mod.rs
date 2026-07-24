@@ -14,6 +14,8 @@ pub mod stream_util;
 
 use async_trait::async_trait;
 use futures::stream::BoxStream;
+use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
 
 use crate::types::{ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingResponse, StreamChunk};
 
@@ -114,14 +116,29 @@ pub(crate) fn n_is_unsupported(n: Option<u32>) -> bool {
 
 /// Emit a one-shot warning when `n > 1`. Call once at the top of each
 /// provider's `chat`/`stream` so the message appears regardless of routing.
+///
+/// De-duplicated per `(provider, n)` for the process lifetime (E-002):
+/// `RetryProvider` re-enters the inner provider on every retry attempt, which
+/// would otherwise re-emit this advisory on each attempt. The message is
+/// informational noise, not a functional signal, so collapsing repeats is the
+/// intended behavior — the first occurrence per `(provider, n)` is sufficient.
 pub(crate) fn warn_if_unsupported_n(provider: &str, n: Option<u32>) {
     if n_is_unsupported(n) {
-        tracing::warn!(
-            provider,
-            n = n.unwrap(),
-            "n > 1 requested but llmrust returns only the first completion; \
-             the remaining choices are discarded and upstream providers may still bill for all N"
-        );
+        static WARNED_N: OnceLock<Mutex<HashSet<(String, u32)>>> = OnceLock::new();
+        let key = (provider.to_string(), n.unwrap());
+        if WARNED_N
+            .get_or_init(Default::default)
+            .lock()
+            .expect("warn dedupe lock poisoned")
+            .insert(key)
+        {
+            tracing::warn!(
+                provider,
+                n = n.unwrap(),
+                "n > 1 requested but llmrust returns only the first completion; \
+                 the remaining choices are discarded and upstream providers may still bill for all N"
+            );
+        }
     }
 }
 

@@ -1,12 +1,13 @@
 # Security Gates — CI-002 (Issue #88 / SPCC §9.1)
 # Hard-fail gates for secrets, known vulnerabilities, banned licenses & sources.
-# Triggers on PRs and pushes to main and the task branch so negatives can be
-# validated before the implementation PR is opened for review.
+# Triggers on pushes to main and on PRs targeting main. (Task-branch push
+# triggers are intentionally omitted — they are execution-time artifacts and
+# must not be merged; see SPCC §10.4.)
 name: Security Gates
 
 on:
   push:
-    branches: [main, "task/CI-002-security-gates"]
+    branches: [main]
   pull_request:
     branches: [main]
 

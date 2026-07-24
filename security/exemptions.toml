@@ -3,7 +3,7 @@
 # 生效豁免的每条 MUST 含 4 字段（缺一不可，缺 = 违规）：
 #   task      = 关联任务/Issue（如 "CI-002"）
 #   reason    = 为何需要豁免（具体、可复核）
-#   owner     = 责任 Owner（llmrust Owner = minj）
+#   owner     = 责任 Owner（统一写 "llmrust Owner"）
 #   review_on = 复议日（ISO 日期，必须有期限；禁止无期限豁免）
 #
 # 当前仓库干净，无任何生效豁免。任何新增豁免必须带齐上述 4 字段且 review_on 非空，
@@ -13,5 +13,5 @@
 # [[exemptions]]
 # task = "CI-002"
 # reason = "上游 advisory RUSTSEC-XXXX 暂无修复版本，临时放行至复议日"
-# owner = "minj"
+# owner = "llmrust Owner"
 # review_on = "2026-10-24"

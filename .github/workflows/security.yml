@@ -10,9 +10,11 @@ on:
   pull_request:
     branches: [main]
 
-# Minimal permissions: read-only code, no secret/write access to fork PRs.
+# Minimal permissions: read-only code, plus checks:write so rustsec/audit-check
+# can publish its advisory result as a check run. No secret/write access to fork PRs.
 permissions:
   contents: read
+  checks: write
 
 concurrency:
   group: security-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -47,11 +49,22 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: cargo deny check (licenses, bans, sources)
+      # cargo-deny 0.20.x `check` accepts a single subcommand, so run them separately.
+      - name: cargo deny — licenses
         uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
         with:
           command: check
-          arguments: licenses bans sources
+          arguments: licenses
+      - name: cargo deny — bans
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
+        with:
+          command: check
+          arguments: bans
+      - name: cargo deny — sources
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
+        with:
+          command: check
+          arguments: sources
 
   secrets:
     name: Secret scan (gitleaks)
@@ -60,7 +73,9 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: gitleaks detect
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        # Pinned to v2: v3 requires a paid GITLEAKS_LICENSE secret (unacceptable
+        # for a secret-scanning gate) and dropped the config-path/args inputs.
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         with:
           # Custom config (default rules + repo allowlist), see .gitleaks.toml.
           config-path: .gitleaks.toml

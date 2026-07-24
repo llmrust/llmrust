@@ -21,6 +21,7 @@
 | `E-002` | 2026-07-24 | 全量审计发现：`RetryProvider` 每次重试都会重新进入 Provider，导致 `warn_if_unsupported_n` 的"n>1 一次性警告"被放大为逐次重试重复打印。纯日志噪音，无功能影响。 | 记录为行为瑕疵；在 Retry 契约冻结任务中一并处理 | `API-003` |
 | `E-003` | 2026-07-24 | 全量审计（Kimi，2026-07-24，fmt/clippy/全量测试复核）确认本规格 §14 审计问题映射依然成立：Anthropic/Gemini 流式吞错（`anthropic.rs` / `google.rs` 对 malformed data 返回空 Vec）、capabilities 与实现漂移（Gemini seed/penalties、Ollama top_p、Retry 429、Anthropic response_format 文档自相矛盾）、`ThinkingConfig` 请求侧无 Provider 落地、`/health` 认证行为与文档冲突、Router 单计数器跨组干扰。技术任务卡无需重排。 | 无新增任务；既有任务卡继续有效 | `STR-002A/G`、`CAP-001`、`API-003`、`REA-*`、`PRX-002`、`RTR-001` |
 | `E-004` | 2026-07-24 | API-001 三方事实表确认：AGENTS.md 称 `FinishReason` 变体"cross-provider"暗示可扩展，但代码非 `#[non_exhaustive]`，0.1.x 内加变体 = 破坏性变更；且事后补 `#[non_exhaustive]` 对穷尽匹配的下游同样破坏。架构师裁定（PR #101）：改文档不改代码，措辞澄清为"变体语义跨 provider 共享、集合 0.1.x 冻结、扩展只能进 0.2"；`ChatResponse`/`ThinkingConfig` 同逻辑冻结，0.2 再评估。 | 文档措辞修正并入 DOC-001；0.2 评估项记技术债 | `DOC-001` |
+| `E-005` | 2026-07-24 | 治理违规（架构师 Kimi 自查 + Owner 指正）：REL-001、API-002、API-003 三单均属 §10.1 定义的中大型任务（触及公开行为/安全默认值，diff >200 行），执行令却连续标注"CI-002 级、执行令代行设计小样"，系统性绕开设计小样闸门。事后评审证据链完整（各 MUST 条款均抓到真实问题），交付物质量不受影响，但"设计先行"闸门被架空。处置：① 三单追认交付有效，**逐案注明不设先例**；② API-003 立即停手补样（#106 评论 5071108701），设计小样 APPROVE 后方可提交实现 PR；③ §10.1 增防呆条款（见下）；④ 架构师状态汇报两次未核验失言（CI-002 期"未跟踪文件还在"、误报合并完成）一并入档。 | 本表登记 + §10.1 防呆条款 + API-003 补样流程 | `SPEC-003`（本 PR） |
 
 ---
 
@@ -578,6 +579,8 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 
 **设计小样闸门（SPEC-002 起生效，吸收自母规范 §五）**：中大型任务（预计人工 diff >200 行，或触及公开行为、wire 协议、安全默认值的任务）在写码前，执行者必须向架构师报审设计小样，获准 APPROVE 后方可建分支写码。设计小样必须包含：
 
+**防呆条款（SPEC-003 起生效，E-005 教训）**：每份执行令头部必须显式标注**规模分级**（`S` / `M` / `L`，对齐 §10.3）与**是否触发设计小样闸门**（触发/豁免 + 一句理由）；"CI-002 级"这类类比措辞一律视为无效分级。架构师发令时自查，Owner 与执行者可随时以此条款要求停手补样。
+
 - **问题陈述**：要修什么，第一手证据（文件:行号、复现路径）；
 - **方案形状**：关键函数/数据结构/控制流的具体形状，精确到可核验；
 - **测试计划**：编号化测试（T-1、T-2…），每条写明场景与断言口径；
@@ -706,6 +709,7 @@ flowchart TD
 | `CI-001` | M0 | `DONE` | `SPEC-000` | [#83](https://github.com/llmrust/llmrust/issues/83) | [#85](https://github.com/llmrust/llmrust/pull/85) | `c01239d548d50df4b299e166d67f5faf86d2f24c` | [#86](https://github.com/llmrust/llmrust/pull/86) |
 | `SPEC-001` | M0（治理，不计入 M0 任务数） | `DONE` | `CI-001` | N/A（架构治理） | [#87](https://github.com/llmrust/llmrust/pull/87) | `693b705ed29d62eb40b4584c44790a1d80b7a172` | [#89](https://github.com/llmrust/llmrust/pull/89) |
 | `SPEC-002` | M0（治理，不计入 M0 任务数） | `DONE` | `SPEC-001` | N/A（架构治理） | [#90](https://github.com/llmrust/llmrust/pull/90) | `541f6725f9a67341905c3a3b05d80768051ea900` | STATE-SPEC-002（本 PR） |
+| `SPEC-003` | M1（治理，不计入 M1 任务数） | `MERGED_PENDING_STATE` | 无（治理自查） | N/A（架构治理） | SPEC-003（本 PR） | — | STATE-SPEC-003 |
 | `CI-002` | M0 | `DONE` | `CI-001`,`INC-001` | [#88](https://github.com/llmrust/llmrust/issues/88) | [#92](https://github.com/llmrust/llmrust/pull/92) | `dcb4407879e593bc34a8e75d9c97af2e2f7f4bf3` | STATE-CI-002（本 PR） |
 | `CI-003` | M0 | `DONE` | `CI-001` | [#94](https://github.com/llmrust/llmrust/issues/94) | [#95](https://github.com/llmrust/llmrust/pull/95) | `5d79224ad2d4b50f1abdd4ca874df94746d7fb69` | STATE-CI-003（本 PR） |
 | `REL-001` | M0 | `DONE` | `CI-002`,`CI-003`,`INC-002` | [#97](https://github.com/llmrust/llmrust/issues/97) | [#98](https://github.com/llmrust/llmrust/pull/98) | `415f20b53b874f06d66914455401db579ebad1c6` | STATE-REL-001（本 PR） |
@@ -754,6 +758,7 @@ flowchart TD
 | `REL-001` | [#97](https://github.com/llmrust/llmrust/issues/97) | [PR #98](https://github.com/llmrust/llmrust/pull/98)（tag-only dry-run 流水线 + 四闸校验脚本 + 发布清单/安全段落） | 四负例（非 tag/版本错配/脏树/禁止文件）FAILED 证据 + 正向四闸全过 + `cargo publish --dry-run` 零上传；MUST-1 provenance 持久化 + MUST-2 gate4 机制注释纠偏后 head `5079884d` 六项检查全绿；M0 收官 | `415f20b53b874f06d66914455401db579ebad1c6`（2026-07-24） | STATE-REL-001（本 PR） | M0 5/5（100%） | `DONE` — Kimi |
 | `API-001` | [#100](https://github.com/llmrust/llmrust/issues/100) | [PR #101](https://github.com/llmrust/llmrust/pull/101)（三方 API 事实表 + 32 符号清单 + 漂移裁定） | 0.1.2 基线取自 crates.io 真实发布物（sha256 `1DFB0E…79C481`，红线守住）；0.1.2→main 差异空集、0.1.1→0.1.2 唯一差异 ThinkingConfig 加法引入；七项裁定（D1–D7）架构师逐项落盘，head `18e88d3` 六项检查全绿 | `5480a136816b9ad7fa3b8c20093225f89de423ed`（2026-07-24） | STATE-API-001（本 PR） | M1 1/4（25%） | `DONE` — Kimi |
 | `API-002` | [#103](https://github.com/llmrust/llmrust/issues/103) | [PR #104](https://github.com/llmrust/llmrust/pull/104)（双轨 semver 门禁 + 响应冻结测试 + 版本 bump 0.1.3） | 轨① cargo-semver-checks vs 0.1.2 crates.io 基线 196/196 绿（yanked 基线改 `--baseline-root` + SHA-256 校验，MUST-1）；轨② `api_freeze`/`response_freeze` 分类与线形状断言；负例（Usage 加字段）两轨皆红已撤销；head `91c88e1` 七项检查全绿；合并提交漏带 `Closes #103`，架构师手动补关（流程偏差记录） | `732fae6299ff6c7a74e4ddad72f420e6befeaa37`（2026-07-24） | STATE-API-002（本 PR） | M1 2/4（50%） | `DONE` — Kimi |
+| `SPEC-003` | N/A（架构治理） | SPEC-003（本 PR）（E-005 违规入档：REL-001/API-002/API-003 设计闸门误豁免，追认不设先例 + §10.1 防呆条款 + API-003 停手补样令） | 待合并后回填 | — | STATE-SPEC-003 | M1 2/4（50%，治理任务不计数） | — |
 
 状态 PR必须同时更新：§11.1.2 Milestone 计数、§11.1.3 任务状态与引用、§11.1.4 回证账本。三处不一致直接 REJECT。
 

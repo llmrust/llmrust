@@ -1,7 +1,7 @@
 # llmrust SPCC 0.1.3 项目规格
 
 > **文档编号**：`LLMRUST-SPCC-013`  
-> **状态**：`ACTIVE SSOT — M0 进行中；下一任务 CI-002`  
+> **状态**：`ACTIVE SSOT — M0 进行中；下一任务 CI-003`  
 > **目标版本**：`llmrust 0.1.3`  
 > **审计基线**：GitHub `main` @ `3d0734ac711de3aadf16331c0f9c21b1634a83a8`  
 > **规格版本**：`0.3`（SPEC-002：登记母规范 `docs/spcc.md`，吸收设计小样与守恒清单制度）  
@@ -133,7 +133,7 @@ llmrust 是一个以 Rust 为核心的统一 LLM SDK，并可选提供 OpenAI/An
 | 阶段 | Owner | 架构师 | 执行者 | 状态 |
 |---|---|---|---|---|
 | 事故处置 | llmrust Owner（用户） | Codex | Grok | `DONE` — `INC-001`、`INC-002` 均已通过 |
-| Phase 0–2 | llmrust Owner（用户） | Kimi | CodeBuddy | `ACTIVE` — 下一任务 `CI-002`（READY，待下发） |
+| Phase 0–2 | llmrust Owner（用户） | Kimi | CodeBuddy | `ACTIVE` — 下一任务 `CI-003`（READY，待下发） |
 | Phase 3–5 | llmrust Owner（用户） | Kimi | CodeBuddy | `BLOCKED` — 等待前置阶段 |
 
 本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限。**2026-07-24 角色更换（SPEC-001，Owner 批准）**：前任架构师 Codex 的计划代理失效，Owner 指定 Kimi 接任唯一架构师，CodeBuddy 接任唯一执行者；历史任务（`INC-001`、`INC-002`、`SPEC-000`、`CI-001`）中 Codex/Grok 的裁定与回证继续有效，不回溯改写。自生效时起：Kimi 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 负责 Kimi 下发的产品代码、配置、测试和实现文档任务。Kimi 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Kimi 负责把决定写入本表并记录生效时间。
@@ -673,7 +673,7 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 | Milestone | 目标 | 完成/总数 | 进度 | 当前状态 | 下一任务 | 退出判据 |
 |---|---|---:|---:|---|---|---|
 | `0.1.3 / INC Incident` | 清除发布事故影响 | 2/2 | 100% | `DONE` | — | 账户/产物核验完成且 0.1.2 已 yank |
-| `0.1.3 / M0 Foundation` | 建立不可绕过的治理与发布门禁 | 2/5 | 40% | `ACTIVE` | `CI-002` | 五项任务 DONE，负向门禁证据齐全 |
+| `0.1.3 / M0 Foundation` | 建立不可绕过的治理与发布门禁 | 3/5 | 60% | `ACTIVE` | `CI-003` | 五项任务 DONE，负向门禁证据齐全 |
 | `0.1.3 / M1 API Freeze` | 冻结 0.1.x 公开 API | 0/4 | 0% | `BLOCKED` | `API-001` | 相对 0.1.2 零新增破坏，兼容性说明完成 |
 | `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 0/10 | 0% | `BLOCKED` | `STR-001` | 十项任务 DONE，能力声明与 fixture 一致 |
 | `0.1.3 / M3 Proxy Security` | 收紧代理默认安全与 wire 行为 | 0/5 | 0% | `BLOCKED` | `PRX-001` | 五项任务 DONE，安全负例全部通过 |
@@ -705,8 +705,8 @@ flowchart TD
 | `CI-001` | M0 | `DONE` | `SPEC-000` | [#83](https://github.com/llmrust/llmrust/issues/83) | [#85](https://github.com/llmrust/llmrust/pull/85) | `c01239d548d50df4b299e166d67f5faf86d2f24c` | [#86](https://github.com/llmrust/llmrust/pull/86) |
 | `SPEC-001` | M0（治理，不计入 M0 任务数） | `DONE` | `CI-001` | N/A（架构治理） | [#87](https://github.com/llmrust/llmrust/pull/87) | `693b705ed29d62eb40b4584c44790a1d80b7a172` | [#89](https://github.com/llmrust/llmrust/pull/89) |
 | `SPEC-002` | M0（治理，不计入 M0 任务数） | `DONE` | `SPEC-001` | N/A（架构治理） | [#90](https://github.com/llmrust/llmrust/pull/90) | `541f6725f9a67341905c3a3b05d80768051ea900` | STATE-SPEC-002（本 PR） |
-| `CI-002` | M0 | `READY` | `CI-001`,`INC-001` | [#88](https://github.com/llmrust/llmrust/issues/88) | — | — | — |
-| `CI-003` | M0 | `BLOCKED` | `CI-001` | — | — | — | — |
+| `CI-002` | M0 | `DONE` | `CI-001`,`INC-001` | [#88](https://github.com/llmrust/llmrust/issues/88) | [#92](https://github.com/llmrust/llmrust/pull/92) | `dcb4407879e593bc34a8e75d9c97af2e2f7f4bf3` | STATE-CI-002（本 PR） |
+| `CI-003` | M0 | `READY` | `CI-001` | — | — | — | — |
 | `REL-001` | M0 | `BLOCKED` | `CI-002`,`CI-003`,`INC-002` | — | — | — | — |
 | `API-001` | M1 | `BLOCKED` | M0 DONE | — | — | — | — |
 | `API-002` | M1 | `BLOCKED` | `API-001` | — | — | — | — |
@@ -748,6 +748,7 @@ flowchart TD
 | `CI-001` | [#83](https://github.com/llmrust/llmrust/issues/83) | [PR #85](https://github.com/llmrust/llmrust/pull/85) | CI run `29268965499`（MSRV、Test 全绿；run `29268920362` 提供真实取消证据） | `c01239d548d50df4b299e166d67f5faf86d2f24c`（2026-07-14 01:38 CST） | [PR #86](https://github.com/llmrust/llmrust/pull/86) | M0 2/5（40%） | `DONE` — Codex |
 | `SPEC-001` | N/A（架构治理） | [PR #87](https://github.com/llmrust/llmrust/pull/87)（角色更换 + 勘误 E-001~E-003 + 补建七个 GitHub Milestones） | CI run `30064509301`（MSRV、Test 全绿） | `693b705ed29d62eb40b4584c44790a1d80b7a172`（2026-07-24） | [PR #89](https://github.com/llmrust/llmrust/pull/89) | M0 2/5（40%，治理任务不计数） | `DONE` — Kimi |
 | `SPEC-002` | N/A（架构治理） | [PR #90](https://github.com/llmrust/llmrust/pull/90)（母规范 `docs/spcc.md` 入库登记 + 设计小样闸门/守恒清单吸收 + 合并口径项目化注明） | CI run `30068734484`（MSRV、Test 全绿） | `541f6725f9a67341905c3a3b05d80768051ea900`（2026-07-24） | STATE-SPEC-002（本 PR） | M0 2/5（40%，治理任务不计数） | `DONE` — Kimi |
+| `CI-002` | [#88](https://github.com/llmrust/llmrust/issues/88) | [PR #92](https://github.com/llmrust/llmrust/pull/92)（security workflow + `deny.toml` + gitleaks CLI + 豁免台账） | 基线绿 run `30072158172`；负例 run F `30072626770`（license `rejected`）、run G `30072776530`（git 源 `source-not-allowed`）；终态绿 run `30072993097`；MUST-1 修复后 run `30077886022` 全绿 | `dcb4407879e593bc34a8e75d9c97af2e2f7f4bf3`（2026-07-24） | STATE-CI-002（本 PR） | M0 3/5（60%） | `DONE` — Kimi |
 
 状态 PR必须同时更新：§11.1.2 Milestone 计数、§11.1.3 任务状态与引用、§11.1.4 回证账本。三处不一致直接 REJECT。
 

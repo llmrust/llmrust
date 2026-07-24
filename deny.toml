@@ -47,7 +47,7 @@ highlight = "all"
 [sources]
 # Only the crates.io registry is allowed. Git/path sources are denied by default
 # (unknown-git = "deny"); this is what blocks banned git dependencies.
-unknown-registries = "deny"
+unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = []

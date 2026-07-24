@@ -6,7 +6,9 @@
 //! proxy group. Editing `docs/api-inventory.json` to loosen a classification
 //! (to let a breaking change slip through) makes this test fail, so the gate
 //! cannot be defeated by hand-editing the classification. The actual wire
-//! shapes are pinned separately by the unit tests in `src/types.rs`.
+//! shapes are pinned separately by the integration tests in `tests/response_freeze.rs`
+//! (they intentionally live outside `src/types.rs` to respect the CI-003 hotspot
+//! baseline for that file).
 
 use std::collections::HashMap;
 use std::fs;

@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.3] - 2026-07-24
-
 ### Added
 
 - API freeze gate (Track ① of API-002): a `cargo-semver-checks` CI job comparing the

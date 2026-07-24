@@ -1,0 +1,131 @@
+name: Release (tag-only, dry-run)
+
+# REL-001 (Issue #97): tag-only, no-upload release pipeline.
+#
+# Design constraints (fail-closed):
+#   * Triggers ONLY on a semver tag push. There is NO `workflow_dispatch`
+#     entry — by design there is no manual bypass path ("无旁路条款").
+#   * Actual `cargo publish` (network upload) is NEVER performed. Only
+#     `cargo publish --dry-run` is allowed. The 0.1.2 accident (dirty,
+#     tag-less, version-drifted publish) is structurally impossible here.
+#   * Permissions are read-only. The `release` environment (configured in
+#     repo settings with required reviewers) gates the dry-run job.
+#   * No proxy-related env keys (NO_PROXY/no_proxy) — they would make the
+#     workflow validator reject the whole file.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    name: Pre-flight validation (tag / version / clean / deps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.97.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Run release pre-flight validator
+        run: ./.github/scripts/release-validate.sh
+
+      # Reuse CI-003 guards: dependency-edge + hotspot ledger.
+      - name: Reuse CI-003 architecture guards
+        run: cargo test --test architecture_guard
+
+      # Reuse CI-003 guard: release package allowlist (no .log / .env* / .secret).
+      - name: Reuse CI-003 package allowlist guard
+        run: cargo test --test package_guard
+
+      # gitleaks primary scan (working tree), pinned + sha256-verified binary.
+      - name: gitleaks secret scan (working tree)
+        run: |
+          GV=8.21.2
+          EXPECTED_SHA256=5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GV}/gitleaks_${GV}_linux_x64.tar.gz" -o gitleaks.tar.gz
+          ACTUAL="$(sha256sum gitleaks.tar.gz | cut -d' ' -f1)"
+          if [ "$ACTUAL" != "$EXPECTED_SHA256" ]; then
+            echo "::error::gitleaks checksum mismatch (got $ACTUAL, want $EXPECTED_SHA256)"
+            exit 1
+          fi
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks detect --source . --no-git --redact --config .gitleaks.toml
+
+  dry-run:
+    name: Package + dry-run (no upload) + post-extract scan + provenance sample
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: validate
+    environment: release
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.97.0
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      # NO --token, NO --allow-dirty. `--dry-run` verifies the package but
+      # performs ZERO network upload. This is the "无上传演练" core.
+      - name: cargo publish --dry-run (no upload)
+        run: cargo publish --dry-run
+
+      # Package, extract, and run a SECONDARY secret scan on the exact bytes
+      # that would be uploaded (CI-003 observation item: 解包后二次扫描).
+      - name: Package, extract, secondary secret scan, provenance sample
+        run: |
+          cargo package
+          CRATE="$(ls -1 target/package/llmrust-*.crate | head -1)"
+          echo "Packaged artifact: $CRATE"
+          SHA="$(sha256sum "$CRATE" | cut -d' ' -f1)"
+          echo "Artifact sha256: $SHA"
+          {
+            echo "PROVENANCE_SAMPLE<<EOF"
+            echo "{\"name\":\"llmrust\",\"version\":\"${GITHUB_REF#refs/tags/v}\",\"artifact\":\"$(basename "$CRATE")\",\"sha256\":\"$SHA\",\"published\":false,\"generated_by\":\"REL-001 dry-run\"}"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+          rm -rf extract && mkdir extract && tar -xzf "$CRATE" -C extract
+          GV=8.21.2
+          EXPECTED_SHA256=5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GV}/gitleaks_${GV}_linux_x64.tar.gz" -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks detect --source extract --no-git --redact --config .gitleaks.toml
+
+      - name: Publish-freeze reminder
+        run: echo "::notice::This is a DRY RUN. No artifact was uploaded. Actual publish requires Owner approval (SPCC §3.3)."
+
+  guards-fmt-clippy:
+    name: fmt / clippy gate (re-run after auto-fix, per CI-003 MUST-1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.97.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+      - name: cargo clippy (all targets, all features, -D warnings)
+        run: cargo clippy --all-targets --all-features -- -D warnings

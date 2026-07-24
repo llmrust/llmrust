@@ -49,36 +49,35 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      # cargo-deny 0.20.x `check` accepts a single subcommand, so run them separately.
-      - name: cargo deny — licenses
+      # cargo-deny 0.20.x `check` runs ALL checks (licenses, bans, sources,
+      # advisories); it does not accept a per-check subcommand argument.
+      - name: cargo deny check (licenses, bans, sources, advisories)
         uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
         with:
           command: check
-          arguments: licenses
-      - name: cargo deny — bans
-        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
-        with:
-          command: check
-          arguments: bans
-      - name: cargo deny — sources
-        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
-        with:
-          command: check
-          arguments: sources
 
   secrets:
-    name: Secret scan (gitleaks)
+    name: Secret scan (gitleaks CLI)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Download gitleaks (pinned + checksum-verified)
+        # gitleaks-action now requires a paid GITLEAKS_LICENSE secret, so we run
+        # the gitleaks CLI binary directly. Version and SHA256 are pinned for
+        # supply-chain integrity (SPCC §9.1).
+        run: |
+          GV=8.21.2
+          EXPECTED_SHA256=5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GV}/gitleaks_${GV}_linux_x64.tar.gz" -o gitleaks.tar.gz
+          ACTUAL=$(sha256sum gitleaks.tar.gz | cut -d' ' -f1)
+          if [ "$ACTUAL" != "$EXPECTED_SHA256" ]; then
+            echo "::error::gitleaks checksum mismatch: got $ACTUAL"
+            exit 1
+          fi
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks version
       - name: gitleaks detect
-        # Pinned to v2: v3 requires a paid GITLEAKS_LICENSE secret (unacceptable
-        # for a secret-scanning gate) and dropped the config-path/args inputs.
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
-        with:
-          # Custom config (default rules + repo allowlist), see .gitleaks.toml.
-          config-path: .gitleaks.toml
-          # Scan the working tree only (no git history) so reverted fixtures stay
-          # green; --redact desensitizes any leaked value in CI logs (SPCC §9.1).
-          args: --no-git --redact
+        # Scan the working tree only (no git history) so reverted fixtures stay
+        # green; --redact desensitizes any leaked value in CI logs (SPCC §9.1).
+        run: ./gitleaks detect --source . --no-git --redact --config .gitleaks.toml

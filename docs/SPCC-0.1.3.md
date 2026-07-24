@@ -1,16 +1,24 @@
 # llmrust SPCC 0.1.3 项目规格
 
 > **文档编号**：`LLMRUST-SPCC-013`  
-> **状态**：`ACTIVE SSOT — SPEC-000 已入库；M0 下一任务 CI-001`  
+> **状态**：`ACTIVE SSOT — M0 进行中；下一任务 CI-002`  
 > **目标版本**：`llmrust 0.1.3`  
 > **审计基线**：GitHub `main` @ `3d0734ac711de3aadf16331c0f9c21b1634a83a8`  
-> **规格版本**：`0.1`  
-> **编制日期**：`2026-07-13`  
+> **规格版本**：`0.2`（SPEC-001：角色更换、治理状态同步与勘误 E-001/E-002）  
+> **编制日期**：`2026-07-13`；**最近修订**：`2026-07-24`  
 > **仓库路径**：`docs/SPCC-0.1.3.md`
 
 本文件是 llmrust 0.1.3 的已批准项目级 SPCC。`SPEC-000` 合入仓库后，它成为仓库内的单一事实源（SSOT）。在入库前只允许执行无代码分支的 Incident 任务；不得创建业务实现分支或编写业务代码。
 
 本文同时约束人类与 AI agent。任何参与者都不得以“自动生成”“只是重构”“顺手修复”“先让 CI 绿”为理由绕过任务边界。
+
+## 0.5 规格勘误表
+
+| 编号 | 日期 | 事实 | 处置 | 责任任务 |
+|---|---|---|---|---|
+| `E-001` | 2026-07-24 | 全量审计发现：`proxy::tests::serve_starts_and_answers_health` 与 `serve_with_bearer_requires_auth` 使用 `reqwest::Client::new()`，在启用系统代理（含 Windows 注册表代理）的机器上回环请求被代理劫持，返回 502 造成环境性假失败；`.no_proxy()` 客户端可复现 200。不影响 CI（ubuntu 无系统代理），不影响生产代码。 | 记录为测试健壮性缺陷；修复并入架构/测试守卫任务，不单独开卡 | `CI-003`（或其实现期一并修复为 `no_proxy` 客户端） |
+| `E-002` | 2026-07-24 | 全量审计发现：`RetryProvider` 每次重试都会重新进入 Provider，导致 `warn_if_unsupported_n` 的"n>1 一次性警告"被放大为逐次重试重复打印。纯日志噪音，无功能影响。 | 记录为行为瑕疵；在 Retry 契约冻结任务中一并处理 | `API-003` |
+| `E-003` | 2026-07-24 | 全量审计（Kimi，2026-07-24，fmt/clippy/全量测试复核）确认本规格 §14 审计问题映射依然成立：Anthropic/Gemini 流式吞错（`anthropic.rs` / `google.rs` 对 malformed data 返回空 Vec）、capabilities 与实现漂移（Gemini seed/penalties、Ollama top_p、Retry 429、Anthropic response_format 文档自相矛盾）、`ThinkingConfig` 请求侧无 Provider 落地、`/health` 认证行为与文档冲突、Router 单计数器跨组干扰。技术任务卡无需重排。 | 无新增任务；既有任务卡继续有效 | `STR-002A/G`、`CAP-001`、`API-003`、`REA-*`、`PRX-002`、`RTR-001` |
 
 ---
 
@@ -116,17 +124,17 @@ llmrust 是一个以 Rust 为核心的统一 LLM SDK，并可选提供 OpenAI/An
 | 架构师 | 唯一拆解任务、维护 SPCC、评审方案与实现 PR、裁定 APPROVE/CHANGES/REJECT、授权合并 | 不编写自己评审任务的产品代码或代替 Owner 扩范围 |
 | 执行者 | 唯一进行实现任务内操作：写码、测试、推实现分支、建实现 PR、获授权后合并 | 不改 SPCC、不扩范围、不自行批准或提前合并 |
 
-角色是权限而不是身份标签。同一人或同一 agent 可以在不同任务中切换角色，但**同一产品实现任务内不得兼任架构师与执行者**。SPCC 初次入库、规格勘误和合并后状态回证属于架构师治理职责，不属于产品实现；由架构师直接创建治理分支/PR并维护，Grok 只提交实现和证据，不编辑 SPCC。每个阶段开始前由架构师维护本文件角色登记表，Owner 只确认方向性角色变更。
+角色是权限而不是身份标签。同一人或同一 agent 可以在不同任务中切换角色，但**同一产品实现任务内不得兼任架构师与执行者**。SPCC 初次入库、规格勘误和合并后状态回证属于架构师治理职责，不属于产品实现；由架构师直接创建治理分支/PR并维护，执行者只提交实现和证据，不编辑 SPCC。每个阶段开始前由架构师维护本文件角色登记表，Owner 只确认方向性角色变更。
 
 | 阶段 | Owner | 架构师 | 执行者 | 状态 |
 |---|---|---|---|---|
 | 事故处置 | llmrust Owner（用户） | Codex | Grok | `DONE` — `INC-001`、`INC-002` 均已通过 |
-| Phase 0–2 | llmrust Owner（用户） | Codex | Grok | `ACTIVE` — Grok 正在执行 `CI-001` |
-| Phase 3–5 | llmrust Owner（用户） | Codex | Grok | `BLOCKED` — 等待前置阶段 |
+| Phase 0–2 | llmrust Owner（用户） | Kimi | CodeBuddy | `ACTIVE` — 下一任务 `CI-002`（READY，待下发） |
+| Phase 3–5 | llmrust Owner（用户） | Kimi | CodeBuddy | `BLOCKED` — 等待前置阶段 |
 
-本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限：Codex 负责 SPCC 的初次入库、持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；Grok 负责 Codex 下发的产品代码、配置、测试和实现文档任务。Codex 不代写自己将要评审的产品实现，Grok 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Codex 负责把决定写入本表并记录生效时间。
+本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限。**2026-07-24 角色更换（SPEC-001，Owner 批准）**：前任架构师 Codex 的计划代理失效，Owner 指定 Kimi 接任唯一架构师，CodeBuddy 接任唯一执行者；历史任务（`INC-001`、`INC-002`、`SPEC-000`、`CI-001`）中 Codex/Grok 的裁定与回证继续有效，不回溯改写。自生效时起：Kimi 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 负责 Kimi 下发的产品代码、配置、测试和实现文档任务。Kimi 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Kimi 负责把决定写入本表并记录生效时间。
 
-Owner 不填写技术审计模板、不运行技术命令、不解释 scanner/CI/依赖/API 细节，也不在多个实现方案之间代替架构师作技术选择。Grok 负责产出技术证据，Codex 负责把证据裁定为 PASS/BLOCKED/REJECT，并向 Owner 只汇报：结果、用户/业务影响、剩余风险和明确建议。只有方向、范围、发布时间、成本或风险接受发生实质变化时，才请求 Owner 裁决；请求必须使用非技术语言解释“这是什么、为什么需要决定、各选项后果、架构师建议”。
+Owner 不填写技术审计模板、不运行技术命令、不解释 scanner/CI/依赖/API 细节，也不在多个实现方案之间代替架构师作技术选择。执行者负责产出技术证据，架构师负责把证据裁定为 PASS/BLOCKED/REJECT，并向 Owner 只汇报：结果、用户/业务影响、剩余风险和明确建议。只有方向、范围、发布时间、成本或风险接受发生实质变化时，才请求 Owner 裁决；请求必须使用非技术语言解释“这是什么、为什么需要决定、各选项后果、架构师建议”。
 
 ### 2.2 安全事故 Break-glass
 
@@ -610,7 +618,7 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 - 本地 HEAD = 远端分支头 = PR head；
 - squash subject 明确为 `[任务ID] 短描述 (#PR号)`。
 
-实现 PR 合并后，任务状态变为 `MERGED_PENDING_STATE`，尚不算 Done。架构师必须从最新主干创建 `state/<任务ID>-closeout`，只允许修改本规格的里程碑仪表盘、任务状态登记表和完成回证账本，并在 PR body 提供：实现 CI run 编号、实现 PR head、merge SHA、主干前进区间、Issue、GitHub Milestone和执行者工作区干净证据。Grok 负责提交这些事实证据，但不写状态 PR。
+实现 PR 合并后，任务状态变为 `MERGED_PENDING_STATE`，尚不算 Done。架构师必须从最新主干创建 `state/<任务ID>-closeout`，只允许修改本规格的里程碑仪表盘、任务状态登记表和完成回证账本，并在 PR body 提供：实现 CI run 编号、实现 PR head、merge SHA、主干前进区间、Issue、GitHub Milestone和执行者工作区干净证据。执行者负责提交这些事实证据，但不写状态 PR。
 
 架构师核验实现证据后创建并合并状态 PR。状态 PR 使用 `Closes #N`，squash subject 为 `[STATE-任务ID] Close 任务ID (#PR号)`。状态 PR 合并后，任务才变为 `DONE`，Issue 自动关闭，里程碑计数前进。**状态 PR 是架构师治理动作，不再递归产生新的状态 PR。**
 
@@ -629,18 +637,20 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 | `PLANNED` | 架构师 | 已列入规格但前置未核验 | 只读推演 |
 | `BLOCKED` | 架构师 | 有明确阻断条件 | 只处理阻断，不得实现 |
 | `READY` | 架构师 | 前置、范围、DoD 和执行令已完整 | 等待正式下发 |
-| `ACTIVE` | 架构师下发、Grok 回执 | Grok 已从指定基线开工 | 只做任务范围内工作 |
-| `REVIEW` | Grok 提交、架构师确认 | 实现 PR 已就绪 | 评审、修订、重跑 CI |
-| `MERGE_AUTHORIZED` | 架构师 | 最新 head 已批准合并 | Grok 只能按授权 squash merge |
+| `ACTIVE` | 架构师下发、执行者回执 | 执行者已从指定基线开工 | 只做任务范围内工作 |
+| `REVIEW` | 执行者提交、架构师确认 | 实现 PR 已就绪 | 评审、修订、重跑 CI |
+| `MERGE_AUTHORIZED` | 架构师 | 最新 head 已批准合并 | 执行者只能按授权 squash merge |
 | `MERGED_PENDING_STATE` | 合并事实触发 | 实现已进主干但状态账未闭合 | 只能创建状态回证 PR |
 | `DONE` | 架构师核验、状态 PR 合入 | 代码、证据、Issue、里程碑和 SPCC 一致 | 可解锁后继任务 |
 | `REJECTED` | 架构师或 Owner | 方案不可继续 | 关闭分支，必要时重做推演 |
 
-架构师负责**决定并写入状态**。Grok 负责提供实现证据，不得编辑 SPCC，也不得自行把任务标为 READY、MERGE_AUTHORIZED 或 DONE。Codex 可执行且只执行 SPCC、状态账、规格勘误和治理元数据相关的 GitHub 写操作；产品实现仍由 Grok 独立完成。
+架构师负责**决定并写入状态**。执行者负责提供实现证据，不得编辑 SPCC，也不得自行把任务标为 READY、MERGE_AUTHORIZED 或 DONE。架构师可执行且只执行 SPCC、状态账、规格勘误和治理元数据相关的 GitHub 写操作；产品实现仍由执行者独立完成。
 
 #### 11.1.2 GitHub Milestone 结构
 
-Codex 在治理初始化中建立并维护下列七个 GitHub Milestones。每个任务 Issue 只能属于一个 Milestone；实现 PR 使用 `Refs #N`，状态 PR 使用 `Closes #N`。Milestone 的关闭 Issue 数是外部实时进度，本表是主干内的版本化进度。
+架构师在治理初始化中建立并维护下列七个 GitHub Milestones。每个任务 Issue 只能属于一个 Milestone；实现 PR 使用 `Refs #N`，状态 PR 使用 `Closes #N`。Milestone 的关闭 Issue 数是外部实时进度，本表是主干内的版本化进度。
+
+> **治理状态同步（SPEC-001，2026-07-24）**：前任架构师任期内未实际创建 GitHub Milestones（远端为 0 个），`CI-002` 亦未建立执行令 Issue。Kimi 接任后已于 2026-07-24 补建下列七个 Milestones 并回填既有进度；下表主干记录与 GitHub 侧自该日起保持一致。
 
 | Milestone | 目标 | 完成/总数 | 进度 | 当前状态 | 下一任务 | 退出判据 |
 |---|---|---:|---:|---|---|---|
@@ -1091,7 +1101,7 @@ flowchart TD
 - **禁止范围**：修代码；降低门禁；修改版本；忽略红灯后继续。
 - **执行步骤**：逐 Milestone 对账；核对所有 STATE 记录；重跑本地/CI命令；检查豁免和技术债；package 列表/secret/semver/E2E；抽查日志隐私和文档声明。
 - **DoD**：无开放 P0/P1；无 `MERGED_PENDING_STATE`；所有 Issue/Milestone/SPCC 一致；RC 报告结论为 GO，或明确 NO-GO 并建立修复任务。
-- **裁定**：只有 Codex 可给 GO 建议，只有 Owner 可授权进入 REL-002。
+- **裁定**：只有架构师可给 GO 建议，只有 Owner 可授权进入 REL-002。
 
 #### `REL-002` — 0.1.3 版本与发布元数据
 
@@ -1106,7 +1116,7 @@ flowchart TD
 
 - **初始状态/依赖/分支**：`BLOCKED`；`REL-001`,`REL-002`；不建实现分支。
 - **任务目标**：从 `REL-002` 主干 merge SHA 创建 `v0.1.3` 并由流水线上传。
-- **允许操作**：Owner 明确授权后，Grok 创建受保护 annotated tag；观察 release workflow；创建 GitHub Release；执行只读发布后验证。
+- **允许操作**：Owner 明确授权后，执行者创建受保护 annotated tag；观察 release workflow；创建 GitHub Release；执行只读发布后验证。
 - **禁止操作**：本地 `cargo publish`；dirty tree；改 tag 指向；失败后绕过 workflow；未授权重跑有副作用步骤。
 - **执行步骤**：三证确认 main/merge SHA/tag；触发 workflow；核对 crate checksum、VCS SHA、docs.rs build、GitHub Release/provenance；异常立即停止并开 Incident。
 - **DoD**：crates.io 0.1.3 可见；docs.rs 指向同一 tag SHA；GitHub Release 与 hash/provenance 可查；0.1.2 保持 yanked；`STATE-REL-003` 合入关闭最终 Issue 和 Milestone。
@@ -1157,8 +1167,8 @@ flowchart TD
 ## 控制信息
 - Milestone：
 - 当前状态：READY
-- 架构师：Codex
-- 执行者：Grok
+- 架构师：Kimi
+- 执行者：CodeBuddy
 - 分支名：`task/<任务ID>-短描述`
 - 目标人工 diff：
 - 前置任务及其 merge SHA：
@@ -1245,11 +1255,11 @@ Issue body 必须包含完整执行令；不得只链接外部对话或要求执
 
 1. `INC-001` 已由 Codex 根据 Grok 报告与标准 scanner 补充证据裁定 PASS；token 撤销、owner、版本、原包和秘密扫描核验完成。
 2. `INC-002` 已独立验证 registry 为 `yanked=true`，且全新依赖解析不再选择 0.1.2；Incident 已关闭。
-3. 当前角色已确定：Owner 为 llmrust Owner（用户），架构师为 Codex，执行者为 Grok；未收到 Owner 新指令前不变更。
+3. 当前角色已确定：Owner 为 llmrust Owner（用户），架构师为 Kimi，执行者为 CodeBuddy（2026-07-24 起，SPEC-001）；未收到 Owner 新指令前不变更。
 4. 已接受 0.1.3 作为 0.1.2 的干净纠偏版：不新增 Provider、新产品 API或新的公开 API 破坏。
 5. 已接受 `/health` 公开但仅返回无敏感 liveness 的契约。
 6. 已接受 M0–M3 严格串行、M4 起最多两个独立 PR 并行；每个实现合并后必须先完成状态回证 PR。
-7. SPCC 是架构师治理资产：Codex 负责入库与持续维护，Grok 不编辑；Owner 只把控方向和结果。
+7. SPCC 是架构师治理资产：架构师负责入库与持续维护，执行者不编辑；Owner 只把控方向和结果。
 
 Owner 裁定记录：
 
@@ -1265,6 +1275,7 @@ Owner 裁定记录：
 | 2026-07-14 | 批准 0.1.3 范围、health 契约与任务串行规则 | §15 第 4–6 项正式生效 | Owner |
 | 2026-07-14 | Owner 只把控方向与结果，不承担技术裁决 | 技术证据和方案由 Grok/Codex 闭环；只有方向、范围、成本、发布时间或风险接受才提交 Owner，并必须用非技术语言解释 | Owner |
 | 2026-07-14 | SPCC 由架构师先入库并持续维护 | Codex 执行治理分支/PR、状态、里程碑和证据账本维护；Grok 只做被派发的实现任务 | Owner |
+| 2026-07-24 | 批准角色更换与 SPEC-001 治理更新 | 架构师更换为 Kimi，执行者更换为 CodeBuddy；历史裁定有效；补建 GitHub Milestones；勘误 E-001/E-002/E-003 入档；规格版本升为 0.2 | Owner |
 
 ---
 

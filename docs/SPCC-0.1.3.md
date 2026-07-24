@@ -703,7 +703,8 @@ flowchart TD
 | `INC-002` | INC | `DONE` | `INC-001` | N/A（入库前） | N/A（只读验证） | N/A | N/A（入库前） |
 | `SPEC-000` | M0 | `DONE` | INC DONE | N/A（架构治理） | [#81](https://github.com/llmrust/llmrust/pull/81) | `4b9d7cac865db8645cba1946673a172162d739e4` | [#82](https://github.com/llmrust/llmrust/pull/82) |
 | `CI-001` | M0 | `DONE` | `SPEC-000` | [#83](https://github.com/llmrust/llmrust/issues/83) | [#85](https://github.com/llmrust/llmrust/pull/85) | `c01239d548d50df4b299e166d67f5faf86d2f24c` | [#86](https://github.com/llmrust/llmrust/pull/86) |
-| `SPEC-001` | M0（治理，不计入 M0 任务数） | `DONE` | `CI-001` | N/A（架构治理） | [#87](https://github.com/llmrust/llmrust/pull/87) | `693b705ed29d62eb40b4584c44790a1d80b7a172` | STATE-SPEC-001（本 PR） |
+| `SPEC-001` | M0（治理，不计入 M0 任务数） | `DONE` | `CI-001` | N/A（架构治理） | [#87](https://github.com/llmrust/llmrust/pull/87) | `693b705ed29d62eb40b4584c44790a1d80b7a172` | [#89](https://github.com/llmrust/llmrust/pull/89) |
+| `SPEC-002` | M0（治理，不计入 M0 任务数） | `DONE` | `SPEC-001` | N/A（架构治理） | [#90](https://github.com/llmrust/llmrust/pull/90) | `541f6725f9a67341905c3a3b05d80768051ea900` | STATE-SPEC-002（本 PR） |
 | `CI-002` | M0 | `READY` | `CI-001`,`INC-001` | [#88](https://github.com/llmrust/llmrust/issues/88) | — | — | — |
 | `CI-003` | M0 | `BLOCKED` | `CI-001` | — | — | — | — |
 | `REL-001` | M0 | `BLOCKED` | `CI-002`,`CI-003`,`INC-002` | — | — | — | — |
@@ -745,7 +746,8 @@ flowchart TD
 | `INC-002` | N/A（入库前） | Grok `INC-002 REPORT`（registry + fresh Cargo resolution） | N/A | 2026-07-14 架构裁定 | N/A（入库前） | INC 2/2（100%） | `PASS` — Codex |
 | `SPEC-000` | N/A（架构治理） | [PR #81](https://github.com/llmrust/llmrust/pull/81) | CI run `29264874941`（MSRV、Test 全绿） | `4b9d7cac865db8645cba1946673a172162d739e4` | [PR #82](https://github.com/llmrust/llmrust/pull/82) | M0 1/5（20%） | `DONE` — Codex |
 | `CI-001` | [#83](https://github.com/llmrust/llmrust/issues/83) | [PR #85](https://github.com/llmrust/llmrust/pull/85) | CI run `29268965499`（MSRV、Test 全绿；run `29268920362` 提供真实取消证据） | `c01239d548d50df4b299e166d67f5faf86d2f24c`（2026-07-14 01:38 CST） | [PR #86](https://github.com/llmrust/llmrust/pull/86) | M0 2/5（40%） | `DONE` — Codex |
-| `SPEC-001` | N/A（架构治理） | [PR #87](https://github.com/llmrust/llmrust/pull/87)（角色更换 + 勘误 E-001~E-003 + 补建七个 GitHub Milestones） | CI run `30064509301`（MSRV、Test 全绿） | `693b705ed29d62eb40b4584c44790a1d80b7a172`（2026-07-24） | STATE-SPEC-001（本 PR） | M0 2/5（40%，治理任务不计数） | `DONE` — Kimi |
+| `SPEC-001` | N/A（架构治理） | [PR #87](https://github.com/llmrust/llmrust/pull/87)（角色更换 + 勘误 E-001~E-003 + 补建七个 GitHub Milestones） | CI run `30064509301`（MSRV、Test 全绿） | `693b705ed29d62eb40b4584c44790a1d80b7a172`（2026-07-24） | [PR #89](https://github.com/llmrust/llmrust/pull/89) | M0 2/5（40%，治理任务不计数） | `DONE` — Kimi |
+| `SPEC-002` | N/A（架构治理） | [PR #90](https://github.com/llmrust/llmrust/pull/90)（母规范 `docs/spcc.md` 入库登记 + 设计小样闸门/守恒清单吸收 + 合并口径项目化注明） | CI run `30068734484`（MSRV、Test 全绿） | `541f6725f9a67341905c3a3b05d80768051ea900`（2026-07-24） | STATE-SPEC-002（本 PR） | M0 2/5（40%，治理任务不计数） | `DONE` — Kimi |
 
 状态 PR必须同时更新：§11.1.2 Milestone 计数、§11.1.3 任务状态与引用、§11.1.4 回证账本。三处不一致直接 REJECT。
 

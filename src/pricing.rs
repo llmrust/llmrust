@@ -131,4 +131,40 @@ mod tests {
         let back: ModelPricing = serde_json::from_str(&json).unwrap();
         assert_eq!(pricing, back);
     }
+
+    #[test]
+    fn estimated_cost_does_not_double_count_cache_or_reasoning_tokens() {
+        // API-002 invariant: cost must derive only from prompt + completion
+        // tokens. `total_tokens` already includes cache/reasoning counts, so
+        // adding them again would double-count. Because ModelPricing only
+        // carries prompt/completion rates, `estimated_cost` ignores
+        // cache/reasoning tokens entirely — this test pins that behavior so a
+        // future "add cache pricing" change cannot silently start
+        // double-counting against `total_tokens`.
+        let pricing = ModelPricing::new(1.0, 2.0);
+        let with_cache = Usage {
+            prompt_tokens: 1_000,
+            completion_tokens: 2_000,
+            total_tokens: 5_000, // already includes cache + reasoning
+            cache_read_tokens: Some(1_500),
+            cache_write_tokens: Some(500),
+            reasoning_tokens: Some(1_000),
+        };
+        // expected: 1000/1000*1.0 + 2000/1000*2.0 = 1.0 + 4.0 = 5.0
+        let cost = with_cache.estimated_cost(&pricing);
+        assert!((cost - 5.0).abs() < 1e-9, "cost was {cost}, expected 5.0");
+
+        // Dropping cache/reasoning tokens must NOT change the cost — proof they
+        // are not counted (no double-counting).
+        let without_cache = Usage {
+            prompt_tokens: 1_000,
+            completion_tokens: 2_000,
+            total_tokens: 3_000,
+            ..Default::default()
+        };
+        assert!(
+            (without_cache.estimated_cost(&pricing) - 5.0).abs() < 1e-9,
+            "cost must not depend on cache/reasoning tokens"
+        );
+    }
 }

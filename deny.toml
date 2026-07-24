@@ -1,0 +1,53 @@
+# deny.toml — llmrust 0.1.3 supply-chain policy (CI-002, Issue #88)
+#
+# Hard-fail gates enforced by EmbarkStudios/cargo-deny-action in security.yml:
+#   - licenses : only the allow-listed licenses may appear in the dependency tree
+#   - bans     : flag multiple versions / wildcard requirements
+#   - sources  : only crates.io is allowed; git/path sources are denied
+#
+# Time-boxed exemptions (if ever required) live in security/exemptions.toml and
+# MUST carry task / reason / owner / review_on. No indefinite ignores are allowed.
+
+[advisories]
+version = 2
+# RUSTSEC advisories are enforced by rustsec/audit-check in security.yml.
+# Any time-boxed advisory ignore is recorded in security/exemptions.toml.
+ignore = []
+
+[licenses]
+version = 2
+# Permitted licenses for the 0.1.x dependency tree. Add new entries only when a
+# real dependency requires them, and record the rationale in the PR summary.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-3.0",
+  "Unicode-DFS-2016",
+  "Zlib",
+  "CC0-1.0",
+  "MPL-2.0",
+  "Unlicense",
+  "0BSD",
+  "MIT-0",
+  "BSL-1.0",
+  "OpenSSL",
+]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "warn"
+# Wildcard requirements ("*") are denied to keep the dependency graph explicit.
+wildcards = "deny"
+highlight = "all"
+
+[sources]
+# Only the crates.io registry is allowed. Git/path sources are denied by default
+# (unknown-git = "deny"); this is what blocks banned git dependencies.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

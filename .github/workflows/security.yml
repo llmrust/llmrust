@@ -1,0 +1,84 @@
+# Security Gates — CI-002 (Issue #88 / SPCC §9.1)
+# Hard-fail gates for secrets, known vulnerabilities, banned licenses & sources.
+# Triggers on pushes to main and on PRs targeting main. (Task-branch push
+# triggers are intentionally omitted — they are execution-time artifacts and
+# must not be merged; see SPCC §10.4.)
+name: Security Gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Minimal permissions: read-only code, plus checks:write so rustsec/audit-check
+# can publish its advisory result as a check run. No secret/write access to fork PRs.
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rustsec:
+    name: RustSec advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: cargo audit (RUSTSEC advisories)
+        uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  deny:
+    name: Supply-chain policy (cargo-deny)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      # cargo-deny 0.20.x `check` runs ALL checks (licenses, bans, sources,
+      # advisories); it does not accept a per-check subcommand argument.
+      - name: cargo deny check (licenses, bans, sources, advisories)
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
+        with:
+          command: check
+
+  secrets:
+    name: Secret scan (gitleaks CLI)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Download gitleaks (pinned + checksum-verified)
+        # gitleaks-action now requires a paid GITLEAKS_LICENSE secret, so we run
+        # the gitleaks CLI binary directly. Version and SHA256 are pinned for
+        # supply-chain integrity (SPCC §9.1).
+        run: |
+          GV=8.21.2
+          EXPECTED_SHA256=5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GV}/gitleaks_${GV}_linux_x64.tar.gz" -o gitleaks.tar.gz
+          ACTUAL=$(sha256sum gitleaks.tar.gz | cut -d' ' -f1)
+          if [ "$ACTUAL" != "$EXPECTED_SHA256" ]; then
+            echo "::error::gitleaks checksum mismatch: got $ACTUAL"
+            exit 1
+          fi
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks version
+      - name: gitleaks detect
+        # Scan the working tree only (no git history) so reverted fixtures stay
+        # green; --redact desensitizes any leaked value in CI logs (SPCC §9.1).
+        run: ./gitleaks detect --source . --no-git --redact --config .gitleaks.toml

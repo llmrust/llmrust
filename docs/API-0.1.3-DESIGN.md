@@ -5,6 +5,7 @@
 - **Baseline HEAD**: `ceccd9b`
 - **Status**: 纯观测任务，**零 `src/**` 改动**。本文件是 M1 API 冻结的测量基线 SSOT。
 - **Machine artifact**: `docs/api-inventory.json` (schema `llmrust-api-inventory/1.0`)，供 API-002 消费。
+- **Adjudication**: 七项裁定已于 **2026-07-24** 由架构师在 PR #101 comment [#5069909949](https://github.com/llmrust/llmrust/pull/101#issuecomment-5069909949) 下发，已回填 §5/§6/§7（pending → 正式裁定）。
 
 ---
 
@@ -41,12 +42,13 @@
 | Symbol | kind | module | root-reexported | non_exhaustive | v0.1.1 | v0.1.2 | main | classification |
 |---|---|---|---|---|---|---|---|---|
 | 24 个根类型 | struct/enum | types | yes | 见 JSON | ✓ | ✓ | ✓ | STABLE / STABLE-ADDITIVE |
-| `ThinkingConfig` | enum | types | **no** | **no** | ✗ | ✓ | ✓ | STABLE（建议）— 已标红 |
+| `ThinkingConfig` | enum | types | **no** | **no** | ✗ | ✓ | ✓ | STABLE（裁定 D3） |
 | `LmrsClient` | facade | lib | n/a | n/a | ✓ | ✓ | ✓ | STABLE |
 | `Provider` trait | trait | providers | yes | n/a | ✓ | ✓ | ✓ | STABLE |
 | `RetryProvider` | struct | providers::retry | yes | n/a | ✓ | ✓ | ✓ | STABLE |
 | `Router`/`RoutingStrategy`/`ModelPricing` | — | router/pricing | yes | n/a | ✓ | ✓ | ✓ | STABLE |
-| proxy DTOs（35） | struct/enum | proxy | yes(feat) | no | ✓ | ✓ | ✓ | UNSTABLE（建议） |
+| proxy DTOs（35） | struct/enum | proxy | yes(feat) | no | ✓ | ✓ | ✓ | **UNSTABLE（裁定 D6）** |
+| `AppState` | struct | proxy | yes(feat) | no | ✓ | ✓ | ✓ | **INTERNAL-PUB（裁定 D6）** |
 
 ---
 
@@ -65,7 +67,7 @@
 - ⇒ DoD「相对 0.1.2 的 allowed-change-set 为空」**满足**。
 
 ### 3.3 解读
-0.1.2 带入 main 的唯一内容是加法的 `ThinkingConfig` 引入。**main 相对 0.1.2 无新增破坏性变更**。但因 0.1.2 是 dirty/yanked、从未正式批准发布，架构师须裁定（§5）是否将 `ThinkingConfig` + `ChatRequest.thinking` 采纳为冻结的 0.1.x 基线，或回退。
+0.1.2 带入 main 的唯一内容是加法的 `ThinkingConfig` 引入。**main 相对 0.1.2 无新增破坏性变更**。但因 0.1.2 是 dirty/yanked、从未正式批准发布，架构师须裁定（§5.7 / D7）是否将 `ThinkingConfig` + `ChatRequest.thinking` 采纳为冻结的 0.1.x 基线，或回退。
 
 ---
 
@@ -80,22 +82,43 @@
 
 ---
 
-## 5. 漂移发现（需架构师逐项裁定）
+## 5. 漂移发现与裁定（Adjudication，2026-07-24，架构师 PR #101 #5069909949）
 
 **D1（最高优先，Issue #100 指定首条）`FinishReason`** — `src/types.rs:404`，`pub enum`，**非** `#[non_exhaustive]`。
 - AGENTS.md 声称：*"FinishReason variants are cross-provider"*（暗示可扩展）。
 - 代码：非 `#[non_exhaustive]` ⇒ 0.1.x 内加变体 = **破坏性**变更。
-- 处置待架构师：改文档（删"可扩展"声称）vs 改代码（加 `#[non_exhaustive]`）。路由：`E-*`（代码）或 `SPEC-*`（规范）——架构师另给建议。
+- **裁定**：**改文档，不改代码**；分类 **STABLE**，变体集合在 0.1.x **冻结**。理由：给既有 enum 补 `#[non_exhaustive]` 对穷尽匹配的下游消费者本身即破坏性，0.1.x 不可行。AGENTS.md 措辞应澄清为"变体语义跨 provider 共享，但集合在 0.1.x 冻结，扩展只能进 0.2"。路由：勘误 **E-004**（文档修正并入 DOC-001）；§5.1 wire 层"未知值逃生口"属容错，归 API-002 测试范围，两者不冲突。
 
 **D2：`ChatResponse`** — `src/types.rs:473`，`pub struct`，非 `#[non_exhaustive]`。
-- 响应体未冻结；加字段会破坏 0.1.x 消费者。与 `ChatRequest`（non_exhaustive）不一致。建议：标 `#[non_exhaustive]`。
+- 响应体未冻结；加字段会破坏 0.1.x 消费者。与 `ChatRequest`（non_exhaustive）不一致。
+- **裁定**：**不改代码**，分类 **STABLE**（0.1.x 不加字段）。补 `#[non_exhaustive]` 同样破坏字面量构造的下游，故冻结形状，0.2 再评估；记入技术债台账（DOC-001 落笔）。
 
 **D3：`ThinkingConfig`** — `src/types.rs:556`，`pub enum`，非 `#[non_exhaustive]`，未根再导出。
-- 两处不一致：(a) 不在根 `pub use`（所有同侪类型都在）；(b) 作为可扩展 enum 却非 `#[non_exhaustive]`。建议：根再导出 + 加 `#[non_exhaustive]`。
+- 两处不一致：(a) 不在根 `pub use`（所有同侪类型都在）；(b) 作为可扩展 enum 却非 `#[non_exhaustive]`。
+- **裁定**：分类 **STABLE**；**根再导出缺口记为 0.2 候选，0.1.x 不动**。理由：补根再导出虽加法非破坏，但 API-001 禁改 `src`，且当前经 `llmrust::types::ThinkingConfig` 已可用；一致性改进打包进 0.2 评估清单。`#[non_exhaustive]` 同 D1 逻辑不加。
 
 **D4：`ThinkingConfig` 未文档化** — AGENTS.md / docs/CAPABILITIES.md 对 `thinking`/`ThinkingConfig` 只字未提，尽管其自 0.1.2 起已公开。文档缺口。
+- **裁定**：**属实，并入 DOC-001**——`ThinkingConfig` 写入 AGENTS.md / CAPABILITIES.md。
 
 **D5：AGENTS.md 声称准确性** — "ChatRequest is #[non_exhaustive]" ✓；"EmbeddingRequest fields are cross-provider; provider-specific knobs belong in `extra`" ✓（EmbeddingRequest 确为 non_exhaustive）。仅 D1（`FinishReason`）为真实矛盾。
+- **裁定**：**无行动（no action）**——声称与代码吻合，漂移不成立。
+
+### 5.6 产品面裁定：0.1.2 `ThinkingConfig` 采纳（D7）
+
+三方对照证实：0.1.2 事故发布带进 main 的唯一内容是 `ThinkingConfig`（types.rs:556）+ `ChatRequest.thinking`（:652）+ `ChatRequest::with_thinking`（:740），全部加法、非破坏性，且已随 0.1.2 实际公开、下游可能已依赖。
+- **裁定（D7）**：**采纳为 0.1.x 冻结基线，不回退**。理由：回退反而制造破坏；dirty 出身的程序问题已在 INC-002 结清，产物内容经三方核验无害。此裁定属产品面决策，已同步 Owner，可否决。
+
+### 5.7 裁定汇总（七项，2026-07-24）
+
+| # | 标的 | 裁定 | 路由 / 落点 |
+|---|---|---|---|
+| D1 | `FinishReason` | 改文档、不改代码；STABLE、变体集合冻结 | 勘误 E-004 → DOC-001 |
+| D2 | `ChatResponse` | 不改代码；STABLE（0.1.x 不加字段） | 技术债台账 → DOC-001 |
+| D3 | `ThinkingConfig`（分类/根导出） | STABLE；根再导出缺口记 0.2 候选，0.1.x 不动 | 0.2 评估清单 |
+| D4 | `ThinkingConfig` 未文档化 | 属实，并入 DOC-001 | DOC-001 |
+| D5 | AGENTS.md 声称 | 无行动（吻合） | — |
+| D6 | proxy DTO / `AppState`（§6） | proxy = UNSTABLE、`AppState` = INTERNAL-PUB（批准） | 冻结分类 |
+| D7 | 0.1.2 `ThinkingConfig` 采纳（产品面） | 采纳为 0.1.x 基线，不回退 | 产品面决策（可否决） |
 
 ---
 
@@ -103,8 +126,7 @@
 
 proxy DTO 为 wire-facing（`proxy/mod.rs`）：`ProxyChatRequest`、`ProxyMessage`、`ProxyChatResponse`、`ProxyStreamChunk`、`ProxyEmbeddingRequest/Response`、`ProxyError*`、加服务器内部的 `AppState`，以及 `anthropic_proxy.rs` 请求/响应 DTO。
 - 三个基线间**逐字节相同**（无漂移）。
-- 建议分类 **UNSTABLE**：proxy 是 HTTP 兼容垫片，wire 格式可能在 0.1.x 内演进；消费者不应依赖 DTO 精确形状。`AppState` 为 INTERNAL-PUB（服务器状态，非 wire 契约）。
-- 请架构师确认 UNSTABLE vs STABLE。
+- **裁定（D6，2026-07-24，架构师）**：**批准 UNSTABLE**（`proxy` 是 HTTP 兼容垫片，wire 格式可能在 0.1.x 内演进；消费者不应依赖 DTO 精确形状）；**`AppState` = INTERNAL-PUB**（服务器状态，非 wire 契约，不在 0.1.x semver 承诺内）。
 
 ---
 
@@ -115,10 +137,10 @@ proxy DTO 为 wire-facing（`proxy/mod.rs`）：`ProxyChatRequest`、`ProxyMessa
 - [x] 相对 0.1.2 的 allowed-change-set 为空（核验逐字节相同）。
 - [x] 0.1.2 基线取自 crates.io，非本地树（红线遵守，checksum 在案）。
 - [x] 纯观测：未修改任何 `src/**`。
-- [ ] 架构师对差异表逐项裁定（交付后，依 Issue #100）。
+- [x] 架构师对差异表逐项裁定（D1–D7，2026-07-24，PR #101 #5069909949；依 Issue #100）。
 
 ---
 
 ## 8. 机器产物
 
-`docs/api-inventory.json` — schema `llmrust-api-inventory/1.0`，由 API-002（semver 机器化）消费。
+`docs/api-inventory.json` — schema `llmrust-api-inventory/1.0`，由 API-002（semver 机器化）消费。`drift_findings[].adjudication` 已与本节逐条对齐。

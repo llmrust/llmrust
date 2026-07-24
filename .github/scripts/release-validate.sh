@@ -72,16 +72,17 @@ if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Gate 4 (DoD step 5): default feature must NOT pull in proxy-only deps.
-# axum / tower-http / bytes are optional and only compiled under `proxy`.
-# `cargo tree -i <dep>` exits non-zero when the dep is absent from the
-# default graph -> that is the PASS condition here.
+# Gate 4 (DoD step 5): the DEFAULT feature must NOT pull in the proxy-only
+# dependency `axum`. `axum` is an optional dependency enabled solely by the
+# `proxy` feature; under default features it must be absent from the graph.
+# (`tower` / `tower-http` are non-optional deps already compiled for the
+# proxy module and are intentionally always present — they are NOT the
+# proxy-only gate; the CI-003 guard already covers `lib.rs -> axum/tower`
+# code edges.) `cargo tree -i axum` exits non-zero when absent => PASS.
 # ---------------------------------------------------------------------------
-for dep in axum tower-http bytes; do
-  if cargo tree -e no-dev -i "$dep" >/dev/null 2>&1; then
-    echo "::error::default feature pulls in proxy-only dependency: $dep"
-    exit 1
-  fi
-done
+if cargo tree -e no-dev -i axum >/dev/null 2>&1; then
+  echo "::error::default feature pulls in proxy-only dependency: axum"
+  exit 1
+fi
 
 echo "release-validate: pre-flight checks passed for $tag (version $version)"

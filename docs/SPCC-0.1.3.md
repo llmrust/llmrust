@@ -1,7 +1,7 @@
 # llmrust SPCC 0.1.3 项目规格
 
 > **文档编号**：`LLMRUST-SPCC-013`  
-> **状态**：`ACTIVE SSOT — M2 进行中（public API freeze 生效）；下一任务 STR-002A`  
+> **状态**：`ACTIVE SSOT — M2 进行中（public API freeze 生效）；下一任务 STR-002G`  
 > **目标版本**：`llmrust 0.1.3`  
 > **审计基线**：GitHub `main` @ `3d0734ac711de3aadf16331c0f9c21b1634a83a8`  
 > **规格版本**：`0.3`（SPEC-002：登记母规范 `docs/spcc.md`，吸收设计小样与守恒清单制度）  
@@ -135,7 +135,7 @@ llmrust 是一个以 Rust 为核心的统一 LLM SDK，并可选提供 OpenAI/An
 | 阶段 | Owner | 架构师 | 执行者 | 状态 |
 |---|---|---|---|---|
 | 事故处置 | llmrust Owner（用户） | Codex | Grok | `DONE` — `INC-001`、`INC-002` 均已通过 |
-| Phase 0–2 | llmrust Owner（用户） | Kimi | CodeBuddy | `ACTIVE` — M2 进行中（freeze 生效）；下一任务 `STR-002A`（READY，待下发） |
+| Phase 0–2 | llmrust Owner（用户） | Kimi | CodeBuddy | `ACTIVE` — M2 进行中（freeze 生效）；下一任务 `STR-002G`（READY，待下发） |
 | Phase 3–5 | llmrust Owner（用户） | Kimi | CodeBuddy | `BLOCKED` — 等待前置阶段 |
 
 本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限。**2026-07-24 角色更换（SPEC-001，Owner 批准）**：前任架构师 Codex 的计划代理失效，Owner 指定 Kimi 接任唯一架构师，CodeBuddy 接任唯一执行者；历史任务（`INC-001`、`INC-002`、`SPEC-000`、`CI-001`）中 Codex/Grok 的裁定与回证继续有效，不回溯改写。自生效时起：Kimi 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 负责 Kimi 下发的产品代码、配置、测试和实现文档任务。Kimi 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Kimi 负责把决定写入本表并记录生效时间。
@@ -679,7 +679,7 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 | `0.1.3 / INC Incident` | 清除发布事故影响 | 2/2 | 100% | `DONE` | — | 账户/产物核验完成且 0.1.2 已 yank |
 | `0.1.3 / M0 Foundation` | 建立不可绕过的治理与发布门禁 | 5/5 | 100% | `DONE` | — | 五项任务 DONE，负向门禁证据齐全 |
 | `0.1.3 / M1 API Freeze` | 冻结 0.1.x 公开 API | 4/4 | 100% | `DONE` | —（已收口） | 相对 0.1.2 零新增破坏，兼容性说明完成 |
-| `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 1/10 | 10% | `ACTIVE` | `STR-002A` | 十项任务 DONE，能力声明与 fixture 一致 |
+| `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 2/10 | 20% | `ACTIVE` | `STR-002G` | 十项任务 DONE，能力声明与 fixture 一致 |
 | `0.1.3 / M3 Proxy Security` | 收紧代理默认安全与 wire 行为 | 0/5 | 0% | `BLOCKED` | `PRX-001` | 五项任务 DONE，安全负例全部通过 |
 | `0.1.3 / M4 Maintainability` | 冻结热点、修正 Router 状态并形成拆分蓝图 | 0/4 | 0% | `BLOCKED` | `ARC-001` | 热点守卫、Router 隔离、拆分设计和文档一致性完成 |
 | `0.1.3 / M5 Release` | 审计并发布干净 0.1.3 | 0/4 | 0% | `BLOCKED` | `E2E-001` | crates.io/docs.rs/GitHub tag 三方一致 |
@@ -718,8 +718,8 @@ flowchart TD
 | `API-003` | M1 | `DONE` | `API-001` | [#106](https://github.com/llmrust/llmrust/issues/106) | [#111](https://github.com/llmrust/llmrust/pull/111) | `16cb312b43508fee5a444ef862cb29f168bc8719` | STATE-API-003（本 PR） |
 | `DOC-001` | M1 | `DONE` | `API-002`,`API-003` | [#113](https://github.com/llmrust/llmrust/issues/113) | [#114](https://github.com/llmrust/llmrust/pull/114) | `1dabbbd81048ddf2709013e8a46d37275ad25e7a` | STATE-DOC-001（本 PR） |
 | `STR-001` | M2 | `DONE` | M1 DONE | [#116](https://github.com/llmrust/llmrust/issues/116) | [#117](https://github.com/llmrust/llmrust/pull/117) | `767ff20f04bc513e6d92e932bccfb2d24149a53e` | STATE-STR-001（本 PR） |
-| `STR-002A` | M2 | `READY` | `STR-001` | — | — | — | — |
-| `STR-002G` | M2 | `BLOCKED` | `STR-002A` | — | — | — | — |
+| `STR-002A` | M2 | `DONE` | `STR-001` | [#119](https://github.com/llmrust/llmrust/issues/119) | [#120](https://github.com/llmrust/llmrust/pull/120) | `eb6676da47b3d1b795a33507a249683238ea9f61` | STATE-STR-002A（本 PR） |
+| `STR-002G` | M2 | `READY` | `STR-002A` | — | — | — | — |
 | `REA-001` | M2 | `BLOCKED` | `API-001` | — | — | — | — |
 | `REA-002` | M2 | `BLOCKED` | `REA-001`,`STR-001` | — | — | — | — |
 | `REA-003` | M2 | `BLOCKED` | `REA-002` | — | — | — | — |
@@ -762,6 +762,7 @@ flowchart TD
 | `API-003` | [#106](https://github.com/llmrust/llmrust/issues/106) | [PR #111](https://github.com/llmrust/llmrust/pull/111)（E-002 警告进程级去重 + 429 文档对齐 + Provider 契约冻结测试） | 整改后首张全流程卡：任务令 v2 标 M 级 + 闸门触发 → 设计小样 APPROVE + 2 MUST → PR #110 裁需修改（F-1 分支名 `task/API-003-retry-contract` 违规改回任务卡指定值、F-2 `capabilities.json` 缩进漂移）→ 返修 PR #111；合并前 title/body 预检机制首次实战运转；head `6dabb39` 七项检查全绿（含 semver gate） | `16cb312b43508fee5a444ef862cb29f168bc8719`（2026-07-25） | STATE-API-003（本 PR） | M1 3/4（75%） | `DONE` — Kimi |
 | `DOC-001` | [#113](https://github.com/llmrust/llmrust/issues/113) | [PR #114](https://github.com/llmrust/llmrust/pull/114)（COMPATIBILITY-0.1.3.md + CAPABILITIES ThinkingConfig 登记 + CHANGELOG D7 句 + AGENTS E-004 + README 双语） | 设计小样 APPROVE + 2 MUST（D4 落全 CAPABILITIES、CHANGELOG 不定稿日期）→ PR #114 裁需修改（F-1 CAPABILITIES "serializes/forwards" 失实收窄为"无 provider 落地"、F-2 README 现在时断言改前瞻式）→ 返修 head `a42bd9a` 七项检查全绿；合并预检机制运转；`src/` 零生产改动 | `1dabbbd81048ddf2709013e8a46d37275ad25e7a`（2026-07-25） | STATE-DOC-001（本 PR） | M1 4/4（100%）— **封板，public API freeze 生效** | `DONE` — Kimi |
 | `STR-001` | [#116](https://github.com/llmrust/llmrust/issues/116) | [PR #117](https://github.com/llmrust/llmrust/pull/117)（`stream_state.rs` 惰性 terminal 状态机 + `stream()` 出口包裹 + 9 fixture） | 设计小样一审裁需修改（G-1"首发即射"与 T-1 自相矛盾、DoD2 不可达——`google.rs` usage 晚于 finish 真实时序印证）→ 修订为惰性 terminal 后 APPROVE；实现 PR 裁 APPROVE + 2 MUST（CHANGELOG 无关空格还原、失败先行负例证据：朴素透传下 T-1/T-3/T-5/T-6 全红→还原 9/9 绿）；head `b89c7de` 七项检查全绿。架构师范围授权两项：`src/lib.rs` 集成点、`CHANGELOG.md` 登记（均记台账、不构成先例）。**过程偏差两记入档**：① 预算 453 vs 自估 330（+37%），小样承诺的"超 400 先报审"未履行；② 合并提交标题与合并令逐字标题不符（执行时误用预检包装文件，预检机制被绕过）——新增防呆：合并后执行者必须核验 merge commit 标题 == 合并令逐字标题方可报回执。偏差不影响交付内容正确性 | `767ff20f04bc513e6d92e932bccfb2d24149a53e`（2026-07-25） | STATE-STR-001（本 PR） | M2 1/10（10%） | `DONE` — Kimi |
+| `STR-002A` | [#119](https://github.com/llmrust/llmrust/issues/119) | [PR #120](https://github.com/llmrust/llmrust/pull/120)（Anthropic malformed/truncated JSON→Parse、error 事件→Stream、`message_delta.usage` 补译 + 4 fixture 1 守卫） | 设计小样 APPROVE（三待裁决点拍板：未知事件可忽略、error→`LlmError::Stream`、usage 补译纳入——范围授权记台账）→ 实现 PR 裁 APPROVE + 1 MUST（hotspot 台账归属更正：基线 972→1105 实质追认，但"design APPROVE 批任务范围 ≠ 批基线"）。**追认与防呆入档**：① `errored` 关流标志省略的设计偏差追认（共享层 error 优先兜底，消费者 DoD 成立）；② **新防呆：热点基线调整=架构师专属动作**（执行者自改基线=拆报警器）；③ 合并标题第二关核验首次实战通过（merge commit 标题逐字==合并令）。流程细化：`gh pr merge --squash` 默认拼接 commit 消息为 body，今后合并令要求 `--body-file` 传入预检干净 body，保证 commit body 首行 `Closes #N` | `eb6676da47b3d1b795a33507a249683238ea9f61`（2026-07-25） | STATE-STR-002A（本 PR） | M2 2/10（20%） | `DONE` — Kimi |
 
 状态 PR必须同时更新：§11.1.2 Milestone 计数、§11.1.3 任务状态与引用、§11.1.4 回证账本。三处不一致直接 REJECT。
 

@@ -24,8 +24,8 @@
       "file": "src/providers/anthropic.rs",
       "old": 972,
       "new": 1105,
-      "reason": "STR-002A (#119) authorized growth: surfaced parse/stream errors (LlmError::Parse on malformed JSON, LlmError::Stream on error events) + message_delta.usage translation + failure-first fixtures (4 + 1 guard). Design APPROVE (#119 comment #5077495420) budget +180/-25, touching only anthropic.rs. Real, not inflated.",
-      "authorized_by": "architect (STR-002A design APPROVE)",
+      "reason": "STR-002A (#119) growth: surfaced parse/stream errors (LlmError::Parse on malformed JSON, LlmError::Stream on error events) + message_delta.usage translation + failure-first fixtures (4 + 1 guard). All growth within design-APPROVE task scope (comment #5077495420, budget +180/-25), touching only anthropic.rs; real, not inflated. Hotspot baseline adjustment (972->1105) itself was NOT covered by design APPROVE and is retro-ratified by the review APPROVE (comment #5077600556).",
+      "authorized_by": "architect (STR-002A review APPROVE #5077600556 — retro-ratified baseline; design APPROVE covered task scope only)",
       "date": "2026-07-25"
     }
   ]

@@ -371,6 +371,21 @@ struct AnthropicStreamEvent {
     content_block: Option<AnthropicStreamContentBlock>,
     #[serde(default)]
     delta: Option<AnthropicDelta>,
+    /// STR-002A: stream-level error event payload (`{"type":"error","error":{...}}`).
+    #[serde(default)]
+    error: Option<AnthropicStreamError>,
+    /// STR-002A: usage is reported on the `message_delta` event, at the event
+    /// level (sibling of `delta`), not inside `delta`. Previously missing → lost.
+    #[serde(default)]
+    usage: Option<AnthropicUsage>,
+}
+
+/// Payload of an Anthropic `error` stream event. Only the `message` is needed
+/// to surface a stream-level error; the inner error `type` is intentionally not
+/// modeled (forward-compat: we never branch on it).
+#[derive(Deserialize)]
+struct AnthropicStreamError {
+    message: String,
 }
 
 /// The `content_block` of a `content_block_start` event. A `tool_use` block
@@ -478,10 +493,19 @@ impl AnthropicToolAccumulator {
 fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     let Some(data) = line.strip_prefix("data: ") else {
+        // Framing lines (empty, `event:`, `:comment`, etc.) carry no data.
         return Vec::new();
     };
-    let Ok(event) = serde_json::from_str::<AnthropicStreamEvent>(data) else {
-        return Vec::new();
+    let event = match serde_json::from_str::<AnthropicStreamEvent>(data) {
+        Ok(event) => event,
+        Err(e) => {
+            // STR-002A: malformed / truncated JSON must surface a Parse error
+            // (and, via the STR-001 shared layer, close the stream) instead of
+            // being silently dropped — the previous behavior hid real failures.
+            return vec![Err(LlmError::Parse(format!(
+                "anthropic stream: malformed SSE data: {e}"
+            )))];
+        }
     };
     match event.event_type.as_str() {
         "content_block_start" => {
@@ -538,15 +562,43 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
                 .delta
                 .and_then(|d| d.stop_reason)
                 .map(normalize_stop_reason);
+            // STR-002A: translate the usage reported at the event level on
+            // `message_delta` (previously dropped → Anthropic stream usage lost).
+            let usage = event.usage.map(|u| Usage {
+                prompt_tokens: u.input_tokens,
+                completion_tokens: u.output_tokens,
+                total_tokens: u.input_tokens.saturating_add(u.output_tokens),
+                ..Default::default()
+            });
             let tool_calls = tools.take();
             vec![Ok(StreamChunk {
                 done: finish_reason.is_some(),
                 finish_reason,
                 tool_calls,
+                usage,
                 ..Default::default()
             })]
         }
-        _ => Vec::new(),
+        "error" => {
+            // STR-002A: a stream-level error event carries no HTTP status, so
+            // surface it as LlmError::Stream. The STR-001 shared layer then
+            // guarantees the stream is closed without a success terminal.
+            let msg = event
+                .error
+                .map(|e| e.message)
+                .unwrap_or_else(|| "anthropic stream error event".to_string());
+            vec![Err(LlmError::Stream(msg))]
+        }
+        other => {
+            // Forward-compat: unknown / future event types (including
+            // `message_stop`, `ping`, `comment`) are ignored. Log only the type,
+            // never the content (logging discipline: no payload, no secrets).
+            tracing::debug!(
+                event_type = other,
+                "ignoring unknown anthropic stream event"
+            );
+            Vec::new()
+        }
     }
 }
 
@@ -979,7 +1031,11 @@ mod tests {
     fn stream_malformed_json_yields_parse_error() {
         let mut tools = AnthropicToolAccumulator::default();
         let chunks = parse_sse_line(&mut tools, "data: {not valid json");
-        assert_eq!(chunks.len(), 1, "malformed JSON must surface one Parse error");
+        assert_eq!(
+            chunks.len(),
+            1,
+            "malformed JSON must surface one Parse error"
+        );
         assert!(matches!(chunks[0], Err(LlmError::Parse(_))));
     }
 
@@ -990,7 +1046,11 @@ mod tests {
             &mut tools,
             r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello""#,
         );
-        assert_eq!(chunks.len(), 1, "truncated JSON must surface one Parse error");
+        assert_eq!(
+            chunks.len(),
+            1,
+            "truncated JSON must surface one Parse error"
+        );
         assert!(matches!(chunks[0], Err(LlmError::Parse(_))));
     }
 
@@ -1001,7 +1061,11 @@ mod tests {
             &mut tools,
             r#"data: {"type":"error","error":{"type":"overloaded_error","message":"upstream overloaded"}}"#,
         );
-        assert_eq!(chunks.len(), 1, "Anthropic error event must surface one Stream error");
+        assert_eq!(
+            chunks.len(),
+            1,
+            "Anthropic error event must surface one Stream error"
+        );
         match &chunks[0] {
             Err(LlmError::Stream(msg)) => assert!(msg.contains("upstream overloaded")),
             other => panic!("expected LlmError::Stream, got {other:?}"),
@@ -1015,7 +1079,11 @@ mod tests {
             &mut tools,
             r#"data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":10,"output_tokens":20}}"#,
         );
-        let chunk = chunks.into_iter().next().expect("one chunk").expect("ok chunk");
+        let chunk = chunks
+            .into_iter()
+            .next()
+            .expect("one chunk")
+            .expect("ok chunk");
         assert!(chunk.done);
         assert_eq!(chunk.finish_reason, Some(FinishReason::EndTurn));
         let u = chunk.usage.expect("message_delta.usage must be translated");
@@ -1031,10 +1099,7 @@ mod tests {
         let stop = parse_sse_line(&mut tools, r#"data: {"type":"message_stop"}"#);
         assert!(stop.is_empty(), "message_stop must be ignored");
         // Unknown / future event types must be ignored (forward-compat), never error.
-        let future = parse_sse_line(
-            &mut tools,
-            r#"data: {"type":"some_future_event","foo":1}"#,
-        );
+        let future = parse_sse_line(&mut tools, r#"data: {"type":"some_future_event","foo":1}"#);
         assert!(future.is_empty(), "unknown event type must be ignored");
     }
 }

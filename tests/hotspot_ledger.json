@@ -7,7 +7,7 @@
     "src/providers/compat.rs": 1228,
     "src/providers/google.rs": 1221,
     "src/types.rs": 1132,
-    "src/providers/anthropic.rs": 972,
+    "src/providers/anthropic.rs": 1105,
     "src/router.rs": 851
   },
   "adjustments": [
@@ -19,6 +19,14 @@
       "authorized_by": "architect Kimi",
       "pr": 95,
       "date": "2026-07-24"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 972,
+      "new": 1105,
+      "reason": "STR-002A (#119) authorized growth: surfaced parse/stream errors (LlmError::Parse on malformed JSON, LlmError::Stream on error events) + message_delta.usage translation + failure-first fixtures (4 + 1 guard). Design APPROVE (#119 comment #5077495420) budget +180/-25, touching only anthropic.rs. Real, not inflated.",
+      "authorized_by": "architect (STR-002A design APPROVE)",
+      "date": "2026-07-25"
     }
   ]
 }

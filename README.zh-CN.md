@@ -98,6 +98,10 @@ llmrust = { version = "0.1", features = ["proxy"] }
 cargo add llmrust --features proxy
 ```
 
+## 兼容性与升级（0.1.3）
+
+`0.1.2` 已从 crates.io **yank（撤回）**。`0.1.3` 发布后将成为最新的非 yank 版本，承载 0.1.x API 冻结与事故善后。从 0.1.1/0.1.2 升级**无需任何代码改动**——详见[兼容性与升级说明（0.1.3）](docs/COMPATIBILITY-0.1.3.md)：含 yank 语义、API 冻结基线，以及两项窄口径行为修正（E-002 日志去重、429 重试策略文档纠偏）。
+
 ## 快速开始
 
 ```rust

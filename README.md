@@ -98,6 +98,15 @@ Or:
 cargo add llmrust --features proxy
 ```
 
+## Compatibility & Upgrade (0.1.3)
+
+`0.1.2` was yanked from crates.io. `0.1.3` will become the latest non-yanked release once
+published, carrying the 0.1.x API freeze plus incident remediation. **No code migration is
+required** when upgrading from 0.1.1/0.1.2 — see
+[Compatibility & Upgrade Notes (0.1.3)](docs/COMPATIBILITY-0.1.3.md) for yank semantics, the API
+freeze baseline, and the two narrow behavior fixes (E-002 log de-duplication, 429 retry-policy
+documentation correction).
+
 ## Quick Start
 
 ```rust

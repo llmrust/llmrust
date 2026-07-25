@@ -43,6 +43,25 @@ Which features each provider supports, and how they map across providers.
 | `metadata` | ✅ | ➖ | ➖ | ➖ |
 | `user` | ✅ | ➖ | ➖ | ➖ |
 
+## Thinking / reasoning control
+
+`ChatRequest.thinking` (type `ThinkingConfig`) and `ChatRequest::with_thinking` were introduced
+in **0.1.2** and formally **adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
+a **request-side contract only**:
+
+- llmrust **accepts** the `thinking` field on the request (`disabled` / `enabled` with optional
+  `budget_tokens`), but **currently serializes and forwards it to no provider** (tracked as
+  **E-003**). Sending a non-`Disabled` value is accepted at the contract level only and is not
+  transmitted upstream; do **not** assume reasoning output is produced.
+- Response-side thinking/reasoning deltas from upstream models are surfaced via
+  `StreamChunk::thinking` and have been supported since 0.1.2 (Anthropic `thinking_delta`,
+  OpenAI-style `reasoning`, Gemini thought summaries). This is independent of the request-side
+  contract above.
+
+Because the request side has no provider landing, thinking/reasoning is **not** listed in the
+per-provider support matrix above; it is a contract surface, not a capability that any provider
+currently fulfills on the request path.
+
 ## Error normalization
 
 llmrust normalizes errors into `LlmError`:

@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked
-  as **E-003**), and this   status is documented in `AGENTS.md` and `docs/CAPABILITIES.md`, not
+  as **E-003**), and this status is documented in `AGENTS.md` and `docs/CAPABILITIES.md`, not
   implied as implemented.
 - `LmrsClient::stream()` now enforces the SPCC §6.5/§6.6 single-terminal contract at the
   public boundary through a shared collapse layer (`unify_terminal`, `pub(crate)`): exactly one

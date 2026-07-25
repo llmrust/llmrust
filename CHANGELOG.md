@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked
   as **E-003**), and this status is documented in `AGENTS.md` and `docs/CAPABILITIES.md`, not
   implied as implemented.
+- `LmrsClient::stream()` now enforces the SPCC §6.5/§6.6 single-terminal contract at the
+  public boundary through a shared collapse layer (`unify_terminal`, `pub(crate)`): exactly one
+  `done = true` chunk is emitted carrying the final `finish_reason` / `usage` / `tool_calls` /
+  `thinking_done`; late metadata (e.g. a usage-only chunk arriving after the finish chunk) is
+  captured; a missing `done` is synthesized; and an `Err` is never followed by a success
+  terminal. The public `StreamChunk` shape is unchanged (API-freeze safe). (STR-001, Refs #116)
 
 ### Fixed
 

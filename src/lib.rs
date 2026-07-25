@@ -435,7 +435,11 @@ impl LmrsClient {
             model = model_name,
             "stream opened"
         );
-        Ok(stream)
+        // STR-001: collapse provider's parsed chunks into the single-terminal
+        // shape required by SPCC §6.5/§6.6 at the public `stream()` boundary.
+        Ok(Box::pin(crate::providers::stream_state::unify_terminal(
+            stream,
+        )))
     }
 
     /// Send a streaming request and collect the full text.

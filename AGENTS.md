@@ -23,7 +23,7 @@ These rules are non-negotiable. Violating them will likely cause a PR to be reje
 - Model names use the `provider/model` format (e.g. `openai/gpt-4o`). Never change the separator.
 - The default feature set (`default = []`) must stay lightweight. Do not add dependencies to default features unless strictly required.
 - `ChatRequest` is `#[non_exhaustive]`. Add new fields but never remove or rename existing ones.
-- `FinishReason` variants are cross-provider. `EmbeddingRequest` fields are cross-provider; provider-specific knobs belong in `extra`. New variants or fields must have a clear, documented meaning.
+- `FinishReason` variants share cross-provider semantics; the variant **set is frozen for the 0.1.x line** (adding a variant is a breaking change) — any extension lands only in 0.2. `EmbeddingRequest` fields are cross-provider; provider-specific knobs belong in `extra`. New variants or fields must have a clear, documented meaning.
 
 ### Providers
 

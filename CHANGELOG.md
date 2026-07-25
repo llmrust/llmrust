@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped crate version `0.1.1` → `0.1.3` to align with the 0.1.3 development line and to
   enable the semver baseline comparison (current version must be greater than the `0.1.2`
   baseline). `llmrust.capabilities.json` version synced accordingly.
+- `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
+  in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
+  a request-side contract only: no provider implements thinking/reasoning at this time (tracked
+  as **E-003**), and this status is documented in `AGENTS.md` and `docs/CAPABILITIES.md`, not
+  implied as implemented.
 
 ### Fixed
 

@@ -42,6 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `thinking_done`; late metadata (e.g. a usage-only chunk arriving after the finish chunk) is
   captured; a missing `done` is synthesized; and an `Err` is never followed by a success
   terminal. The public `StreamChunk` shape is unchanged (API-freeze safe). (STR-001, Refs #116)
+- Anthropic streaming now honors the STR-001 single-terminal contract on the provider side.
+  Malformed or truncated SSE `data` lines surface as `LlmError::Parse` (previously silently
+  dropped), a stream-level `error` event surfaces as `LlmError::Stream` (previously silently
+  ignored), and `message_delta` usage is translated into `StreamChunk.usage` (previously
+  dropped). Unknown / future event types (`message_stop`, `ping`, `comment`, …) remain ignored,
+  and only the event *type* is logged — never event content. Terminal handling (exactly one
+  `done = true`, an `Err` never followed by a success terminal) is still guaranteed by the shared
+  `unify_terminal` layer. (STR-002A, Refs #119)
 
 ### Fixed
 

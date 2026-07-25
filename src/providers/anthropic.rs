@@ -969,4 +969,72 @@ mod tests {
         assert!(last.done);
         assert_eq!(last.finish_reason, Some(FinishReason::EndTurn));
     }
+
+    // --- STR-002A: failure-first fixtures for surfaced errors / usage ---
+    // These must be RED against the old implementation (errors silently
+    // dropped, usage untranslated) and turn GREEN once parse_sse_line
+    // surfaces parse/stream errors and translates message_delta.usage.
+
+    #[test]
+    fn stream_malformed_json_yields_parse_error() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let chunks = parse_sse_line(&mut tools, "data: {not valid json");
+        assert_eq!(chunks.len(), 1, "malformed JSON must surface one Parse error");
+        assert!(matches!(chunks[0], Err(LlmError::Parse(_))));
+    }
+
+    #[test]
+    fn stream_truncated_json_yields_parse_error() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello""#,
+        );
+        assert_eq!(chunks.len(), 1, "truncated JSON must surface one Parse error");
+        assert!(matches!(chunks[0], Err(LlmError::Parse(_))));
+    }
+
+    #[test]
+    fn stream_error_event_yields_stream_error() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"type":"error","error":{"type":"overloaded_error","message":"upstream overloaded"}}"#,
+        );
+        assert_eq!(chunks.len(), 1, "Anthropic error event must surface one Stream error");
+        match &chunks[0] {
+            Err(LlmError::Stream(msg)) => assert!(msg.contains("upstream overloaded")),
+            other => panic!("expected LlmError::Stream, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn stream_message_delta_translates_usage() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":10,"output_tokens":20}}"#,
+        );
+        let chunk = chunks.into_iter().next().expect("one chunk").expect("ok chunk");
+        assert!(chunk.done);
+        assert_eq!(chunk.finish_reason, Some(FinishReason::EndTurn));
+        let u = chunk.usage.expect("message_delta.usage must be translated");
+        assert_eq!(u.prompt_tokens, 10);
+        assert_eq!(u.completion_tokens, 20);
+        assert_eq!(u.total_tokens, 30);
+    }
+
+    #[test]
+    fn stream_message_stop_and_unknown_events_are_ignored() {
+        let mut tools = AnthropicToolAccumulator::default();
+        // message_stop: terminal signal is already carried by message_delta.done.
+        let stop = parse_sse_line(&mut tools, r#"data: {"type":"message_stop"}"#);
+        assert!(stop.is_empty(), "message_stop must be ignored");
+        // Unknown / future event types must be ignored (forward-compat), never error.
+        let future = parse_sse_line(
+            &mut tools,
+            r#"data: {"type":"some_future_event","foo":1}"#,
+        );
+        assert!(future.is_empty(), "unknown event type must be ignored");
+    }
 }

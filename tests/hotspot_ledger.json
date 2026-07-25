@@ -5,7 +5,7 @@
     "src/proxy/mod.rs": 2582,
     "src/proxy/anthropic_proxy.rs": 1520,
     "src/providers/compat.rs": 1228,
-    "src/providers/google.rs": 1221,
+    "src/providers/google.rs": 1297,
     "src/types.rs": 1132,
     "src/providers/anthropic.rs": 1105,
     "src/router.rs": 851
@@ -26,6 +26,14 @@
       "new": 1105,
       "reason": "STR-002A (#119) growth: surfaced parse/stream errors (LlmError::Parse on malformed JSON, LlmError::Stream on error events) + message_delta.usage translation + failure-first fixtures (4 + 1 guard). All growth within design-APPROVE task scope (comment #5077495420, budget +180/-25), touching only anthropic.rs; real, not inflated. Hotspot baseline adjustment (972->1105) itself was NOT covered by design APPROVE and is retro-ratified by the review APPROVE (comment #5077600556).",
       "authorized_by": "architect (STR-002A review APPROVE #5077600556 — retro-ratified baseline; design APPROVE covered task scope only)",
+      "date": "2026-07-25"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1221,
+      "new": 1297,
+      "reason": "STR-002G (#122) growth: surfaced Gemini stream errors — malformed/truncated SSE data -> LlmError::Parse, in-stream `{\"error\":{...}}` envelope -> LlmError::Stream (previously both silently dropped). Reuses Gemini's own GeminiErrorBody (no Anthropic DTO copy); terminal still guaranteed by STR-001 unify_terminal shared layer (no `errored` flag). Failure-first fixtures (3 negative + 2 guard). Baseline 1221->1297 pre-authorized by design APPROVE (comment #5077771604), conditioned on implementation matching the design sample; exceeds only with re-review.",
+      "authorized_by": "architect (STR-002G design APPROVE #5077771604 — pre-authorized baseline growth, conditioned on sample match)",
       "date": "2026-07-25"
     }
   ]

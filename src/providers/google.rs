@@ -646,10 +646,26 @@ fn to_finish_reason(s: String) -> FinishReason {
 fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     let Some(data) = line.strip_prefix("data: ") else {
-        return Vec::new();
+        return Vec::new(); // framing lines carry no data
     };
-    let Ok(event) = serde_json::from_str::<GeminiStreamEvent>(data) else {
-        return Vec::new();
+    // STR-002G: detect the Gemini stream error envelope FIRST. GeminiStreamEvent
+    // tolerates unknown fields (no `deny_unknown_fields`, no `error` field), so an
+    // `{"error":{...}}` event would otherwise deserialize to an empty event and be
+    // silently ignored. Surface it as LlmError::Stream; the STR-001 shared
+    // `unify_terminal` layer then closes the stream without a success terminal.
+    if let Ok(err) = serde_json::from_str::<GeminiErrorBody>(data) {
+        return vec![Err(LlmError::Stream(err.error.message))];
+    }
+    let event = match serde_json::from_str::<GeminiStreamEvent>(data) {
+        Ok(e) => e,
+        Err(e) => {
+            // STR-002G: malformed / truncated SSE data must surface a Parse error
+            // (previously silently dropped) instead of being swallowed as an empty
+            // event — the old behavior hid real stream failures.
+            return vec![Err(LlmError::Parse(format!(
+                "gemini stream: malformed SSE data: {e}"
+            )))];
+        }
     };
 
     let usage = event.usage_metadata.map(|u| Usage {
@@ -1217,5 +1233,65 @@ mod tests {
         let (contents, _system) = build_contents(&req);
         let v = serde_json::to_value(&contents).unwrap();
         assert_eq!(v[2]["parts"][0]["functionResponse"]["name"], "get_weather");
+    }
+
+    #[test]
+    fn stream_malformed_json_yields_parse_error() {
+        let mut tools = GeminiToolAccumulator::default();
+        let line = r#"data: {bad json no closing brace"#;
+        let chunks: Vec<_> = parse_sse_line(&mut tools, line).into_iter().collect();
+        assert_eq!(chunks.len(), 1);
+        assert!(matches!(chunks[0], Err(LlmError::Parse(_))));
+    }
+
+    #[test]
+    fn stream_truncated_json_yields_parse_error() {
+        let mut tools = GeminiToolAccumulator::default();
+        // Valid JSON prefix cut in the middle of a string value.
+        let line = r#"data: {"candidates":[{"content":{"parts":[{"text":"hel"#;
+        let chunks: Vec<_> = parse_sse_line(&mut tools, line).into_iter().collect();
+        assert_eq!(chunks.len(), 1);
+        assert!(matches!(chunks[0], Err(LlmError::Parse(_))));
+    }
+
+    #[test]
+    fn stream_error_event_yields_stream_error() {
+        let mut tools = GeminiToolAccumulator::default();
+        let line = r#"data: {"error":{"code":503,"message":"upstream overloaded","status":"UNAVAILABLE"}}"#;
+        let chunks: Vec<_> = parse_sse_line(&mut tools, line).into_iter().collect();
+        assert_eq!(chunks.len(), 1);
+        match &chunks[0] {
+            Err(LlmError::Stream(msg)) => assert!(msg.contains("upstream overloaded")),
+            _ => panic!("expected LlmError::Stream error from Gemini error envelope"),
+        }
+    }
+
+    #[test]
+    fn stream_empty_candidates_without_usage_is_ignored() {
+        // A valid event with no candidates and no usage is a no-op (keepalive /
+        // empty delta), NOT an error — this is the Gemini-specific adjudication
+        // that distinguishes it from the error envelope above.
+        let mut tools = GeminiToolAccumulator::default();
+        let line = r#"data: {"candidates":[]}"#;
+        let chunks: Vec<_> = parse_sse_line(&mut tools, line).into_iter().collect();
+        assert!(chunks.is_empty());
+    }
+
+    #[test]
+    fn stream_text_delta_still_produced() {
+        // Guard fixture: proves the change does not over-fire and that the red
+        // fixtures discriminate rather than blanket-fail.
+        let mut tools = GeminiToolAccumulator::default();
+        let mut chunks = Vec::new();
+        for line in [
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"hi"}]}}]}"#,
+            r#"data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}]}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                chunks.push(chunk.unwrap());
+            }
+        }
+        assert_eq!(chunks[0].delta, "hi");
+        assert!(chunks.last().unwrap().done);
     }
 }

@@ -50,6 +50,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and only the event *type* is logged — never event content. Terminal handling (exactly one
   `done = true`, an `Err` never followed by a success terminal) is still guaranteed by the shared
   `unify_terminal` layer. (STR-002A, Refs #119)
+- Gemini streaming now honors the STR-001 single-terminal contract on the provider side, mirroring
+  the Anthropic fix (STR-002A). Malformed or truncated SSE `data` lines surface as `LlmError::Parse`
+  (previously silently dropped), and an in-stream `{"error":{...}}` envelope surfaces as
+  `LlmError::Stream` (previously silently swallowed — `GeminiStreamEvent` tolerates unknown fields
+  and has no `error` field, so the envelope deserialized to an empty event). The Gemini-native
+  `GeminiErrorBody` is reused to detect the envelope (no Anthropic DTO copy). Terminal handling
+  (exactly one `done = true`, an `Err` never followed by a success terminal) is still guaranteed by
+  the shared `unify_terminal` layer. (STR-002G, Refs #124)
 
 ### Fixed
 

@@ -7,7 +7,7 @@
     "src/providers/compat.rs": 1228,
     "src/providers/google.rs": 1297,
     "src/types.rs": 1132,
-    "src/providers/anthropic.rs": 1105,
+    "src/providers/anthropic.rs": 1484,
     "src/router.rs": 851
   },
   "adjustments": [
@@ -34,6 +34,14 @@
       "new": 1297,
       "reason": "STR-002G growth: surfaced malformed/truncated SSE data as LlmError::Parse and the Gemini error envelope as LlmError::Stream (previously silently dropped), plus 5 failure-first/guard fixtures. Growth is real implementation + tests, not inflated. Baseline adjustment is the architect-only action per STR-002A lesson (§11.1.4); recorded with authorization on 2026-08-01 (Owner directive to execute the SPCC pipeline; original STR-002G pre-authorization note preserved).",
       "authorized_by": "architect (STR-002G review; ledger adjustment per §11.1.4 architect-only rule; Owner 2026-08-01 directive)",
+      "date": "2026-08-01"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1105,
+      "new": 1484,
+      "reason": "REA-002 growth: request thinking mapping (+gate), stream thinking lifecycle (signature_delta/redacted_thinking end markers), message_start usage capture, cache/reasoning usage translation (cache_creation/cache_read/thinking_tokens) and 10 fixtures (numstat +401/-28; budget deviation disclosed: estimate ~150 vs actual ~373 net — fixture-heavy, real not inflated, STR-001 precedent). Ledger adjustment is the architect-only action per §11.1.4.",
+      "authorized_by": "architect (REA-002 review; ledger adjustment per §11.1.4 architect-only rule; Owner 2026-08-01 directive)",
       "date": "2026-08-01"
     }
   ]

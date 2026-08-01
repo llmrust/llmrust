@@ -11,8 +11,8 @@ use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
-    ChatRequest, ChatResponse, Content, ContentPart, FinishReason, FunctionCall, StreamChunk, Tool,
-    ToolCall, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, FinishReason, FunctionCall, StreamChunk,
+    ThinkingConfig, Tool, ToolCall, ToolChoice, Usage,
 };
 
 const DEFAULT_BASE_URL: &str = "https://api.anthropic.com/v1";
@@ -59,7 +59,50 @@ struct AnthropicRequest<'a> {
     tools: Option<Vec<AnthropicTool>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_choice: Option<AnthropicToolChoice>,
+    /// REA-002: extended thinking. `Enabled{budget_tokens: None}` is rejected
+    /// before any network call — the Anthropic API requires `budget_tokens`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking: Option<AnthropicThinking>,
     stream: bool,
+}
+
+/// Claude `thinking` parameter. Maps from the frozen `ThinkingConfig`; the
+/// `adaptive` type (newer SDK) is not expressible in the 0.1.3 contract (O-2).
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum AnthropicThinking {
+    Enabled { budget_tokens: u64 },
+}
+
+/// Map the frozen `ThinkingConfig` to Claude's `thinking` parameter.
+///
+/// - `Disabled` → omitted (API default);
+/// - `Enabled { budget_tokens: Some(n) }` → `{"type":"enabled","budget_tokens":n}`;
+/// - `Enabled { budget_tokens: None }` → `LlmError::Unsupported` — the Anthropic
+///   API requires `budget_tokens` when thinking is enabled, so omitting it would
+///   either produce an invalid request or silently pick an arbitrary budget
+///   (SPCC §6.1: no silent degradation of an explicitly set field).
+fn thinking_to_anthropic(cfg: &ThinkingConfig) -> Result<Option<AnthropicThinking>> {
+    match cfg {
+        ThinkingConfig::Disabled => Ok(None),
+        ThinkingConfig::Enabled {
+            budget_tokens: Some(budget),
+        } => Ok(Some(AnthropicThinking::Enabled {
+            budget_tokens: *budget,
+        })),
+        ThinkingConfig::Enabled {
+            budget_tokens: None,
+        } => Err(LlmError::Unsupported {
+            feature: "reasoning".to_string(),
+            message: "Anthropic extended thinking requires budget_tokens".to_string(),
+        }),
+    }
+}
+
+/// True when reasoning is enabled — used by the non-stream `chat` gate
+/// (`ChatResponse` cannot carry reasoning in 0.1.3, SPCC §6.3).
+fn thinking_enabled(cfg: &Option<ThinkingConfig>) -> bool {
+    matches!(cfg, Some(ThinkingConfig::Enabled { .. }))
 }
 
 #[derive(Serialize)]
@@ -301,9 +344,13 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
 /// `frequency_penalty`, `logprobs`/`top_logprobs` and structured
 /// `response_format` have no Claude equivalent, so they are intentionally not
 /// forwarded.
-fn build_body(req: &ChatRequest, stream: bool) -> AnthropicRequest<'_> {
+fn build_body(req: &ChatRequest, stream: bool) -> Result<AnthropicRequest<'_>> {
     let (system, messages) = split_messages(req);
-    AnthropicRequest {
+    let thinking = match &req.thinking {
+        Some(cfg) => thinking_to_anthropic(cfg)?,
+        None => None,
+    };
+    Ok(AnthropicRequest {
         model: &req.model,
         messages,
         system,
@@ -313,8 +360,9 @@ fn build_body(req: &ChatRequest, stream: bool) -> AnthropicRequest<'_> {
         stop_sequences: req.stop.clone(),
         tools: req.tools.as_deref().map(to_anthropic_tools),
         tool_choice: req.tool_choice.as_ref().map(to_anthropic_tool_choice),
+        thinking,
         stream,
-    }
+    })
 }
 
 #[derive(Deserialize)]
@@ -346,8 +394,56 @@ struct AnthropicContent {
 
 #[derive(Deserialize)]
 struct AnthropicUsage {
+    /// Optional so stream `message_delta` usage (which carries only
+    /// `output_tokens` upstream) deserializes cleanly (REA-002 robustness).
+    #[serde(default)]
+    input_tokens: Option<u64>,
+    #[serde(default)]
+    output_tokens: Option<u64>,
+    /// REA-002: prompt-cache write tokens (Anthropic `cache_creation_input_tokens`).
+    #[serde(default)]
+    cache_creation_input_tokens: Option<u64>,
+    /// REA-002: prompt-cache read tokens (Anthropic `cache_read_input_tokens`).
+    #[serde(default)]
+    cache_read_input_tokens: Option<u64>,
+    /// REA-002: split of `output_tokens` into text vs. thinking tokens.
+    #[serde(default)]
+    output_tokens_details: Option<AnthropicOutputTokensDetails>,
+}
+
+#[derive(Deserialize)]
+struct AnthropicOutputTokensDetails {
+    /// Thinking tokens inside `output_tokens` (`output_tokens - thinking_tokens`
+    /// approximates the non-reasoning output, per the official SDK).
+    #[serde(default)]
+    thinking_tokens: Option<u64>,
+}
+
+/// Translate Anthropic usage into the frozen `Usage` shape (SPCC §6.4).
+///
+/// - `prompt_tokens` = `input_tokens + cache_creation + cache_read` (the SDK
+///   documents this summation as the total input);
+/// - missing cache/reasoning fields → `None`, present zero values → `Some(0)`;
+/// - `total_tokens` = prompt + completion (Anthropic reports no total field).
+fn usage_from_anthropic(
     input_tokens: u64,
+    cache_creation: Option<u64>,
+    cache_read: Option<u64>,
     output_tokens: u64,
+    thinking_tokens: Option<u64>,
+) -> Usage {
+    let prompt_tokens = input_tokens
+        .saturating_add(cache_creation.unwrap_or(0))
+        .saturating_add(cache_read.unwrap_or(0));
+    let completion_tokens = output_tokens;
+    Usage {
+        prompt_tokens,
+        completion_tokens,
+        total_tokens: prompt_tokens.saturating_add(completion_tokens),
+        cache_read_tokens: cache_read,
+        cache_write_tokens: cache_creation,
+        reasoning_tokens: thinking_tokens,
+    }
 }
 
 #[derive(Deserialize)]
@@ -376,6 +472,16 @@ struct AnthropicStreamEvent {
     error: Option<AnthropicStreamError>,
     /// STR-002A: usage is reported on the `message_delta` event, at the event
     /// level (sibling of `delta`), not inside `delta`. Previously missing → lost.
+    #[serde(default)]
+    usage: Option<AnthropicUsage>,
+    /// REA-002: `message_start` carries the full request-side usage
+    /// (`input_tokens` + cache fields), which `message_delta` does not repeat.
+    #[serde(default)]
+    message: Option<AnthropicStreamMessage>,
+}
+
+#[derive(Deserialize)]
+struct AnthropicStreamMessage {
     #[serde(default)]
     usage: Option<AnthropicUsage>,
 }
@@ -422,6 +528,11 @@ struct AnthropicDelta {
 #[derive(Default)]
 struct AnthropicToolAccumulator {
     builders: BTreeMap<usize, AnthropicToolBuilder>,
+    /// REA-002: usage captured from `message_start` (full input + cache side).
+    start_usage: Option<AnthropicUsage>,
+    /// REA-002: `thinking_done` is emitted at most once (signature_delta or
+    /// redacted_thinking), SPCC §6.3 "thinking 结束最多标记一次".
+    thinking_done_emitted: bool,
 }
 
 #[derive(Default)]
@@ -432,6 +543,63 @@ struct AnthropicToolBuilder {
 }
 
 impl AnthropicToolAccumulator {
+    /// Capture the full request-side usage from `message_start`.
+    fn capture_start_usage(&mut self, usage: Option<AnthropicUsage>) {
+        if usage.is_some() && self.start_usage.is_none() {
+            self.start_usage = usage;
+        }
+    }
+
+    /// Mark the end of the thinking block. Emits at most one
+    /// `thinking_done = true` chunk across the whole stream.
+    fn thinking_done(&mut self) -> Vec<Result<StreamChunk>> {
+        if self.thinking_done_emitted {
+            return Vec::new();
+        }
+        self.thinking_done_emitted = true;
+        vec![Ok(StreamChunk {
+            thinking_done: Some(true),
+            ..Default::default()
+        })]
+    }
+
+    /// Build the terminal usage: `message_start` side (input + cache) merged
+    /// with the `message_delta` side (output + thinking tokens).
+    fn terminal_usage(&self, delta_usage: Option<AnthropicUsage>) -> Option<Usage> {
+        let start = self.start_usage.as_ref();
+        let (input, cache_creation, cache_read) = match start {
+            Some(u) => (
+                u.input_tokens.unwrap_or(0),
+                u.cache_creation_input_tokens,
+                u.cache_read_input_tokens,
+            ),
+            None => {
+                let u = delta_usage.as_ref()?;
+                (
+                    u.input_tokens.unwrap_or(0),
+                    u.cache_creation_input_tokens,
+                    u.cache_read_input_tokens,
+                )
+            }
+        };
+        let (output, thinking) = match &delta_usage {
+            Some(u) => (
+                u.output_tokens.unwrap_or(0),
+                u.output_tokens_details
+                    .as_ref()
+                    .and_then(|d| d.thinking_tokens),
+            ),
+            None => (start.and_then(|u| u.output_tokens).unwrap_or(0), None),
+        };
+        Some(usage_from_anthropic(
+            input,
+            cache_creation,
+            cache_read,
+            output,
+            thinking,
+        ))
+    }
+
     fn start(&mut self, index: usize, id: String, name: String) {
         self.builders.insert(
             index,
@@ -508,14 +676,27 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
         }
     };
     match event.event_type.as_str() {
+        "message_start" => {
+            // REA-002: capture the full request-side usage (input + cache);
+            // `message_delta` only repeats output-side usage.
+            let usage = event.message.and_then(|m| m.usage);
+            tools.capture_start_usage(usage);
+            Vec::new()
+        }
         "content_block_start" => {
             if let Some(block) = event.content_block {
-                if block.block_type.as_deref() == Some("tool_use") {
-                    tools.start(
-                        event.index.unwrap_or(0),
-                        block.id.unwrap_or_default(),
-                        block.name.unwrap_or_default(),
-                    );
+                match block.block_type.as_deref() {
+                    Some("tool_use") => {
+                        tools.start(
+                            event.index.unwrap_or(0),
+                            block.id.unwrap_or_default(),
+                            block.name.unwrap_or_default(),
+                        );
+                    }
+                    // REA-002: a redacted thinking block carries no deltas —
+                    // it is its own end marker for the thinking phase.
+                    Some("redacted_thinking") => return tools.thinking_done(),
+                    _ => {}
                 }
             }
             Vec::new()
@@ -544,6 +725,9 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
                         })]
                     }
                 }
+                // REA-002: `signature_delta` is the official end marker of the
+                // thinking block (SPCC §6.3: 结束最多标记一次).
+                Some("signature_delta") => tools.thinking_done(),
                 _ => {
                     let text = delta.text.unwrap_or_default();
                     if text.is_empty() {
@@ -562,14 +746,10 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
                 .delta
                 .and_then(|d| d.stop_reason)
                 .map(normalize_stop_reason);
-            // STR-002A: translate the usage reported at the event level on
-            // `message_delta` (previously dropped → Anthropic stream usage lost).
-            let usage = event.usage.map(|u| Usage {
-                prompt_tokens: u.input_tokens,
-                completion_tokens: u.output_tokens,
-                total_tokens: u.input_tokens.saturating_add(u.output_tokens),
-                ..Default::default()
-            });
+            // STR-002A + REA-002: translate usage — `message_start` side
+            // (input + cache) merged with `message_delta` side (output +
+            // thinking tokens); falls back to `message_delta` alone.
+            let usage = tools.terminal_usage(event.usage);
             let tool_calls = tools.take();
             vec![Ok(StreamChunk {
                 done: finish_reason.is_some(),
@@ -606,7 +786,18 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
 impl Provider for AnthropicProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
         crate::providers::warn_if_unsupported_n("anthropic", req.n);
-        let body = build_body(req, false);
+        // REA-002 (SPCC §6.3): `ChatResponse` cannot carry reasoning, so a
+        // non-stream chat with thinking enabled fails BEFORE any network call.
+        // `build_body` also rejects `Enabled{budget_tokens: None}` here.
+        if thinking_enabled(&req.thinking) {
+            return Err(LlmError::Unsupported {
+                feature: "reasoning".to_string(),
+                message: "Anthropic reasoning is only supported on the streaming path in 0.1.3 \
+                          (ChatResponse cannot carry reasoning)"
+                    .to_string(),
+            });
+        }
+        let body = build_body(req, false)?;
 
         tracing::debug!(
             provider = "anthropic",
@@ -684,11 +875,14 @@ impl Provider for AnthropicProvider {
         let result = ChatResponse {
             content,
             model: parsed.model,
-            usage: parsed.usage.map(|u| Usage {
-                prompt_tokens: u.input_tokens,
-                completion_tokens: u.output_tokens,
-                total_tokens: u.input_tokens.saturating_add(u.output_tokens),
-                ..Default::default()
+            usage: parsed.usage.map(|u| {
+                usage_from_anthropic(
+                    u.input_tokens.unwrap_or(0),
+                    u.cache_creation_input_tokens,
+                    u.cache_read_input_tokens,
+                    u.output_tokens.unwrap_or(0),
+                    u.output_tokens_details.and_then(|d| d.thinking_tokens),
+                )
             }),
             tool_calls,
             finish_reason: parsed.stop_reason.map(normalize_stop_reason),
@@ -700,7 +894,8 @@ impl Provider for AnthropicProvider {
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         crate::providers::warn_if_unsupported_n("anthropic", req.n);
-        let body = build_body(req, true);
+        // REA-002: `Enabled{budget_tokens: None}` fails here, before network.
+        let body = build_body(req, true)?;
 
         tracing::debug!(
             provider = "anthropic",
@@ -877,7 +1072,7 @@ mod tests {
     #[test]
     fn stop_sequences_are_forwarded() {
         let req = ChatRequest::new("claude", "hi").with_stop(vec!["END".to_string()]);
-        let body = build_body(&req, false);
+        let body = build_body(&req, false).unwrap();
         let v = serde_json::to_value(&body).unwrap();
         assert_eq!(v["stop_sequences"][0], "END");
     }
@@ -885,7 +1080,7 @@ mod tests {
     #[test]
     fn omitted_stop_is_not_serialized() {
         let req = ChatRequest::new("claude", "hi");
-        let body = build_body(&req, false);
+        let body = build_body(&req, false).unwrap();
         let v = serde_json::to_value(&body).unwrap();
         assert!(v.get("stop_sequences").is_none());
     }
@@ -1101,5 +1296,188 @@ mod tests {
         // Unknown / future event types must be ignored (forward-compat), never error.
         let future = parse_sse_line(&mut tools, r#"data: {"type":"some_future_event","foo":1}"#);
         assert!(future.is_empty(), "unknown event type must be ignored");
+    }
+
+    // --- REA-002: extended thinking request mapping ---
+
+    #[test]
+    fn thinking_enabled_serializes_with_budget() {
+        let req = ChatRequest::new("claude", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: Some(2048),
+        });
+        let body = build_body(&req, true).unwrap();
+        let v = serde_json::to_value(&body).unwrap();
+        assert_eq!(v["thinking"]["type"], "enabled");
+        assert_eq!(v["thinking"]["budget_tokens"], 2048);
+    }
+
+    #[test]
+    fn thinking_disabled_omits_field() {
+        let req = ChatRequest::new("claude", "hi").with_thinking(ThinkingConfig::Disabled);
+        let body = build_body(&req, true).unwrap();
+        let v = serde_json::to_value(&body).unwrap();
+        assert!(
+            v.get("thinking").is_none(),
+            "disabled thinking must be omitted"
+        );
+        // Default request also omits the field.
+        let plain = ChatRequest::new("claude", "hi");
+        let body = build_body(&plain, true).unwrap();
+        let v = serde_json::to_value(&body).unwrap();
+        assert!(v.get("thinking").is_none());
+    }
+
+    #[test]
+    fn thinking_enabled_without_budget_errors() {
+        let req = ChatRequest::new("claude", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: None,
+        });
+        match build_body(&req, true) {
+            Err(LlmError::Unsupported { .. }) => {}
+            Err(other) => panic!(
+                "Anthropic thinking without budget_tokens must be Unsupported, got {other:?}"
+            ),
+            Ok(_) => panic!("expected Unsupported, got a request body"),
+        }
+    }
+
+    #[tokio::test]
+    async fn chat_with_thinking_is_unsupported_before_network() {
+        let provider = AnthropicProvider::new(ProviderConfig::new("sk-ant-test"));
+        let req = ChatRequest::new("claude", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: Some(1024),
+        });
+        let err = provider.chat(&req).await.unwrap_err();
+        assert!(
+            matches!(err, LlmError::Unsupported { .. }),
+            "non-stream chat with reasoning must fail with Unsupported, got {err:?}"
+        );
+    }
+
+    // --- REA-002: streaming thinking lifecycle ---
+
+    #[test]
+    fn stream_signature_delta_marks_thinking_done() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let mut chunks = Vec::new();
+        for line in [
+            r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"think"}}"#,
+            r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"sig"}}"#,
+            r#"data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                chunks.push(chunk.unwrap());
+            }
+        }
+        assert_eq!(chunks[0].thinking.as_deref(), Some("think"));
+        assert_eq!(chunks[1].thinking_done, Some(true));
+    }
+
+    #[test]
+    fn stream_redacted_thinking_marks_thinking_done() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"type":"content_block_start","index":0,"content_block":{"type":"redacted_thinking","data":"xxx"}}"#,
+        );
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].as_ref().unwrap().thinking_done, Some(true));
+    }
+
+    #[test]
+    fn thinking_done_emitted_only_once() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let first = parse_sse_line(
+            &mut tools,
+            r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"a"}}"#,
+        );
+        let second = parse_sse_line(
+            &mut tools,
+            r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"b"}}"#,
+        );
+        assert_eq!(first.len(), 1);
+        assert!(
+            second.is_empty(),
+            "thinking_done must be emitted at most once"
+        );
+    }
+
+    // --- REA-002: usage translation (cache + thinking tokens) ---
+
+    #[test]
+    fn message_start_usage_merges_cache_and_thinking() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let mut chunks = Vec::new();
+        for line in [
+            r#"data: {"type":"message_start","message":{"usage":{"input_tokens":100,"cache_creation_input_tokens":10,"cache_read_input_tokens":5,"output_tokens":0}}}"#,
+            r#"data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":100,"output_tokens":20,"output_tokens_details":{"thinking_tokens":8}}}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                chunks.push(chunk.unwrap());
+            }
+        }
+        let terminal = chunks.last().expect("terminal chunk");
+        let u = terminal.usage.as_ref().expect("usage present");
+        assert_eq!(u.prompt_tokens, 115); // 100 input + 10 cache write + 5 cache read
+        assert_eq!(u.completion_tokens, 20);
+        assert_eq!(u.total_tokens, 135);
+        assert_eq!(u.cache_write_tokens, Some(10));
+        assert_eq!(u.cache_read_tokens, Some(5));
+        assert_eq!(u.reasoning_tokens, Some(8));
+    }
+
+    #[test]
+    fn usage_missing_fields_stay_none() {
+        let mut tools = AnthropicToolAccumulator::default();
+        let mut chunks = Vec::new();
+        for line in [
+            r#"data: {"type":"message_start","message":{"usage":{"input_tokens":10,"output_tokens":0}}}"#,
+            r#"data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":5}}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                chunks.push(chunk.unwrap());
+            }
+        }
+        let u = chunks.last().unwrap().usage.as_ref().unwrap();
+        assert_eq!(u.prompt_tokens, 10);
+        assert_eq!(u.completion_tokens, 5);
+        assert_eq!(u.total_tokens, 15);
+        assert_eq!(u.cache_read_tokens, None);
+        assert_eq!(u.cache_write_tokens, None);
+        assert_eq!(u.reasoning_tokens, None);
+    }
+
+    #[test]
+    fn chat_usage_maps_cache_and_thinking() {
+        let raw = serde_json::json!({
+            "content": [{ "type": "text", "text": "ok" }],
+            "model": "claude",
+            "stop_reason": "end_turn",
+            "usage": {
+                "input_tokens": 100,
+                "cache_creation_input_tokens": 10,
+                "cache_read_input_tokens": 5,
+                "output_tokens": 20,
+                "output_tokens_details": { "thinking_tokens": 8 }
+            }
+        })
+        .to_string();
+        let parsed: AnthropicResponse = serde_json::from_str(&raw).unwrap();
+        let u = parsed
+            .usage
+            .map(|u| {
+                usage_from_anthropic(
+                    u.input_tokens.unwrap_or(0),
+                    u.cache_creation_input_tokens,
+                    u.cache_read_input_tokens,
+                    u.output_tokens.unwrap_or(0),
+                    u.output_tokens_details.and_then(|d| d.thinking_tokens),
+                )
+            })
+            .unwrap();
+        assert_eq!(u.prompt_tokens, 115);
+        assert_eq!(u.total_tokens, 135);
+        assert_eq!(u.cache_write_tokens, Some(10));
+        assert_eq!(u.reasoning_tokens, Some(8));
     }
 }

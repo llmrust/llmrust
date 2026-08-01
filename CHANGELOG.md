@@ -31,6 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped crate version `0.1.1` → `0.1.3` to align with the 0.1.3 development line and to
   enable the semver baseline comparison (current version must be greater than the `0.1.2`
   baseline). `llmrust.capabilities.json` version synced accordingly.
+- Anthropic extended thinking is now wired end-to-end on the streaming path (REA-002):
+  `ChatRequest.thinking` maps to the native `thinking: {type: "enabled", budget_tokens}`
+  parameter; non-stream `chat` with thinking enabled fails with `LlmError::Unsupported`
+  before any network call (`ChatResponse` cannot carry reasoning in 0.1.3);
+  `Enabled{budget_tokens: None}` is also rejected before the network (the Anthropic API
+  requires `budget_tokens`). Streamed `thinking_delta` text is surfaced via
+  `StreamChunk.thinking`; `signature_delta` and `redacted_thinking` blocks mark the end of
+  the thinking phase via `StreamChunk.thinking_done` (at most once). Usage translation now
+  covers prompt-cache and reasoning tokens: `cache_creation_input_tokens` →
+  `cache_write_tokens`, `cache_read_input_tokens` → `cache_read_tokens`, and
+  `output_tokens_details.thinking_tokens` → `reasoning_tokens`, with `message_start` usage
+  merged into the terminal chunk. (REA-002, Refs #130)
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked

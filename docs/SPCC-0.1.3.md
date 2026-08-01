@@ -1,7 +1,7 @@
 # llmrust SPCC 0.1.3 项目规格
 
 > **文档编号**：`LLMRUST-SPCC-013`  
-> **状态**：`ACTIVE SSOT — M2 进行中（public API freeze 生效）；下一任务 REA-002`  
+> **状态**：`ACTIVE SSOT — M2 进行中（public API freeze 生效）；下一任务 REA-003`  
 > **目标版本**：`llmrust 0.1.3`  
 > **审计基线**：GitHub `main` @ `3d0734ac711de3aadf16331c0f9c21b1634a83a8`  
 > **规格版本**：`0.3`（SPEC-002：登记母规范 `docs/spcc.md`，吸收设计小样与守恒清单制度）  
@@ -679,7 +679,7 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 | `0.1.3 / INC Incident` | 清除发布事故影响 | 2/2 | 100% | `DONE` | — | 账户/产物核验完成且 0.1.2 已 yank |
 | `0.1.3 / M0 Foundation` | 建立不可绕过的治理与发布门禁 | 5/5 | 100% | `DONE` | — | 五项任务 DONE，负向门禁证据齐全 |
 | `0.1.3 / M1 API Freeze` | 冻结 0.1.x 公开 API | 4/4 | 100% | `DONE` | —（已收口） | 相对 0.1.2 零新增破坏，兼容性说明完成 |
-| `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 4/10 | 40% | `ACTIVE` | `REA-002` | 十项任务 DONE，能力声明与 fixture 一致 |
+| `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 5/10 | 50% | `ACTIVE` | `REA-003` | 十项任务 DONE，能力声明与 fixture 一致 |
 | `0.1.3 / M3 Proxy Security` | 收紧代理默认安全与 wire 行为 | 0/5 | 0% | `BLOCKED` | `PRX-001` | 五项任务 DONE，安全负例全部通过 |
 | `0.1.3 / M4 Maintainability` | 冻结热点、修正 Router 状态并形成拆分蓝图 | 0/4 | 0% | `BLOCKED` | `ARC-001` | 热点守卫、Router 隔离、拆分设计和文档一致性完成 |
 | `0.1.3 / M5 Release` | 审计并发布干净 0.1.3 | 0/4 | 0% | `BLOCKED` | `E2E-001` | crates.io/docs.rs/GitHub tag 三方一致 |
@@ -721,8 +721,8 @@ flowchart TD
 | `STR-002A` | M2 | `DONE` | `STR-001` | [#119](https://github.com/llmrust/llmrust/issues/119) | [#120](https://github.com/llmrust/llmrust/pull/120) | `eb6676da47b3d1b795a33507a249683238ea9f61` | STATE-STR-002A（本 PR） |
 | `STR-002G` | M2 | `DONE` | `STR-002A` | [#124](https://github.com/llmrust/llmrust/issues/124) | [#125](https://github.com/llmrust/llmrust/pull/125) | `f326fa77a9783bea4f0dc1b51b29a4a1a04417b8` | STATE-STR-002G（本 PR） |
 | `REA-001` | M2 | `DONE` | `API-001` | [#127](https://github.com/llmrust/llmrust/issues/127) | [#128](https://github.com/llmrust/llmrust/pull/128) | `ea1aa091c282c6dc582923410f0621a31e58323f` | STATE-REA-001（本 PR） |
-| `REA-002` | M2 | `READY` | `REA-001`,`STR-001` | — | — | — | — |
-| `REA-003` | M2 | `BLOCKED` | `REA-002` | — | — | — | — |
+| `REA-002` | M2 | `DONE` | `REA-001`,`STR-001` | [#130](https://github.com/llmrust/llmrust/issues/130) | [#131](https://github.com/llmrust/llmrust/pull/131) | `eaf5a7a0a79f61ea7c89d2bf65f04c7e54d7fd46` | STATE-REA-002（本 PR） |
+| `REA-003` | M2 | `READY` | `REA-002` | — | — | — | — |
 | `REA-004G` | M2 | `BLOCKED` | `REA-003`,`STR-002G` | — | — | — | — |
 | `REA-004O` | M2 | `BLOCKED` | `REA-004G` | — | — | — | — |
 | `STR-003` | M2 | `BLOCKED` | `REA-002`,`REA-003`,`REA-004G`,`REA-004O` | — | — | — | — |
@@ -765,6 +765,7 @@ flowchart TD
 | `STR-002A` | [#119](https://github.com/llmrust/llmrust/issues/119) | [PR #120](https://github.com/llmrust/llmrust/pull/120)（Anthropic malformed/truncated JSON→Parse、error 事件→Stream、`message_delta.usage` 补译 + 4 fixture 1 守卫） | 设计小样 APPROVE（三待裁决点拍板：未知事件可忽略、error→`LlmError::Stream`、usage 补译纳入——范围授权记台账）→ 实现 PR 裁 APPROVE + 1 MUST（hotspot 台账归属更正：基线 972→1105 实质追认，但"design APPROVE 批任务范围 ≠ 批基线"）。**追认与防呆入档**：① `errored` 关流标志省略的设计偏差追认（共享层 error 优先兜底，消费者 DoD 成立）；② **新防呆：热点基线调整=架构师专属动作**（执行者自改基线=拆报警器）；③ 合并标题第二关核验首次实战通过（merge commit 标题逐字==合并令）。流程细化：`gh pr merge --squash` 默认拼接 commit 消息为 body，今后合并令要求 `--body-file` 传入预检干净 body，保证 commit body 首行 `Closes #N` | `eb6676da47b3d1b795a33507a249683238ea9f61`（2026-07-25） | STATE-STR-002A（本 PR） | M2 2/10（20%） | `DONE` — Kimi |
 | `STR-002G` | [#124](https://github.com/llmrust/llmrust/issues/124) | [PR #125](https://github.com/llmrust/llmrust/pull/125)（Gemini malformed/truncated SSE→Parse、error envelope→Stream + 5 fixture；google.rs 热点基线 1221→1297 架构师授权登记） | 失败先行证据（旧代码 3 红 2 绿）；CI run `30704408686`/`30704408677` 七项检查全绿（含 semver gate）；本地 clippy/fmt/220 测试全绿；执行与评审由 Codex 按 Owner 2026-08-01 指令代行（角色融合向 Owner 明示） | `f326fa7b26445772c7525079385cf29d61f54a54`（2026-08-01） | STATE-STR-002G（本 PR） | M2 3/10（30%） | `DONE` — Kimi（Codex 代行） |
 | `REA-001` | [#127](https://github.com/llmrust/llmrust/issues/127) | [PR #128](https://github.com/llmrust/llmrust/pull/128)（`docs/REASONING-CONTRACT.md`：六路径裁定表 + 官方证据 URL + 核验日期 2026-08-01 + 开放问题 O-1~O-5 去向） | 纯文档任务；官方证据直读（openai-openapi / anthropic-sdk-typescript / Gemini v1beta discovery / ollama api.md）；CI run `30704988935`/`30704988863` 七项全绿；本地 220 测试无回归 | `ea1aa091c282c6dc582923410f0621a31e58323f`（2026-08-01） | STATE-REA-001（本 PR） | M2 4/10（40%） | `DONE` — Kimi（Codex 代行） |
+| `REA-002` | [#130](https://github.com/llmrust/llmrust/issues/130) | [PR #131](https://github.com/llmrust/llmrust/pull/131)（thinking 请求映射 + chat Unsupported 闸门 + signature/redacted 结束标记 + message_start usage 合并 + cache/reasoning usage 翻译 + 10 fixture；`message_delta` usage 容错修复；anthropic.rs 热点基线 1105→1484 架构师授权） | 失败先行（旧代码 3 fixture 全红）；预算偏差披露（自估 150 vs 实测 +373）；CI run `30705480795`/`30705480793` 七项全绿；本地 clippy/fmt/230 测试全绿 | `eaf5a7a0a79f61ea7c89d2bf65f04c7e54d7fd46`（2026-08-01） | STATE-REA-002（本 PR） | M2 5/10（50%） | `DONE` — Kimi（Codex 代行） |
 
 状态 PR必须同时更新：§11.1.2 Milestone 计数、§11.1.3 任务状态与引用、§11.1.4 回证账本。三处不一致直接 REJECT。
 

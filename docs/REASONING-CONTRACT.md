@@ -40,7 +40,7 @@
 
 | 路径 | 裁定 | 理由与映射 |
 |---|---|---|
-| request | `Mapped` | `thinking: {type: "enabled", budget_tokens}`；`Disabled` → 省略；SDK 已引入 `adaptive` 类型（新模型推荐），0.1.3 冻结的 `ThinkingConfig` 只表达 enabled/disabled → 映射 `enabled`，adaptive 记开放问题 O-2 |
+| request | `Mapped` | `thinking: {type: "enabled", budget_tokens}`；`Disabled` → 省略；**`budget_tokens` 上游必填**（SDK 类型必填字段）→ `Enabled{budget_tokens: None}` 发网前 `Unsupported`（O-6）；SDK 已引入 `adaptive` 类型（新模型推荐），0.1.3 冻结的 `ThinkingConfig` 只表达 enabled/disabled → 映射 `enabled`，adaptive 记开放问题 O-2 |
 | chat（非流） | `Unsupported` | §6.3 |
 | raw stream | `Mapped` | `content_block_start`（thinking block 含 signature）→ `thinking` 增量开始；`content_block_delta` 的 `thinking_delta` → `StreamChunk.thinking`；`signature_delta` → `thinking_done`；`redacted_thinking` block → 视为 thinking 结束（signature 本身不在冻结 DTO 中，O-3） |
 | usage | `Mapped` | `cache_creation_input_tokens` → `cache_write_tokens`；`cache_read_input_tokens` → `cache_read_tokens`；`thinking_tokens`（usage 内）→ `reasoning_tokens`；`input_tokens` 语义 = input + cache 两字段之和（SDK 注释），`total_tokens` 保留上游 total 不自行修正（§6.4） |
@@ -94,6 +94,7 @@
 | O-3 | `thoughtSignature`/thinking signature 无法在冻结 `StreamChunk` 表达 | 0.1.3 不携带 signature，文档明示限制；多轮 thought 复用不支持 |
 | O-4 | Gemini `thinkingLevel`（Gemini 3+）无字段表达 | 0.1.3 不表达；0.2 候选 |
 | O-5 | OpenAI `budget_tokens` 无对应参数 | REA-003 实现 `budget_tokens: Some(_)` → Unsupported（禁止静默忽略） |
+| O-6 | Anthropic `budget_tokens` 上游必填（SDK 类型必填），冻结的 `ThinkingConfig.budget_tokens` 可空 | REA-002 已实现：`Enabled{budget_tokens: None}` → 发网前 Unsupported；O-6 关闭 |
 
 ## 6. 实施任务范围映射（对 REA-002/003/004G/004O 的约束）
 

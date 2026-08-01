@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and has no `error` field, so the envelope deserialized to an empty event). The Gemini-native
   `GeminiErrorBody` is reused to detect the envelope (no Anthropic DTO copy). Terminal handling
   (exactly one `done = true`, an `Err` never followed by a success terminal) is still guaranteed by
-  the shared `unify_terminal` layer. (STR-002G, Refs #122)
+  the shared `unify_terminal` layer. (STR-002G, Refs #124)
 
 ### Fixed
 

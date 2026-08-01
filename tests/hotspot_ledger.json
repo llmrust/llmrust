@@ -4,7 +4,7 @@
   "baseline_lines": {
     "src/proxy/mod.rs": 2582,
     "src/proxy/anthropic_proxy.rs": 1520,
-    "src/providers/compat.rs": 1228,
+    "src/providers/compat.rs": 1455,
     "src/providers/google.rs": 1297,
     "src/types.rs": 1132,
     "src/providers/anthropic.rs": 1484,
@@ -42,6 +42,14 @@
       "new": 1484,
       "reason": "REA-002 growth: request thinking mapping (+gate), stream thinking lifecycle (signature_delta/redacted_thinking end markers), message_start usage capture, cache/reasoning usage translation (cache_creation/cache_read/thinking_tokens) and 10 fixtures (numstat +401/-28; budget deviation disclosed: estimate ~150 vs actual ~373 net — fixture-heavy, real not inflated, STR-001 precedent). Ledger adjustment is the architect-only action per §11.1.4.",
       "authorized_by": "architect (REA-002 review; ledger adjustment per §11.1.4 architect-only rule; Owner 2026-08-01 directive)",
+      "date": "2026-08-01"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 1228,
+      "new": 1455,
+      "reason": "REA-003 growth: reasoning_effort request field + reasoning gate (capability flag, budget rejection, wrapper isolation), tolerant reasoning/reasoning_content delta parsing, cache/reasoning usage translation, shared build_body refactor and 10 fixtures. Growth is real implementation + tests, not inflated. Ledger adjustment is the architect-only action per §11.1.4.",
+      "authorized_by": "architect (REA-003 review; ledger adjustment per §11.1.4 architect-only rule; Owner 2026-08-01 directive)",
       "date": "2026-08-01"
     }
   ]

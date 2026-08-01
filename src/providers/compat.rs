@@ -18,7 +18,7 @@ use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
     ChatRequest, ChatResponse, Content, Embedding, EmbeddingRequest, EmbeddingResponse,
     EmbeddingUsage, FinishReason, FunctionCall, LogProbs, Message, ResponseFormat, StreamChunk,
-    Tool, ToolCall, ToolChoice, Usage,
+    ThinkingConfig, Tool, ToolCall, ToolChoice, Usage,
 };
 use std::collections::HashMap;
 
@@ -67,6 +67,11 @@ struct CompChatRequest<'a> {
     metadata: Option<&'a serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     user: Option<&'a str>,
+    /// REA-003: reasoning effort for OpenAI reasoning models
+    /// (`Enabled{budget_tokens: None}` → `"medium"`; a budget has no OpenAI
+    /// equivalent and is rejected before the network, O-5).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning_effort: Option<&'a str>,
     /// Provider-specific extra fields flattened into the request body.
     #[serde(flatten)]
     extra: &'a HashMap<String, serde_json::Value>,
@@ -139,6 +144,18 @@ struct CompUsage {
     prompt_tokens: u64,
     completion_tokens: u64,
     total_tokens: u64,
+    /// REA-003: reasoning tokens reported for o-series models.
+    #[serde(default)]
+    reasoning_tokens: Option<u64>,
+    /// REA-003: prompt-cache hit tokens (`prompt_tokens_details.cached_tokens`).
+    #[serde(default)]
+    prompt_tokens_details: Option<CompPromptTokensDetails>,
+}
+
+#[derive(Deserialize)]
+struct CompPromptTokensDetails {
+    #[serde(default)]
+    cached_tokens: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -163,6 +180,11 @@ struct CompDelta {
     /// M2-16：reasoning 增量（OpenAI o-series `reasoning` 字段）。
     #[serde(default)]
     reasoning: Option<String>,
+    /// REA-003：部分 OpenAI-compatible 端点（含 OpenAI 官方 o-series chat
+    /// completions）使用 `reasoning_content` 字段名；两者都接受（容错解析，
+    /// O-1 处理）。
+    #[serde(default)]
+    reasoning_content: Option<String>,
 }
 
 /// A streamed tool-call fragment. OpenAI-compatible servers stream tool calls
@@ -326,12 +348,7 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
             )))];
         }
     };
-    let usage = parsed.usage.map(|u| Usage {
-        prompt_tokens: u.prompt_tokens,
-        completion_tokens: u.completion_tokens,
-        total_tokens: u.total_tokens,
-        ..Default::default()
-    });
+    let usage = parsed.usage.map(comp_usage_to_usage);
     match parsed.choices.first() {
         Some(choice) => {
             if let Some(deltas) = &choice.delta.tool_calls {
@@ -343,13 +360,21 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
             } else {
                 None
             };
+            // REA-003: accept both `reasoning` and `reasoning_content` delta
+            // field names (O-1: tolerant parsing; the authoritative name is
+            // verified against real endpoints in E2E-001).
+            let thinking = choice
+                .delta
+                .reasoning
+                .clone()
+                .or_else(|| choice.delta.reasoning_content.clone());
             vec![Ok(StreamChunk {
                 delta: choice.delta.content.clone().unwrap_or_default(),
                 done: finish_reason.is_some(),
                 finish_reason,
                 usage,
                 tool_calls,
-                thinking: choice.delta.reasoning.clone(),
+                thinking,
                 ..Default::default()
             })]
         }
@@ -366,6 +391,21 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
     }
 }
 
+/// Translate OpenAI-compatible usage into the frozen `Usage` shape
+/// (REA-003, SPCC §6.4): `prompt_tokens_details.cached_tokens` →
+/// `cache_read_tokens`, `reasoning_tokens` → `reasoning_tokens`; missing
+/// fields stay `None`, present zero values become `Some(0)`.
+fn comp_usage_to_usage(u: CompUsage) -> Usage {
+    Usage {
+        prompt_tokens: u.prompt_tokens,
+        completion_tokens: u.completion_tokens,
+        total_tokens: u.total_tokens,
+        cache_read_tokens: u.prompt_tokens_details.and_then(|d| d.cached_tokens),
+        reasoning_tokens: u.reasoning_tokens,
+        ..Default::default()
+    }
+}
+
 // ── The unified OpenAI-compatible provider ────────────
 
 /// A generic provider for any OpenAI-compatible `/chat/completions` API.
@@ -379,6 +419,9 @@ pub struct OpenAiCompatibleProvider {
     api_key: String,
     base_url: String,
     extra_headers: Vec<(String, String)>,
+    /// REA-003: only the verified OpenAI endpoint may send reasoning fields.
+    /// Third-party OpenAI-compatible wrappers must NOT inherit this capability.
+    reasoning_supported: bool,
 }
 
 impl OpenAiCompatibleProvider {
@@ -398,6 +441,99 @@ impl OpenAiCompatibleProvider {
             api_key: config.api_key,
             base_url,
             extra_headers: extra_headers.into_iter().collect(),
+            reasoning_supported: false,
+        }
+    }
+
+    /// Opt into verified OpenAI reasoning support (only used by `OpenAIProvider`).
+    pub fn with_reasoning(mut self, enabled: bool) -> Self {
+        self.reasoning_supported = enabled;
+        self
+    }
+
+    /// REA-003 reasoning gate. Returns the `reasoning_effort` value to send
+    /// (streaming only) or an error:
+    ///
+    /// - `Disabled`/unset → `None`;
+    /// - `Enabled{budget_tokens: Some(_)}` → `Unsupported` (O-5: no OpenAI
+    ///   budget parameter; silently ignoring the budget is forbidden);
+    /// - `Enabled{budget_tokens: None}` on an unverified wrapper → `Unsupported`;
+    /// - `Enabled{budget_tokens: None}` on OpenAI, non-stream `chat` →
+    ///   `Unsupported` (ChatResponse cannot carry reasoning, §6.3);
+    /// - `Enabled{budget_tokens: None}` on OpenAI, streaming → `Some("medium")`.
+    fn reasoning_effort(&self, req: &ChatRequest, streaming: bool) -> Result<Option<&'static str>> {
+        match &req.thinking {
+            None | Some(ThinkingConfig::Disabled) => Ok(None),
+            Some(ThinkingConfig::Enabled {
+                budget_tokens: Some(_),
+            }) => Err(LlmError::Unsupported {
+                feature: "reasoning".to_string(),
+                message: "OpenAI reasoning has no budget_tokens equivalent; \
+                          set budget_tokens to None or use ThinkingConfig::Disabled"
+                    .to_string(),
+            }),
+            Some(ThinkingConfig::Enabled {
+                budget_tokens: None,
+            }) => {
+                if !self.reasoning_supported {
+                    return Err(LlmError::Unsupported {
+                        feature: "reasoning".to_string(),
+                        message: "this OpenAI-compatible endpoint has no verified reasoning \
+                                  support; reasoning fields are not forwarded"
+                            .to_string(),
+                    });
+                }
+                if !streaming {
+                    return Err(LlmError::Unsupported {
+                        feature: "reasoning".to_string(),
+                        message: "reasoning is only supported on the streaming path in 0.1.3 \
+                                  (ChatResponse cannot carry reasoning)"
+                            .to_string(),
+                    });
+                }
+                Ok(Some("medium"))
+            }
+        }
+    }
+
+    /// Build the shared chat-completions body (used by `chat` and `stream`).
+    fn build_body<'a>(
+        req: &'a ChatRequest,
+        messages: &'a [CompMessage],
+        stream: bool,
+        reasoning_effort: Option<&'a str>,
+    ) -> CompChatRequest<'a> {
+        CompChatRequest {
+            model: &req.model,
+            messages,
+            temperature: req.temperature,
+            max_tokens: req.max_tokens,
+            top_p: req.top_p,
+            stream,
+            stream_options: if stream {
+                Some(StreamOptions {
+                    include_usage: true,
+                })
+            } else {
+                None
+            },
+            tools: req.tools.as_deref(),
+            tool_choice: req.tool_choice.as_ref(),
+            response_format: req.response_format.as_ref(),
+            stop: req.stop.as_deref(),
+            n: req.n,
+            seed: req.seed,
+            presence_penalty: req.presence_penalty,
+            frequency_penalty: req.frequency_penalty,
+            logprobs: req.logprobs,
+            top_logprobs: req.top_logprobs,
+            parallel_tool_calls: req.parallel_tool_calls,
+            service_tier: req.service_tier.as_deref(),
+            store: req.store,
+            metadata: req.metadata.as_ref(),
+            user: req.user.as_deref(),
+            reasoning_effort,
+            extra: &req.extra,
         }
     }
 
@@ -446,12 +582,7 @@ impl OpenAiCompatibleProvider {
 
     /// Parse a non-streaming response into [`ChatResponse`].
     fn parse_response(parsed: CompResponse) -> ChatResponse {
-        let usage = parsed.usage.map(|u| Usage {
-            prompt_tokens: u.prompt_tokens,
-            completion_tokens: u.completion_tokens,
-            total_tokens: u.total_tokens,
-            ..Default::default()
-        });
+        let usage = parsed.usage.map(comp_usage_to_usage);
 
         let (content, tool_calls, finish_reason, logprobs) = match parsed.choices.into_iter().next()
         {
@@ -485,33 +616,11 @@ impl OpenAiCompatibleProvider {
 impl Provider for OpenAiCompatibleProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
         crate::providers::warn_if_unsupported_n("openai-compatible", req.n);
+        // REA-003: reasoning gate (Unsupported before any network call).
+        let reasoning_effort = self.reasoning_effort(req, false)?;
         let messages: Vec<CompMessage> = req.messages.iter().map(CompMessage::from).collect();
 
-        let body = CompChatRequest {
-            model: &req.model,
-            messages: &messages,
-            temperature: req.temperature,
-            max_tokens: req.max_tokens,
-            top_p: req.top_p,
-            stream: false,
-            stream_options: None,
-            tools: req.tools.as_deref(),
-            tool_choice: req.tool_choice.as_ref(),
-            response_format: req.response_format.as_ref(),
-            stop: req.stop.as_deref(),
-            n: req.n,
-            seed: req.seed,
-            presence_penalty: req.presence_penalty,
-            frequency_penalty: req.frequency_penalty,
-            logprobs: req.logprobs,
-            top_logprobs: req.top_logprobs,
-            parallel_tool_calls: req.parallel_tool_calls,
-            service_tier: req.service_tier.as_deref(),
-            store: req.store,
-            metadata: req.metadata.as_ref(),
-            user: req.user.as_deref(),
-            extra: &req.extra,
-        };
+        let body = Self::build_body(req, &messages, false, reasoning_effort);
 
         tracing::debug!(
             provider = "openai-compatible",
@@ -544,35 +653,11 @@ impl Provider for OpenAiCompatibleProvider {
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         crate::providers::warn_if_unsupported_n("openai-compatible", req.n);
+        // REA-003: reasoning gate (Unsupported before any network call).
+        let reasoning_effort = self.reasoning_effort(req, true)?;
         let messages: Vec<CompMessage> = req.messages.iter().map(CompMessage::from).collect();
 
-        let body = CompChatRequest {
-            model: &req.model,
-            messages: &messages,
-            temperature: req.temperature,
-            max_tokens: req.max_tokens,
-            top_p: req.top_p,
-            stream: true,
-            stream_options: Some(StreamOptions {
-                include_usage: true,
-            }),
-            tools: req.tools.as_deref(),
-            tool_choice: req.tool_choice.as_ref(),
-            response_format: req.response_format.as_ref(),
-            stop: req.stop.as_deref(),
-            n: req.n,
-            seed: req.seed,
-            presence_penalty: req.presence_penalty,
-            frequency_penalty: req.frequency_penalty,
-            logprobs: req.logprobs,
-            top_logprobs: req.top_logprobs,
-            parallel_tool_calls: req.parallel_tool_calls,
-            service_tier: req.service_tier.as_deref(),
-            store: req.store,
-            metadata: req.metadata.as_ref(),
-            user: req.user.as_deref(),
-            extra: &req.extra,
-        };
+        let body = Self::build_body(req, &messages, true, reasoning_effort);
 
         tracing::debug!(
             provider = "openai-compatible",
@@ -710,6 +795,7 @@ mod tests {
             store: None,
             metadata: None,
             user: None,
+            reasoning_effort: None,
             extra: &HashMap::new(),
         };
 
@@ -860,6 +946,7 @@ mod tests {
             store: Some(true),
             metadata: Some(&metadata),
             user: Some("user-123"),
+            reasoning_effort: None,
             extra: &HashMap::new(),
         };
 
@@ -905,6 +992,7 @@ mod tests {
             store: None,
             metadata: None,
             user: None,
+            reasoning_effort: None,
             extra: &HashMap::new(),
         };
 
@@ -1224,5 +1312,144 @@ mod tests {
         llm.embed("openai/text-embedding-3-small", "hello")
             .await
             .expect("embed should succeed via real OpenAIProvider");
+    }
+
+    // --- REA-003: OpenAI-compatible reasoning isolation ---
+
+    fn wrapper_provider() -> OpenAiCompatibleProvider {
+        // Same construction path as DeepSeek/Moonshot/OpenRouter: no
+        // `with_reasoning(true)` call.
+        OpenAiCompatibleProvider::new(ProviderConfig::new("sk-test"), [])
+    }
+
+    #[tokio::test]
+    async fn openai_chat_with_thinking_is_unsupported_before_network() {
+        let provider =
+            crate::providers::openai::OpenAIProvider::new(ProviderConfig::new("sk-test"));
+        let req = ChatRequest::new("gpt-4o", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: None,
+        });
+        let err = provider.chat(&req).await.unwrap_err();
+        assert!(
+            matches!(err, LlmError::Unsupported { .. }),
+            "non-stream chat with reasoning must be Unsupported, got {err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn openai_stream_with_budget_is_unsupported() {
+        let provider =
+            crate::providers::openai::OpenAIProvider::new(ProviderConfig::new("sk-test"));
+        let req = ChatRequest::new("o3", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: Some(1000),
+        });
+        match provider.stream(&req).await {
+            Err(LlmError::Unsupported { .. }) => {}
+            Err(other) => panic!(
+                "budget_tokens has no OpenAI equivalent (O-5), expected Unsupported, got {other:?}"
+            ),
+            Ok(_) => panic!("expected Unsupported"),
+        }
+    }
+
+    #[tokio::test]
+    async fn wrapper_chat_and_stream_with_thinking_are_unsupported() {
+        // Same shared compat path used by DeepSeek/Moonshot/OpenRouter.
+        let provider = wrapper_provider();
+        let req = ChatRequest::new("some-model", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: None,
+        });
+        let chat_err = provider.chat(&req).await.unwrap_err();
+        assert!(matches!(chat_err, LlmError::Unsupported { .. }));
+        match provider.stream(&req).await {
+            Err(LlmError::Unsupported { .. }) => {}
+            Err(other) => panic!("wrapper stream must be Unsupported, got {other:?}"),
+            Ok(_) => panic!("expected Unsupported"),
+        }
+    }
+
+    #[tokio::test]
+    async fn wrapper_disabled_thinking_is_not_blocked() {
+        let provider = wrapper_provider();
+        let req = ChatRequest::new("some-model", "hi").with_thinking(ThinkingConfig::Disabled);
+        let effort = provider.reasoning_effort(&req, true).unwrap();
+        assert!(effort.is_none());
+        let req = ChatRequest::new("some-model", "hi");
+        let effort = provider.reasoning_effort(&req, false).unwrap();
+        assert!(effort.is_none());
+    }
+
+    #[test]
+    fn openai_stream_thinking_sends_reasoning_effort() {
+        let provider = wrapper_provider().with_reasoning(true);
+        let req = ChatRequest::new("o3", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: None,
+        });
+        let effort = provider.reasoning_effort(&req, true).unwrap();
+        assert_eq!(effort, Some("medium"));
+        let messages = vec![CompMessage::from(&Message::user("hi"))];
+        let body = OpenAiCompatibleProvider::build_body(&req, &messages, true, effort);
+        let v = serde_json::to_value(&body).unwrap();
+        assert_eq!(v["reasoning_effort"], "medium");
+    }
+
+    #[test]
+    fn disabled_thinking_omits_reasoning_effort() {
+        let messages = vec![CompMessage::from(&Message::user("hi"))];
+        let req = ChatRequest::new("gpt-4o", "hi").with_thinking(ThinkingConfig::Disabled);
+        let body = OpenAiCompatibleProvider::build_body(&req, &messages, true, None);
+        let v = serde_json::to_value(&body).unwrap();
+        assert!(v.get("reasoning_effort").is_none());
+    }
+
+    #[test]
+    fn stream_reasoning_content_delta_mapped_to_thinking() {
+        // O-1 tolerant parsing: `reasoning_content` (official o-series chat
+        // completions name) and `reasoning` (M2-16 name) both map to thinking.
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"choices":[{"delta":{"reasoning_content":"thinking...","content":"hi"},"finish_reason":null}]}"#,
+        );
+        let chunk = chunks.into_iter().next().unwrap().unwrap();
+        assert_eq!(chunk.thinking.as_deref(), Some("thinking..."));
+        assert_eq!(chunk.delta, "hi");
+    }
+
+    #[test]
+    fn usage_translates_cache_and_reasoning_tokens() {
+        let raw = serde_json::json!({
+            "model": "o3",
+            "choices": [{ "message": { "role": "assistant", "content": "ok" }, "finish_reason": "stop" }],
+            "usage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 20,
+                "total_tokens": 120,
+                "reasoning_tokens": 8,
+                "prompt_tokens_details": { "cached_tokens": 5 }
+            }
+        })
+        .to_string();
+        let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
+        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        let u = resp.usage.unwrap();
+        assert_eq!(u.cache_read_tokens, Some(5));
+        assert_eq!(u.reasoning_tokens, Some(8));
+        assert_eq!(u.prompt_tokens, 100);
+    }
+
+    #[test]
+    fn usage_missing_cache_fields_stay_none() {
+        let raw = serde_json::json!({
+            "model": "gpt-4o",
+            "choices": [{ "message": { "role": "assistant", "content": "ok" }, "finish_reason": "stop" }],
+            "usage": { "prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15 }
+        })
+        .to_string();
+        let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
+        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        let u = resp.usage.unwrap();
+        assert_eq!(u.cache_read_tokens, None);
+        assert_eq!(u.reasoning_tokens, None);
     }
 }

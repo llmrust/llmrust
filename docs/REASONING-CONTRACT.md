@@ -23,9 +23,9 @@
 
 | 路径 | 裁定 | 理由与映射 |
 |---|---|---|
-| request | `Mapped` | `reasoning_effort` 参数；`Enabled{budget_tokens: None}` → `"medium"`；`Disabled` → 省略；**`budget_tokens: Some(_)` 无 OpenAI 对应字段 → Unsupported**（禁止静默忽略） |
+| request | `Mapped` | `reasoning_effort` 参数；`Enabled{budget_tokens: None}` → `"medium"`；`Disabled` → 省略；**`budget_tokens: Some(_)` 无 OpenAI 对应字段 → Unsupported**（O-5 已实现：发网前拒绝） |
 | chat（非流） | `Unsupported` | §6.3：`ChatResponse` 不可表达；发网前返回错误 |
-| raw stream | `Mapped`（待 E2E fixture 验证） | `reasoning_content` delta → `StreamChunk.thinking`；该字段不在 openapi.yaml schema 中，属 guide 文档化行为（开放问题 O-1） |
+| raw stream | `Mapped`（字段名容错已实现；E2E fixture 验证中） | `reasoning` 与 `reasoning_content` 双字段容错 → `StreamChunk.thinking`（O-1 部分处理）；该字段不在 openapi.yaml schema 中，属 guide 文档化行为，真实端点核验留在 E2E-001 |
 | usage | `Mapped` | `prompt_tokens_details.cached_tokens` → `cache_read_tokens`；usage `reasoning_tokens` → `reasoning_tokens`（openapi 示例含 `"reasoning_tokens": 0`） |
 | aggregate | `Unsupported`（明确错误） | §6.3 第 4 条：`stream_collect_full` 遇 thinking 返回错误并指向 raw stream |
 | proxy（OpenAI wire） | `Mapped`（PRX-003 实施） | OpenAI→OpenAI 流可无损表达 `reasoning_content`；proxy DTO 属 `UNSTABLE` 可扩展 |
@@ -89,11 +89,11 @@
 
 | ID | 问题 | 处置 |
 |---|---|---|
-| O-1 | OpenAI chat completions 的 `reasoning_content` 不在 openapi.yaml schema 中（仅 guide 文档化） | REA-003 按字段名实现 + 容错解析；E2E-001 用真实 fixture 核验后能力表转 `verified` |
+| O-1 | OpenAI chat completions 的 `reasoning_content` 不在 openapi.yaml schema 中（仅 guide 文档化） | REA-003 已实现 `reasoning`/`reasoning_content` 双字段容错解析；E2E-001 用真实 fixture 核验后能力表转 `verified` |
 | O-2 | Anthropic `thinking.type=adaptive`（新模型推荐）与冻结的 `ThinkingConfig`（enabled/disabled）不对齐 | 0.1.3 映射 `enabled`；adaptive 记 0.2 候选 |
 | O-3 | `thoughtSignature`/thinking signature 无法在冻结 `StreamChunk` 表达 | 0.1.3 不携带 signature，文档明示限制；多轮 thought 复用不支持 |
 | O-4 | Gemini `thinkingLevel`（Gemini 3+）无字段表达 | 0.1.3 不表达；0.2 候选 |
-| O-5 | OpenAI `budget_tokens` 无对应参数 | REA-003 实现 `budget_tokens: Some(_)` → Unsupported（禁止静默忽略） |
+| O-5 | OpenAI `budget_tokens` 无对应参数 | REA-003 已实现：`budget_tokens: Some(_)` → 发网前 Unsupported；O-5 关闭 |
 | O-6 | Anthropic `budget_tokens` 上游必填（SDK 类型必填），冻结的 `ThinkingConfig.budget_tokens` 可空 | REA-002 已实现：`Enabled{budget_tokens: None}` → 发网前 Unsupported；O-6 关闭 |
 
 ## 6. 实施任务范围映射（对 REA-002/003/004G/004O 的约束）

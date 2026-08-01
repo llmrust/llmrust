@@ -27,6 +27,14 @@
       "reason": "STR-002A (#119) growth: surfaced parse/stream errors (LlmError::Parse on malformed JSON, LlmError::Stream on error events) + message_delta.usage translation + failure-first fixtures (4 + 1 guard). All growth within design-APPROVE task scope (comment #5077495420, budget +180/-25), touching only anthropic.rs; real, not inflated. Hotspot baseline adjustment (972->1105) itself was NOT covered by design APPROVE and is retro-ratified by the review APPROVE (comment #5077600556).",
       "authorized_by": "architect (STR-002A review APPROVE #5077600556 — retro-ratified baseline; design APPROVE covered task scope only)",
       "date": "2026-07-25"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1221,
+      "new": 1297,
+      "reason": "STR-002G growth: surfaced malformed/truncated SSE data as LlmError::Parse and the Gemini error envelope as LlmError::Stream (previously silently dropped), plus 5 failure-first/guard fixtures. Growth is real implementation + tests, not inflated. Baseline adjustment is the architect-only action per STR-002A lesson (§11.1.4); recorded with authorization on 2026-08-01 (Owner directive to execute the SPCC pipeline; original STR-002G pre-authorization note preserved).",
+      "authorized_by": "architect (STR-002G review; ledger adjustment per §11.1.4 architect-only rule; Owner 2026-08-01 directive)",
+      "date": "2026-08-01"
     }
   ]
 }

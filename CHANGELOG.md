@@ -43,6 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `cache_write_tokens`, `cache_read_input_tokens` → `cache_read_tokens`, and
   `output_tokens_details.thinking_tokens` → `reasoning_tokens`, with `message_start` usage
   merged into the terminal chunk. (REA-002, Refs #130)
+- OpenAI-compatible reasoning is now explicitly isolated (REA-003): only the verified
+  OpenAI provider opts into reasoning — `ChatRequest.thinking` with
+  `Enabled{budget_tokens: None}` maps to `reasoning_effort: "medium"` on the streaming
+  path, while non-stream `chat` with thinking enabled fails with `LlmError::Unsupported`
+  before any network call. `Enabled{budget_tokens: Some(_)}` is rejected for OpenAI (no
+  budget equivalent); DeepSeek, Moonshot and OpenRouter never send reasoning fields and
+  fail with `Unsupported` when thinking is enabled (zero network). Streamed reasoning
+  deltas accept both the `reasoning` and `reasoning_content` field names into
+  `StreamChunk.thinking`, and usage translation now maps `prompt_tokens_details.cached_tokens`
+  → `cache_read_tokens` and `reasoning_tokens` → `reasoning_tokens`. (REA-003, Refs #133)
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked

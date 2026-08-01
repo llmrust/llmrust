@@ -25,7 +25,9 @@ impl OpenAIProvider {
             ),
             ..config
         };
-        Self(OpenAiCompatibleProvider::new(config, []))
+        // REA-003: the verified OpenAI endpoint opts into reasoning support;
+        // third-party OpenAI-compatible wrappers must NOT inherit this.
+        Self(OpenAiCompatibleProvider::new(config, []).with_reasoning(true))
     }
 }
 

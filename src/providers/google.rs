@@ -11,7 +11,8 @@ use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
     ChatRequest, ChatResponse, Content, ContentPart, FinishReason, FunctionCall, LogProbs,
-    ResponseFormat, StreamChunk, TokenLogProb, Tool, ToolCall, ToolChoice, TopLogProb, Usage,
+    ResponseFormat, StreamChunk, ThinkingConfig, TokenLogProb, Tool, ToolCall, ToolChoice,
+    TopLogProb, Usage,
 };
 
 const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
@@ -51,6 +52,44 @@ struct GeminiRequest<'a> {
     tools: Option<Vec<GeminiTool>>,
     #[serde(rename = "toolConfig", skip_serializing_if = "Option::is_none")]
     tool_config: Option<GeminiToolConfig>,
+    /// REA-004G: thinking configuration for thinking models
+    /// (`thinkingConfig` in the wire format).
+    #[serde(rename = "thinkingConfig", skip_serializing_if = "Option::is_none")]
+    thinking_config: Option<GeminiThinkingConfig>,
+}
+
+#[derive(Serialize)]
+struct GeminiThinkingConfig {
+    /// `thinkingBudget` is optional upstream: a `None` budget is omitted
+    /// losslessly (model default applies) — unlike Anthropic, where the API
+    /// requires the budget.
+    #[serde(rename = "thinkingBudget", skip_serializing_if = "Option::is_none")]
+    thinking_budget: Option<u64>,
+    /// Always request thoughts explicitly when thinking is enabled.
+    #[serde(rename = "includeThoughts")]
+    include_thoughts: bool,
+}
+
+/// Map the frozen `ThinkingConfig` to Gemini's `thinkingConfig`.
+///
+/// - `Disabled`/unset → omitted;
+/// - `Enabled` → `{thinkingBudget?: n, includeThoughts: true}` — a `None`
+///   budget is lossless because `thinkingBudget` is optional upstream
+///   (REA-001 §2.4).
+fn thinking_to_gemini(cfg: &ThinkingConfig) -> Option<GeminiThinkingConfig> {
+    match cfg {
+        ThinkingConfig::Disabled => None,
+        ThinkingConfig::Enabled { budget_tokens } => Some(GeminiThinkingConfig {
+            thinking_budget: *budget_tokens,
+            include_thoughts: true,
+        }),
+    }
+}
+
+/// True when reasoning is enabled — used by the non-stream `chat` gate
+/// (`ChatResponse` cannot carry reasoning in 0.1.3, SPCC §6.3).
+fn thinking_enabled(cfg: &Option<ThinkingConfig>) -> bool {
+    matches!(cfg, Some(ThinkingConfig::Enabled { .. }))
 }
 
 #[derive(Serialize)]
@@ -296,6 +335,9 @@ struct GeminiUsageMetadata {
     candidates_token_count: u64,
     #[serde(default, rename = "totalTokenCount")]
     total_token_count: u64,
+    /// REA-004G: thinking-model thought tokens (`thoughtsTokenCount`).
+    #[serde(default, rename = "thoughtsTokenCount")]
+    thoughts_token_count: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -333,9 +375,28 @@ struct GeminiStreamCandidate {
 struct GeminiToolAccumulator {
     calls: Vec<ToolCall>,
     counter: u64,
+    /// REA-004G: at least one `thought` part was seen — the terminal chunk
+    /// then carries `thinking_done = true` (at most once).
+    thinking_seen: bool,
+    thinking_done_emitted: bool,
 }
 
 impl GeminiToolAccumulator {
+    fn note_thought(&mut self) {
+        self.thinking_seen = true;
+    }
+
+    /// Mark the end of the thinking phase on the terminal chunk. Emits at most
+    /// once across the stream (SPCC §6.3).
+    fn thinking_done(&mut self) -> Option<bool> {
+        if self.thinking_seen && !self.thinking_done_emitted {
+            self.thinking_done_emitted = true;
+            Some(true)
+        } else {
+            None
+        }
+    }
+
     fn push(&mut self, name: String, args: serde_json::Value) {
         let id = crate::providers::make_tool_call_id(self.counter as usize);
         self.counter += 1;
@@ -672,6 +733,7 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
         prompt_tokens: u.prompt_token_count,
         completion_tokens: u.candidates_token_count,
         total_tokens: u.total_token_count,
+        reasoning_tokens: u.thoughts_token_count,
         ..Default::default()
     });
 
@@ -693,6 +755,7 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
             if let Some(t) = part.text {
                 if part.thought == Some(true) {
                     // M2-16：Gemini thought 作为 thinking 增量单独产出。
+                    tools.note_thought();
                     chunks.push(Ok(StreamChunk {
                         thinking: Some(t),
                         ..Default::default()
@@ -715,6 +778,13 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
     if tool_calls.is_some() {
         finish_reason = Some(FinishReason::ToolCalls);
     }
+    // REA-004G: the thinking phase ends with the terminal chunk (Gemini has no
+    // dedicated end event); marked at most once.
+    let thinking_done = if finish_reason.is_some() {
+        tools.thinking_done()
+    } else {
+        None
+    };
 
     if !text.is_empty() {
         chunks.push(Ok(StreamChunk {
@@ -728,6 +798,7 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
             finish_reason,
             usage,
             tool_calls,
+            thinking_done,
             ..Default::default()
         }));
     }
@@ -740,12 +811,17 @@ fn build_body<'a>(
     contents: &'a [GeminiContent],
     system_instruction: Option<GeminiContent>,
 ) -> GeminiRequest<'a> {
+    let thinking_config = match &req.thinking {
+        Some(cfg) => thinking_to_gemini(cfg),
+        None => None,
+    };
     GeminiRequest {
         contents,
         system_instruction,
         generation_config: build_generation_config(req),
         tools: req.tools.as_deref().map(to_gemini_tools),
         tool_config: req.tool_choice.as_ref().map(to_gemini_tool_config),
+        thinking_config,
     }
 }
 
@@ -753,6 +829,16 @@ fn build_body<'a>(
 impl Provider for GoogleProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
         crate::providers::warn_if_unsupported_n("google", req.n);
+        // REA-004G (SPCC §6.3): `ChatResponse` cannot carry reasoning, so a
+        // non-stream chat with thinking enabled fails BEFORE any network call.
+        if thinking_enabled(&req.thinking) {
+            return Err(LlmError::Unsupported {
+                feature: "reasoning".to_string(),
+                message: "Gemini reasoning is only supported on the streaming path in 0.1.3 \
+                          (ChatResponse cannot carry reasoning)"
+                    .to_string(),
+            });
+        }
         let (contents, system_instruction) = build_contents(req);
         let body = build_body(req, &contents, system_instruction);
 
@@ -799,6 +885,7 @@ impl Provider for GoogleProvider {
             prompt_tokens: u.prompt_token_count,
             completion_tokens: u.candidates_token_count,
             total_tokens: u.total_token_count,
+            reasoning_tokens: u.thoughts_token_count,
             ..Default::default()
         });
 
@@ -1293,5 +1380,145 @@ mod tests {
         }
         assert_eq!(chunks[0].delta, "hi");
         assert!(chunks.last().unwrap().done);
+    }
+
+    // --- REA-004G: Gemini reasoning ---
+
+    #[test]
+    fn thinking_enabled_serializes_thinking_config() {
+        let req = ChatRequest::new("gemini", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: Some(2000),
+        });
+        let (contents, system_instruction) = build_contents(&req);
+        let body = build_body(&req, &contents, system_instruction);
+        let v = serde_json::to_value(&body).unwrap();
+        assert_eq!(v["thinkingConfig"]["thinkingBudget"], 2000);
+        assert_eq!(v["thinkingConfig"]["includeThoughts"], true);
+    }
+
+    #[test]
+    fn thinking_enabled_without_budget_omits_budget() {
+        // `thinkingBudget` is optional upstream — omitting it is lossless.
+        let req = ChatRequest::new("gemini", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: None,
+        });
+        let (contents, system_instruction) = build_contents(&req);
+        let body = build_body(&req, &contents, system_instruction);
+        let v = serde_json::to_value(&body).unwrap();
+        assert!(v["thinkingConfig"].get("thinkingBudget").is_none());
+        assert_eq!(v["thinkingConfig"]["includeThoughts"], true);
+    }
+
+    #[test]
+    fn thinking_disabled_omits_thinking_config() {
+        let req = ChatRequest::new("gemini", "hi").with_thinking(ThinkingConfig::Disabled);
+        let (contents, system_instruction) = build_contents(&req);
+        let body = build_body(&req, &contents, system_instruction);
+        let v = serde_json::to_value(&body).unwrap();
+        assert!(v.get("thinkingConfig").is_none());
+    }
+
+    #[tokio::test]
+    async fn chat_with_thinking_is_unsupported_before_network() {
+        let provider = GoogleProvider::new(ProviderConfig::new("AIza-test"));
+        let req =
+            ChatRequest::new("gemini-2.5-flash", "hi").with_thinking(ThinkingConfig::Enabled {
+                budget_tokens: None,
+            });
+        match provider.chat(&req).await {
+            Err(LlmError::Unsupported { .. }) => {}
+            other => panic!("non-stream chat with reasoning must be Unsupported, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn stream_thought_marks_thinking_done_on_terminal() {
+        let mut tools = GeminiToolAccumulator::default();
+        let mut chunks = Vec::new();
+        for line in [
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"Let me think","thought":true}]}}]}"#,
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"hi"}]},"finishReason":"STOP"}]}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                chunks.push(chunk.unwrap());
+            }
+        }
+        assert_eq!(chunks[0].thinking.as_deref(), Some("Let me think"));
+        let terminal = chunks.last().unwrap();
+        assert!(terminal.done);
+        assert_eq!(terminal.thinking_done, Some(true));
+    }
+
+    #[test]
+    fn stream_without_thought_has_no_thinking_done() {
+        let mut tools = GeminiToolAccumulator::default();
+        let mut chunks = Vec::new();
+        for line in [
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"hi"}]},"finishReason":"STOP"}]}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                chunks.push(chunk.unwrap());
+            }
+        }
+        let terminal = chunks.last().unwrap();
+        assert!(terminal.done);
+        assert_eq!(terminal.thinking_done, None);
+    }
+
+    #[test]
+    fn thinking_done_emitted_at_most_once() {
+        // Two terminal-ish lines (would only happen with a malformed upstream;
+        // `unify_terminal` collapses duplicates, but the accumulator must not
+        // emit thinking_done twice either).
+        let mut tools = GeminiToolAccumulator::default();
+        let mut done_seen = 0;
+        for line in [
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"think","thought":true}]},"finishReason":"STOP"}]}"#,
+            r#"data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}]}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                let c = chunk.unwrap();
+                if c.done {
+                    done_seen += 1;
+                    if done_seen == 1 {
+                        assert_eq!(c.thinking_done, Some(true));
+                    } else {
+                        assert_eq!(
+                            c.thinking_done, None,
+                            "thinking_done must be emitted at most once"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn usage_translates_thoughts_token_count() {
+        let raw = serde_json::json!({
+            "candidates": [{
+                "content": { "parts": [{ "text": "ok" }] },
+                "finishReason": "STOP"
+            }],
+            "modelVersion": "gemini-2.5-flash",
+            "usageMetadata": {
+                "promptTokenCount": 100,
+                "candidatesTokenCount": 20,
+                "totalTokenCount": 140,
+                "thoughtsTokenCount": 20
+            }
+        })
+        .to_string();
+        let parsed: GeminiResponse = serde_json::from_str(&raw).unwrap();
+        let u = parsed.usage_metadata.unwrap();
+        assert_eq!(u.thoughts_token_count, Some(20));
+        let usage = Usage {
+            prompt_tokens: u.prompt_token_count,
+            completion_tokens: u.candidates_token_count,
+            total_tokens: u.total_token_count,
+            reasoning_tokens: u.thoughts_token_count,
+            ..Default::default()
+        };
+        assert_eq!(usage.reasoning_tokens, Some(20));
     }
 }

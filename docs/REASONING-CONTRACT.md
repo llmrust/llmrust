@@ -51,10 +51,10 @@
 
 | 路径 | 裁定 | 理由与映射 |
 |---|---|---|
-| request | `Mapped` | `thinkingConfig: {thinkingBudget, includeThoughts: true}`；`Enabled{budget_tokens}` → `thinkingBudget`；非 thinking 模型设置会返回上游错误（官方文档明示）；`thinkingLevel`（Gemini 3+）无对应字段 → 不表达（O-4） |
+| request | `Mapped` | `thinkingConfig: {thinkingBudget?, includeThoughts: true}`（REA-004G 已实现）；`thinkingBudget` 上游可选 → `Enabled{budget_tokens: None}` 无损省略；非 thinking 模型设置会返回上游错误（官方文档明示）；`thinkingLevel`（Gemini 3+）无对应字段 → 不表达（O-4） |
 | chat（非流） | `Unsupported` | §6.3 |
-| raw stream | `Mapped` | `part.thought == true` → `StreamChunk.thinking`（代码已有 M2-16 基座）；`thoughtSignature` 无法在冻结 `StreamChunk` 表达 → 0.1.3 不携带 signature（O-3），多轮 thought 复用不支持 |
-| usage | `Mapped` | `usageMetadata.thoughtsTokenCount` → `reasoning_tokens`；`totalTokenCount` 含 thoughts（官方描述） |
+| raw stream | `Mapped` | `part.thought == true` → `StreamChunk.thinking`（M2-16 基座 + REA-004G 补 `thinking_done` 终结标记，至多一次）；`thoughtSignature` 无法在冻结 `StreamChunk` 表达 → 0.1.3 不携带 signature（O-3），多轮 thought 复用不支持 |
+| usage | `Mapped` | `usageMetadata.thoughtsTokenCount` → `reasoning_tokens`（REA-004G 已实现）；`totalTokenCount` 含 thoughts（官方描述） |
 | aggregate | `Unsupported`（明确错误） | §6.3 第 4 条 |
 | proxy（OpenAI wire） | `Unsupported` | Gemini thought → `reasoning_content` 无官方等价证据，非无损 → 0.1.3 不映射（PRX-003 不得猜测） |
 

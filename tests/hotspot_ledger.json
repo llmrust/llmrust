@@ -5,7 +5,7 @@
     "src/proxy/mod.rs": 2582,
     "src/proxy/anthropic_proxy.rs": 1520,
     "src/providers/compat.rs": 1228,
-    "src/providers/google.rs": 1221,
+    "src/providers/google.rs": 1297,
     "src/types.rs": 1132,
     "src/providers/anthropic.rs": 1105,
     "src/router.rs": 851

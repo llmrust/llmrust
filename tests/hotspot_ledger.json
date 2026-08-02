@@ -8,7 +8,7 @@
     "src/providers/google.rs": 1524,
     "src/types.rs": 1132,
     "src/providers/anthropic.rs": 1483,
-    "src/router.rs": 851
+    "src/router.rs": 1080
   },
   "adjustments": [
     {
@@ -122,6 +122,14 @@
       "new": 1483,
       "reason": "Ledger truth correction: the REA-002-era baseline 1484 was an off-by-one miscount at closeout. Discovered by ARC-002 executor 开工核验熔断 (2026-08-03): wc -l and an independent byte-level recount both give 1483 with trailing newline present; git log confirms the last commit touching the file is eaf5a7a (REA-002, #131) with no later touches, so the true count on main is 1483. The guard stayed green because 1483 <= 1484 (the current > baseline check could not see the drift). Baseline set to the real count; ledger is truth, never headroom.",
       "authorized_by": "architect (ARC-002 熔断裁定 2026-08-03; truth correction, not a growth authorization)",
+      "date": "2026-08-03"
+    },
+    {
+      "file": "src/router.rs",
+      "old": 851,
+      "new": 1080,
+      "reason": "RTR-001 (#174) growth: per-group round-robin counter fix (Router struct `counter: AtomicUsize` → `counters: Mutex<HashMap<String, usize>>`, `resolve()` per-group lazy read via entry().or_insert(0), Relaxed preserved, cooldown/counters locks never nested) + numbered tests T-1..T-7 (two-group interleaved isolation red→green, single-group conservation, Ordered untouched, unknown-group literal forwarding, cooldown composition, independent routers, concurrent multi-thread isolation). Production fix ~20 lines, tests ~200 lines; ledger records the ACTUAL line count (never headroom).",
+      "authorized_by": "architect (RTR-001 execution order #174 pre-approval 2026-08-03; ledger writes actual count)",
       "date": "2026-08-03"
     }
   ]

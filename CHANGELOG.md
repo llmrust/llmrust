@@ -149,6 +149,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `n > 1` advisory is now emitted once per `(provider, n)` for the process lifetime instead of
   being repeated on every `RetryProvider` retry attempt (E-002). Pure log-noise reduction; no
   functional change.
+- Round-robin rotation is now isolated **per group** (RTR-001): the `Router` previously shared a
+  single `AtomicUsize` counter across all groups, so traffic to one group shifted another group's
+  next round-robin start. The counter is now a per-group `Mutex<HashMap<String, usize>>`, lazily
+  created on first use; single-group behavior, `Ordered` strategy, unknown-group literal
+  forwarding, and cooldown/failover semantics are all unchanged. (RTR-001, Refs #174)
 
 ## [0.1.1] - 2026-06-16
 

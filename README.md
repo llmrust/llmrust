@@ -332,6 +332,7 @@ curl http://localhost:3000/v1/messages \
 >
 > The proxy follows OpenAI chat-completions request conventions, including `stop` as either a string or an array, and returns JSON error bodies for malformed requests. Stream errors are surfaced to clients as error events rather than being silently converted to successful completions.
 > Streaming responses use OpenAI-style SSE chunks, including a single initial `assistant` role delta. When `stream_options.include_usage` is `true`, usage-only chunks use empty `choices`. Reasoning is not expressible on the proxy wire (SPCC §7.3): a request with `reasoning_effort`/`reasoning`/`thinking` is rejected with 400, and reasoning deltas in an upstream stream surface as a `stream_error` event.
+> The Anthropic `/v1/messages` stream surfaces upstream reasoning as native `thinking` blocks (no `signature_delta` — declared lossy), reassembles fragmented tool calls into one `tool_use` block, and reports truncation as an `error` event instead of a fake `end_turn`. A request carrying a `thinking` key is rejected with 400.
 
 ### Proxy model names
 

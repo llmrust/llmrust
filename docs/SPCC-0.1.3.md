@@ -723,7 +723,7 @@ flowchart TD
 | `REA-001` | M2 | `DONE` | `API-001` | [#127](https://github.com/llmrust/llmrust/issues/127) | [#128](https://github.com/llmrust/llmrust/pull/128) | `ea1aa091c282c6dc582923410f0621a31e58323f` | STATE-REA-001（本 PR） |
 | `REA-002` | M2 | `DONE` | `REA-001`,`STR-001` | [#130](https://github.com/llmrust/llmrust/issues/130) | [#131](https://github.com/llmrust/llmrust/pull/131) | `eaf5a7a0a79f61ea7c89d2bf65f04c7e54d7fd46` | STATE-REA-002（本 PR） |
 | `REA-003` | M2 | `DONE` | `REA-002` | [#133](https://github.com/llmrust/llmrust/issues/133) | [#134](https://github.com/llmrust/llmrust/pull/134) | `41118ddd3b55a10d151a1761362724f3b30f8607` | STATE-REA-003（本 PR） |
-| `REA-004G` | M2 | `READY` | `REA-003`,`STR-002G` | — | — | — | — |
+| `REA-004G` | M2 | `REVIEW` | `REA-003`,`STR-002G` | — | — | — | — |
 | `REA-004O` | M2 | `BLOCKED` | `REA-004G` | — | — | — | — |
 | `STR-003` | M2 | `BLOCKED` | `REA-002`,`REA-003`,`REA-004G`,`REA-004O` | — | — | — | — |
 | `CAP-001` | M2 | `BLOCKED` | `STR-003` | — | — | — | — |

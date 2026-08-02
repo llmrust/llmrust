@@ -59,6 +59,18 @@ Every implementation of `Provider` must satisfy:
 7. **Truncation is an error**: If the inner stream ends without a terminal (`done`) and without an error, the proxy emits exactly one `event: error` (`api_error`) and never fabricates an `end_turn` `message_delta`/`message_stop`. (PRX-004)
 8. **Thinking request rejection**: A `/v1/messages` request carrying a top-level `thinking` key is rejected with `400 invalid_request_error` before any upstream dispatch (SPCC §6.1/§7.3). (PRX-004)
 
+### Request body limit and error normalization (PRX-005)
+
+1. **Body limit**: Both protocol endpoints reject request bodies over the configured limit (`LLMRUST_PROXY_MAX_BODY_BYTES`, default 2 MiB) with a protocol-shaped `413` JSON error body (`invalid_request_error`), before any upstream dispatch. Chunked (no Content-Length) bodies are subject to the same limit.
+2. **Error normalization**: Upstream errors are mapped to protocol-shaped bodies:
+   - `LlmError::Api { status, message }` → the upstream status (or 502 if unparseable) with `api_error_type(status)`; message truncated to ≤200 chars.
+   - `LlmError::Parse` → `502` `api_error` "upstream returned a non-JSON error response".
+   - `LlmError::Http` → `502` `api_error` "upstream connection failed".
+   - `LlmError::UnknownProvider` → `404` `invalid_request_error` / `not_found_error`.
+   - `LlmError::Unsupported` → `400` `invalid_request_error`.
+   - `LlmError::Stream(msg)` → `502` `api_error`, message truncated to ≤200 chars.
+   - Error messages never echo request-body content; truncation to ≤200 chars is the only mechanical rule.
+
 ### Authentication
 
 1. **No key set**: All requests pass through (no auth).

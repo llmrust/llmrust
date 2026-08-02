@@ -100,6 +100,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `end_turn`; and a request carrying a `thinking` key is rejected with `400 invalid_request_error`
   before any upstream dispatch. All other Anthropic stream behavior is unchanged. (PRX-004,
   Refs #160)
+- The proxy now enforces a configurable request-body limit and normalizes upstream errors
+  (PRX-005): both protocol endpoints reject bodies over `LLMRUST_PROXY_MAX_BODY_BYTES` (default
+  2 MiB, axum-ecosystem default) with a protocol-shaped `413` JSON error before any upstream
+  dispatch, including chunked bodies. Upstream errors map to protocol-shaped bodies:
+  `Parse` → `502 api_error`, `Http` → `502` "upstream connection failed", non-JSON upstream →
+  fixed wording; error messages are truncated to ≤200 chars and never echo request-body content.
+  New `SECURITY.md` deployment section (bind / auth / CORS / body-limit with vision-large-payload
+  guidance / reverse-proxy TLS). (PRX-005, Refs #163)
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked

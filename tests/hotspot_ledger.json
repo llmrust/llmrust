@@ -2,8 +2,8 @@
   "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task or an architect-written exception explicitly authorizes a transition. Do not inflate a number to turn a guard green. PROCESS LESSON (CI-003 PR #95): after any `cargo fmt` auto-fix, the architecture guards MUST be re-run locally before pushing; a fmt-driven reflow once silently broke the hotspot baseline.",
   "threshold": 800,
   "baseline_lines": {
-    "src/proxy/mod.rs": 3097,
-    "src/proxy/anthropic_proxy.rs": 1864,
+    "src/proxy/mod.rs": 3327,
+    "src/proxy/anthropic_proxy.rs": 1884,
     "src/providers/compat.rs": 1455,
     "src/providers/google.rs": 1524,
     "src/types.rs": 1132,
@@ -98,6 +98,22 @@
       "new": 1864,
       "reason": "PRX-004 growth: thinking block mapping (content_block_start/delta/stop, no signature_delta - declared lossy), tool fragment reassembly by id (active_tool tracking, input_json_delta to same index), flush truncation errorization (error event instead of fake end_turn), thinking request boundary rejection (raw-Value key check) + 5 security tests. Growth is real security tests + minimal production rework; ledger records the ACTUAL line count (never headroom).",
       "authorized_by": "architect (PRX-004 pre-authorization 2026-08-02; ledger writes actual count)",
+      "date": "2026-08-02"
+    },
+    {
+      "file": "src/proxy/mod.rs",
+      "old": 3097,
+      "new": 3327,
+      "reason": "PRX-005 growth: request body limit via read-time DefaultBodyLimit::max(cfg) (env LLMRUST_PROXY_MAX_BODY_BYTES, protocol-shaped 413 via map_body_limit_response middleware, never usize::MAX), error normalization per architect ruling (Parse->502 api_error, message truncation <=200 as the only mechanical rule, Http/non-JSON fixed wording) + 5 security tests. Growth is real security tests + minimal production rework; ledger records the ACTUAL line count (never headroom).",
+      "authorized_by": "architect (PRX-005 pre-authorization 2026-08-02; ledger writes actual count)",
+      "date": "2026-08-02"
+    },
+    {
+      "file": "src/proxy/anthropic_proxy.rs",
+      "old": 1864,
+      "new": 1884,
+      "reason": "PRX-005 growth: error normalization per architect ruling in anthropic_error_from_llm_error (Parse->502 api_error, message truncation <=200, Http/non-JSON fixed wording) minus handler dead-code removal. Minimal production rework; ledger records the ACTUAL line count (never headroom).",
+      "authorized_by": "architect (PRX-005 pre-authorization 2026-08-02; ledger writes actual count)",
       "date": "2026-08-02"
     }
   ]

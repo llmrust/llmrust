@@ -331,7 +331,7 @@ curl http://localhost:3000/v1/messages \
 > **CORS:** The proxy sends **no CORS allow-origin header by default** (SPCC §7.1). To allow browser access from specific origins, wrap the `Router` with a restrictive `CorsLayer` (see `docs/CAPABILITIES.md` / the `router()` docs). `Access-Control-Allow-Origin: *` is only permitted on the authenticated router with explicit risk acceptance — never the default.
 >
 > The proxy follows OpenAI chat-completions request conventions, including `stop` as either a string or an array, and returns JSON error bodies for malformed requests. Stream errors are surfaced to clients as error events rather than being silently converted to successful completions.
-> Streaming responses use OpenAI-style SSE chunks, including a single initial `assistant` role delta. When `stream_options.include_usage` is `true`, usage-only chunks use empty `choices`.
+> Streaming responses use OpenAI-style SSE chunks, including a single initial `assistant` role delta. When `stream_options.include_usage` is `true`, usage-only chunks use empty `choices`. Reasoning is not expressible on the proxy wire (SPCC §7.3): a request with `reasoning_effort`/`reasoning`/`thinking` is rejected with 400, and reasoning deltas in an upstream stream surface as a `stream_error` event.
 
 ### Proxy model names
 

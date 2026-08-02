@@ -612,15 +612,42 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
 // ── Handler ───────────────────────
 
 /// Handle POST /v1/chat/completions.
-async fn handle_chat_completions(
-    State(state): State<AppState>,
-    payload: std::result::Result<Json<ProxyChatRequest>, JsonRejection>,
-) -> Response {
-    let Json(req) = match payload {
+async fn handle_chat_completions(State(state): State<AppState>, body: String) -> Response {
+    // PRX-003 (SPCC §6.1/§7.3): reasoning-intent keys are not expressible on
+    // the OpenAI-compatible proxy — reject them with 400 BEFORE any provider
+    // dispatch (zero upstream), instead of silently dropping the field.
+    // Parsed as raw Value first so unknown keys stay tolerated (no
+    // deny_unknown_fields), then deserialized as before.
+    let raw: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("proxy: request JSON extraction failed");
+            return invalid_json_response(
+                StatusCode::BAD_REQUEST,
+                &format!("Invalid JSON request body: {e}"),
+            );
+        }
+    };
+    if let Some(obj) = raw.as_object() {
+        if obj.contains_key("reasoning_effort")
+            || obj.contains_key("reasoning")
+            || obj.contains_key("thinking")
+        {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "reasoning is unsupported on the OpenAI-compatible proxy in 0.1.3; \
+                 call the provider directly to use reasoning",
+            );
+        }
+    }
+    let req: ProxyChatRequest = match serde_json::from_value(raw) {
         Ok(req) => req,
         Err(e) => {
             tracing::error!("proxy: request JSON extraction failed");
-            return json_rejection_response(e);
+            return invalid_json_response(
+                StatusCode::BAD_REQUEST,
+                &format!("Invalid JSON request body: {e}"),
+            );
         }
     };
 
@@ -819,6 +846,31 @@ fn build_openai_sse_response(
             }
             match state.inner.next().await {
                 Some(Ok(chunk)) => {
+                    // PRX-003 (SPCC §6.3/§7.3): reasoning cannot be expressed
+                    // on the OpenAI wire — a non-empty thinking delta or
+                    // `thinking_done == true` must surface as exactly one
+                    // stream_error event (then terminate via the existing
+                    // error path), never a silent drop.
+                    let has_thinking = matches!(&chunk.thinking, Some(t) if !t.is_empty());
+                    if has_thinking || chunk.thinking_done == Some(true) {
+                        state.terminated = true;
+                        let error_payload = ProxyError {
+                            error: ProxyErrorDetail {
+                                message:
+                                    "reasoning cannot be expressed on the OpenAI wire in 0.1.3; \
+                                     use the raw provider stream instead"
+                                        .to_string(),
+                                error_type: "stream_error".to_string(),
+                                param: None,
+                                code: None,
+                            },
+                        };
+                        let event = std::result::Result::<_, Infallible>::Ok(
+                            Event::default()
+                                .data(serde_json::to_string(&error_payload).unwrap_or_default()),
+                        );
+                        return Some((event, state));
+                    }
                     let has_tool_calls = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
                     let mut finish_reason = chunk.finish_reason;
                     if finish_reason.is_none() && chunk.done {
@@ -1098,11 +1150,14 @@ fn json_rejection_response(e: JsonRejection) -> Response {
     } else {
         StatusCode::BAD_REQUEST
     };
-    error_response_with_type(
-        status,
-        &format!("Invalid JSON request body: {e}"),
-        "invalid_request_error",
-    )
+    invalid_json_response(status, &format!("Invalid JSON request body: {e}"))
+}
+
+/// Build the canonical "Invalid JSON request body" 400 body used by both the
+/// extractor rejection path and the PRX-003 raw-Value pre-parse path, so the
+/// wire contract stays identical.
+fn invalid_json_response(status: StatusCode, message: &str) -> Response {
+    error_response_with_type(status, message, "invalid_request_error")
 }
 
 /// Build an HTTP error response with JSON body.
@@ -2871,5 +2926,172 @@ mod tests {
             Some("Bearer"),
             "WWW-Authenticate header must be preserved"
         );
+    }
+
+    // ── PRX-003: reasoning request rejection + delta guard (red first) ──
+
+    fn build_json_request(body: &str) -> Request<Body> {
+        Request::builder()
+            .method("POST")
+            .uri("/v1/chat/completions")
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .expect("failed to build test request")
+    }
+
+    /// A request carrying a reasoning-intent key must be rejected with 400
+    /// BEFORE any provider dispatch (SPCC §6.1/§7.3: no silent ignore, no
+    /// lossless path → explicit Unsupported). Currently serde silently drops
+    /// the key and the request is forwarded → RED until the handler checks the
+    /// raw JSON first.
+    #[tokio::test]
+    async fn reasoning_request_rejected_400_reasoning_effort() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "reasoning_effort": "high",
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_json_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "reasoning_effort must be rejected with 400 (SPCC §6.1/§7.3)"
+        );
+        let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert!(json["error"]["message"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("reasoning"));
+    }
+
+    #[tokio::test]
+    async fn reasoning_request_rejected_400_reasoning_field() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "reasoning": {"budget": 100},
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_json_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "reasoning field must be rejected with 400 (SPCC §6.1/§7.3)"
+        );
+    }
+
+    #[tokio::test]
+    async fn reasoning_request_rejected_400_thinking_field() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "thinking": {"type": "enabled"},
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_json_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "thinking field must be rejected with 400 (SPCC §6.1/§7.3)"
+        );
+    }
+
+    /// Control: a request WITHOUT reasoning keys still passes (200) — the
+    /// rejection must not disturb normal requests.
+    #[tokio::test]
+    async fn normal_request_not_affected_by_reasoning_rejection() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_json_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    /// An inner chunk carrying a non-empty `thinking` delta must produce
+    /// exactly one `stream_error` event followed by `[DONE]` — never a silent
+    /// drop (SPCC §6.3/§7.3). Currently the unfold loop never reads
+    /// `chunk.thinking`, so no error event is emitted → RED.
+    #[tokio::test]
+    async fn thinking_delta_emits_stream_error_before_done() {
+        let inner = Box::pin(futures::stream::iter([
+            Ok(StreamChunk {
+                delta: "hello".to_string(),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                thinking: Some("let me think".to_string()),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            }),
+        ]));
+        let sse = build_openai_sse_response(inner, "id-p3".into(), 0, "m".into(), true);
+        let text = collect_sse(sse).await;
+        let err_pos = text
+            .find("stream_error")
+            .expect("thinking delta must emit a stream_error event (SPCC §6.3)");
+        let done_pos = text.find("[DONE]").expect("DONE must be emitted");
+        assert!(err_pos < done_pos, "stream_error must appear before [DONE]");
+    }
+
+    /// `thinking_done == true` also triggers the guard.
+    #[tokio::test]
+    async fn thinking_done_emits_stream_error_before_done() {
+        let inner = Box::pin(futures::stream::iter([
+            Ok(StreamChunk {
+                delta: "hi".to_string(),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                done: true,
+                thinking_done: Some(true),
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            }),
+        ]));
+        let sse = build_openai_sse_response(inner, "id-p4".into(), 0, "m".into(), true);
+        let text = collect_sse(sse).await;
+        let err_pos = text
+            .find("stream_error")
+            .expect("thinking_done must emit a stream_error event (SPCC §6.3)");
+        let done_pos = text.find("[DONE]").expect("DONE must be emitted");
+        assert!(err_pos < done_pos, "stream_error must appear before [DONE]");
     }
 }

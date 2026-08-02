@@ -2,7 +2,7 @@
   "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task or an architect-written exception explicitly authorizes a transition. Do not inflate a number to turn a guard green. PROCESS LESSON (CI-003 PR #95): after any `cargo fmt` auto-fix, the architecture guards MUST be re-run locally before pushing; a fmt-driven reflow once silently broke the hotspot baseline.",
   "threshold": 800,
   "baseline_lines": {
-    "src/proxy/mod.rs": 2875,
+    "src/proxy/mod.rs": 3097,
     "src/proxy/anthropic_proxy.rs": 1520,
     "src/providers/compat.rs": 1455,
     "src/providers/google.rs": 1524,
@@ -82,6 +82,14 @@
       "new": 2875,
       "reason": "PRX-002 growth: /health auth exemption (route after layer), subtle ConstantTimeEq replacement, blank-token two-layer rejection (constructor panic + serve() startup error), token correctness matrix and conservation tests. Growth is real security tests + minimal production rework; ledger records the ACTUAL line count per the PRX-001 improved mechanism (never headroom).",
       "authorized_by": "architect (PRX-002 pre-authorization 2026-08-02; ledger writes actual count)",
+      "date": "2026-08-02"
+    },
+    {
+      "file": "src/proxy/mod.rs",
+      "old": 2875,
+      "new": 3097,
+      "reason": "PRX-003 growth: reasoning request boundary rejection (raw-Value key check before dispatch, 400 invalid_request_error zero-upstream) + reasoning delta guard (thinking/thinking_done -> one stream_error event then terminate) + 6 security tests. Growth is real security tests + minimal production rework; ledger records the ACTUAL line count (never headroom).",
+      "authorized_by": "architect (PRX-003 pre-authorization 2026-08-02; ledger writes actual count)",
       "date": "2026-08-02"
     }
   ]

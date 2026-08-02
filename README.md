@@ -47,7 +47,7 @@ llmrust normalizes token log-probabilities — including each position's top-N a
 
 ### 3. A lean, correct, type-safe core
 
-`default = []` — nothing is enabled unless you ask for it, the dependency tree stays small, and the scope is intentionally narrow (no vector-store / agent-framework bloat). You get native-protocol support for Anthropic and Gemini (not just OpenAI-compatible shims), cross-provider embeddings for OpenAI-compatible backends and Ollama, full compile-time type safety, structured `tracing` that never logs secrets or prompt content, and built-in retry + router failover. When you want a clean, predictable multi-provider call layer rather than a heavyweight framework, that's the niche llmrust fills.
+`default = []` — nothing is enabled unless you ask for it, the dependency tree stays small, and the scope is intentionally narrow (no vector-store / agent-framework bloat). You get native-protocol support for Anthropic and Gemini (not just OpenAI-compatible shims), cross-provider embeddings for OpenAI-compatible backends and Ollama, full compile-time type safety, structured `tracing` that never logs secrets or prompt content, and built-in retry + router failover with **per-group round-robin** (each group's rotation is isolated — traffic to one group never shifts another's start). When you want a clean, predictable multi-provider call layer rather than a heavyweight framework, that's the niche llmrust fills.
 
 > **Honest scope:** llmrust is young. If you need the widest provider catalog or a batteries-included agent/RAG framework today, `genai` or `rig` may fit better. llmrust's bet is the three areas above.
 
@@ -61,7 +61,7 @@ llmrust normalizes token log-probabilities — including each position's top-N a
 - **Normalized logprobs** — Uniform token log-probabilities across OpenAI-compatible providers and Gemini
 - **Type-safe** — Full compile-time guarantees with serde and thiserror
 - **High performance** — Built on reqwest + tokio, minimal overhead
-- **Zero runtime dependencies** — Single binary, no Python/Node required
+- **No external runtime required** — Native Rust library, ships as a single static binary with no Python/Node interpreter needed. Optional capabilities (e.g. the built-in proxy) are gated behind Cargo features and add no default runtime overhead.
 
 ## Installation
 

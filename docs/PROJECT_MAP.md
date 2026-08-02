@@ -11,7 +11,7 @@ llmrust/
 │   ├── lib.rs              # LmrsClient: unified client, env auto-detect, model routing
 │   ├── prelude.rs          # Convenience glob imports
 │   ├── types.rs            # Shared types: Message, ChatRequest, ChatResponse, Tool, etc.
-│   ├── router.rs           # Multi-deployment routing with failover
+│   ├── router.rs           # Multi-deployment routing with failover + per-group round-robin (RTR-001)
 │   ├── pricing.rs          # ModelPricing + Usage::estimated_cost (token cost estimation)
 │   ├── providers/          # Provider implementations
 │   │   ├── mod.rs          # Provider trait, ProviderConfig, LlmError
@@ -35,7 +35,10 @@ llmrust/
 ├── docs/                   # Documentation
 │   ├── PROJECT_MAP.md      # This file
 │   ├── CAPABILITIES.md     # Per-provider feature matrix
-│   └── CONTRACTS.md        # Semantic contracts
+│   ├── CONTRACTS.md        # Semantic contracts
+│   └── architecture/       # Decomposition plans — 0.1.4+ candidate plans, NOT yet implemented
+│       ├── PROXY-DECOMPOSITION.md  # Proxy hot-spot split plan (future work, not applied)
+│       └── CORE-DECOMPOSITION.md   # Core hot-spot split plan (future work, not applied)
 ├── AGENT_MANIFESTO.md      # Project philosophy
 ├── AGENTS.md               # Instructions for AI coding agents
 ├── CONTRIBUTING.md         # Contribution guide

@@ -80,7 +80,7 @@
 | Provider | 证据 | URL / 来源 | 关键字段 |
 |---|---|---|---|
 | OpenAI | OpenAPI 规范（master） | <https://github.com/openai/openai-openapi/blob/master/openapi.yaml> | `reasoning_effort`；`usage.reasoning_tokens`；`prompt_tokens_details.cached_tokens` |
-| OpenAI | Reasoning guide | <https://platform.openai.com/docs/guides/reasoning> | reasoning 模型参数支持现状；`reasoning_content` 流式行为（O-1 已关闭，见 §5） |
+| OpenAI | Reasoning guide | <https://platform.openai.com/docs/guides/reasoning> | reasoning 模型参数支持现状；`reasoning_content` 流式行为（O-1） |
 | Anthropic | SDK 类型（main） | <https://github.com/anthropics/anthropic-sdk-typescript/blob/main/src/resources/messages/messages.ts> | `ThinkingConfigParam`（enabled/disabled/adaptive）；`thinking_delta`/`signature_delta`；`cache_creation_input_tokens`/`cache_read_input_tokens`；usage `thinking_tokens`；`redacted_thinking` |
 | Gemini | v1beta REST discovery | <https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta> | `thinkingConfig`（thinkingBudget/includeThoughts/thinkingLevel）；`part.thought`/`thoughtSignature`；`usageMetadata.thoughtsTokenCount`；`MISSING_THOUGHT_SIGNATURE` |
 | Ollama | API 文档（main） | <https://github.com/ollama/ollama/blob/main/docs/api.md> | `options.think`（bool/level）；`message.thinking` |

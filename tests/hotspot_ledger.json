@@ -57,8 +57,8 @@
       "old": 1297,
       "new": 1524,
       "reason": "REA-004G growth: thinkingConfig request mapping, chat Unsupported gate, thinking_done terminal marking (at most once), thoughtsTokenCount usage translation and 8 fixtures. Growth is real implementation + tests, not inflated. Ledger adjustment is the architect-only action per §11.1.4.",
-      "authorized_by": "architect (REA-004G review; ledger adjustment per §11.1.4 architect-only rule; Owner 2026-08-01 directive)",
-      "date": "2026-08-01"
+      "authorized_by": "architect (REA-004G review 2026-08-02; retro-ratified per architect ruling; ledger adjustment per §11.1.4)",
+      "date": "2026-08-02"
     }
   ]
 }

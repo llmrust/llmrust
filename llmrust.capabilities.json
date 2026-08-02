@@ -21,7 +21,15 @@
       "multi_turn": true,
       "env_vars": ["OPENAI_API_KEY", "LLMRUST_OPENAI_KEY"],
       "default_base_url": "https://api.openai.com/v1",
-      "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "seed", "presence_penalty", "frequency_penalty", "logprobs", "top_logprobs", "response_format", "n", "parallel_tool_calls", "service_tier", "store", "metadata", "user"]
+      "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "seed", "presence_penalty", "frequency_penalty", "logprobs", "top_logprobs", "response_format", "n", "parallel_tool_calls", "service_tier", "store", "metadata", "user"],
+      "verified_at": "2026-08-02",
+      "reasoning": {
+        "status": "implemented",
+        "verified_at": "2026-08-02",
+        "chat": "unsupported",
+        "aggregate": "unsupported",
+        "notes": "Request: reasoning_effort mapping (budget None -> medium; Some rejected). Stream: reasoning/reasoning_content -> StreamChunk.thinking. Usage: reasoning_tokens -> Usage.reasoning_tokens. Non-stream chat and stream_collect* aggregate fail with LlmError::Unsupported (REA-001 §2.1/§3, REA-003). Fixture-level verification; real upstream E2E belongs to E2E-001."
+      }
     },
     "deepseek": {
       "provider_key": "deepseek",
@@ -39,7 +47,15 @@
       "multi_turn": true,
       "env_vars": ["DEEPSEEK_API_KEY", "LLMRUST_DEEPSEEK_KEY"],
       "default_base_url": "https://api.deepseek.com/v1",
-      "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "response_format"]
+      "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "response_format"],
+      "verified_at": "2026-08-02",
+      "reasoning": {
+        "status": "unsupported",
+        "verified_at": "2026-08-02",
+        "chat": "unsupported",
+        "aggregate": "unsupported",
+        "notes": "No verified official reasoning/cache fields; setting thinking fails with LlmError::Unsupported before any network call (REA-001 §2.2/§3, REA-003). Fixture-level verification."
+      }
     },
     "moonshot": {
       "provider_key": "moonshot",
@@ -57,7 +73,15 @@
       "multi_turn": true,
       "env_vars": ["MOONSHOT_API_KEY", "LLMRUST_MOONSHOT_KEY"],
       "default_base_url": "https://api.moonshot.cn/v1",
-      "sampling_params": ["temperature", "max_tokens", "top_p", "stop"]
+      "sampling_params": ["temperature", "max_tokens", "top_p", "stop"],
+      "verified_at": "2026-08-02",
+      "reasoning": {
+        "status": "unsupported",
+        "verified_at": "2026-08-02",
+        "chat": "unsupported",
+        "aggregate": "unsupported",
+        "notes": "No verified official reasoning/cache fields; setting thinking fails with LlmError::Unsupported before any network call (REA-001 §2.2/§3, REA-003). Fixture-level verification."
+      }
     },
     "openrouter": {
       "provider_key": "openrouter",
@@ -75,7 +99,15 @@
       "multi_turn": true,
       "env_vars": ["OPENROUTER_API_KEY", "LLMRUST_OPENROUTER_KEY"],
       "default_base_url": "https://openrouter.ai/api/v1",
-      "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "seed", "presence_penalty", "frequency_penalty", "response_format", "n"]
+      "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "seed", "presence_penalty", "frequency_penalty", "response_format", "n"],
+      "verified_at": "2026-08-02",
+      "reasoning": {
+        "status": "unsupported",
+        "verified_at": "2026-08-02",
+        "chat": "unsupported",
+        "aggregate": "unsupported",
+        "notes": "No verified official reasoning/cache fields; setting thinking fails with LlmError::Unsupported before any network call (REA-001 §2.2/§3, REA-003). Fixture-level verification."
+      }
     },
     "anthropic": {
       "provider_key": "anthropic",
@@ -94,7 +126,15 @@
       "env_vars": ["ANTHROPIC_API_KEY", "LLMRUST_ANTHROPIC_KEY"],
       "default_base_url": "https://api.anthropic.com/v1",
       "sampling_params": ["temperature", "max_tokens", "top_p", "stop_sequences"],
-      "notes": ["Uses native Anthropic Messages API (not OpenAI-compatible)", "Images via base64 in content blocks", "Tool calling via tool_use/tool_result content blocks"]
+      "notes": ["Uses native Anthropic Messages API (not OpenAI-compatible)", "Images via base64 in content blocks", "Tool calling via tool_use/tool_result content blocks"],
+      "verified_at": "2026-08-02",
+      "reasoning": {
+        "status": "implemented",
+        "verified_at": "2026-08-02",
+        "chat": "unsupported",
+        "aggregate": "unsupported",
+        "notes": "Request: thinking {type: enabled, budget_tokens} mapping. Stream: thinking_delta/signature_delta/redacted_thinking -> StreamChunk.thinking, thinking_done terminal. Usage: cache_creation_input_tokens/cache_read_input_tokens + thinking_tokens mapping. Non-stream chat and stream_collect* aggregate fail with LlmError::Unsupported (REA-001 §2.3/§3, REA-002). Fixture-level verification; real upstream E2E belongs to E2E-001."
+      }
     },
     "google": {
       "provider_key": "google",
@@ -113,7 +153,15 @@
       "env_vars": ["GOOGLE_API_KEY", "LLMRUST_GOOGLE_KEY"],
       "default_base_url": "https://generativelanguage.googleapis.com/v1beta",
       "sampling_params": ["temperature", "max_tokens", "top_p", "stop", "logprobs", "top_logprobs", "response_format"],
-      "notes": ["Remote http(s) image URLs are skipped. Use data: URLs only.", "API key sent via x-goog-api-key header"]
+      "notes": ["Remote http(s) image URLs are skipped. Use data: URLs only.", "API key sent via x-goog-api-key header"],
+      "verified_at": "2026-08-02",
+      "reasoning": {
+        "status": "implemented",
+        "verified_at": "2026-08-02",
+        "chat": "unsupported",
+        "aggregate": "unsupported",
+        "notes": "Request: thinkingConfig (thinkingBudget optional, includeThoughts always when enabled). Stream: thought parts -> StreamChunk.thinking, thinking_done terminal. Usage: thoughtsTokenCount -> Usage.reasoning_tokens. Non-stream chat and stream_collect* aggregate fail with LlmError::Unsupported (REA-001 §2.5/§3, REA-004G). Fixture-level verification; real upstream E2E belongs to E2E-001."
+      }
     },
     "ollama": {
       "provider_key": "ollama",
@@ -132,7 +180,15 @@
       "env_vars": ["OLLAMA_HOST", "LLMRUST_OLLAMA_HOST"],
       "default_base_url": "http://localhost:11434",
       "sampling_params": ["temperature", "max_tokens"],
-      "notes": ["No API key required", "Always registered", "No request timeout (local generation can be long-running)", "Image content is flattened to text"]
+      "notes": ["No API key required", "Always registered", "No request timeout (local generation can be long-running)", "Image content is flattened to text"],
+      "verified_at": "2026-08-02",
+      "reasoning": {
+        "status": "unsupported",
+        "verified_at": "2026-08-02",
+        "chat": "unsupported",
+        "aggregate": "unsupported",
+        "notes": "Ollama wire offers only options.think (bool/level) with no lossless mapping for ThinkingConfig.budget_tokens; setting thinking fails with LlmError::Unsupported before any network call (REA-001 §2.5/§3, REA-004O). Fixture-level verification."
+      }
     }
   },
   "features": {

@@ -351,6 +351,20 @@ fn capabilities_json_proxy_lists_embeddings_endpoint() {
 /// Reasoning statuses the matrix may truthfully report.
 const REASONING_STATUSES: &[&str] = &["implemented", "unsupported", "model_dependent"];
 
+/// Expected reasoning status per provider — the truthful matrix from
+/// REA-001 §3 (CAP-001). An assertion failure means the capability claim
+/// drifted from the verified implementation, so the negative-test (write a
+/// wrong claim → must fail) is exactly this map being enforced.
+const EXPECTED_REASONING_STATUS: &[(&str, &str)] = &[
+    ("openai", "implemented"),
+    ("anthropic", "implemented"),
+    ("google", "implemented"),
+    ("deepseek", "unsupported"),
+    ("moonshot", "unsupported"),
+    ("openrouter", "unsupported"),
+    ("ollama", "unsupported"),
+];
+
 #[test]
 fn capabilities_json_providers_have_reasoning_matrix() {
     let text = fs::read_to_string(repo_root().join("llmrust.capabilities.json")).unwrap();
@@ -369,6 +383,15 @@ fn capabilities_json_providers_have_reasoning_matrix() {
         assert!(
             REASONING_STATUSES.contains(&status),
             "provider '{name}' reasoning.status '{status}' not in {REASONING_STATUSES:?}"
+        );
+        let expected = EXPECTED_REASONING_STATUS
+            .iter()
+            .find(|(p, _)| *p == name)
+            .map(|(_, s)| *s)
+            .unwrap_or_else(|| panic!("provider '{name}' has no expected reasoning status"));
+        assert_eq!(
+            status, expected,
+            "provider '{name}' reasoning.status must be '{expected}' (REA-001 §3), got '{status}'"
         );
     }
 }

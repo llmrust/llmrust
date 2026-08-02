@@ -30,6 +30,7 @@ Every implementation of `Provider` must satisfy:
 4. **Error in stream**: If the stream encounters a parse error mid-stream, yield `Err(LlmError::Parse(...))`. If the upstream returns an error mid-stream, yield `Err(LlmError::Api{...})` or `Err(LlmError::Stream(...))`.
 5. **No silent drops**: Never silently skip malformed data. Never emit `Ok(chunk)` with empty delta and `done: false` as a workaround for parse failures.
 6. **Tool call reconstruction** (if supported): Accumulate streamed tool call fragments and emit the complete `tool_calls` on the terminal chunk.
+7. **Reasoning deltas**: Providers that map reasoning on the streaming path must surface increments via `StreamChunk.thinking` (additive, appended per chunk) and mark the end with `StreamChunk.thinking_done = Some(true)` at most once on the terminal chunk. Reasoning must never be mixed into `StreamChunk.delta` (REA-001 §1.3). Providers without a lossless wire mapping must reject `Enabled` reasoning before any network call (REA-002/003/004G/004O).
 
 ## Proxy contract
 

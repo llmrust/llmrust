@@ -46,6 +46,7 @@ Every implementation of `Provider` must satisfy:
 8. **Usage chunks**: When `stream_options.include_usage` is true, usage-only chunks use empty `choices: []`.
 9. **Error bodies**: Return OpenAI-style JSON errors: `{"error":{"message":"...","type":"...","code":null}}`.
 10. **Stream errors**: Emit error as an SSE event with `"error"` in the JSON body, then send `[DONE]`.
+11. **Reasoning**: The OpenAI-compatible proxy cannot express reasoning on its wire (SPCC §7.3). A request carrying a reasoning-intent key (`reasoning_effort` / `reasoning` / `thinking`) is rejected with `400 invalid_request_error` before any upstream dispatch. If an upstream stream carries a non-empty `StreamChunk.thinking` delta or `thinking_done == true`, the proxy emits exactly one `stream_error` event (message declares reasoning unsupported on this wire) and then terminates with `[DONE]` — reasoning is never silently dropped.
 
 ### Anthropic `/v1/messages`
 

@@ -84,6 +84,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty or whitespace-only `LLMRUST_PROXY_KEY` now refuses to start (`router_with_auth` panics
   at construction, `serve()` returns an error) instead of silently enabling a degenerate auth
   mode, and a valid key is trimmed before use. (PRX-002, Refs #154)
+- The OpenAI-compatible proxy no longer silently drops reasoning (PRX-003): a request carrying
+  `reasoning_effort` / `reasoning` / `thinking` is rejected with `400 invalid_request_error`
+  before any upstream dispatch (SPCC §6.1/§7.3); an upstream stream chunk carrying a non-empty
+  `thinking` delta or `thinking_done == true` now emits exactly one `stream_error` event then
+  terminates with `[DONE]`, instead of being silently discarded (SPCC §6.3). All other stream
+  behavior (role on first delta, single `[DONE]`, usage-only with `include_usage`, finish once)
+  is unchanged. (PRX-003, Refs #157)
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked

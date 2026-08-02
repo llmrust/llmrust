@@ -325,7 +325,7 @@ curl http://localhost:3000/v1/messages \
 > **CORS：** 代理**默认不发送 CORS allow-origin 头**（SPCC §7.1）。如需允许特定来源的浏览器跨域访问，请用受限的 `CorsLayer` 显式包裹 `Router`（见 `docs/CAPABILITIES.md` 与 `router()` 文档）。`Access-Control-Allow-Origin: *` 仅允许在认证路由上且经明确风险接受后使用——绝非默认。
 >
 > 代理遵循 OpenAI chat completions 请求约定，包括 `stop` 可为字符串或数组，并会对格式错误的请求返回 JSON 错误体。流式错误会以 error event 返回给客户端，不会静默伪装成成功 completion。
-> 流式响应使用 OpenAI 风格 SSE chunk，包括只在首个 delta 中发送一次 `assistant` role。设置 `stream_options.include_usage = true` 时，仅包含 usage 的 chunk 会返回空 `choices`。
+> 流式响应使用 OpenAI 风格 SSE chunk，包括只在首个 delta 中发送一次 `assistant` role。设置 `stream_options.include_usage = true` 时，仅包含 usage 的 chunk 会返回空 `choices`。reasoning 无法在 proxy wire 上表达（SPCC §7.3）：含 `reasoning_effort`/`reasoning`/`thinking` 的请求以 400 拒绝，上游流中的 reasoning 增量会以 `stream_error` 事件呈现。
 
 ### Proxy model 名称
 

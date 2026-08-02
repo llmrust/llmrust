@@ -612,15 +612,42 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
 // ── Handler ───────────────────────
 
 /// Handle POST /v1/chat/completions.
-async fn handle_chat_completions(
-    State(state): State<AppState>,
-    payload: std::result::Result<Json<ProxyChatRequest>, JsonRejection>,
-) -> Response {
-    let Json(req) = match payload {
+async fn handle_chat_completions(State(state): State<AppState>, body: String) -> Response {
+    // PRX-003 (SPCC §6.1/§7.3): reasoning-intent keys are not expressible on
+    // the OpenAI-compatible proxy — reject them with 400 BEFORE any provider
+    // dispatch (zero upstream), instead of silently dropping the field.
+    // Parsed as raw Value first so unknown keys stay tolerated (no
+    // deny_unknown_fields), then deserialized as before.
+    let raw: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("proxy: request JSON extraction failed");
+            return invalid_json_response(
+                StatusCode::BAD_REQUEST,
+                &format!("Invalid JSON request body: {e}"),
+            );
+        }
+    };
+    if let Some(obj) = raw.as_object() {
+        if obj.contains_key("reasoning_effort")
+            || obj.contains_key("reasoning")
+            || obj.contains_key("thinking")
+        {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "reasoning is unsupported on the OpenAI-compatible proxy in 0.1.3; \
+                 call the provider directly to use reasoning",
+            );
+        }
+    }
+    let req: ProxyChatRequest = match serde_json::from_value(raw) {
         Ok(req) => req,
         Err(e) => {
             tracing::error!("proxy: request JSON extraction failed");
-            return json_rejection_response(e);
+            return invalid_json_response(
+                StatusCode::BAD_REQUEST,
+                &format!("Invalid JSON request body: {e}"),
+            );
         }
     };
 
@@ -819,6 +846,31 @@ fn build_openai_sse_response(
             }
             match state.inner.next().await {
                 Some(Ok(chunk)) => {
+                    // PRX-003 (SPCC §6.3/§7.3): reasoning cannot be expressed
+                    // on the OpenAI wire — a non-empty thinking delta or
+                    // `thinking_done == true` must surface as exactly one
+                    // stream_error event (then terminate via the existing
+                    // error path), never a silent drop.
+                    let has_thinking = matches!(&chunk.thinking, Some(t) if !t.is_empty());
+                    if has_thinking || chunk.thinking_done == Some(true) {
+                        state.terminated = true;
+                        let error_payload = ProxyError {
+                            error: ProxyErrorDetail {
+                                message:
+                                    "reasoning cannot be expressed on the OpenAI wire in 0.1.3; \
+                                     use the raw provider stream instead"
+                                        .to_string(),
+                                error_type: "stream_error".to_string(),
+                                param: None,
+                                code: None,
+                            },
+                        };
+                        let event = std::result::Result::<_, Infallible>::Ok(
+                            Event::default()
+                                .data(serde_json::to_string(&error_payload).unwrap_or_default()),
+                        );
+                        return Some((event, state));
+                    }
                     let has_tool_calls = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
                     let mut finish_reason = chunk.finish_reason;
                     if finish_reason.is_none() && chunk.done {
@@ -1098,11 +1150,14 @@ fn json_rejection_response(e: JsonRejection) -> Response {
     } else {
         StatusCode::BAD_REQUEST
     };
-    error_response_with_type(
-        status,
-        &format!("Invalid JSON request body: {e}"),
-        "invalid_request_error",
-    )
+    invalid_json_response(status, &format!("Invalid JSON request body: {e}"))
+}
+
+/// Build the canonical "Invalid JSON request body" 400 body used by both the
+/// extractor rejection path and the PRX-003 raw-Value pre-parse path, so the
+/// wire contract stays identical.
+fn invalid_json_response(status: StatusCode, message: &str) -> Response {
+    error_response_with_type(status, message, "invalid_request_error")
 }
 
 /// Build an HTTP error response with JSON body.

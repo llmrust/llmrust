@@ -1,11 +1,11 @@
 # llmrust SPCC 0.1.3 项目规格
 
 > **文档编号**：`LLMRUST-SPCC-013`  
-> **状态**：`ACTIVE SSOT — M2 DONE（10/10 封板，public API freeze 生效）；M3 DONE（5/5 封板）`  
+> **状态**：`ACTIVE SSOT — M2 DONE（10/10 封板，public API freeze 生效）；M3 DONE（5/5 封板）；M4 ACTIVE（1/4）`  
 > **目标版本**：`llmrust 0.1.3`  
 > **审计基线**：GitHub `main` @ `3d0734ac711de3aadf16331c0f9c21b1634a83a8`  
 > **规格版本**：`0.4`（SPEC-004：角色更换，架构师 Kimi → Notion AI）  
-> **编制日期**：`2026-07-13`；**最近修订**：`2026-08-02`  
+> **编制日期**：`2026-07-13`；**最近修订**：`2026-08-03`  
 > **母规范**：`docs/spcc.md`（通用 SPCC 方法论 v1.0，2026-07-24 经 SPEC-002 登记入库）  
 > **仓库路径**：`docs/SPCC-0.1.3.md`
 
@@ -136,7 +136,7 @@ llmrust 是一个以 Rust 为核心的统一 LLM SDK，并可选提供 OpenAI/An
 |---|---|---|---|---|
 | 事故处置 | llmrust Owner（用户） | Codex | Grok | `DONE` — `INC-001`、`INC-002` 均已通过 |
 | Phase 0–2 | llmrust Owner（用户） | Notion AI | CodeBuddy | `DONE` — M0/M1/M2/M3 均封板 |
-| Phase 3–5 | llmrust Owner（用户） | Notion AI | CodeBuddy | `ACTIVE` — M3 已封板；下一任务 `ARC-001`（READY，待 M3 相位复盘后下发） |
+| Phase 3–5 | llmrust Owner（用户） | Notion AI | CodeBuddy | `ACTIVE` — M4 1/4（ARC-001 DONE）；下一任务 `ARC-002`（READY，待状态闭合后下发） |
 
 本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限。**2026-07-24 角色更换（SPEC-001，Owner 批准）**：前任架构师 Codex 的计划代理失效，Owner 指定 Kimi 接任唯一架构师，CodeBuddy 接任唯一执行者；历史任务（`INC-001`、`INC-002`、`SPEC-000`、`CI-001`）中 Codex/Grok 的裁定与回证继续有效，不回溯改写。自生效时起：Kimi 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 负责 Kimi 下发的产品代码、配置、测试和实现文档任务。Kimi 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Kimi 负责把决定写入本表并记录生效时间。**2026-08-02 角色更换（SPEC-004，Owner 指令）**：Kimi 卸任，Owner 指定 Notion AI 接任唯一架构师；历史任务中 Kimi 的裁定与回证继续有效，不回溯改写。自生效时起：Notion AI 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 继续担任唯一执行者。Notion AI 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。后续角色更换由 Owner 决定方向，Notion AI 负责把决定写入本表并记录生效时间。
 
@@ -681,7 +681,7 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 | `0.1.3 / M1 API Freeze` | 冻结 0.1.x 公开 API | 4/4 | 100% | `DONE` | —（已收口） | 相对 0.1.2 零新增破坏，兼容性说明完成 |
 | `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 10/10 | 100% | `DONE` | — | 十项任务 DONE，能力声明与 fixture 一致 |
 | `0.1.3 / M3 Proxy Security` | 收紧代理默认安全与 wire 行为 | 5/5 | 100% | `DONE` | — | 五项任务 DONE，安全负例全部通过 |
-| `0.1.3 / M4 Maintainability` | 冻结热点、修正 Router 状态并形成拆分蓝图 | 0/4 | 0% | `ACTIVE` | `ARC-001` | 热点守卫、Router 隔离、拆分设计和文档一致性完成 |
+| `0.1.3 / M4 Maintainability` | 冻结热点、修正 Router 状态并形成拆分蓝图 | 1/4 | 25% | `ACTIVE` | `ARC-002` | 热点守卫、Router 隔离、拆分设计和文档一致性完成 |
 | `0.1.3 / M5 Release` | 审计并发布干净 0.1.3 | 0/4 | 0% | `BLOCKED` | `E2E-001` | crates.io/docs.rs/GitHub tag 三方一致 |
 
 进度只按 `DONE / 总任务数` 计算，不按代码行、PR 数或主观百分比估算。Milestone 中任何 P0/P1 回归都会把状态改回 `BLOCKED`，即使百分比已经达到 100%。
@@ -733,7 +733,7 @@ flowchart TD
 | `PRX-003` | M3 | `DONE` | `STR-003`,`REA-003` | [#157](https://github.com/llmrust/llmrust/issues/157) | [#158](https://github.com/llmrust/llmrust/pull/158) | `aff47ecc8033389d012ffa667cbb3cbd750e6fd1` | STATE-PRX-003（本 PR） |
 | `PRX-004` | M3 | `DONE` | `STR-003`,`REA-002` | [#160](https://github.com/llmrust/llmrust/issues/160) | [#161](https://github.com/llmrust/llmrust/pull/161) | `96d45ff5cc40b2444aebb61db3736c3fce96bf37` | STATE-PRX-004（本 PR） |
 | `PRX-005` | M3 | `DONE` | `PRX-002`,`PRX-003`,`PRX-004` | [#163](https://github.com/llmrust/llmrust/issues/163) | [#164](https://github.com/llmrust/llmrust/pull/164) | `fd2ee1aea0fe8beaced220c6f97dc2c87f1c07eb` | STATE-PRX-005（本 PR） |
-| `ARC-001` | M4 | `READY` | M3 DONE, `CI-003` | — | — | — | — |
+| `ARC-001` | M4 | `DONE` | M3 DONE, `CI-003` | [#167](https://github.com/llmrust/llmrust/issues/167) | [#168](https://github.com/llmrust/llmrust/pull/168) | `9b8edeaf6130da3614c67d5b4b341126d25a9c0b` | STATE-ARC-001（本 PR） |
 | `ARC-002` | M4 | `READY` | M3 DONE, `CI-003` | — | — | — | — |
 | `RTR-001` | M4 | `READY` | M3 DONE, `CI-003` | — | — | — | — |
 | `DOC-002` | M4 | `READY` | `ARC-001`,`ARC-002`,`RTR-001`,`CAP-001` | — | — | — | — |
@@ -778,6 +778,7 @@ flowchart TD
 | `PRX-003` | [#157](https://github.com/llmrust/llmrust/issues/157) | [PR #158](https://github.com/llmrust/llmrust/pull/158)（reasoning 请求边界拒绝：handler 原始 body → `serde_json::Value` 预解析，顶层含 `reasoning_effort`/`reasoning`/`thinking` 任一键 → 400 `invalid_request_error` 零上行，未命中照常反序列化；JSON 语法错误路径经共享 `invalid_json_response` 辅助保持既有语义；reasoning 增量守卫：非空 `thinking` 或 `thinking_done == Some(true)` → 恰好一个 `stream_error` 事件后 `[DONE]`，与错误臂同构；CONTRACTS 第 11 条 + README 双语 + CHANGELOG 同步；proxy/mod.rs 台账 2875→3097 写实际值） | 设计依据回证前置（#157 comment 5158422082，开工前）；失败先行红→绿（`2e0913b` 红 5 靶 → `98c7041` 绿 6/6 + 273 lib 零回归，13 既有 stream 测试零修改零回归）；CI run `30751894979`/`30751894948` 七项全绿（head `98c7041`）；预算偏差一笔追认（总上限 250→275、实测 266：文档+台账 45 vs 预估 20，DoD 文档一致性强制内容，不设先例）；SHOULD-1（chat completions content-type 415→400 放宽）架构师裁接受记档；台账 3097 经 hunk 数学独立验算闭合（2875+55+167） | `aff47ecc8033389d012ffa667cbb3cbd750e6fd1`（2026-08-02） | STATE-PRX-003（本 PR） | M3 3/5（60%） | `DONE` — Notion AI（架构师） |
 | `PRX-004` | [#160](https://github.com/llmrust/llmrust/issues/160) | [PR #161](https://github.com/llmrust/llmrust/pull/161)（thinking 块映射：非空 `thinking` → `content_block_start` type `thinking` + `thinking_delta`，`thinking_done`/转段/终态先关后开，不发 `signature_delta`（StreamChunk 无 signature，CONTRACTS 声明有损路径）；工具片段重组：`active_tool` 状态机按 id 跟踪，同 id 追加 `input_json_delta` 到同一 index，换 id 先关后开，终态段补关恰好一次；截流错误化：`flush()` 仅产 `event: error`（`api_error`）与 Some(Err) 错误臂同构、不补发块关闭，不再伪造 end_turn；thinking 请求边界拒绝：raw Value 预解析查 `thinking` 键 → 400 Anthropic 形状 `invalid_request_error` 零上行，JSON 语法错误路径经 `invalid_json_body_response` 辅助保持既有语义；CONTRACTS 第 5-8 条 + README 双语 + CHANGELOG 同步；anthropic_proxy.rs 台账 1520→1864 写实际值） | 设计依据回证前置（#160 comment 5158648393，开工前）；失败先行红→绿（`e6d25e6` 红 5 靶 → `1786c04` 绿 5/5 + 278 lib 零回归，9 既有 stream-state 测试零修改零回归）；CI run `30753641765`/`30753641715` 七项全绿（head `1786c04`，执行侧直查回证）；预算裁决 350→≤500（实测 495，§10.3 401-800 档，原子性说明入档，不设先例）；SHOULD-1（malformed-JSON 错误体转 Anthropic 形状，顺带修复 P2-4 两协议不对称）与靶③断言硬化（只数 event: 行避免误计 JSON type）均架构师裁接受记档；评审/合并令经 Owner 聊天中继、PR 无 APPROVE 留痕（与 #158 同型，根治列入 GOV 卡方案）；台账 1864 经 hunk 数学独立验算闭合（1520+142+202） | `96d45ff5cc40b2444aebb61db3736c3fce96bf37`（2026-08-02） | STATE-PRX-004（本 PR） | M3 4/5（80%） | `DONE` — Notion AI（架构师） |
 | `PRX-005` | [#163](https://github.com/llmrust/llmrust/issues/163) | [PR #164](https://github.com/llmrust/llmrust/pull/164)（请求体上限：两 router 挂 `DefaultBodyLimit::max(proxy_max_body_bytes())` 读时硬截断（禁止 `usize::MAX`）+ `map_body_limit_response` 中间件按路径重写协议形状 413（`/v1/messages` → Anthropic 形状），`LLMRUST_PROXY_MAX_BODY_BYTES` env 配置缺省 2 MiB、chunked 同样生效；错误归一：`Parse`→502 `api_error`（非 JSON 固定措辞）、`Http`→502 「upstream connection failed」、message 截断 ≤200 唯一机械规则、不伪造 error type，两协议同修正；SECURITY.md 部署章节（含 vision/base64 大载荷调高 env 指引）+ README 双语 + CONTRACTS 映射表 + CHANGELOG 同步；proxy/mod.rs 台账 3097→3327、anthropic_proxy.rs 1864→1884 写实际值） | 设计依据回证前置（#163 comment 5159073414，开工前）；架构师裁定留痕 #163 comment 5159108131（2 MiB/单一 env/映射表修正 Parse→502 + 截断 ≤200 唯一机械规则/预算 ≤400）；失败先行红→绿（`ccc274a`/`ab2bbff` 红 4 靶 → `a1df02f` 绿 5/5 + 283 lib 零回归）；评审 MUST-FIX-1（usize::MAX 禁用致读时上限移除——安全回归）熔断修复 `ae0ad74`（恢复读时硬上限 + map 中间件 + handler 死代码删除），MUST-FIX-2 及残留台账实际值修正 `9f4c4eb`（mod.rs 3327、anthropic_proxy.rs 1884，hunk 数学闭合）；架构师裁定/评审留痕 #164 comment 5159281663/5159327680；CI run `30757555011`/`30757555012` 七项全绿（head `9f4c4eb`）；预算 329→343（修复增量，≤400 档内）；MUST-1 env 名修正（`LLMRUST_PROXY_MAX_BODY_BYTES`）；合并令防呆固化（body 从权威源 `--body-file` 直取），merge commit body 完整闭合；M3 5/5（100%）— 封板；M4 unblock（§11.1.2 M4 转 ACTIVE，ARC-001/ARC-002/RTR-001/DOC-002 转 READY，待 M3 相位复盘后下发） | `fd2ee1aea0fe8beaced220c6f97dc2c87f1c07eb`（2026-08-02） | STATE-PRX-005（本 PR） | M3 5/5（100%）— **封板** | `DONE` — Notion AI（架构师） |
+| `ARC-001` | [#167](https://github.com/llmrust/llmrust/issues/167) | [PR #168](https://github.com/llmrust/llmrust/pull/168)（Proxy 热点拆分推演文档：行区间映射全覆盖 mod.rs 3327 + anthropic_proxy.rs 1884；9 步迁移 ≤400/步含回滚点与 golden fixture 前置；9 张未来任务卡含测试外迁卡；零生产/测试/台账 diff） | 设计依据 APPROVE（#167 comment 5159875742 回证 → 5159886108 裁定）；实现首轮 CHANGES（2 MUST + 2 SHOULD，#168 comment 5159932735）全数处置；CI run `30763221834`/`30763221811` 七项全绿（head `5503c20`）；本地/远端/PR head 三点一致 | `9b8edeaf6130da3614c67d5b4b341126d25a9c0b`（2026-08-03） | STATE-ARC-001（本 PR） | M4 1/4（25%） | `DONE` — Notion AI（架构师） |
 
 状态 PR必须同时更新：§11.1.2 Milestone 计数、§11.1.3 任务状态与引用、§11.1.4 回证账本。三处不一致直接 REJECT。
 

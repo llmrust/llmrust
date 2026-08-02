@@ -1,7 +1,7 @@
 # llmrust SPCC 0.1.3 项目规格
 
 > **文档编号**：`LLMRUST-SPCC-013`  
-> **状态**：`ACTIVE SSOT — M2 进行中（public API freeze 生效）；下一任务 CAP-001`  
+> **状态**：`ACTIVE SSOT — M2 DONE（10/10 封板，public API freeze 生效）；相位复盘与 M3 放行待 Owner 拍板`  
 > **目标版本**：`llmrust 0.1.3`  
 > **审计基线**：GitHub `main` @ `3d0734ac711de3aadf16331c0f9c21b1634a83a8`  
 > **规格版本**：`0.4`（SPEC-004：角色更换，架构师 Kimi → Notion AI）  
@@ -679,7 +679,7 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 | `0.1.3 / INC Incident` | 清除发布事故影响 | 2/2 | 100% | `DONE` | — | 账户/产物核验完成且 0.1.2 已 yank |
 | `0.1.3 / M0 Foundation` | 建立不可绕过的治理与发布门禁 | 5/5 | 100% | `DONE` | — | 五项任务 DONE，负向门禁证据齐全 |
 | `0.1.3 / M1 API Freeze` | 冻结 0.1.x 公开 API | 4/4 | 100% | `DONE` | —（已收口） | 相对 0.1.2 零新增破坏，兼容性说明完成 |
-| `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 9/10 | 90% | `ACTIVE` | `CAP-001` | 十项任务 DONE，能力声明与 fixture 一致 |
+| `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 10/10 | 100% | `DONE` | — | 十项任务 DONE，能力声明与 fixture 一致 |
 | `0.1.3 / M3 Proxy Security` | 收紧代理默认安全与 wire 行为 | 0/5 | 0% | `BLOCKED` | `PRX-001` | 五项任务 DONE，安全负例全部通过 |
 | `0.1.3 / M4 Maintainability` | 冻结热点、修正 Router 状态并形成拆分蓝图 | 0/4 | 0% | `BLOCKED` | `ARC-001` | 热点守卫、Router 隔离、拆分设计和文档一致性完成 |
 | `0.1.3 / M5 Release` | 审计并发布干净 0.1.3 | 0/4 | 0% | `BLOCKED` | `E2E-001` | crates.io/docs.rs/GitHub tag 三方一致 |
@@ -727,8 +727,8 @@ flowchart TD
 | `REA-004G` | M2 | `DONE` | `REA-003`,`STR-002G` | [#136](https://github.com/llmrust/llmrust/issues/136) | [#137](https://github.com/llmrust/llmrust/pull/137) | `8f34bede3688ab69f6c3c8fc53fb334fa645c92e` | STATE-REA-004G（本 PR） |
 | `REA-004O` | M2 | `DONE` | `REA-004G` | [#141](https://github.com/llmrust/llmrust/issues/141) | [#142](https://github.com/llmrust/llmrust/pull/142) | `3c3cde00efa3a8c8bc633c3f0f99baa3e889688d` | STATE-REA-004O（本 PR） |
 | `STR-003` | M2 | `DONE` | `REA-002`,`REA-003`,`REA-004G`,`REA-004O` | [#144](https://github.com/llmrust/llmrust/issues/144) | [#145](https://github.com/llmrust/llmrust/pull/145) | `3ed23c3923961efdffed9283e3759964f2968ad8` | STATE-STR-003（本 PR） |
-| `CAP-001` | M2 | `READY` | `STR-003` | — | — | — | — |
-| `PRX-001` | M3 | `BLOCKED` | M2 DONE | — | — | — | — |
+| `CAP-001` | M2 | `DONE` | `STR-003` | [#147](https://github.com/llmrust/llmrust/issues/147) | [#148](https://github.com/llmrust/llmrust/pull/148) | `62a867ae5911a52aa179181896f0f8fb9599beda` | STATE-CAP-001（本 PR） |
+| `PRX-001` | M3 | `READY` | M2 DONE | — | — | — | — |
 | `PRX-002` | M3 | `BLOCKED` | `PRX-001` | — | — | — | — |
 | `PRX-003` | M3 | `BLOCKED` | `STR-003`,`REA-003` | — | — | — | — |
 | `PRX-004` | M3 | `BLOCKED` | `STR-003`,`REA-002` | — | — | — | — |
@@ -772,6 +772,7 @@ flowchart TD
 | `REA-004G` | [#136](https://github.com/llmrust/llmrust/issues/136) | [PR #137](https://github.com/llmrust/llmrust/pull/137)（Gemini `thinkingConfig` 请求映射（`thinkingBudget` 缺省无损省略）+ chat 发网前 Unsupported 闸门 + thought part→thinking 增量 + 终块 `thinking_done` 至多一次 + `thoughtsTokenCount`→`reasoning_tokens` 双路径翻译 + 8 fixture；google.rs 热点基线 1297→1524 架构师追认登记 2026-08-02） | 评审四项 MUST 回证齐全：REASONING-CONTRACT §4 O-1 括注回退、#136 设计依据回证评论 5155715775、热点台账追认更正、失败先行证据分支 `rea004g-red-evidence` @ `41118dd`；CI run `30734570565`/`30734570566` 七项全绿（head `b16deac`）；执行侧报本地 fmt/clippy/332 测试全绿（以 CI 为准） | `8f34bede3688ab69f6c3c8fc53fb334fa645c92e`（2026-08-02） | STATE-REA-004G（本 PR） | M2 7/10（70%） | `DONE` — Notion AI（架构师） |
 | `REA-004O` | [#141](https://github.com/llmrust/llmrust/issues/141) | [PR #142](https://github.com/llmrust/llmrust/pull/142)（Ollama reasoning 发网前 Unsupported 闸门：`thinking_enabled` 辅助 + chat/stream 双入口构造请求体前检查，Enabled→`LlmError::Unsupported` 零网络，Disabled/None 放行；4 fixture 含 `counting_server` 零网络证明；ollama.rs 不在热点台账） | 设计依据回证前置（#141 comment 5156508045，开工前）；失败先行红→绿（`0f82f88` 红 2 failed → 绿 17/17）；预算偏差两笔追认（测试 154>90 零网络基建、实现 35>15 可读性投入，总 189≤195，不设先例）；CI run `30740018493`/`30740018498` 七项全绿（head `6fb3a9d`） | `3c3cde00efa3a8c8bc633c3f0f99baa3e889688d`（2026-08-02） | STATE-REA-004O（本 PR） | M2 8/10（80%） | `DONE` — Notion AI（架构师） |
 | `STR-003` | [#144](https://github.com/llmrust/llmrust/issues/144) | [PR #145](https://github.com/llmrust/llmrust/pull/145)（`stream_collect`/`stream_collect_full` 聚合遇 reasoning 闸门：共享 `reject_reasoning` 辅助（thinking 增量非空或 `thinking_done == true` → `LlmError::Unsupported` 并引导原始 `stream()`），`chunk?` 解包后聚合前插入、零部分泄漏；lib.rs 新增测试模块（`SequenceProvider`/`ParseErrorProvider` mock 基建）+ 6 fixture；lib.rs 不在热点台账） | 设计依据回证前置（#144 comment 5156726807，开工前）；失败先行红→绿（`9adb4f4` 红 3 failed → 绿 6/6，守恒 3 保持绿）；预算偏差一笔追认（测试 210>160 mock 基建，总 235≤280，不设先例）；CI run `30741591998`/`30741591981` 七项全绿（head `7d4b96e`） | `3ed23c3923961efdffed9283e3759964f2968ad8`（2026-08-02） | STATE-STR-003（本 PR） | M2 9/10（90%） | `DONE` — Notion AI（架构师） |
+| `CAP-001` | [#147](https://github.com/llmrust/llmrust/issues/147) | [PR #148](https://github.com/llmrust/llmrust/pull/148)（能力与契约矩阵收口：JSON 7 provider 回填 `reasoning` 分层声明（status/verified_at/chat/aggregate/notes）+ 各 provider `verified_at`；CAPABILITIES.md 失实段重写 + matrix reasoning 行 + Ollama 补列；README 双语 Reasoning 列；CONTRACTS.md stream 契约第 7 条；REASONING-CONTRACT §3 落地标注；`EXPECTED_REASONING_STATUS` 严格映射可证伪断言；src/ 零业务 diff） | 设计依据 + 全量 drift 清单 D1–D8 前置（#147 comment 5156936757，开工前）；失败先行红→绿（`eb7c3be` 红 4 断言 → 绿 17/17）；可证伪负例（Ollama 错写 implemented 必红 → 撤销）在案；CI run `30742687962`/`30742687960` 七项全绿（head `0c36c79`） | `62a867ae5911a52aa179181896f0f8fb9599beda`（2026-08-02） | STATE-CAP-001（本 PR） | M2 10/10（100%）— **封板** | `DONE` — Notion AI（架构师） |
 
 状态 PR必须同时更新：§11.1.2 Milestone 计数、§11.1.3 任务状态与引用、§11.1.4 回证账本。三处不一致直接 REJECT。
 

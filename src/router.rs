@@ -848,4 +848,44 @@ mod tests {
         let r3 = router.chat("grp", "hi").await.unwrap();
         assert_eq!(r3.content, "primary-ok");
     }
+
+    // ── RTR-001 per-group round-robin isolation ──────────────────
+
+    /// T-1 (failure-first): round-robin starts must be isolated per group.
+    ///
+    /// Registering group A and group B with the same RoundRobin router, then
+    /// interleaving requests, must NOT let group A's traffic shift group B's
+    /// next start. Group B's first hit must be its own first deployment
+    /// regardless of how many group A requests happened first.
+    ///
+    /// Under the current shared-counter implementation a single group-A
+    /// request advances the global counter to 1, so group B's first request
+    /// starts at `1 % 2 == 1` and wrongly lands on `b2`. Per-group isolation
+    /// must land on `b1`.
+    #[tokio::test]
+    async fn round_robin_starts_are_isolated_per_group() {
+        let client = Arc::new(LmrsClient::new());
+        let a1 = Arc::new(OkProvider::new("a1"));
+        let a2 = Arc::new(OkProvider::new("a2"));
+        let b1 = Arc::new(OkProvider::new("b1"));
+        let b2 = Arc::new(OkProvider::new("b2"));
+        client.set_custom("a1", a1).await;
+        client.set_custom("a2", a2).await;
+        client.set_custom("b1", b1).await;
+        client.set_custom("b2", b2).await;
+
+        let router = Router::new(client)
+            .with_strategy(RoutingStrategy::RoundRobin)
+            .route("A", ["a1/m", "a2/m"])
+            .route("B", ["b1/m", "b2/m"]);
+
+        // Exactly ONE group-A request first: with the shared counter this
+        // advances the global rotation once, shifting group B's start to b2.
+        let ra1 = router.chat("A", "hi").await.unwrap();
+        assert_eq!(ra1.content, "a1");
+
+        // Group B's first request must land on b1 (its own start), never b2.
+        let rb1 = router.chat("B", "hi").await.unwrap();
+        assert_eq!(rb1.content, "b1", "group A traffic must not shift group B start");
+    }
 }

@@ -1,7 +1,7 @@
 # llmrust SPCC 0.1.3 项目规格
 
 > **文档编号**：`LLMRUST-SPCC-013`  
-> **状态**：`ACTIVE SSOT — M2 DONE（10/10 封板，public API freeze 生效）；M3 DONE（5/5 封板）；M4 DONE（4/4 封板）`  
+> **状态**：`ACTIVE SSOT — M2 DONE（10/10 封板，public API freeze 生效）；M3 DONE（5/5 封板）；M4 DONE（4/4 封板）；M5 ACTIVE（0/4）`  
 > **目标版本**：`llmrust 0.1.3`  
 > **审计基线**：GitHub `main` @ `3d0734ac711de3aadf16331c0f9c21b1634a83a8`  
 > **规格版本**：`0.4`（SPEC-004：角色更换，架构师 Kimi → Notion AI）  
@@ -136,7 +136,7 @@ llmrust 是一个以 Rust 为核心的统一 LLM SDK，并可选提供 OpenAI/An
 |---|---|---|---|---|
 | 事故处置 | llmrust Owner（用户） | Codex | Grok | `DONE` — `INC-001`、`INC-002` 均已通过 |
 | Phase 0–2 | llmrust Owner（用户） | Notion AI | CodeBuddy | `DONE` — M0/M1/M2/M3 均封板 |
-| Phase 3–5 | llmrust Owner（用户） | Notion AI | CodeBuddy | `ACTIVE` — M4 4/4 封板（ARC-001/ARC-002/RTR-001/DOC-002 DONE）；M5 待放行裁定（E2E-001 BLOCKED） |
+| Phase 3–5 | llmrust Owner（用户） | Notion AI | CodeBuddy | `ACTIVE` — M4 4/4 封板；M5 ACTIVE（0/4）；下一任务 `E2E-001`（READY，待下发） |
 
 本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限。**2026-07-24 角色更换（SPEC-001，Owner 批准）**：前任架构师 Codex 的计划代理失效，Owner 指定 Kimi 接任唯一架构师，CodeBuddy 接任唯一执行者；历史任务（`INC-001`、`INC-002`、`SPEC-000`、`CI-001`）中 Codex/Grok 的裁定与回证继续有效，不回溯改写。自生效时起：Kimi 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 负责 Kimi 下发的产品代码、配置、测试和实现文档任务。Kimi 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Kimi 负责把决定写入本表并记录生效时间。**2026-08-02 角色更换（SPEC-004，Owner 指令）**：Kimi 卸任，Owner 指定 Notion AI 接任唯一架构师；历史任务中 Kimi 的裁定与回证继续有效，不回溯改写。自生效时起：Notion AI 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 继续担任唯一执行者。Notion AI 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。后续角色更换由 Owner 决定方向，Notion AI 负责把决定写入本表并记录生效时间。
 
@@ -682,7 +682,7 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 | `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 10/10 | 100% | `DONE` | — | 十项任务 DONE，能力声明与 fixture 一致 |
 | `0.1.3 / M3 Proxy Security` | 收紧代理默认安全与 wire 行为 | 5/5 | 100% | `DONE` | — | 五项任务 DONE，安全负例全部通过 |
 | `0.1.3 / M4 Maintainability` | 冻结热点、修正 Router 状态并形成拆分蓝图 | 4/4 | 100% | `DONE` | — | 热点守卫、Router 隔离、拆分设计和文档一致性完成 |
-| `0.1.3 / M5 Release` | 审计并发布干净 0.1.3 | 0/4 | 0% | `BLOCKED` | `E2E-001` | crates.io/docs.rs/GitHub tag 三方一致 |
+| `0.1.3 / M5 Release` | 审计并发布干净 0.1.3 | 0/4 | 0% | `ACTIVE` | `E2E-001` | crates.io/docs.rs/GitHub tag 三方一致 |
 
 进度只按 `DONE / 总任务数` 计算，不按代码行、PR 数或主观百分比估算。Milestone 中任何 P0/P1 回归都会把状态改回 `BLOCKED`，即使百分比已经达到 100%。
 
@@ -737,7 +737,7 @@ flowchart TD
 | `ARC-002` | M4 | `DONE` | M3 DONE, `CI-003` | [#170](https://github.com/llmrust/llmrust/issues/170) | [#172](https://github.com/llmrust/llmrust/pull/172) | `7324ea7bbd14977d7367ec7480f3ce27f2b52651` | STATE-ARC-002（本 PR） |
 | `RTR-001` | M4 | `DONE` | M3 DONE, `CI-003` | [#174](https://github.com/llmrust/llmrust/issues/174) | [#175](https://github.com/llmrust/llmrust/pull/175) | `3ee385a75795978c17dd1d1be529156388bc6c71` | STATE-RTR-001（本 PR） |
 | `DOC-002` | M4 | `DONE` | `ARC-001`,`ARC-002`,`RTR-001`,`CAP-001` | [#177](https://github.com/llmrust/llmrust/issues/177) | [#178](https://github.com/llmrust/llmrust/pull/178) | `86d2c9c66029b3e9dc4c33d67d196a6eeba2f7ff` | STATE-DOC-002（本 PR） |
-| `E2E-001` | M5 | `BLOCKED` | M4 DONE | — | — | — | — |
+| `E2E-001` | M5 | `READY` | M4 DONE | — | — | — | — |
 | `RC-001` | M5 | `BLOCKED` | M4 DONE, `E2E-001` | — | — | — | — |
 | `REL-002` | M5 | `BLOCKED` | `RC-001` | — | — | — | — |
 | `REL-003` | M5 | `BLOCKED` | `REL-001`,`REL-002` | — | — | — | — |
@@ -1377,6 +1377,16 @@ Owner 裁定记录：
 - **CI**：七项门禁在全部 5 笔实现 PR 上 35 项次全绿；agent docs validation 三处一致性机器复核全部 5 笔 STATE；热点守卫锚定台账实际值（3327/1884）。漏报面：安全设计回归（MUST-FIX-1 型）CI 不可见，依赖评审闸门——设计依据前置 + 评审留痕（本相位起裁定落 issue/PR 评论）继续强制。
 - **规格修订建议（M4 开门）**：GOV 卡——SPCC 状态区（§11.1.2/11.1.3/11.1.4）小文件化 + 架构师机器直写 + 评审留痕介质化 + 合并令 `--body-file` 固化成文（本相位通道截断两起、编辑 6/7 重建稿临时模式为其症；SPEC-* 变更，需 Owner 批准）；建议同步立项测试外迁卡（热点基线口径改计生产行数）。
 - **下一阶段**：M4 四卡已 READY（ARC-001/ARC-002、RTR-001、DOC-002），架构师建议放行；**待 Owner 批准**。
+
+### M4 相位复盘（2026-08-03，架构师复盘完成；M5 放行裁定同文）
+
+- **计划/完成**：4/4（ARC-001 Proxy 拆分推演、ARC-002 Core 拆分推演、RTR-001 Router round-robin per-group 隔离、DOC-002 文档/版本/能力元数据一致性门禁），实现与 STATE 关账各 4 笔全部 DONE，无 MERGED_PENDING_STATE 残留；M4 出口标准「热点守卫、Router 隔离、拆分设计和文档一致性完成」达成。
+- **一次通过率与返工**：实现 PR 一次通过 1/4（RTR-001 首轮 APPROVE + SHOULD 记档）；返工 3 单——ARC-001（首轮 CHANGES 2 MUST + 2 SHOULD：目标模块三处矛盾、步骤↔卡非 1:1）、ARC-002（首轮 CHANGES 2 MUST + 1 SHOULD：router.rs 行区间 line 248 双计、步骤行数与映射不符两处）、DOC-002（执行令勘误致设计依据重做：架构师侧范围窄口径漏掉卡实质范围）。返工主因为文档/推演内部一致性与执行令准确性，非代码质量；RTR-001 为唯一生产代码改动（+12 生产/+217 测试），首轮即过。
+- **越界**：范围/依赖/测试/安全红线零越界（M3 后零新依赖边；两份推演零生产 diff；DOC-002 四类故意改错全部还原）。**架构师侧错误三起如实记档**：① ARC-002 执行令 DoD 求和笔误 6407（应 6445）——执行侧开工熔断暴露；② DOC-002 执行令初版范围窄口径（凭压缩记忆误写，漏 capabilities JSON/agent validation tests/故意改错 DoD 等卡实质范围）——执行侧逐字引用卡原文暴露；③ DOC-002 STATE 构建令 grep 自检模式笔误（未排除 M1 既有行）——执行侧自检差异熔断暴露。**执行侧纪律正面先例八起**：台账 1484 伪差开工熔断（GOV #171 真相修正落地）、逐字引用暴露执行令错误两起、通道截断熔断五起（ARC-001 编辑 4-6、ARC-002 body、RTR-001 body、DOC-002 编辑 3-5、DOC-002 body——均「不补全、不建 PR、回 issue 报告」）。架构师通道截断五起为 GOV 卡现实依据强化。
+- **技术债**：销账——Router 单计数器跨组干扰（RTR-001 修复 + CONTRACTS 条款 9 + README 双语）、anthropic.rs 台账 1484 伪差（GOV #171「ledger is truth, never headroom」）、文档/元数据漂移（DOC-002：zero-dep 歧义、per-group 补写、PROJECT_MAP 当前结构、capabilities 四项校验）。结转——热点拆分 23 张未来卡（ARC-001 9 张 + ARC-002 14 张，0.1.4+ 候选，Owner 后续选择；含 C1 测试外迁卡与 RTR-001 记档 T-6 .clone() 断言补强）；package_guard 退出码盲区（A5，REL-002 MUST 候选，M3 结转）；reasoning 验证仍 fixture 级（E2E-001，M5）。
+- **CI**：七项门禁在全部 4 笔实现 PR 上 28 项次全绿；agent_docs_validation 17 断言含故意改错四类可证伪（版本/Provider 数/Retry 429/reasoning 状态逐一红→还原绿）；architecture_guard 锚定台账真实值（3327/1884/1455/1524/1483/1132/1080）。漏报面：台账伪差（1484 vs 1483，current ≤ baseline 方向）对热点守卫不可见——已由执行侧开工熔断 + 架构师真相修正机制兜底；守卫口径改进（current != baseline 即报，伪差方向也可证伪）列入 0.1.4+ 评估。
+- **规格修订建议（M5 开门）**：GOV 卡维持 M3 复盘原案（SPCC 状态区 §11.1.2/11.1.3/11.1.4 小文件化 + 架构师机器直写 + 评审留痕介质化 + 合并令 --body-file 固化成文；本相位通道截断五起、grep 自检笔误一起为其症；SPEC-* 变更，需 Owner 批准）；建议 0.1.4+ 评估热点守卫口径改进（current != baseline 即报）。
+- **下一阶段**：M5 四卡（E2E-001/RC-001/REL-002/REL-003）BLOCKED，架构师建议放行；按 §15 第 2026-08-02 条（阶段放行属架构师裁定职责，Owner 不否决即通过），**本复盘合入即视为 M5 放行裁定生效**，E2E-001 转 READY 并下发。
 
 ---
 

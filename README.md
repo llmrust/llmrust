@@ -326,7 +326,7 @@ curl http://localhost:3000/v1/messages \
   }'
 ```
 
-> **Security note:** Without `LLMRUST_PROXY_KEY` set, the proxy has no authentication and binds only to the loopback interface by default. Run it on localhost or behind a reverse proxy. With `LLMRUST_PROXY_KEY` set, every request must include an `Authorization: Bearer <key>` header; the token is compared in constant time.
+> **Security note:** Without `LLMRUST_PROXY_KEY` set, the proxy has no authentication and binds only to the loopback interface by default. Run it on localhost or behind a reverse proxy. With `LLMRUST_PROXY_KEY` set, every request must include an `Authorization: Bearer <key>` header; the token is compared in constant time (via the reviewed `subtle` crate). A set-but-empty or whitespace-only `LLMRUST_PROXY_KEY` refuses to start (SPCC §7.1). `GET /health` requires no authentication and returns only a fixed liveness payload (SPCC §7.2).
 >
 > **CORS:** The proxy sends **no CORS allow-origin header by default** (SPCC §7.1). To allow browser access from specific origins, wrap the `Router` with a restrictive `CorsLayer` (see `docs/CAPABILITIES.md` / the `router()` docs). `Access-Control-Allow-Origin: *` is only permitted on the authenticated router with explicit risk acceptance — never the default.
 >

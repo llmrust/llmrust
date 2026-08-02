@@ -540,3 +540,213 @@ impl Default for LmrsClient {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::providers::{Provider, Result as ProviderResult};
+    use crate::types::{FinishReason, StreamChunk, Usage};
+    use async_trait::async_trait;
+    use futures::stream;
+
+    /// Mock provider that emits a caller-supplied chunk sequence. Used to
+    /// exercise `stream_collect` / `stream_collect_full` against crafted
+    /// reasoning and non-reasoning streams.
+    struct SequenceProvider {
+        chunks: Arc<Vec<StreamChunk>>,
+    }
+
+    #[async_trait]
+    impl Provider for SequenceProvider {
+        async fn chat(&self, _req: &ChatRequest) -> ProviderResult<ChatResponse> {
+            Ok(ChatResponse::default())
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> ProviderResult<BoxStream<'static, Result<StreamChunk>>> {
+            let chunks = self.chunks.as_ref().clone();
+            Ok(Box::pin(stream::iter(chunks.into_iter().map(Ok))))
+        }
+    }
+
+    /// Mock provider that fails with a `Parse` error before emitting anything.
+    struct ParseErrorProvider;
+
+    #[async_trait]
+    impl Provider for ParseErrorProvider {
+        async fn chat(&self, _req: &ChatRequest) -> ProviderResult<ChatResponse> {
+            Ok(ChatResponse::default())
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> ProviderResult<BoxStream<'static, Result<StreamChunk>>> {
+            let err: Result<StreamChunk> = Err(LlmError::Parse("boom".to_string()));
+            Ok(Box::pin(stream::iter(vec![err])))
+        }
+    }
+
+    fn client_with(chunks: Vec<StreamChunk>) -> LmrsClient {
+        let provider = Arc::new(SequenceProvider {
+            chunks: Arc::new(chunks),
+        });
+        let llm = LmrsClient::new();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(llm.set_custom("seq", provider));
+        llm
+    }
+
+    // ── STR-003: aggregation must not silently drop reasoning (red first) ──
+
+    #[test]
+    fn stream_collect_thinking_delta_returns_unsupported() {
+        let llm = client_with(vec![
+            StreamChunk {
+                delta: "hello ".to_string(),
+                ..Default::default()
+            },
+            StreamChunk {
+                delta: "".to_string(),
+                thinking: Some("let me think".to_string()),
+                ..Default::default()
+            },
+            StreamChunk {
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            },
+        ]);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let err = rt.block_on(llm.stream_collect("seq/m", "hi")).unwrap_err();
+        assert!(
+            matches!(err, LlmError::Unsupported { .. }),
+            "thinking delta must fail with Unsupported, got: {:?}",
+            err
+        );
+    }
+
+    #[test]
+    fn stream_collect_full_thinking_delta_returns_unsupported() {
+        let llm = client_with(vec![
+            StreamChunk {
+                delta: "hello ".to_string(),
+                ..Default::default()
+            },
+            StreamChunk {
+                thinking: Some("thinking".to_string()),
+                ..Default::default()
+            },
+            StreamChunk {
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            },
+        ]);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let err = rt
+            .block_on(llm.stream_collect_full("seq/m", "hi"))
+            .unwrap_err();
+        assert!(
+            matches!(err, LlmError::Unsupported { .. }),
+            "thinking delta in collect_full must fail with Unsupported, got: {:?}",
+            err
+        );
+    }
+
+    #[test]
+    fn stream_collect_full_thinking_done_returns_unsupported() {
+        let llm = client_with(vec![
+            StreamChunk {
+                delta: "hi".to_string(),
+                ..Default::default()
+            },
+            StreamChunk {
+                done: true,
+                thinking_done: Some(true),
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            },
+        ]);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let err = rt
+            .block_on(llm.stream_collect_full("seq/m", "hi"))
+            .unwrap_err();
+        assert!(
+            matches!(err, LlmError::Unsupported { .. }),
+            "thinking_done must fail with Unsupported, got: {:?}",
+            err
+        );
+    }
+
+    #[test]
+    fn stream_collect_plain_text_concatenates_unchanged() {
+        let llm = client_with(vec![
+            StreamChunk {
+                delta: "hello ".to_string(),
+                ..Default::default()
+            },
+            StreamChunk {
+                delta: "world".to_string(),
+                ..Default::default()
+            },
+            StreamChunk {
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            },
+        ]);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let text = rt
+            .block_on(llm.stream_collect("seq/m", "hi"))
+            .unwrap();
+        assert_eq!(text, "hello world");
+    }
+
+    #[test]
+    fn stream_collect_full_keeps_terminal_usage_tools_finish() {
+        let usage = Usage {
+            prompt_tokens: 3,
+            completion_tokens: 5,
+            total_tokens: 8,
+            ..Default::default()
+        };
+        let llm = client_with(vec![
+            StreamChunk {
+                delta: "resp".to_string(),
+                ..Default::default()
+            },
+            StreamChunk {
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                usage: Some(usage.clone()),
+                ..Default::default()
+            },
+        ]);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let resp = rt
+            .block_on(llm.stream_collect_full("seq/m", "hi"))
+            .unwrap();
+        assert_eq!(resp.content, "resp");
+        assert_eq!(resp.usage.as_ref().map(|u| u.prompt_tokens), Some(3));
+        assert_eq!(resp.usage.as_ref().map(|u| u.completion_tokens), Some(5));
+        assert_eq!(resp.usage.as_ref().map(|u| u.total_tokens), Some(8));
+        assert_eq!(resp.finish_reason, Some(FinishReason::Stop));
+    }
+
+    #[test]
+    fn stream_collect_propagates_parse_error() {
+        let provider = Arc::new(ParseErrorProvider);
+        let llm = LmrsClient::new();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(llm.set_custom("seq", provider));
+        let err = rt.block_on(llm.stream_collect("seq/m", "hi")).unwrap_err();
+        assert!(
+            matches!(err, LlmError::Parse(_)),
+            "Parse error must propagate, got: {:?}",
+            err
+        );
+    }
+}

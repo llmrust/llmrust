@@ -2579,4 +2579,106 @@ mod tests {
         let req = captured.lock().unwrap();
         assert_eq!(req.as_ref().unwrap().model, "text-embedding");
     }
+
+    // ── PRX-001: CORS / listen-address security (red first) ──────────
+
+    fn build_cors_request(origin: &str, path: &str) -> Request<Body> {
+        Request::builder()
+            .method("GET")
+            .uri(path)
+            .header("origin", origin)
+            .body(Body::empty())
+            .expect("failed to build CORS test request")
+    }
+
+    /// The unauthenticated router must NOT send a CORS allow-origin header
+    /// by default (SPCC §7.1: no-auth default sends no cross-origin allow
+    /// header). Currently `default_cors()` sets `allow_origin(Any)`, so a
+    /// request with an `Origin` header gets an `Access-Control-Allow-Origin`
+    /// header back — this test is RED until the default is removed.
+    #[tokio::test]
+    async fn unauthenticated_router_sends_no_cors_allow_origin() {
+        let llm = Arc::new(LmrsClient::new());
+        let app = router(llm);
+
+        let response = app
+            .oneshot(build_cors_request("https://evil.example.com", "/health"))
+            .await
+            .expect("request failed");
+
+        assert_eq!(
+            response.headers().get("access-control-allow-origin"),
+            None,
+            "unauthenticated router must not send Access-Control-Allow-Origin (SPCC §7.1)"
+        );
+    }
+
+    /// The authenticated router must NOT default to `*` either — CORS must be
+    /// enabled explicitly by the caller (SPCC §7.1: `*` only with auth +
+    /// explicit Owner risk acceptance). Currently `router_with_auth` also
+    /// applies `default_cors()` with `allow_origin(Any)` — RED until removed.
+    #[tokio::test]
+    async fn authenticated_router_sends_no_default_cors_allow_origin() {
+        let llm = Arc::new(LmrsClient::new());
+        let app = router_with_auth(llm, "secret".to_string());
+
+        let response = app
+            .oneshot(build_cors_request("https://evil.example.com", "/health"))
+            .await
+            .expect("request failed");
+
+        assert_eq!(
+            response.headers().get("access-control-allow-origin"),
+            None,
+            "authenticated router must not default to Access-Control-Allow-Origin: * (SPCC §7.1)"
+        );
+    }
+
+    /// When the caller explicitly mounts an allowlist, only the listed origin
+    /// may be echoed back. Currently the router applies `allow_origin(Any)`
+    /// internally, so a non-listed origin also receives
+    /// `Access-Control-Allow-Origin` — RED until the default is removed and
+    /// the caller's layer takes effect.
+    #[tokio::test]
+    async fn explicit_allowlist_rejects_non_listed_origin() {
+        use axum::http::HeaderValue;
+        use tower_http::cors::AllowOrigin;
+
+        let llm = Arc::new(LmrsClient::new());
+        let app = router(llm).layer(
+            CorsLayer::new().allow_origin(AllowOrigin::list(vec![HeaderValue::from_static(
+                "https://trusted.example.com",
+            )])),
+        );
+
+        let response = app
+            .oneshot(build_cors_request("https://evil.example.com", "/health"))
+            .await
+            .expect("request failed");
+
+        let allow = response
+            .headers()
+            .get("access-control-allow-origin")
+            .map(|v| v.to_str().unwrap_or(""));
+        assert_ne!(
+            allow,
+            Some("https://evil.example.com"),
+            "non-listed origin must not be allowed by an explicit allowlist"
+        );
+    }
+
+    /// Loopback / non-loopback × token present / absent startup semantics
+    /// (SPCC §7.1: no-auth only binds loopback). This is currently GREEN
+    /// (the guard exists) — a regression lock, not a red-first test.
+    #[test]
+    fn loopback_policy_matrix() {
+        // no token + loopback → allowed
+        assert!(is_loopback_addr("127.0.0.1:3000"));
+        assert!(is_loopback_addr("localhost:3000"));
+        assert!(is_loopback_addr("[::1]:3000"));
+        // no token + non-loopback → refused (guard in serve())
+        assert!(!is_loopback_addr("0.0.0.0:3000"));
+        assert!(!is_loopback_addr("[::]:3000"));
+        assert!(!is_loopback_addr("192.168.1.10:3000"));
+    }
 }

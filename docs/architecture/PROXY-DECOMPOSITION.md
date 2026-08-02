@@ -24,7 +24,7 @@
 | 77–368 | OpenAI wire DTO（ProxyChatRequest / ProxyStreamOptions / ProxyFunctionCallChoice / ProxyStop / ProxyMessage / ProxyChatResponse / ProxyChoice / ProxyResponseMessage / ProxyUsage / ProxyStreamChunk / ProxyStreamChoice / ProxyDelta / ProxyEmbeddingRequest / ProxyEmbeddingInput / ProxyEmbeddingResponse / ProxyEmbedding / ProxyEmbeddingUsage / ProxyError / ProxyErrorDetail） | 292 | `proxy::openai::dto` |
 | 369–408 | AppState + 相关 | 40 | `proxy::app` |
 | 409–470 | `router` / `router_with_auth`（路由装配） | 62 | `proxy::router` |
-| 471–482 | `map_body_limit_response`（413 协议形状中间件） | 12 | `proxy::middleware` |
+| 471–482 | `map_body_limit_response`（413 协议形状中间件） | 12 | `proxy::router` |
 | 483–515 | `check_bearer`（认证中间件） | 33 | `proxy::auth` |
 | 516–523 | `subtle_constant_time_eq` | 8 | `proxy::auth` |
 | 524–532 | `health_check` | 9 | `proxy::handlers` |
@@ -130,7 +130,7 @@ AppState (proxy::app) ──► Arc<LmrsClient>
 src/proxy/
 ├── mod.rs               （门控入口 + 精简重导出）
 ├── app.rs               （AppState）
-├── router.rs            （router / router_with_auth / map_body_limit_response）
+├── router.rs            （router / router_with_auth / map_body_limit_response 413 中间件）
 ├── auth.rs              （check_bearer / subtle_constant_time_eq）
 ├── config.rs            （is_loopback_addr / proxy_max_body_bytes / env 读取）
 ├── server.rs            （serve / shutdown_signal）
@@ -152,13 +152,15 @@ src/proxy/
 - `convert` → `dto` + `types` + `util`
 - `sse` → `dto` + `types` + `error`
 - `handlers` → `dto` + `convert` + `sse` + `error` + `auth` + `config`
-- `router` → `handlers` + `auth` + `config` + `middleware`（map_body_limit）
+- `router` → `handlers` + `auth` + `config`（map_body_limit_response 413 中间件与路由装配同职责，随 router 走）
 - `server` → `router` + `config` + `auth`
 - `app` → `types`
 - `error` → `types` + `util`
 - `config` → 仅 std/env
 
 **禁止边**：任何模块 → `common`/`shared`/`utils` 万能层（不存在）；`dto` → `handlers`；`sse` → `handlers`；`convert` → `sse`。
+
+**`util.rs` 单一职责声明（SHOULD-1 处置）**：`util.rs` 仅收 `generate_id` / `unix_timestamp` / `split_model` 三个无状态纯辅助函数，**禁止再向 util 追加任何新职责**。消费者 ≥2：OpenAI 路径（`handle_chat_completions` / `build_openai_sse_response`）与 Anthropic 路径（`handle_messages` / `build_stream_response`）均复用 `generate_id` / `unix_timestamp` 装配请求与 SSE 元数据；`split_model` 供两协议入口 handler 做 provider/model 分发决策（依据 §3 依赖图）。若未来增长，按职责拆分为 `ids.rs`（id/time）与 `model.rs`（split_model）——实施时以引用核验为准。
 
 ## 5. 迁移顺序（每步 ≤400 行、独立回滚点、golden fixture 前置）
 
@@ -170,19 +172,22 @@ src/proxy/
 | 4 | `openai/dto` + `anthropic/dto` 抽离 | ≤350 | 步骤 3 后 | DTO serde 测试 |
 | 5 | `openai/convert` + `anthropic/convert` 抽离 | ≤350 | 步骤 4 后 | 请求转换测试 |
 | 6 | `openai/sse` + `anthropic/sse` 抽离 | ≤400 | 步骤 5 后 | SSE golden 序列测试 |
-| 7 | `auth` + `router` + `server` + `handlers` 抽离 | ≤400 | 步骤 6 后 | 全量 wire 守恒锚 |
-| 8 | `mod.rs` 收口为精简入口 | ≤100 | 步骤 7 后 | 全量测试 |
+| 7 | `auth` + `router` + `server` + `app`（AppState）抽离 | ≤250 | 步骤 6 后 | serve/auth/health 集成测试 |
+| 8 | `handlers` 抽离（两协议入口 + 健康检查，341 行） | ≤341 | 步骤 7 后 | 全量 wire 守恒锚 |
+| 9 | `mod.rs` 收口为精简入口 | ≤100 | 步骤 8 后 | 全量测试 |
 
 ## 6. 未来任务卡清单（≥5，含测试外迁卡）
 
 | 卡 | 范围 | DoD | 依赖 | 守恒锚 |
 |---|---|---|---|---|
 | **T-外迁（测试外迁卡）** | 将 mod.rs 2082 行测试 + anthropic_proxy.rs 840 行测试迁至 `tests/proxy/` 子模块（按主题分文件）；热点基线口径改计**生产行数** | 生产文件行数降为纯生产；architecture_guard 改读生产行数；全部测试迁移后全绿 | 无（先行） | 全部现有测试 |
+| **T-辅助拆分** | `util.rs`（generate_id / unix_timestamp / split_model）+ `config.rs`（is_loopback_addr / proxy_max_body_bytes / env 读取）抽离 | 两文件段归零；纯函数测试全绿 | 无（无依赖） | 无（纯函数） |
+| **T-错误归一** | `error.rs` 抽离（两协议错误形状统一） | error 段归零；413/502 形状矩阵全绿 | T-DTO | 错误形状矩阵测试 |
 | **T-DTO 拆分** | `openai/dto.rs` + `anthropic/dto.rs` 从两文件抽离 | 两文件 dto 段归零；serde 测试全绿；wire 守恒 | 无 | DTO serde / wire 测试 |
 | **T-转换拆分** | `openai/convert.rs` + `anthropic/convert.rs` 抽离 | convert 段归零；转换测试全绿 | T-DTO | 请求转换测试 |
 | **T-SSE 拆分** | `openai/sse.rs` + `anthropic/sse.rs`（含 AnthropicStreamState 394 行）抽离 | SSE 段归零；SSE golden 全绿 | T-DTO + T-转换 | SSE golden 序列测试 |
-| **T-错误归一** | `error.rs` 抽离（两协议错误形状统一） | error 段归零；413/502 形状矩阵全绿 | T-DTO | 错误形状矩阵测试 |
-| **T-路由/服务器** | `router.rs` + `server.rs` + `auth.rs` + `config.rs` 抽离 | 生产段归零；serve/auth 集成测试全绿 | T-SSE + T-错误 | serve/auth/health 集成测试 |
+| **T-路由/服务器/认证** | `router.rs` + `server.rs` + `auth.rs` + `app.rs`（AppState）抽离 | 四文件段归零；serve/auth 集成测试全绿 | T-SSE + T-错误 | serve/auth/health 集成测试 |
+| **T-处理器拆分** | `handlers.rs` 抽离（两协议入口 handle_chat_completions / handle_messages / handle_embeddings + handle_stream* + health_check） | handlers 段归零；入口分发测试全绿 | T-转换 + T-SSE + T-错误 + T-辅助 | 全量 wire 守恒锚 |
 | **T-入口收口** | `mod.rs` 收口为门控入口 + 重导出 | 两文件仅剩入口；全量测试绿；热点台账降至最小 | 全部 | 全量 wire 守恒锚 |
 
 ## 7. 风险清单
@@ -197,4 +202,4 @@ src/proxy/
 
 ## 8. 结论
 
-两热点文件（mod.rs 3327 行、anthropic_proxy.rs 1884 行）可通过上述 8 步迁移收敛为精简入口 + 按职责细分的子模块树（openai/、anthropic/、auth、config、server、util、error、handlers），**无万能层、每模块单一职责**。测试外迁为首步（缓解热点 + 为后续生产拆分铺路）。未来任务卡 ≥7 张（含测试外迁卡），全部 0.1.4+ 候选，是否实施由 Owner 后续选择。
+两热点文件（mod.rs 3327 行、anthropic_proxy.rs 1884 行）可通过上述 9 步迁移收敛为精简入口 + 按职责细分的子模块树（openai/、anthropic/、auth、app、config、router、server、util、error、handlers），**无万能层、每模块单一职责**。测试外迁为首步（缓解热点 + 为后续生产拆分铺路）。未来任务卡 9 张（含测试外迁卡），步骤与卡严格 1:1、每个生产模块恰好归属一张卡，全部 0.1.4+ 候选，是否实施由 Owner 后续选择。

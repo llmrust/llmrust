@@ -898,6 +898,11 @@ pub fn build_stream_response(
 
 /// Handle POST /v1/messages.
 pub async fn handle_messages(State(state): State<AppState>, body: String) -> Response {
+    // PRX-005 (SPCC §11.6): reject an oversized request body with a
+    // protocol-shaped 413 BEFORE any parsing/dispatch (zero upstream).
+    if body.len() > crate::proxy::proxy_max_body_bytes() {
+        return crate::proxy::body_too_large_response(true);
+    }
     // PRX-004 (SPCC §6.1/§7.3): thinking is not expressible end-to-end on the
     // Anthropic-compatible proxy in 0.1.3 (request path frozen) — reject a
     // `thinking` key with 400 BEFORE any provider dispatch (zero upstream),
@@ -989,7 +994,7 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
 
 // ── Error helpers ──────────────────────────────────────────
 
-fn anthropic_error(status: StatusCode, error_type: &str, message: &str) -> Response {
+pub(crate) fn anthropic_error(status: StatusCode, error_type: &str, message: &str) -> Response {
     let body = AnthropicErrorBody {
         error_type: "error".to_string(),
         error: AnthropicErrorDetail {
@@ -1007,16 +1012,36 @@ fn invalid_json_body_response(message: &str) -> Response {
 }
 
 fn anthropic_error_from_llm_error(e: LlmError) -> Response {
-    let (status, error_type) = match &e {
-        LlmError::Api { status, .. } => {
+    // PRX-005 (SPCC §11.6): normalize upstream errors to Anthropic-shaped
+    // bodies. Message rule: truncate to ≤200 chars as the ONLY mechanical
+    // rule; never echo request body content. Parse is an upstream fault →
+    // 502 api_error (architect ruling).
+    const MAX_MSG: usize = 200;
+    let truncate = |s: &str| -> String { s.chars().take(MAX_MSG).collect() };
+    let (status, error_type, message) = match &e {
+        LlmError::Api { status, message } => {
             let code = StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_GATEWAY);
-            (code, "api_error")
+            (code, "api_error", truncate(message))
         }
-        LlmError::UnknownProvider(_) => (StatusCode::NOT_FOUND, "not_found_error"),
-        LlmError::Parse(_) => (StatusCode::BAD_REQUEST, "invalid_request_error"),
-        _ => (StatusCode::BAD_GATEWAY, "api_error"),
+        LlmError::Parse(_) => (
+            StatusCode::BAD_GATEWAY,
+            "api_error",
+            "upstream returned a non-JSON error response".to_string(),
+        ),
+        LlmError::Http(_) => (
+            StatusCode::BAD_GATEWAY,
+            "api_error",
+            "upstream connection failed".to_string(),
+        ),
+        LlmError::UnknownProvider(_) => (StatusCode::NOT_FOUND, "not_found_error", e.to_string()),
+        LlmError::Unsupported { .. } => (
+            StatusCode::BAD_REQUEST,
+            "invalid_request_error",
+            e.to_string(),
+        ),
+        LlmError::Stream(msg) => (StatusCode::BAD_GATEWAY, "api_error", truncate(msg)),
     };
-    anthropic_error(status, error_type, &e.to_string())
+    anthropic_error(status, error_type, &message)
 }
 
 // ── Tests ──────────────────────────────────────────────

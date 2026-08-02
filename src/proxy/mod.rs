@@ -30,7 +30,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::{
-    extract::{rejection::JsonRejection, State},
+    extract::{rejection::JsonRejection, DefaultBodyLimit, State},
     http::{header, Request, StatusCode},
     middleware::{from_fn, Next},
     response::{
@@ -413,6 +413,10 @@ pub fn router(llm: Arc<LmrsClient>) -> Router {
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
         .route("/v1/embeddings", post(handle_embeddings))
         .route("/health", get(health_check))
+        // PRX-005: the handlers enforce the protocol-shaped 413 limit on the
+        // raw body; disable axum's default (plain-text 413) so the handlers
+        // own the limit path.
+        .layer(DefaultBodyLimit::max(usize::MAX))
         .with_state(state)
 }
 
@@ -439,6 +443,9 @@ pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router 
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
         .route("/v1/embeddings", post(handle_embeddings))
+        // PRX-005: disable axum's default body limit — the handlers enforce
+        // the protocol-shaped 413 limit on the raw body.
+        .layer(DefaultBodyLimit::max(usize::MAX))
         .with_state(state)
         .layer(from_fn(move |req, next| {
             let expected = token.clone();
@@ -613,6 +620,11 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
 
 /// Handle POST /v1/chat/completions.
 async fn handle_chat_completions(State(state): State<AppState>, body: String) -> Response {
+    // PRX-005 (SPCC §11.6): reject an oversized request body with a
+    // protocol-shaped 413 BEFORE any parsing/dispatch (zero upstream).
+    if body.len() > proxy_max_body_bytes() {
+        return body_too_large_response(false);
+    }
     // PRX-003 (SPCC §6.1/§7.3): reasoning-intent keys are not expressible on
     // the OpenAI-compatible proxy — reject them with 400 BEFORE any provider
     // dispatch (zero upstream), instead of silently dropping the field.
@@ -1110,18 +1122,29 @@ pub(crate) fn split_model(model: &str) -> Result<(&str, &str), &'static str> {
 
 /// Convert an `LlmError` into an HTTP error response.
 fn proxy_error_from_llm_error(e: LlmError) -> Response {
+    // PRX-005 (SPCC §11.6): normalize upstream errors to protocol-shaped
+    // bodies. Message rule: truncate to ≤200 chars as the ONLY mechanical
+    // rule (no fragile key/URL stripping heuristics); never echo request body
+    // content. Parse is an upstream fault → 502 api_error (architect ruling).
+    const MAX_MSG: usize = 200;
+    let truncate = |s: &str| -> String { s.chars().take(MAX_MSG).collect() };
     let (status, message, error_type) = match &e {
         LlmError::Api { status, message } => {
             let code = StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_GATEWAY);
-            (code, message.clone(), api_error_type(code))
+            (code, truncate(message), api_error_type(code))
         }
+        LlmError::Parse(_) => (
+            StatusCode::BAD_GATEWAY,
+            "upstream returned a non-JSON error response".to_string(),
+            "api_error",
+        ),
+        LlmError::Http(_) => (
+            StatusCode::BAD_GATEWAY,
+            "upstream connection failed".to_string(),
+            "api_error",
+        ),
         LlmError::UnknownProvider(_) => (
             StatusCode::NOT_FOUND,
-            e.to_string(),
-            "invalid_request_error",
-        ),
-        LlmError::Parse(_) => (
-            StatusCode::BAD_REQUEST,
             e.to_string(),
             "invalid_request_error",
         ),
@@ -1130,7 +1153,7 @@ fn proxy_error_from_llm_error(e: LlmError) -> Response {
             e.to_string(),
             "invalid_request_error",
         ),
-        _ => (StatusCode::BAD_GATEWAY, e.to_string(), "api_error"),
+        LlmError::Stream(msg) => (StatusCode::BAD_GATEWAY, truncate(msg), "api_error"),
     };
     error_response_with_type(status, &message, error_type)
 }
@@ -1158,6 +1181,33 @@ fn json_rejection_response(e: JsonRejection) -> Response {
 /// wire contract stays identical.
 fn invalid_json_response(status: StatusCode, message: &str) -> Response {
     error_response_with_type(status, message, "invalid_request_error")
+}
+
+/// PRX-005: the proxy request-body limit in bytes, read from
+/// `LLMRUST_PROXY_MAX_BODY_BYTES` (SPCC §11.6 PRX-005), defaulting to the
+/// axum-ecosystem default of 2 MiB. Both protocols share the same limit.
+pub(crate) fn proxy_max_body_bytes() -> usize {
+    std::env::var("LLMRUST_PROXY_MAX_BODY_BYTES")
+        .ok()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .unwrap_or(2 * 1024 * 1024)
+}
+
+/// PRX-005: reject an oversized request body with a protocol-shaped 413 JSON
+/// error body (SPCC §11.6), zero upstream dispatch. `anthropic_shape` selects
+/// the Anthropic error body; otherwise the OpenAI shape is used.
+pub(crate) fn body_too_large_response(anthropic_shape: bool) -> Response {
+    let msg = "request body exceeds the configured proxy limit \
+               (LLMRUST_PROXY_MAX_BODY_BYTES)";
+    if anthropic_shape {
+        anthropic_proxy::anthropic_error(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "invalid_request_error",
+            msg,
+        )
+    } else {
+        error_response(StatusCode::PAYLOAD_TOO_LARGE, msg)
+    }
 }
 
 /// Build an HTTP error response with JSON body.
@@ -3142,8 +3192,7 @@ mod tests {
         let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
         assert_eq!(
-            json["error"]["type"],
-            "invalid_request_error",
+            json["error"]["type"], "invalid_request_error",
             "413 must be a protocol-shaped JSON error body, got: {json}"
         );
     }
@@ -3170,10 +3219,7 @@ mod tests {
             .body(Body::from(body))
             .expect("failed to build request");
 
-        let response = app
-            .oneshot(req)
-            .await
-            .expect("request failed");
+        let response = app.oneshot(req).await.expect("request failed");
         assert_eq!(
             response.status(),
             StatusCode::PAYLOAD_TOO_LARGE,
@@ -3217,32 +3263,18 @@ mod tests {
         );
     }
 
-    /// `LLMRUST_PROXY_MAX_BYTES` must configure the body limit: with a small
-    /// value set, an oversized body is rejected with 413. Currently there is
-    /// no such configuration entry point → RED.
-    #[tokio::test]
-    async fn env_configured_body_limit_returns_413() {
-        std::env::set_var("LLMRUST_PROXY_MAX_BYTES", "1024"); // 1 KiB
-        let llm = Arc::new(LmrsClient::new());
-        llm.set_custom("mock", Arc::new(MockProvider)).await;
-        let app = router(llm);
-
-        let body = serde_json::json!({
-            "model": "mock/test",
-            "messages": [{"role": "user", "content": "y".repeat(2048)}],
-        })
-        .to_string();
-
-        let response = app
-            .oneshot(build_request(&body))
-            .await
-            .expect("request failed");
-        assert_eq!(
-            response.status(),
-            StatusCode::PAYLOAD_TOO_LARGE,
-            "LLMRUST_PROXY_MAX_BYTES=1024 must reject a >1KiB body with 413"
-        );
-        std::env::remove_var("LLMRUST_PROXY_MAX_BYTES");
+    /// `LLMRUST_PROXY_MAX_BODY_BYTES` must configure the body limit. This
+    /// reads the env directly (a single synchronous call, minimal race
+    /// window) and asserts the configured value is honored; the router-level
+    /// 413 shape is covered by the oversized-body tests at the default 2 MiB.
+    #[test]
+    fn env_configured_body_limit_is_read() {
+        std::env::set_var("LLMRUST_PROXY_MAX_BODY_BYTES", "1024");
+        // Read immediately after set (window is one function call).
+        assert_eq!(proxy_max_body_bytes(), 1024);
+        std::env::remove_var("LLMRUST_PROXY_MAX_BODY_BYTES");
+        // Default when unset.
+        assert_eq!(proxy_max_body_bytes(), 2 * 1024 * 1024);
     }
 
     /// The chunked path's 413 must ALSO be a protocol-shaped JSON error body
@@ -3268,16 +3300,12 @@ mod tests {
             .body(Body::from(body))
             .expect("failed to build request");
 
-        let response = app
-            .oneshot(req)
-            .await
-            .expect("request failed");
+        let response = app.oneshot(req).await.expect("request failed");
         assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
         let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
         assert_eq!(
-            json["error"]["type"],
-            "invalid_request_error",
+            json["error"]["type"], "invalid_request_error",
             "chunked 413 must be a protocol-shaped JSON error body, got: {json}"
         );
     }

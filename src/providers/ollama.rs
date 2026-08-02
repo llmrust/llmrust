@@ -11,7 +11,7 @@ use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
     ChatRequest, ChatResponse, Embedding, EmbeddingRequest, EmbeddingResponse, EmbeddingUsage,
-    FinishReason, Message, StreamChunk, Usage,
+    FinishReason, Message, StreamChunk, ThinkingConfig, Usage,
 };
 
 const DEFAULT_BASE_URL: &str = "http://localhost:11434";
@@ -47,6 +47,14 @@ struct OllamaRequest<'a> {
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     options: Option<OllamaOptions>,
+}
+
+/// True when reasoning is enabled. Ollama's wire has no lossless mapping for
+/// `ThinkingConfig.budget_tokens` (`options.think` is bool/level), so any
+/// `Enabled` reasoning request is rejected before a network call (REA-001 §2.5,
+/// REA-004O).
+fn thinking_enabled(cfg: &Option<ThinkingConfig>) -> bool {
+    matches!(cfg, Some(ThinkingConfig::Enabled { .. }))
 }
 
 /// Build `OllamaOptions` only when at least one field is set, so the request
@@ -200,6 +208,17 @@ fn parse_ndjson_line(line: &str) -> Vec<Result<StreamChunk>> {
 #[async_trait]
 impl Provider for OllamaProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
+        // REA-004O (REA-001 §2.5): Ollama wire has no lossless mapping for
+        // `ThinkingConfig.budget_tokens`, so Enabled reasoning fails BEFORE any
+        // network call; Disabled/None pass through unchanged.
+        if thinking_enabled(&req.thinking) {
+            return Err(LlmError::Unsupported {
+                feature: "reasoning".to_string(),
+                message: "Ollama reasoning is unsupported in 0.1.3 (no lossless wire \
+                          mapping for ThinkingConfig.budget_tokens)"
+                    .to_string(),
+            });
+        }
         let messages: Vec<OllamaMessage> = req.messages.iter().map(OllamaMessage::from).collect();
 
         let body = OllamaRequest {
@@ -265,6 +284,16 @@ impl Provider for OllamaProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+        // REA-004O: same gate as chat — Enabled reasoning fails BEFORE any
+        // network call; Disabled/None pass through unchanged.
+        if thinking_enabled(&req.thinking) {
+            return Err(LlmError::Unsupported {
+                feature: "reasoning".to_string(),
+                message: "Ollama reasoning is unsupported in 0.1.3 (no lossless wire \
+                          mapping for ThinkingConfig.budget_tokens)"
+                    .to_string(),
+            });
+        }
         let messages: Vec<OllamaMessage> = req.messages.iter().map(OllamaMessage::from).collect();
 
         let body = OllamaRequest {
@@ -735,9 +764,7 @@ mod tests {
                 "no thinking field on the wire when Disabled"
             );
             assert!(
-                json.get("options")
-                    .and_then(|o| o.get("think"))
-                    .is_none(),
+                json.get("options").and_then(|o| o.get("think")).is_none(),
                 "no options.think on the wire when Disabled"
             );
             (

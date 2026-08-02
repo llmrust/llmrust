@@ -290,6 +290,8 @@ export LLMRUST_OPENAI_KEY="sk-..."
 export LLMRUST_DEEPSEEK_KEY="sk-..."
 # 可选：启用 Bearer Token 认证
 export LLMRUST_PROXY_KEY="some-shared-secret"
+# 可选：覆盖监听地址（默认 127.0.0.1:3000；非 loopback 地址必须设置 LLMRUST_PROXY_KEY）
+export LLMRUST_PROXY_ADDR="127.0.0.1:3000"
 cargo run --example proxy_server --features proxy
 ```
 

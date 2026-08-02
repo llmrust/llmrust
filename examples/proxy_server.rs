@@ -10,6 +10,9 @@
 //! export OPENROUTER_API_KEY="sk-or-..."   # or LLMRUST_OPENROUTER_KEY
 //! # Optional: enable bearer-token authentication
 //! export LLMRUST_PROXY_KEY="dev-secret"
+//! # Optional: override the listen address (default: 127.0.0.1:3000).
+//! # A non-loopback address requires LLMRUST_PROXY_KEY to be set (SPCC §7.1).
+//! export LLMRUST_PROXY_ADDR="127.0.0.1:3000"
 //! cargo run --features proxy --example proxy_server
 //! ```
 //!
@@ -52,7 +55,15 @@ async fn main() {
         std::process::exit(1);
     }
 
-    println!("\nllmrust proxy server starting on http://0.0.0.0:3000");
+    // proxy::serve binds, serves, and handles graceful shutdown on Ctrl+C/SIGTERM.
+    //
+    // Secure defaults (SPCC §7.1): bind to the loopback interface by default so
+    // the proxy starts without a token. To listen on a specific address, set
+    // LLMRUST_PROXY_ADDR (e.g. "0.0.0.0:3000") — a non-loopback address
+    // requires LLMRUST_PROXY_KEY to be set.
+    let addr = std::env::var("LLMRUST_PROXY_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".to_string());
+
+    println!("\nllmrust proxy server starting on http://{addr}");
     println!("   Registered providers: {}", providers.join(", "));
     if providers.len() == 1 && providers.iter().any(|p| p == "ollama") {
         println!("   Only Ollama is registered; make sure the local Ollama server is running.");
@@ -61,8 +72,7 @@ async fn main() {
     println!("   Health: curl http://localhost:3000/health");
     println!("   Press Ctrl+C to stop.\n");
 
-    // proxy::serve binds, serves, and handles graceful shutdown on Ctrl+C/SIGTERM
-    if let Err(e) = proxy::serve(llm, "0.0.0.0:3000").await {
+    if let Err(e) = proxy::serve(llm, &addr).await {
         eprintln!("Server error: {e}");
         std::process::exit(1);
     }

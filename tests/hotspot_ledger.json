@@ -2,7 +2,7 @@
   "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task or an architect-written exception explicitly authorizes a transition. Do not inflate a number to turn a guard green. PROCESS LESSON (CI-003 PR #95): after any `cargo fmt` auto-fix, the architecture guards MUST be re-run locally before pushing; a fmt-driven reflow once silently broke the hotspot baseline.",
   "threshold": 800,
   "baseline_lines": {
-    "src/proxy/mod.rs": 2582,
+    "src/proxy/mod.rs": 2684,
     "src/proxy/anthropic_proxy.rs": 1520,
     "src/providers/compat.rs": 1455,
     "src/providers/google.rs": 1524,
@@ -58,6 +58,14 @@
       "new": 1524,
       "reason": "REA-004G growth: thinkingConfig request mapping, chat Unsupported gate, thinking_done terminal marking (at most once), thoughtsTokenCount usage translation and 8 fixtures. Growth is real implementation + tests, not inflated. Ledger adjustment is the architect-only action per §11.1.4.",
       "authorized_by": "architect (REA-004G review 2026-08-02; retro-ratified per architect ruling; ledger adjustment per §11.1.4)",
+      "date": "2026-08-02"
+    },
+    {
+      "file": "src/proxy/mod.rs",
+      "old": 2582,
+      "new": 2684,
+      "reason": "PRX-001 security tests: 4 CORS/loopback safety tests (+102; is_loopback_addr and CORS defaults are private so tests must live in mod.rs). Production code net-declined (default_cors Any mounting removed). Architect pre-authorized 2582->2684 for this single transition; not a self-modified baseline precedent.",
+      "authorized_by": "architect (PRX-001 pre-authorization 2026-08-02; single transition, not a precedent)",
       "date": "2026-08-02"
     }
   ]

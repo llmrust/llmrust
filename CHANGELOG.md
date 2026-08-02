@@ -71,6 +71,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `LlmError::Unsupported` and points the caller to consume the raw `stream()` instead.
   Non-reasoning streams keep their exact prior behavior (text concatenation, terminal
   `usage` / `tool_calls` / `finish_reason`). (STR-003, Refs #144)
+- The proxy no longer sends `Access-Control-Allow-Origin: *` by default (security hardening,
+  SPCC §7.1): the unauthenticated and authenticated routers send **no CORS allow-origin header**
+  unless the caller explicitly wraps the `Router` with a restrictive `CorsLayer`. The
+  `proxy_server` example now binds `127.0.0.1:3000` by default (previously `0.0.0.0:3000`,
+  which failed to start without a token) and honors `LLMRUST_PROXY_ADDR` to override the listen
+  address; a non-loopback address still requires `LLMRUST_PROXY_KEY`. (PRX-001, Refs #150)
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked

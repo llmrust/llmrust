@@ -295,6 +295,9 @@ export LLMRUST_OPENAI_KEY="sk-..."
 export LLMRUST_DEEPSEEK_KEY="sk-..."
 # Optional: enable bearer-token auth
 export LLMRUST_PROXY_KEY="some-shared-secret"
+# Optional: override the listen address (default: 127.0.0.1:3000; a
+# non-loopback address requires LLMRUST_PROXY_KEY to be set)
+export LLMRUST_PROXY_ADDR="127.0.0.1:3000"
 cargo run --example proxy_server --features proxy
 ```
 
@@ -323,7 +326,9 @@ curl http://localhost:3000/v1/messages \
   }'
 ```
 
-> **Security note:** Without `LLMRUST_PROXY_KEY` set, the proxy has no authentication. Run it on localhost or behind a reverse proxy. With `LLMRUST_PROXY_KEY` set, every request must include an `Authorization: Bearer <key>` header; the token is compared in constant time.
+> **Security note:** Without `LLMRUST_PROXY_KEY` set, the proxy has no authentication and binds only to the loopback interface by default. Run it on localhost or behind a reverse proxy. With `LLMRUST_PROXY_KEY` set, every request must include an `Authorization: Bearer <key>` header; the token is compared in constant time.
+>
+> **CORS:** The proxy sends **no CORS allow-origin header by default** (SPCC §7.1). To allow browser access from specific origins, wrap the `Router` with a restrictive `CorsLayer` (see `docs/CAPABILITIES.md` / the `router()` docs). `Access-Control-Allow-Origin: *` is only permitted on the authenticated router with explicit risk acceptance — never the default.
 >
 > The proxy follows OpenAI chat-completions request conventions, including `stop` as either a string or an array, and returns JSON error bodies for malformed requests. Stream errors are surfaced to clients as error events rather than being silently converted to successful completions.
 > Streaming responses use OpenAI-style SSE chunks, including a single initial `assistant` role delta. When `stream_options.include_usage` is `true`, usage-only chunks use empty `choices`.

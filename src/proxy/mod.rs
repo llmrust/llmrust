@@ -43,7 +43,6 @@ use axum::{
 use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tower_http::cors::{Any, CorsLayer};
 
 mod anthropic_proxy;
 
@@ -374,30 +373,6 @@ pub struct AppState {
 
 // ── Router ───────────────────────────
 
-/// Build a CORS layer suitable for development and local proxy use.
-///
-/// Permits all origins, methods, and headers. **For production deployments**,
-/// build your own `Router` via [`router`] or [`router_with_auth`] and replace
-/// this layer with a restrictive `CorsLayer` that allows only your trusted
-/// origins.
-///
-/// ```rust,ignore
-/// use tower_http::cors::{CorsLayer, AllowOrigin};
-/// use axum::http::HeaderValue;
-///
-/// let app = llmrust::proxy::router(llm)
-///     .layer(CorsLayer::new()
-///         .allow_origin(AllowOrigin::list(vec![
-///             HeaderValue::from_static("https://my-app.example.com"),
-///         ])));
-/// ```
-fn default_cors() -> CorsLayer {
-    CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any)
-}
-
 /// Build the Axum router for the proxy server.
 ///
 /// The router accepts every request without authentication. If you need to
@@ -412,9 +387,25 @@ fn default_cors() -> CorsLayer {
 ///
 /// # CORS
 ///
-/// The default CORS layer allows all origins for development convenience.
-/// **For production**, wrap the returned `Router` with a restrictive
-/// `CorsLayer` like the example above.
+/// The router sends **no CORS allow-origin header by default** (SPCC §7.1:
+/// no-auth default sends no cross-origin allow header; CORS must be enabled
+/// explicitly). To allow browser access from specific origins, wrap the
+/// returned `Router` with a restrictive `CorsLayer`:
+///
+/// ```rust,ignore
+/// use tower_http::cors::{CorsLayer, AllowOrigin};
+/// use axum::http::HeaderValue;
+///
+/// let app = llmrust::proxy::router(llm)
+///     .layer(CorsLayer::new()
+///         .allow_origin(AllowOrigin::list(vec![
+///             HeaderValue::from_static("https://my-app.example.com"),
+///         ])));
+/// ```
+///
+/// `Access-Control-Allow-Origin: *` is only permitted on the authenticated
+/// router and only with explicit Owner risk acceptance (SPCC §7.1) — it is
+/// never the default.
 pub fn router(llm: Arc<LmrsClient>) -> Router {
     let state = AppState { llm };
     Router::new()
@@ -422,7 +413,6 @@ pub fn router(llm: Arc<LmrsClient>) -> Router {
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
         .route("/v1/embeddings", post(handle_embeddings))
         .route("/health", get(health_check))
-        .layer(default_cors())
         .with_state(state)
 }
 
@@ -448,7 +438,6 @@ pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router 
             let expected = token.clone();
             check_bearer(expected, req, next)
         }))
-        .layer(default_cors())
 }
 
 /// Bearer-token middleware. Returns 401 if the `Authorization` header is
@@ -2578,5 +2567,105 @@ mod tests {
 
         let req = captured.lock().unwrap();
         assert_eq!(req.as_ref().unwrap().model, "text-embedding");
+    }
+
+    // ── PRX-001: CORS / listen-address security (red first) ──────────
+
+    fn build_cors_request(origin: &str, path: &str) -> Request<Body> {
+        Request::builder()
+            .method("GET")
+            .uri(path)
+            .header("origin", origin)
+            .body(Body::empty())
+            .expect("failed to build CORS test request")
+    }
+
+    /// The unauthenticated router must NOT send a CORS allow-origin header
+    /// by default (SPCC §7.1: no-auth default sends no cross-origin allow
+    /// header). Currently `default_cors()` sets `allow_origin(Any)`, so a
+    /// request with an `Origin` header gets an `Access-Control-Allow-Origin`
+    /// header back — this test is RED until the default is removed.
+    #[tokio::test]
+    async fn unauthenticated_router_sends_no_cors_allow_origin() {
+        let llm = Arc::new(LmrsClient::new());
+        let app = router(llm);
+
+        let response = app
+            .oneshot(build_cors_request("https://evil.example.com", "/health"))
+            .await
+            .expect("request failed");
+
+        assert_eq!(
+            response.headers().get("access-control-allow-origin"),
+            None,
+            "unauthenticated router must not send Access-Control-Allow-Origin (SPCC §7.1)"
+        );
+    }
+
+    /// The authenticated router must NOT default to `*` either — CORS must be
+    /// enabled explicitly by the caller (SPCC §7.1: `*` only with auth +
+    /// explicit Owner risk acceptance). Currently `router_with_auth` also
+    /// applies `default_cors()` with `allow_origin(Any)` — RED until removed.
+    #[tokio::test]
+    async fn authenticated_router_sends_no_default_cors_allow_origin() {
+        let llm = Arc::new(LmrsClient::new());
+        let app = router_with_auth(llm, "secret".to_string());
+
+        let response = app
+            .oneshot(build_cors_request("https://evil.example.com", "/health"))
+            .await
+            .expect("request failed");
+
+        assert_eq!(
+            response.headers().get("access-control-allow-origin"),
+            None,
+            "authenticated router must not default to Access-Control-Allow-Origin: * (SPCC §7.1)"
+        );
+    }
+
+    /// When the caller explicitly mounts an allowlist, only the listed origin
+    /// may be echoed back. Currently the router applies `allow_origin(Any)`
+    /// internally, so a non-listed origin also receives
+    /// `Access-Control-Allow-Origin` — RED until the default is removed and
+    /// the caller's layer takes effect.
+    #[tokio::test]
+    async fn explicit_allowlist_rejects_non_listed_origin() {
+        use axum::http::HeaderValue;
+        use tower_http::cors::{AllowOrigin, CorsLayer};
+
+        let llm = Arc::new(LmrsClient::new());
+        let app = router(llm).layer(CorsLayer::new().allow_origin(AllowOrigin::list(vec![
+            HeaderValue::from_static("https://trusted.example.com"),
+        ])));
+
+        let response = app
+            .oneshot(build_cors_request("https://evil.example.com", "/health"))
+            .await
+            .expect("request failed");
+
+        let allow = response
+            .headers()
+            .get("access-control-allow-origin")
+            .map(|v| v.to_str().unwrap_or(""));
+        assert_ne!(
+            allow,
+            Some("https://evil.example.com"),
+            "non-listed origin must not be allowed by an explicit allowlist"
+        );
+    }
+
+    /// Loopback / non-loopback × token present / absent startup semantics
+    /// (SPCC §7.1: no-auth only binds loopback). This is currently GREEN
+    /// (the guard exists) — a regression lock, not a red-first test.
+    #[test]
+    fn loopback_policy_matrix() {
+        // no token + loopback → allowed
+        assert!(is_loopback_addr("127.0.0.1:3000"));
+        assert!(is_loopback_addr("localhost:3000"));
+        assert!(is_loopback_addr("[::1]:3000"));
+        // no token + non-loopback → refused (guard in serve())
+        assert!(!is_loopback_addr("0.0.0.0:3000"));
+        assert!(!is_loopback_addr("[::]:3000"));
+        assert!(!is_loopback_addr("192.168.1.10:3000"));
     }
 }

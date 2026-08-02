@@ -3094,4 +3094,126 @@ mod tests {
         let done_pos = text.find("[DONE]").expect("DONE must be emitted");
         assert!(err_pos < done_pos, "stream_error must appear before [DONE]");
     }
+
+    // ── PRX-005: request body limit + error normalization (red first) ──
+
+    struct ParseErrorProvider;
+
+    #[async_trait::async_trait]
+    impl Provider for ParseErrorProvider {
+        async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+            Err(LlmError::Parse("upstream sent invalid JSON".to_string()))
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            Err(LlmError::Parse("upstream sent invalid JSON".to_string()))
+        }
+    }
+
+    /// An oversized request body must be rejected with a PROTOCOL-SHAPED 413
+    /// JSON error body (SPCC §11.6 PRX-005), not axum's default plain-text
+    /// 413. Currently there is no explicit body limit layer → RED.
+    #[tokio::test]
+    async fn oversized_body_returns_protocol_shaped_413() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+
+        // 3 MiB payload — over the proposed 2 MiB default.
+        let big = "x".repeat(3 * 1024 * 1024);
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": big}],
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "oversized body must be rejected with 413"
+        );
+        let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+        assert_eq!(
+            json["error"]["type"],
+            "invalid_request_error",
+            "413 must be a protocol-shaped JSON error body, got: {json}"
+        );
+    }
+
+    /// The body limit must also apply to chunked (no Content-Length) bodies.
+    #[tokio::test]
+    async fn oversized_chunked_body_returns_413() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+
+        let big = "x".repeat(3 * 1024 * 1024);
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": big}],
+        })
+        .to_string();
+        // Send without Content-Length (axum treats it as chunked).
+        let req = Request::builder()
+            .method("POST")
+            .uri("/v1/chat/completions")
+            .header("content-type", "application/json")
+            .header("transfer-encoding", "chunked")
+            .body(Body::from(body))
+            .expect("failed to build request");
+
+        let response = app
+            .oneshot(req)
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "oversized chunked body must be rejected with 413"
+        );
+    }
+
+    /// An upstream Parse failure must be normalized to a 502 protocol-shaped
+    /// error body whose message does NOT expose the raw upstream text
+    /// verbatim (architect ruling: Parse → 502 api_error; message truncated /
+    /// sanitized). Currently proxy_error_from_llm_error maps Parse → 400 and
+    /// echoes e.to_string() → RED.
+    #[tokio::test]
+    async fn upstream_parse_error_returns_502_sanitized() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("bad", Arc::new(ParseErrorProvider)).await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "bad/test",
+            "messages": [{"role": "user", "content": "hi"}],
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_GATEWAY,
+            "upstream Parse must map to 502 (architect ruling)"
+        );
+        let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+        assert_eq!(json["error"]["type"], "api_error");
+        let msg = json["error"]["message"].as_str().unwrap_or("");
+        assert!(
+            msg.len() <= 200,
+            "error message must be truncated to ≤200 chars, got {}",
+            msg.len()
+        );
+    }
 }

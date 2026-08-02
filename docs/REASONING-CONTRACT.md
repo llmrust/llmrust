@@ -13,7 +13,7 @@
 1. 设置 reasoning 后，支持路径必须**真正写入请求体**；不支持路径必须**发网前返回 `LlmError::Unsupported`**；
 2. `ChatResponse` 当前无法无损表达独立 reasoning → **非流 `chat` 一律 Unsupported**（§6.3）；
 3. 原始 `stream` 可用已冻结的 `StreamChunk.thinking` / `StreamChunk.thinking_done` 返回 reasoning，顺序不得重排；
-4. `stream_collect_full` 遇 reasoning 不得丢弃：返回明确错误并引导调用方消费原始 stream；
+4. `stream_collect_full` 遇 reasoning 不得丢弃：返回明确错误并引导调用方消费原始 stream；（已实现，STR-003 Refs #144：`stream_collect`/`stream_collect_full` 任一 chunk 含非空 thinking 增量或 `thinking_done == true` 即返回 `LlmError::Unsupported` 并指向 raw stream）
 5. reasoning token 只在上游明确报告时填充，不推算、不与普通 completion token 重复计算；
 6. 未核验的 OpenAI-compatible 第三方端点**不得继承** OpenAI 的支持声明。
 

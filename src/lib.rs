@@ -442,6 +442,24 @@ impl LmrsClient {
         )))
     }
 
+    /// Returns an `Unsupported` error when a chunk carries reasoning that the
+    /// aggregate return value cannot express (REA-001 §1.4 / §6.3). Both
+    /// collectors share this rule: a non-empty thinking delta or
+    /// `thinking_done == true` fails immediately so reasoning is never silently
+    /// dropped.
+    fn reject_reasoning(chunk: &StreamChunk) -> Result<()> {
+        let has_thinking = matches!(&chunk.thinking, Some(t) if !t.is_empty());
+        if has_thinking || chunk.thinking_done == Some(true) {
+            return Err(LlmError::Unsupported {
+                feature: "reasoning".to_string(),
+                message: "stream_collect cannot carry reasoning; consume the raw \
+                          stream() instead"
+                    .to_string(),
+            });
+        }
+        Ok(())
+    }
+
     /// Send a streaming request and collect the full text.
     ///
     /// Returns only the concatenated text. Use [`LmrsClient::stream_collect_full`]
@@ -451,6 +469,7 @@ impl LmrsClient {
         let mut text = String::new();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
+            Self::reject_reasoning(&chunk)?;
             text.push_str(&chunk.delta);
         }
         Ok(text)
@@ -469,6 +488,7 @@ impl LmrsClient {
         let mut finish_reason = None;
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
+            Self::reject_reasoning(&chunk)?;
             text.push_str(&chunk.delta);
             if chunk.usage.is_some() {
                 usage = chunk.usage;
@@ -699,9 +719,7 @@ mod tests {
             },
         ]);
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let text = rt
-            .block_on(llm.stream_collect("seq/m", "hi"))
-            .unwrap();
+        let text = rt.block_on(llm.stream_collect("seq/m", "hi")).unwrap();
         assert_eq!(text, "hello world");
     }
 
@@ -726,9 +744,7 @@ mod tests {
             },
         ]);
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let resp = rt
-            .block_on(llm.stream_collect_full("seq/m", "hi"))
-            .unwrap();
+        let resp = rt.block_on(llm.stream_collect_full("seq/m", "hi")).unwrap();
         assert_eq!(resp.content, "resp");
         assert_eq!(resp.usage.as_ref().map(|u| u.prompt_tokens), Some(3));
         assert_eq!(resp.usage.as_ref().map(|u| u.completion_tokens), Some(5));

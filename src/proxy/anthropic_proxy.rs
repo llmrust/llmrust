@@ -1517,4 +1517,204 @@ mod tests {
             "error event must not be followed by normal message_stop: {text}"
         );
     }
+
+    // ── PRX-004: thinking mapping + tool fragment reassembly + truncation ──
+
+    /// A non-empty thinking delta must produce the Anthropic thinking-block
+    /// event sequence (content_block_start type "thinking" + thinking_delta +
+    /// close on transition/terminal). Currently process_chunk never reads
+    /// chunk.thinking → no thinking events → RED.
+    #[tokio::test]
+    async fn thinking_delta_produces_thinking_block_events() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state =
+            AnthropicStreamState::new(empty_stream, "msg_th".to_string(), "test-model".to_string());
+
+        let events = state.process_chunk(StreamChunk {
+            thinking: Some("let me think".to_string()),
+            ..Default::default()
+        });
+        let text = events.join("\n");
+
+        assert!(
+            text.contains("content_block_start")
+                && text.contains("\"type\":\"thinking\"")
+                && text.contains("content_block_delta")
+                && text.contains("thinking_delta"),
+            "thinking delta must emit thinking block events, got: {text}"
+        );
+    }
+
+    /// `thinking_done == true` must close the thinking block — the closed
+    /// index must match the thinking block's own index. Currently thinking is
+    /// never opened, so the terminal close targets a different/no block →
+    /// RED.
+    #[tokio::test]
+    async fn thinking_done_closes_thinking_block() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state =
+            AnthropicStreamState::new(empty_stream, "msg_th2".to_string(), "test-model".to_string());
+
+        let open = state.process_chunk(StreamChunk {
+            thinking: Some("think".to_string()),
+            ..Default::default()
+        });
+        let open_text = open.join("\n");
+        // Extract the index the thinking block opened with.
+        let open_index = open_text
+            .split("content_block_start")
+            .nth(1)
+            .and_then(|s| {
+                s.split("\"index\":")
+                    .nth(1)
+                    .and_then(|t| t.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse::<usize>().ok())
+            })
+            .expect("thinking content_block_start must carry an index");
+
+        let close = state.process_chunk(StreamChunk {
+            done: true,
+            thinking_done: Some(true),
+            finish_reason: Some(FinishReason::Stop),
+            ..Default::default()
+        });
+        let close_text = close.join("\n");
+        let close_index = close_text
+            .split("content_block_stop")
+            .nth(1)
+            .and_then(|s| {
+                s.split("\"index\":")
+                    .nth(1)
+                    .and_then(|t| t.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse::<usize>().ok())
+            })
+            .expect("a content_block_stop must be emitted");
+        assert_eq!(
+            close_index, open_index,
+            "thinking_done must close the SAME thinking block index; open={open_index} close={close_index}"
+        );
+    }
+
+    /// Fragmented tool calls with the same id must be reassembled into ONE
+    /// tool_use block with multiple input_json_delta events (SPCC §7.3: id and
+    /// index stable). Currently every chunk opens a fresh block → two
+    /// content_block_start events → RED.
+    #[tokio::test]
+    async fn fragmented_tool_calls_reassemble_into_single_block() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state =
+            AnthropicStreamState::new(empty_stream, "msg_tc2".to_string(), "test-model".to_string());
+
+        let e1 = state.process_chunk(StreamChunk {
+            tool_calls: Some(vec![ToolCall {
+                id: "call_1".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "get_weather".to_string(),
+                    arguments: r#"{"city":""#.to_string(),
+                },
+            }]),
+            ..Default::default()
+        });
+        let e2 = state.process_chunk(StreamChunk {
+            tool_calls: Some(vec![ToolCall {
+                id: "call_1".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "get_weather".to_string(),
+                    arguments: r#""beijing"}"#.to_string(),
+                },
+            }]),
+            done: true,
+            finish_reason: Some(FinishReason::ToolCalls),
+            ..Default::default()
+        });
+
+        let all = e1.into_iter().chain(e2).collect::<Vec<_>>();
+        let text = all.join("\n");
+        let starts = text.matches("content_block_start").count();
+        assert_eq!(
+            starts, 1,
+            "fragmented tool calls must produce exactly ONE content_block_start, got {starts}: {text}"
+        );
+        let deltas = text.matches("\"input_json_delta\"").count();
+        assert_eq!(deltas, 2, "two input_json_delta events expected: {text}");
+    }
+
+    /// A stream that ends without a terminal (None, no done, no error) must
+    /// emit an `event: error` (api_error) instead of a fake end_turn +
+    /// message_stop (SPCC §6.5/§6.6, architect ruling). Currently flush()
+    /// fabricates end_turn → RED.
+    #[tokio::test]
+    async fn truncated_stream_emits_error_not_fake_end_turn() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state =
+            AnthropicStreamState::new(empty_stream, "msg_tr".to_string(), "test-model".to_string());
+
+        // Emit one text chunk so the stream "started", then flush on None.
+        state.process_chunk(StreamChunk {
+            delta: "hello".to_string(),
+            ..Default::default()
+        });
+        let events = state.flush();
+        let text = events.join("\n");
+
+        assert!(
+            text.contains("event: error")
+                && text.contains("api_error")
+                && !text.contains("message_stop"),
+            "truncated stream must emit error and NOT fake message_stop, got: {text}"
+        );
+    }
+
+    /// A /v1/messages request carrying a `thinking` key must be rejected with
+    /// 400 (SPCC §6.1/§7.3) BEFORE any provider dispatch. Currently serde
+    /// silently drops the key, so the request proceeds into conversion — and
+    /// with no registered provider it fails with UnknownProvider → 400 but
+    /// with the WRONG body (no reasoning rejection). After the fix the handler
+    /// rejects with the reasoning-specific invalid_request_error. This test
+    /// asserts the response body mentions reasoning is unsupported → RED now.
+    #[tokio::test]
+    async fn thinking_request_rejected_400() {
+        let llm = std::sync::Arc::new(crate::LmrsClient::new());
+        let state = AppState { llm };
+
+        let body = serde_json::json!({
+            "model": "openai/gpt-4o",
+            "max_tokens": 64,
+            "messages": [{"role": "user", "content": "hi"}],
+            "thinking": {"type": "enabled", "budget_tokens": 1024},
+        })
+        .to_string();
+        let req = axum::extract::Request::builder()
+            .method("POST")
+            .uri("/v1/messages")
+            .header("content-type", "application/json")
+            .body(axum::body::Body::from(body))
+            .expect("failed to build request");
+
+        let resp = handle_messages(
+            axum::extract::State(state),
+            axum::extract::Json(
+                serde_json::from_slice::<AnthropicRequest>(
+                    &axum::body::to_bytes(req.into_body(), usize::MAX)
+                        .await
+                        .unwrap(),
+                )
+                .unwrap(),
+            ),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+        let msg = json["error"]["message"]
+            .as_str()
+            .unwrap_or("")
+            .to_lowercase();
+        assert!(
+            msg.contains("reasoning") || msg.contains("thinking"),
+            "thinking key must be rejected with a reasoning-specific 400 message, got: {json}"
+        );
+    }
 }

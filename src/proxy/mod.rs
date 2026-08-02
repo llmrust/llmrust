@@ -426,18 +426,29 @@ pub fn router(llm: Arc<LmrsClient>) -> Router {
 /// side-channel attacks. For production deployments, also consider a reverse
 /// proxy with TLS and rate limiting.
 pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router {
+    // PRX-002 (SPCC §7.1): empty or whitespace-only tokens are refused at
+    // construction time — they would otherwise silently enable a degenerate
+    // auth mode (or downgrade to unauthenticated). Signature stays `String`
+    // (API-freeze safe); a panic is the documented behavior for this misuse.
+    if expected_token.trim().is_empty() {
+        panic!("PRX-002: auth token must not be empty or whitespace-only");
+    }
     let state = AppState { llm };
-    let token = expected_token.clone();
-    Router::new()
+    let token = expected_token;
+    let mut router = Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
         .route("/v1/embeddings", post(handle_embeddings))
-        .route("/health", get(health_check))
         .with_state(state)
         .layer(from_fn(move |req, next| {
             let expected = token.clone();
             check_bearer(expected, req, next)
-        }))
+        }));
+    // SPCC §7.2: `/health` needs no authentication — register it AFTER the
+    // auth layer so the middleware does not cover it (axum layers only apply
+    // to routes registered before the layer call).
+    router = router.route("/health", get(health_check));
+    router
 }
 
 /// Bearer-token middleware. Returns 401 if the `Authorization` header is
@@ -449,7 +460,9 @@ async fn check_bearer(expected: String, req: Request<axum::body::Body>, next: Ne
         .and_then(|v| v.to_str().ok())
     {
         Some(s) => match s.strip_prefix("Bearer ") {
-            Some(provided) if constant_time_eq(provided.trim().as_bytes(), expected.as_bytes()) => {
+            Some(provided)
+                if subtle_constant_time_eq(provided.trim().as_bytes(), expected.as_bytes()) =>
+            {
                 next.run(req).await
             }
             Some(_) => error_response(StatusCode::UNAUTHORIZED, "Invalid bearer token"),
@@ -470,25 +483,12 @@ async fn check_bearer(expected: String, req: Request<axum::body::Body>, next: Ne
     }
 }
 
-/// Compare two byte slices in constant time to prevent timing side-channel
-/// attacks. Returns `true` only if both slices are identical and have the
-/// same length.
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        // Constant-time: still run the loop on the shorter buffer
-        let diff = a.len() ^ b.len();
-        let mut acc = diff as u8;
-        for (x, y) in a.iter().zip(b.iter()) {
-            acc |= x ^ y;
-        }
-        acc == 0 // always false when lengths differ
-    } else {
-        let mut acc: u8 = 0;
-        for (x, y) in a.iter().zip(b.iter()) {
-            acc |= x ^ y;
-        }
-        acc == 0
-    }
+/// Compare two byte slices in constant time using the reviewed `subtle`
+/// crate (SPCC §7.1: use a mature, reviewed constant-time implementation; do
+/// not hand-roll cryptographic helpers).
+fn subtle_constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    use subtle::ConstantTimeEq;
+    a.ct_eq(b).into()
 }
 
 // ── Health check ───────────────────────────
@@ -562,9 +562,20 @@ fn is_loopback_addr(addr: &str) -> bool {
 ///   address without a token is **refused** so the proxy is never silently
 ///   exposed on a public interface.
 pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
-    let token = std::env::var("LLMRUST_PROXY_KEY")
-        .ok()
-        .filter(|s| !s.is_empty());
+    let token = match std::env::var("LLMRUST_PROXY_KEY") {
+        // PRX-002 (SPCC §7.1): a set-but-empty/whitespace key must fail at
+        // startup — never silently downgrade to unauthenticated, never treat
+        // whitespace as a valid secret.
+        Ok(s) if s.trim().is_empty() => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "LLMRUST_PROXY_KEY is set but empty or whitespace-only; \
+                 refusing to start (SPCC §7.1)",
+            ));
+        }
+        Ok(key) => Some(key.trim().to_string()),
+        Err(_) => None,
+    };
     let app = match token {
         Some(key) => {
             eprintln!("[auth] enabled — bearer token required");
@@ -2756,11 +2767,9 @@ mod tests {
             // The current code instead starts serving and blocks, so the
             // timeout fires → the test fails (RED) with the "must refuse"
             // assertion message.
-            let outcome = tokio::time::timeout(
-                std::time::Duration::from_secs(2),
-                serve(llm, "127.0.0.1:0"),
-            )
-            .await;
+            let outcome =
+                tokio::time::timeout(std::time::Duration::from_secs(2), serve(llm, "127.0.0.1:0"))
+                    .await;
             match outcome {
                 Ok(Ok(_)) => {
                     std::env::remove_var("LLMRUST_PROXY_KEY");
@@ -2856,7 +2865,9 @@ mod tests {
             .expect("request failed");
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
         assert_eq!(
-            resp.headers().get("www-authenticate").and_then(|v| v.to_str().ok()),
+            resp.headers()
+                .get("www-authenticate")
+                .and_then(|v| v.to_str().ok()),
             Some("Bearer"),
             "WWW-Authenticate header must be preserved"
         );

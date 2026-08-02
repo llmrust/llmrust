@@ -31,6 +31,8 @@ Use one of the following:
 
 The default development router is intended for local use. Production deployments should restrict CORS, require authentication, and avoid logging prompts, responses, request bodies, API keys, image data, tool arguments, or full URLs.
 
+Authentication uses a reviewed constant-time comparison (`subtle::ConstantTimeEq`) — never a hand-rolled XOR loop. An empty or whitespace-only `LLMRUST_PROXY_KEY` refuses to start (SPCC §7.1): `router_with_auth` panics at construction and `serve()` returns an error; an unset key keeps the unauthenticated loopback-only mode. `GET /health` requires no authentication and returns only `{"status":"ok"}` (SPCC §7.2); it never reaches upstream providers.
+
 The proxy sends **no CORS allow-origin header by default** (SPCC §7.1): browser cross-origin access is only enabled by explicitly wrapping the `Router` with a restrictive `CorsLayer`. `Access-Control-Allow-Origin: *` is only permitted on the authenticated router with explicit Owner risk acceptance — never the default. Without `LLMRUST_PROXY_KEY` set, the proxy binds only to loopback addresses (`127.0.0.1` / `::1` / `localhost`); serving on a non-loopback address requires authentication.
 
 ## Logging

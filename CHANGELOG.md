@@ -77,6 +77,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `proxy_server` example now binds `127.0.0.1:3000` by default (previously `0.0.0.0:3000`,
   which failed to start without a token) and honors `LLMRUST_PROXY_ADDR` to override the listen
   address; a non-loopback address still requires `LLMRUST_PROXY_KEY`. (PRX-001, Refs #150)
+- Proxy authentication hardening (PRX-002): `GET /health` no longer requires authentication
+  under `router_with_auth` (SPCC §7.2; previously the `check_bearer` layer wrapped every route
+  including `/health`); the hand-rolled XOR constant-time comparison was replaced with the
+  reviewed `subtle::ConstantTimeEq` (SPCC §7.1, optional dep behind the `proxy` feature); an
+  empty or whitespace-only `LLMRUST_PROXY_KEY` now refuses to start (`router_with_auth` panics
+  at construction, `serve()` returns an error) instead of silently enabling a degenerate auth
+  mode, and a valid key is trimmed before use. (PRX-002, Refs #154)
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked

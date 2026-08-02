@@ -320,7 +320,7 @@ curl http://localhost:3000/v1/messages \
   }'
 ```
 
-> **安全提示：** 若不设置 `LLMRUST_PROXY_KEY`，代理没有任何认证，且**默认仅绑定 loopback 接口**。仅在 localhost 或反向代理之后运行。设置了 `LLMRUST_PROXY_KEY` 后，每个请求必须带 `Authorization: Bearer <key>` 头，token 使用恒定时间比较。
+> **安全提示：** 若不设置 `LLMRUST_PROXY_KEY`，代理没有任何认证，且**默认仅绑定 loopback 接口**。仅在 localhost 或反向代理之后运行。设置了 `LLMRUST_PROXY_KEY` 后，每个请求必须带 `Authorization: Bearer <key>` 头，token 使用恒定时间比较（经审查的 `subtle` crate）。**已设置但为空或纯空白的 `LLMRUST_PROXY_KEY` 将拒绝启动**（SPCC §7.1）。`GET /health` 无需认证，只返回固定 liveness 信息（SPCC §7.2）。
 >
 > **CORS：** 代理**默认不发送 CORS allow-origin 头**（SPCC §7.1）。如需允许特定来源的浏览器跨域访问，请用受限的 `CorsLayer` 显式包裹 `Router`（见 `docs/CAPABILITIES.md` 与 `router()` 文档）。`Access-Control-Allow-Origin: *` 仅允许在认证路由上且经明确风险接受后使用——绝非默认。
 >

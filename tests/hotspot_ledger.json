@@ -7,7 +7,7 @@
     "src/providers/compat.rs": 1455,
     "src/providers/google.rs": 1524,
     "src/types.rs": 1132,
-    "src/providers/anthropic.rs": 1484,
+    "src/providers/anthropic.rs": 1483,
     "src/router.rs": 851
   },
   "adjustments": [
@@ -115,6 +115,14 @@
       "reason": "PRX-005 growth: error normalization per architect ruling in anthropic_error_from_llm_error (Parse->502 api_error, message truncation <=200, Http/non-JSON fixed wording) minus handler dead-code removal. Minimal production rework; ledger records the ACTUAL line count (never headroom).",
       "authorized_by": "architect (PRX-005 pre-authorization 2026-08-02; ledger writes actual count)",
       "date": "2026-08-02"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1484,
+      "new": 1483,
+      "reason": "Ledger truth correction: the REA-002-era baseline 1484 was an off-by-one miscount at closeout. Discovered by ARC-002 executor 开工核验熔断 (2026-08-03): wc -l and an independent byte-level recount both give 1483 with trailing newline present; git log confirms the last commit touching the file is eaf5a7a (REA-002, #131) with no later touches, so the true count on main is 1483. The guard stayed green because 1483 <= 1484 (the current > baseline check could not see the drift). Baseline set to the real count; ledger is truth, never headroom.",
+      "authorized_by": "architect (ARC-002 熔断裁定 2026-08-03; truth correction, not a growth authorization)",
+      "date": "2026-08-03"
     }
   ]
 }

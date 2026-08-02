@@ -432,6 +432,11 @@ struct AnthropicStreamState {
     in_text_block: bool,
     next_block_index: usize,
     current_text_index: Option<usize>,
+    /// PRX-004: current open thinking block index (if any).
+    in_thinking_block: bool,
+    current_thinking_index: Option<usize>,
+    /// PRX-004: in-flight tool_use block (id, index) for fragment reassembly.
+    active_tool: Option<(String, usize)>,
     pending_events: Vec<String>,
     usage: Option<Usage>,
     done_emitted: bool,
@@ -451,6 +456,9 @@ impl AnthropicStreamState {
             in_text_block: false,
             next_block_index: 0,
             current_text_index: None,
+            in_thinking_block: false,
+            current_thinking_index: None,
+            active_tool: None,
             pending_events: Vec::new(),
             usage: None,
             done_emitted: false,
@@ -506,6 +514,63 @@ impl AnthropicStreamState {
 
         let has_text = !chunk.delta.is_empty();
         let has_tools = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
+        let has_thinking = matches!(&chunk.thinking, Some(t) if !t.is_empty());
+
+        // PRX-004: thinking block mapping (SPCC §7.3 — Anthropic wire can
+        // express reasoning). Open a thinking block on the first non-empty
+        // thinking delta, emit thinking_delta increments, and close it on
+        // thinking_done / transition to text / tool / terminal. No
+        // signature_delta (StreamChunk carries no signature — declared
+        // lossy path in CONTRACTS).
+        if has_thinking && !self.in_thinking_block {
+            let index = self.next_block_index;
+            self.next_block_index += 1;
+            self.current_thinking_index = Some(index);
+            events.push(Self::sse_event(
+                "content_block_start",
+                &serde_json::json!({
+                    "type": "content_block_start",
+                    "index": index,
+                    "content_block": { "type": "thinking", "thinking": "" }
+                })
+                .to_string(),
+            ));
+            self.in_thinking_block = true;
+        }
+        if has_thinking {
+            if let Some(idx) = self.current_thinking_index {
+                if let Some(t) = &chunk.thinking {
+                    if !t.is_empty() {
+                        events.push(Self::sse_event(
+                            "content_block_delta",
+                            &serde_json::json!({
+                                "type": "content_block_delta",
+                                "index": idx,
+                                "delta": { "type": "thinking_delta", "thinking": t }
+                            })
+                            .to_string(),
+                        ));
+                    }
+                }
+            }
+        }
+        // Close the thinking block when it ends (thinking_done) or when the
+        // chunk transitions to text / tools (close-before-open).
+        let thinking_ended = chunk.thinking_done == Some(true);
+        if (thinking_ended || has_text || has_tools) && self.in_thinking_block {
+            if let Some(idx) = self.current_thinking_index {
+                events.push(Self::sse_event(
+                    "content_block_stop",
+                    &serde_json::json!({
+                        "type": "content_block_stop",
+                        "index": idx
+                    })
+                    .to_string(),
+                ));
+            }
+            self.in_thinking_block = false;
+            self.current_thinking_index = None;
+        }
 
         // Open text block for text content
         if has_text && !self.in_text_block {
@@ -556,49 +621,87 @@ impl AnthropicStreamState {
             self.current_text_index = None;
         }
 
-        // Emit tool use blocks
+        // Emit tool use blocks — PRX-004 fragment reassembly (SPCC §7.3: id
+        // and index stable). Track the in-flight tool_use block by id; a
+        // fragment with the same id appends an input_json_delta to the SAME
+        // index instead of opening a new block.
         if let Some(tool_calls) = &chunk.tool_calls {
             for tc in tool_calls {
-                let index = self.next_block_index;
-                self.next_block_index += 1;
+                let same_id = self
+                    .active_tool
+                    .as_ref()
+                    .is_some_and(|(id, _)| *id == tc.id);
+                if same_id {
+                    // Append to the existing tool_use block.
+                    if let Some((_, index)) = self.active_tool {
+                        events.push(Self::sse_event(
+                            "content_block_delta",
+                            &serde_json::json!({
+                                "type": "content_block_delta",
+                                "index": index,
+                                "delta": {
+                                    "type": "input_json_delta",
+                                    "partial_json": tc.function.arguments
+                                }
+                            })
+                            .to_string(),
+                        ));
+                    }
+                } else {
+                    // Close any in-flight tool block before opening a new one.
+                    if let Some((_, index)) = self.active_tool.take() {
+                        events.push(Self::sse_event(
+                            "content_block_stop",
+                            &serde_json::json!({
+                                "type": "content_block_stop",
+                                "index": index
+                            })
+                            .to_string(),
+                        ));
+                    }
+                    let index = self.next_block_index;
+                    self.next_block_index += 1;
+                    self.active_tool = Some((tc.id.clone(), index));
 
-                events.push(Self::sse_event(
-                    "content_block_start",
-                    &serde_json::json!({
-                        "type": "content_block_start",
-                        "index": index,
-                        "content_block": {
-                            "type": "tool_use",
-                            "id": tc.id,
-                            "name": tc.function.name,
-                            "input": {}
-                        }
-                    })
-                    .to_string(),
-                ));
+                    events.push(Self::sse_event(
+                        "content_block_start",
+                        &serde_json::json!({
+                            "type": "content_block_start",
+                            "index": index,
+                            "content_block": {
+                                "type": "tool_use",
+                                "id": tc.id,
+                                "name": tc.function.name,
+                                "input": {}
+                            }
+                        })
+                        .to_string(),
+                    ));
 
-                events.push(Self::sse_event(
-                    "content_block_delta",
-                    &serde_json::json!({
-                        "type": "content_block_delta",
-                        "index": index,
-                        "delta": {
-                            "type": "input_json_delta",
-                            "partial_json": tc.function.arguments
-                        }
-                    })
-                    .to_string(),
-                ));
-
-                events.push(Self::sse_event(
-                    "content_block_stop",
-                    &serde_json::json!({
-                        "type": "content_block_stop",
-                        "index": index
-                    })
-                    .to_string(),
-                ));
+                    events.push(Self::sse_event(
+                        "content_block_delta",
+                        &serde_json::json!({
+                            "type": "content_block_delta",
+                            "index": index,
+                            "delta": {
+                                "type": "input_json_delta",
+                                "partial_json": tc.function.arguments
+                            }
+                        })
+                        .to_string(),
+                    ));
+                }
             }
+        } else if let Some((_, index)) = self.active_tool.take() {
+            // No tools on this chunk — close the in-flight tool block.
+            events.push(Self::sse_event(
+                "content_block_stop",
+                &serde_json::json!({
+                    "type": "content_block_stop",
+                    "index": index
+                })
+                .to_string(),
+            ));
         }
 
         // Terminal chunk: close blocks and emit message_delta + message_stop
@@ -614,6 +717,19 @@ impl AnthropicStreamState {
                 ));
                 self.in_text_block = false;
                 self.current_text_index = None;
+            }
+            // PRX-004: close any in-flight tool_use block on the terminal
+            // (same-chunk text→tool→terminal sequence must close the tool
+            // block exactly once).
+            if let Some((_, idx)) = self.active_tool.take() {
+                events.push(Self::sse_event(
+                    "content_block_stop",
+                    &serde_json::json!({
+                        "type": "content_block_stop",
+                        "index": idx
+                    })
+                    .to_string(),
+                ));
             }
 
             // If no content was emitted at all, emit an empty text block.
@@ -678,32 +794,26 @@ impl AnthropicStreamState {
         if self.done_emitted {
             return Vec::new();
         }
-        let mut events = Vec::new();
-        if let Some(idx) = self.current_text_index {
-            events.push(Self::sse_event(
-                "content_block_stop",
-                &serde_json::json!({
-                    "type": "content_block_stop",
-                    "index": idx
-                })
-                .to_string(),
-            ));
-        }
-        events.push(Self::sse_event(
-            "message_delta",
+        // PRX-004 (SPCC §6.5/§6.6, architect ruling): the inner stream ended
+        // without a terminal (None, no done, no error). A successful stream
+        // MUST carry exactly one terminal; truncation is a contract violation
+        // and must surface as an error — NOT a fabricated end_turn +
+        // message_stop. Same shape as the Some(Err) error arm (no extra block
+        // close events).
+        let error_event = Self::sse_event(
+            "error",
             &serde_json::json!({
-                "type": "message_delta",
-                "delta": { "stop_reason": "end_turn", "stop_sequence": null },
-                "usage": { "output_tokens": self.usage.as_ref().map_or(0, |u| u.completion_tokens) }
+                "type": "error",
+                "error": {
+                    "type": "api_error",
+                    "message": "stream ended without a terminal (done) event; \
+                                truncation is a contract violation"
+                }
             })
             .to_string(),
-        ));
-        events.push(Self::sse_event(
-            "message_stop",
-            "{\"type\":\"message_stop\"}",
-        ));
+        );
         self.done_emitted = true;
-        events
+        vec![error_event]
     }
 }
 
@@ -787,10 +897,36 @@ pub fn build_stream_response(
 // ── Handlers ──────────────────────────────────────────
 
 /// Handle POST /v1/messages.
-pub async fn handle_messages(
-    State(state): State<AppState>,
-    Json(req): Json<AnthropicRequest>,
-) -> Response {
+pub async fn handle_messages(State(state): State<AppState>, body: String) -> Response {
+    // PRX-004 (SPCC §6.1/§7.3): thinking is not expressible end-to-end on the
+    // Anthropic-compatible proxy in 0.1.3 (request path frozen) — reject a
+    // `thinking` key with 400 BEFORE any provider dispatch (zero upstream),
+    // instead of silently dropping the field. Raw Value pre-parse keeps
+    // unknown-key tolerance (no deny_unknown_fields).
+    let raw: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("proxy: request JSON extraction failed");
+            return invalid_json_body_response(&format!("Invalid JSON request body: {e}"));
+        }
+    };
+    if let Some(obj) = raw.as_object() {
+        if obj.contains_key("thinking") {
+            return anthropic_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_request_error",
+                "thinking is unsupported on the Anthropic-compatible proxy in 0.1.3; \
+                 call the provider directly to use reasoning",
+            );
+        }
+    }
+    let req: AnthropicRequest = match serde_json::from_value(raw) {
+        Ok(req) => req,
+        Err(e) => {
+            tracing::error!("proxy: request JSON extraction failed");
+            return invalid_json_body_response(&format!("Invalid JSON request body: {e}"));
+        }
+    };
     let stream = req.stream;
     let model = req.model.clone();
 
@@ -862,6 +998,12 @@ fn anthropic_error(status: StatusCode, error_type: &str, message: &str) -> Respo
         },
     };
     (status, Json(body)).into_response()
+}
+
+/// Anthropic-shape "Invalid JSON request body" 400 (same wire contract as the
+/// extractor rejection path, reused by the PRX-004 raw-Value pre-parse path).
+fn invalid_json_body_response(message: &str) -> Response {
+    anthropic_error(StatusCode::BAD_REQUEST, "invalid_request_error", message)
 }
 
 fn anthropic_error_from_llm_error(e: LlmError) -> Response {
@@ -1515,6 +1657,208 @@ mod tests {
                 !text[err_pos..].contains("event: message_stop")
             },
             "error event must not be followed by normal message_stop: {text}"
+        );
+    }
+
+    // ── PRX-004: thinking mapping + tool fragment reassembly + truncation ──
+
+    /// A non-empty thinking delta must produce the Anthropic thinking-block
+    /// event sequence (content_block_start type "thinking" + thinking_delta +
+    /// close on transition/terminal). Currently process_chunk never reads
+    /// chunk.thinking → no thinking events → RED.
+    #[tokio::test]
+    async fn thinking_delta_produces_thinking_block_events() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state =
+            AnthropicStreamState::new(empty_stream, "msg_th".to_string(), "test-model".to_string());
+
+        let events = state.process_chunk(StreamChunk {
+            thinking: Some("let me think".to_string()),
+            ..Default::default()
+        });
+        let text = events.join("\n");
+
+        assert!(
+            text.contains("content_block_start")
+                && text.contains("\"type\":\"thinking\"")
+                && text.contains("content_block_delta")
+                && text.contains("thinking_delta"),
+            "thinking delta must emit thinking block events, got: {text}"
+        );
+    }
+
+    /// `thinking_done == true` must close the thinking block — the closed
+    /// index must match the thinking block's own index. Currently thinking is
+    /// never opened, so the terminal close targets a different/no block →
+    /// RED.
+    #[tokio::test]
+    async fn thinking_done_closes_thinking_block() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state = AnthropicStreamState::new(
+            empty_stream,
+            "msg_th2".to_string(),
+            "test-model".to_string(),
+        );
+
+        let open = state.process_chunk(StreamChunk {
+            thinking: Some("think".to_string()),
+            ..Default::default()
+        });
+        let open_text = open.join("\n");
+        // Extract the index the thinking block opened with.
+        let open_index = open_text
+            .split("content_block_start")
+            .nth(1)
+            .and_then(|s| {
+                s.split("\"index\":").nth(1).and_then(|t| {
+                    t.chars()
+                        .take_while(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse::<usize>()
+                        .ok()
+                })
+            })
+            .expect("thinking content_block_start must carry an index");
+
+        let close = state.process_chunk(StreamChunk {
+            done: true,
+            thinking_done: Some(true),
+            finish_reason: Some(FinishReason::Stop),
+            ..Default::default()
+        });
+        let close_text = close.join("\n");
+        let close_index = close_text
+            .split("content_block_stop")
+            .nth(1)
+            .and_then(|s| {
+                s.split("\"index\":").nth(1).and_then(|t| {
+                    t.chars()
+                        .take_while(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse::<usize>()
+                        .ok()
+                })
+            })
+            .expect("a content_block_stop must be emitted");
+        assert_eq!(
+            close_index, open_index,
+            "thinking_done must close the SAME thinking block index; open={open_index} close={close_index}"
+        );
+    }
+
+    /// Fragmented tool calls with the same id must be reassembled into ONE
+    /// tool_use block with multiple input_json_delta events (SPCC §7.3: id and
+    /// index stable). Currently every chunk opens a fresh block → two
+    /// content_block_start events → RED.
+    #[tokio::test]
+    async fn fragmented_tool_calls_reassemble_into_single_block() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state = AnthropicStreamState::new(
+            empty_stream,
+            "msg_tc2".to_string(),
+            "test-model".to_string(),
+        );
+
+        let e1 = state.process_chunk(StreamChunk {
+            tool_calls: Some(vec![ToolCall {
+                id: "call_1".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "get_weather".to_string(),
+                    arguments: r#"{"city":""#.to_string(),
+                },
+            }]),
+            ..Default::default()
+        });
+        let e2 = state.process_chunk(StreamChunk {
+            tool_calls: Some(vec![ToolCall {
+                id: "call_1".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "get_weather".to_string(),
+                    arguments: r#""beijing"}"#.to_string(),
+                },
+            }]),
+            done: true,
+            finish_reason: Some(FinishReason::ToolCalls),
+            ..Default::default()
+        });
+
+        let all = e1.into_iter().chain(e2).collect::<Vec<_>>();
+        let text = all.join("\n");
+        // Count only the `event: content_block_start` lines (the JSON body
+        // also contains the string in "type", so a naive .matches overcounts).
+        let starts = all
+            .iter()
+            .filter(|e| e.starts_with("event: content_block_start"))
+            .count();
+        assert_eq!(
+            starts, 1,
+            "fragmented tool calls must produce exactly ONE content_block_start event, got {starts}: {text}"
+        );
+        let deltas = text.matches("\"input_json_delta\"").count();
+        assert_eq!(deltas, 2, "two input_json_delta events expected: {text}");
+    }
+
+    /// A stream that ends without a terminal (None, no done, no error) must
+    /// emit an `event: error` (api_error) instead of a fake end_turn +
+    /// message_stop (SPCC §6.5/§6.6, architect ruling). Currently flush()
+    /// fabricates end_turn → RED.
+    #[tokio::test]
+    async fn truncated_stream_emits_error_not_fake_end_turn() {
+        let empty_stream = Box::pin(futures::stream::empty::<Result<StreamChunk, LlmError>>());
+        let mut state =
+            AnthropicStreamState::new(empty_stream, "msg_tr".to_string(), "test-model".to_string());
+
+        // Emit one text chunk so the stream "started", then flush on None.
+        state.process_chunk(StreamChunk {
+            delta: "hello".to_string(),
+            ..Default::default()
+        });
+        let events = state.flush();
+        let text = events.join("\n");
+
+        assert!(
+            text.contains("event: error")
+                && text.contains("api_error")
+                && !text.contains("message_stop"),
+            "truncated stream must emit error and NOT fake message_stop, got: {text}"
+        );
+    }
+
+    /// A /v1/messages request carrying a `thinking` key must be rejected with
+    /// 400 (SPCC §6.1/§7.3) BEFORE any provider dispatch. Currently serde
+    /// silently drops the key, so the request proceeds into conversion — and
+    /// with no registered provider it fails with UnknownProvider → 400 but
+    /// with the WRONG body (no reasoning rejection). After the fix the handler
+    /// rejects with the reasoning-specific invalid_request_error. This test
+    /// asserts the response body mentions reasoning is unsupported → RED now.
+    #[tokio::test]
+    async fn thinking_request_rejected_400() {
+        let llm = std::sync::Arc::new(crate::LmrsClient::new());
+        let state = AppState { llm };
+
+        let body = serde_json::json!({
+            "model": "openai/gpt-4o",
+            "max_tokens": 64,
+            "messages": [{"role": "user", "content": "hi"}],
+            "thinking": {"type": "enabled", "budget_tokens": 1024},
+        })
+        .to_string();
+
+        let resp = handle_messages(axum::extract::State(state), body).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+        let msg = json["error"]["message"]
+            .as_str()
+            .unwrap_or("")
+            .to_lowercase();
+        assert!(
+            msg.contains("reasoning") || msg.contains("thinking"),
+            "thinking key must be rejected with a reasoning-specific 400 message, got: {json}"
         );
     }
 }

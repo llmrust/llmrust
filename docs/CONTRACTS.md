@@ -54,6 +54,10 @@ Every implementation of `Provider` must satisfy:
 2. **Stream events**: Return Anthropic SSE events: `message_start`, `content_block_start`, `content_block_delta`, `content_block_stop`, `message_delta`, `message_stop`.
 3. **Stop reason**: Map `FinishReason` to Anthropic stop reasons.
 4. **Tool use blocks**: Return `content: [{type: "tool_use", ...}]` blocks for tool calls.
+5. **Thinking blocks**: A non-empty `StreamChunk.thinking` delta is surfaced as a `content_block_start` of type `"thinking"` plus `content_block_delta` of type `"thinking_delta"`, closed on `thinking_done` / transition / terminal. `signature_delta` is **not** emitted (the shared `StreamChunk` carries no signature — a declared lossy path). (PRX-004)
+6. **Tool fragment reassembly**: Fragmented tool calls with the same id are reassembled into one `tool_use` block; subsequent fragments append `input_json_delta` to the same block index (SPCC §7.3: id and index stable). (PRX-004)
+7. **Truncation is an error**: If the inner stream ends without a terminal (`done`) and without an error, the proxy emits exactly one `event: error` (`api_error`) and never fabricates an `end_turn` `message_delta`/`message_stop`. (PRX-004)
+8. **Thinking request rejection**: A `/v1/messages` request carrying a top-level `thinking` key is rejected with `400 invalid_request_error` before any upstream dispatch (SPCC §6.1/§7.3). (PRX-004)
 
 ### Authentication
 

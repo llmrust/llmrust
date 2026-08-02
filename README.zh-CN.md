@@ -326,6 +326,7 @@ curl http://localhost:3000/v1/messages \
 >
 > 代理遵循 OpenAI chat completions 请求约定，包括 `stop` 可为字符串或数组，并会对格式错误的请求返回 JSON 错误体。流式错误会以 error event 返回给客户端，不会静默伪装成成功 completion。
 > 流式响应使用 OpenAI 风格 SSE chunk，包括只在首个 delta 中发送一次 `assistant` role。设置 `stream_options.include_usage = true` 时，仅包含 usage 的 chunk 会返回空 `choices`。reasoning 无法在 proxy wire 上表达（SPCC §7.3）：含 `reasoning_effort`/`reasoning`/`thinking` 的请求以 400 拒绝，上游流中的 reasoning 增量会以 `stream_error` 事件呈现。
+> Anthropic `/v1/messages` 流将上游 reasoning 以原生 `thinking` 块呈现（不发 `signature_delta`——已声明有损路径），将分片的工具调用重组为单个 `tool_use` 块，截流以 `error` 事件报告而非伪造 `end_turn`。含 `thinking` 键的请求以 400 拒绝。
 
 ### Proxy model 名称
 

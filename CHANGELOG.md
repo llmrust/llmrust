@@ -91,6 +91,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   terminates with `[DONE]`, instead of being silently discarded (SPCC §6.3). All other stream
   behavior (role on first delta, single `[DONE]`, usage-only with `include_usage`, finish once)
   is unchanged. (PRX-003, Refs #157)
+- The Anthropic-compatible proxy no longer drops reasoning or truncates streams silently
+  (PRX-004): non-empty `thinking` deltas surface as Anthropic thinking blocks
+  (`content_block_start` type `thinking` + `thinking_delta`, closed on `thinking_done`;
+  `signature_delta` is a declared lossy path); fragmented tool calls with the same id are
+  reassembled into one `tool_use` block (`input_json_delta` to the same index); a stream that
+  ends without a terminal now emits an `event: error` (`api_error`) instead of a fabricated
+  `end_turn`; and a request carrying a `thinking` key is rejected with `400 invalid_request_error`
+  before any upstream dispatch. All other Anthropic stream behavior is unchanged. (PRX-004,
+  Refs #160)
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked

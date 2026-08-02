@@ -64,7 +64,7 @@ Every implementation of `Provider` must satisfy:
 1. **Model format**: All `chat`/`stream` methods require `provider/model` format. Parse errors return `LlmError::Parse`.
 2. **Provider resolution**: `model` is the model name *after* the `/`. The client sets `req.model` before calling the provider.
 3. **Convenience methods**: `chat(model, prompt)` and `stream(model, prompt)` construct a `ChatRequest` with a single user message and delegate to `chat_with`/`stream_with`.
-4. **Stream collection**: `stream_collect` returns concatenated text. `stream_collect_full` returns a full `ChatResponse` with `usage`, `tool_calls`, and `finish_reason`.
+4. **Stream collection**: `stream_collect` returns concatenated text. `stream_collect_full` returns a full `ChatResponse` with `usage`, `tool_calls`, and `finish_reason`. Reasoning streams are not aggregatable: if any chunk carries a non-empty `thinking` delta or `thinking_done == true`, both collectors fail with `LlmError::Unsupported` (feature `reasoning`) and direct the caller to consume the raw `stream()` instead (STR-003).
 5. **Retry wrapping**: `with_retry(max_retries)` wraps all registered providers in `RetryProvider`. Retry logic applies exponential backoff and only retries on transient errors (5xx, network errors).
 
 ## Router contract

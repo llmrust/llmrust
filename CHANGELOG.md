@@ -66,6 +66,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ThinkingConfig.budget_tokens`, so both `chat()` and `stream()` with thinking enabled
   fail with `LlmError::Unsupported` before any network call (zero network); `Disabled`
   and unset reasoning pass through unchanged. (REA-004O, Refs #141)
+- `stream_collect` / `stream_collect_full` no longer silently drop reasoning: any chunk
+  carrying a non-empty `thinking` delta or `thinking_done == true` now fails with
+  `LlmError::Unsupported` and points the caller to consume the raw `stream()` instead.
+  Non-reasoning streams keep their exact prior behavior (text concatenation, terminal
+  `usage` / `tool_calls` / `finish_reason`). (STR-003, Refs #144)
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked

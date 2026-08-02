@@ -2872,4 +2872,171 @@ mod tests {
             "WWW-Authenticate header must be preserved"
         );
     }
+
+    // ── PRX-003: reasoning request rejection + delta guard (red first) ──
+
+    fn build_json_request(body: &str) -> Request<Body> {
+        Request::builder()
+            .method("POST")
+            .uri("/v1/chat/completions")
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .expect("failed to build test request")
+    }
+
+    /// A request carrying a reasoning-intent key must be rejected with 400
+    /// BEFORE any provider dispatch (SPCC §6.1/§7.3: no silent ignore, no
+    /// lossless path → explicit Unsupported). Currently serde silently drops
+    /// the key and the request is forwarded → RED until the handler checks the
+    /// raw JSON first.
+    #[tokio::test]
+    async fn reasoning_request_rejected_400_reasoning_effort() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "reasoning_effort": "high",
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_json_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "reasoning_effort must be rejected with 400 (SPCC §6.1/§7.3)"
+        );
+        let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert!(json["error"]["message"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("reasoning"));
+    }
+
+    #[tokio::test]
+    async fn reasoning_request_rejected_400_reasoning_field() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "reasoning": {"budget": 100},
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_json_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "reasoning field must be rejected with 400 (SPCC §6.1/§7.3)"
+        );
+    }
+
+    #[tokio::test]
+    async fn reasoning_request_rejected_400_thinking_field() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "thinking": {"type": "enabled"},
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_json_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "thinking field must be rejected with 400 (SPCC §6.1/§7.3)"
+        );
+    }
+
+    /// Control: a request WITHOUT reasoning keys still passes (200) — the
+    /// rejection must not disturb normal requests.
+    #[tokio::test]
+    async fn normal_request_not_affected_by_reasoning_rejection() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "mock/test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_json_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    /// An inner chunk carrying a non-empty `thinking` delta must produce
+    /// exactly one `stream_error` event followed by `[DONE]` — never a silent
+    /// drop (SPCC §6.3/§7.3). Currently the unfold loop never reads
+    /// `chunk.thinking`, so no error event is emitted → RED.
+    #[tokio::test]
+    async fn thinking_delta_emits_stream_error_before_done() {
+        let inner = Box::pin(futures::stream::iter([
+            Ok(StreamChunk {
+                delta: "hello".to_string(),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                thinking: Some("let me think".to_string()),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            }),
+        ]));
+        let sse = build_openai_sse_response(inner, "id-p3".into(), 0, "m".into(), true);
+        let text = collect_sse(sse).await;
+        let err_pos = text
+            .find("stream_error")
+            .expect("thinking delta must emit a stream_error event (SPCC §6.3)");
+        let done_pos = text.find("[DONE]").expect("DONE must be emitted");
+        assert!(err_pos < done_pos, "stream_error must appear before [DONE]");
+    }
+
+    /// `thinking_done == true` also triggers the guard.
+    #[tokio::test]
+    async fn thinking_done_emits_stream_error_before_done() {
+        let inner = Box::pin(futures::stream::iter([
+            Ok(StreamChunk {
+                delta: "hi".to_string(),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                done: true,
+                thinking_done: Some(true),
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            }),
+        ]));
+        let sse = build_openai_sse_response(inner, "id-p4".into(), 0, "m".into(), true);
+        let text = collect_sse(sse).await;
+        let err_pos = text
+            .find("stream_error")
+            .expect("thinking_done must emit a stream_error event (SPCC §6.3)");
+        let done_pos = text.find("[DONE]").expect("DONE must be emitted");
+        assert!(err_pos < done_pos, "stream_error must appear before [DONE]");
+    }
 }

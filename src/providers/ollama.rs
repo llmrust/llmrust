@@ -621,4 +621,158 @@ mod tests {
         let err = rt.block_on(provider.embed(&req)).unwrap_err();
         assert!(matches!(err, LlmError::Parse(_)));
     }
+
+    // ── REA-004O: reasoning gate (red first) ───────────────────
+
+    use crate::types::ThinkingConfig;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// Fake server that records how many HTTP connections it accepted.
+    /// Each accepted connection runs `handler`; a handler call means the
+    /// client made a real network request.
+    fn counting_server(
+        counter: Arc<AtomicUsize>,
+        handler: impl Fn(&str, &str, &[u8]) -> (u16, String) + Send + 'static,
+    ) -> String {
+        let listener = StdTcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let url = format!("http://{}", addr);
+        let barrier = Arc::new(Barrier::new(2));
+        let b = Arc::clone(&barrier);
+
+        std::thread::spawn(move || {
+            b.wait();
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                counter.fetch_add(1, Ordering::SeqCst);
+                let mut buf = vec![0u8; 16384];
+                let n = stream.read(&mut buf).unwrap_or(0);
+                let raw = String::from_utf8_lossy(&buf[..n]).to_string();
+                let first_line = raw.lines().next().unwrap_or("");
+                let mut parts = first_line.split_whitespace();
+                let method = parts.next().unwrap_or("GET");
+                let path = parts.next().unwrap_or("/");
+                let body_start = raw.find("\r\n\r\n").map(|i| i + 4).unwrap_or(raw.len());
+                let body_bytes = &buf[body_start..n];
+                let (status, body) = handler(method, path, body_bytes);
+                let resp = format!(
+                    "HTTP/1.1 {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    status,
+                    body.len(),
+                    body
+                );
+                stream.write_all(resp.as_bytes()).ok();
+                stream.flush().ok();
+                let _ = stream.read(&mut [0u8; 1]);
+            }
+        });
+        barrier.wait();
+        url
+    }
+
+    #[test]
+    fn ollama_chat_thinking_enabled_returns_unsupported_without_network() {
+        let hits = Arc::new(AtomicUsize::new(0));
+        let url = counting_server(Arc::clone(&hits), |_m, _p, _b| {
+            (
+                200,
+                r#"{"model":"m","message":{"role":"assistant","content":"hi"}}"#.into(),
+            )
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = ChatRequest::new("m", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: None,
+        });
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let err = rt.block_on(provider.chat(&req)).unwrap_err();
+        assert!(
+            matches!(err, LlmError::Unsupported { .. }),
+            "Enabled reasoning on chat must fail with Unsupported"
+        );
+        assert_eq!(
+            hits.load(Ordering::SeqCst),
+            0,
+            "no network call allowed when reasoning is unsupported"
+        );
+    }
+
+    #[test]
+    fn ollama_stream_thinking_enabled_returns_unsupported_without_network() {
+        let hits = Arc::new(AtomicUsize::new(0));
+        let url = counting_server(Arc::clone(&hits), |_m, _p, _b| {
+            (
+                200,
+                r#"{"model":"m","message":{"role":"assistant","content":"hi"},"done":true}"#.into(),
+            )
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = ChatRequest::new("m", "hi").with_thinking(ThinkingConfig::Enabled {
+            budget_tokens: None,
+        });
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let stream = rt.block_on(provider.stream(&req));
+        assert!(
+            matches!(stream, Err(LlmError::Unsupported { .. })),
+            "Enabled reasoning on stream must fail with Unsupported, got: {:?}",
+            stream.as_ref().err()
+        );
+        assert_eq!(
+            hits.load(Ordering::SeqCst),
+            0,
+            "no network call allowed when reasoning is unsupported"
+        );
+    }
+
+    #[test]
+    fn ollama_chat_thinking_disabled_passes_through() {
+        let hits = Arc::new(AtomicUsize::new(0));
+        let url = counting_server(Arc::clone(&hits), |_m, _p, body| {
+            let json: serde_json::Value = serde_json::from_slice(body).unwrap();
+            assert!(
+                json.get("thinking").is_none(),
+                "no thinking field on the wire when Disabled"
+            );
+            assert!(
+                json.get("options")
+                    .and_then(|o| o.get("think"))
+                    .is_none(),
+                "no options.think on the wire when Disabled"
+            );
+            (
+                200,
+                r#"{"model":"m","message":{"role":"assistant","content":"hi"}}"#.into(),
+            )
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = ChatRequest::new("m", "hi").with_thinking(ThinkingConfig::Disabled);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(provider.chat(&req)).unwrap();
+        assert!(
+            hits.load(Ordering::SeqCst) >= 1,
+            "Disabled reasoning must still reach the server"
+        );
+    }
+
+    #[test]
+    fn ollama_chat_thinking_unset_passes_through() {
+        let hits = Arc::new(AtomicUsize::new(0));
+        let url = counting_server(Arc::clone(&hits), |_m, _p, _b| {
+            (
+                200,
+                r#"{"model":"m","message":{"role":"assistant","content":"hi"}}"#.into(),
+            )
+        });
+        let config = ProviderConfig::new("").with_base_url(&url);
+        let provider = OllamaProvider::new(config);
+        let req = ChatRequest::new("m", "hi");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(provider.chat(&req)).unwrap();
+        assert!(
+            hits.load(Ordering::SeqCst) >= 1,
+            "unset reasoning must still reach the server"
+        );
+    }
 }

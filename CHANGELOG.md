@@ -61,6 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `StreamChunk.thinking`, the terminal chunk marks `thinking_done = true` at most once,
   and `usageMetadata.thoughtsTokenCount` maps to `Usage.reasoning_tokens`. (REA-004G,
   Refs #136)
+- Ollama reasoning is now rejected instead of silently ignored (REA-004O): the Ollama
+  wire offers only `options.think` (bool/level) with no lossless mapping for
+  `ThinkingConfig.budget_tokens`, so both `chat()` and `stream()` with thinking enabled
+  fail with `LlmError::Unsupported` before any network call (zero network); `Disabled`
+  and unset reasoning pass through unchanged. (REA-004O, Refs #141)
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked

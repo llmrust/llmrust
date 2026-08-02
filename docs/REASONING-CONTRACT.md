@@ -62,7 +62,7 @@
 
 | 路径 | 裁定 | 理由 |
 |---|---|---|
-| request | `Unsupported` | wire 提供 `options.think`（bool 或 `low/medium/high/max`），但 `ThinkingConfig.budget_tokens` 无对应字段 → 无无损映射；REA-004O 裁定全路径 Unsupported、**零网络调用** |
+| request | `Unsupported` | wire 提供 `options.think`（bool 或 `low/medium/high/max`），但 `ThinkingConfig.budget_tokens` 无对应字段 → 无无损映射；REA-004O 裁定全路径 Unsupported、**零网络调用**（已实现，REA-004O Refs #141：chat/stream 双入口发网前 `LlmError::Unsupported`） |
 | chat / raw stream / usage / aggregate / proxy | `Unsupported` 或 `NotApplicable` | 请求即拒，后续路径不产生；Ollama usage 仅 prompt/eval count，无 reasoning/cache 字段（`NotApplicable`） |
 
 ## 3. 能力声明草案（CAP-001 前身）
@@ -101,5 +101,5 @@
 - **REA-002（Anthropic）**：request `thinking` 映射；chat 发网前 Unsupported；raw stream thinking_delta/signature_delta/redacted_thinking 处理；usage cache/thinking 映射；六条路径 fixture。
 - **REA-003（OpenAI-compatible）**：OpenAI `reasoning_effort` 映射（budget 规则见 O-5）；chat Unsupported；raw stream `reasoning_content` → thinking（容错）；usage cached/reasoning 映射；三个 wrapper **必须**保持 Unsupported 并有正负矩阵测试。
 - **REA-004G（Gemini）**：`thinkingConfig` 映射；chat Unsupported；thought part → thinking；usage thoughtsTokenCount；proxy 不映射。
-- **REA-004O（Ollama）**：全路径 Unsupported、零网络；能力表 `unsupported`。
+- **REA-004O（Ollama）**：全路径 Unsupported、零网络；能力表 `unsupported`。（已实现，REA-004O Refs #141）
 - 所有实现任务的 DoD 均含：请求 fixture 精确、非流零网络、原始流顺序/终止正确、None/Some(0) 区分、日志无内容。

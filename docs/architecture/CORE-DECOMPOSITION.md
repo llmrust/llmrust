@@ -86,7 +86,7 @@
 | 250–275 | normalize_stop_reason / flush_tool_results（映射） | 26 | `providers/anthropic/map.rs` |
 | 276–346 | split_messages（请求映射） | 71 | `providers/anthropic/map.rs` |
 | 347–368 | `build_body`（请求映射） | 22 | `providers/anthropic/map.rs` |
-| 369–449 | AnthropicResponse / AnthropicContent / AnthropicUsage / AnthropicOutputTokensDetails + usage_from_anthropic（wire DTO + 响应映射） | 81 | `providers/anthropic/dto.rs` + `map.rs` |
+| 369–449 | AnthropicResponse / AnthropicContent / AnthropicUsage / AnthropicOutputTokensDetails + usage_from_anthropic（wire DTO 为主，响应映射仅 usage_from_anthropic） | 81 | `providers/anthropic/dto.rs`（计入口径：dto.rs；usage_from_anthropic 的映射职责在 C8 实现时随 dto 数据就地梳理，不再另行搬移） |
 | 450–528 | AnthropicErrorBody / AnthropicErrorDetail / AnthropicStreamEvent / AnthropicStreamMessage / AnthropicStreamError / AnthropicStreamContentBlock / AnthropicDelta（wire DTO） | 79 | `providers/anthropic/dto.rs` |
 | 529–660 | AnthropicToolAccumulator / AnthropicToolBuilder + impl（流解析状态机） | 132 | `providers/anthropic/stream.rs` |
 | 661–785 | `parse_sse_line`（流解析） | 125 | `providers/anthropic/stream.rs` |
@@ -120,7 +120,7 @@
 | 1–68 | imports + 常量 | 68 | — |
 | 69–93 | RoutingStrategy（enum，STABLE） | 25 | 留驻（入口收口） |
 | 94–124 | should_failover / no_deployments（策略辅助） | 31 | `router/state.rs` |
-| 125–248 | Router + impl（new/with_strategy/with_cooldown/route/is_in_cooldown/mark_cooldown/clear_cooldown/candidates——路由状态与调度） | 124 | `router/state.rs` |
+| 125–247 | Router + impl（new/with_strategy/with_cooldown/route/is_in_cooldown/mark_cooldown/clear_cooldown/candidates——路由状态与调度） | 123 | `router/state.rs` |
 | 248–344 | `resolve`（round-robin 单计数器现状 + failover/cooldown 决策） | 97 | `router/state.rs` |
 | 345–851 | 测试段（§1.6 测试分组） | 507 | 测试外迁卡 |
 
@@ -248,9 +248,9 @@ src/
 |---|---|---|---|---|
 | 1 | **测试外迁**（compat 694 / google 520 / anthropic 532 迁至 `tests/providers/<name>/`，router 507 迁至 `tests/router/`，types 207 迁至 `tests/types/`；冻结锚测试除外） | 测试迁移 | 提交前快照 | 全部现有 wire 守恒锚 + 各 provider 契约测试 |
 | 2 | `compat/dto.rs` 抽离（wire DTO 208 行） | ≤210 | 步骤 1 后 | DTO serde / wire 测试 |
-| 3 | `compat/map.rs` + `compat/stream.rs` 抽离 + compat 入口收口（181 行 + 收口） | ≤190 | 步骤 2 后 | 请求转换 / SSE 累积测试 |
+| 3 | `compat/map.rs` + `compat/stream.rs` 抽离 + compat 入口收口（map 162 + stream 135 = **297 行** + 收口） | ≤300 | 步骤 2 后 | 请求转换 / SSE 累积测试 |
 | 4 | `google/dto.rs` 抽离（wire DTO 278 行） | ≤280 | 步骤 3 后 | Gemini DTO serde 测试 |
-| 5 | `google/map.rs` 抽离（请求/响应映射 352 行） | ≤360 | 步骤 4 后 | 请求构造 / logprobs / finish_reason 映射测试 |
+| 5 | `google/map.rs` 抽离（请求/响应映射 **353 行**） | ≤360 | 步骤 4 后 | 请求构造 / logprobs / finish_reason 映射测试 |
 | 6 | `google/stream.rs` 抽离 + google 入口收口（153 行 + 收口） | ≤160 | 步骤 5 后 | SSE 状态机（thinking/tool 重组）测试 |
 | 7 | `anthropic/dto.rs` 抽离（wire DTO 267 行） | ≤270 | 步骤 6 后 | Anthropic DTO serde 测试 |
 | 8 | `anthropic/map.rs` 抽离（请求/响应映射 217 行） | ≤220 | 步骤 7 后 | 请求构造 / thinking / usage 映射测试 |
@@ -258,7 +258,7 @@ src/
 | 10 | `types/domain.rs` 抽离（L0 域 328 行 + 兼容 re-export） | ≤340 | 步骤 9 后 | api_freeze / response_freeze 全量锚 |
 | 11 | `types/stream.rs` 抽离（流域 256 行 + 兼容 re-export） | ≤260 | 步骤 10 后 | api_freeze / response_freeze / provider_contract_freeze 全量锚 |
 | 12 | `types/request.rs` 抽离（请求域 333 行 + 兼容 re-export）+ types 收口 | ≤340 | 步骤 11 后 | api_freeze / contract_tests 全量锚 |
-| 13 | `router/state.rs` 抽离（路由状态 252 行）+ router 收口；per-group counter 结构就位列为依赖 RTR-001 的后续项（不在本卡实施行为修复） | ≤260 | 步骤 12 后 | router 契约测试（现状单计数器语义守恒） |
+| 13 | `router/state.rs` 抽离（路由状态 31+123+97 = **251 行**）+ router 收口；per-group counter 结构就位列为依赖 RTR-001 的后续项（不在本卡实施行为修复） | ≤260（基数 251） | 步骤 12 后 | router 契约测试（现状单计数器语义守恒） |
 | 14 | 全局收口核验：lib.rs/prelude 再导出逐字节比对 api-inventory / freeze 锚；`resolve` 计数器现状语义守恒（RTR-001 修复前） | ≤50 | 步骤 13 后 | 全量 wire 守恒锚 + freeze 锚 |
 
 **步骤↔卡 1:1 与模块归属自检**（ARC-001 MUST-2 同类）：compat wire DTO→C2；compat map/stream/入口→C3；google wire DTO→C4；google map→C5；google stream/入口→C6；anthropic wire DTO→C7；anthropic map→C8；anthropic stream/入口→C9；types domain→C10；types stream→C11；types request/入口→C12；router state/入口→C13；公开面收口→C14。**每个生产模块恰好归属一张卡**。目标模块三处一致（§1 映射 / §3 模块树 / §5 步骤）——ARC-001 MUST-1 同类自检通过。
@@ -271,7 +271,7 @@ src/
 | **C2 compat-DTO** | `compat/dto.rs` 抽离（28–262 区间 wire DTO，208 行） | compat dto 段归零；serde/wire 测试全绿 | C1 | DTO serde / wire 测试 | 低（`pub(crate)` 子模块，公开路径不变） |
 | **C3 compat-转换流** | `compat/map.rs` + `compat/stream.rs` 抽离 + compat 入口收口 | 段归零；转换/SSE 测试全绿 | C2 | 请求转换 / SSE 累积测试 | 低 |
 | **C4 google-DTO** | `google/dto.rs` 抽离（wire DTO 278 行） | google dto 段归零；serde 测试全绿 | C1 | Gemini DTO serde 测试 | 低 |
-| **C5 google-映射** | `google/map.rs` 抽离（映射 352 行） | map 段归零；请求构造/logprobs/finish_reason 测试全绿 | C4 | 请求映射测试 | 低 |
+| **C5 google-映射** | `google/map.rs` 抽离（映射 **353 行**） | map 段归零；请求构造/logprobs/finish_reason 测试全绿 | C4 | 请求映射测试 | 低 |
 | **C6 google-流** | `google/stream.rs` 抽离 + google 入口收口 | stream 段归零；SSE 状态机测试全绿 | C5 | SSE 状态机测试 | 低 |
 | **C7 anthropic-DTO** | `anthropic/dto.rs` 抽离（wire DTO 267 行） | anthropic dto 段归零；serde 测试全绿 | C1 | Anthropic DTO serde 测试 | 低 |
 | **C8 anthropic-映射** | `anthropic/map.rs` 抽离（映射 217 行） | map 段归零；thinking/usage 映射测试全绿 | C7 | 请求映射测试 | 低 |
@@ -279,7 +279,7 @@ src/
 | **C10 types-domain** | `types/domain.rs` 抽离（域类型 328 行）+ `types.rs` `pub use` 兼容层 | domain 段归零；api_freeze/response_freeze 全绿；root/prelude 再导出逐字节不变 | C1 | api_freeze / response_freeze | **高**（L0 公开 API 面） |
 | **C11 types-stream** | `types/stream.rs` 抽离（流域 256 行）+ 兼容层 | stream 段归零；三个 freeze 锚全绿；再导出不变 | C10 | api_freeze / response_freeze / provider_contract_freeze | **高** |
 | **C12 types-request** | `types/request.rs` 抽离（请求域 333 行）+ types 收口 | request 段归零；freeze 锚 + contract_tests 全绿；再导出不变 | C11 | api_freeze / contract_tests | **高** |
-| **C13 router-state** | `router/state.rs` 抽离（路由状态 252 行）+ router 收口；**per-group counter 结构就位列为依赖 RTR-001 的后续项**（本卡不实施行为修复，保持单计数器现状语义） | state 段归零；router 契约测试全绿（现状语义守恒） | C1（+RTR-001 行为修复为后续独立项） | router 契约测试 | 中（RoutingStrategy 公开 enum 原地） |
+| **C13 router-state** | `router/state.rs` 抽离（路由状态 **251 行**）+ router 收口；**per-group counter 结构就位列为依赖 RTR-001 的后续项**（本卡不实施行为修复，保持单计数器现状语义） | state 段归零；router 契约测试全绿（现状语义守恒） | C1（+RTR-001 行为修复为后续独立项） | router 契约测试 | 中（RoutingStrategy 公开 enum 原地） |
 | **C14 公开面收口** | lib.rs/prelude 再导出逐字节比对 api-inventory / freeze 锚；域化后兼容层终验 | 再导出零漂移；freeze 锚全绿 | C10–C13 | api-inventory / 全部 freeze 锚 | **高**（收口核验） |
 
 全部 14 卡 0.1.4+ 候选，是否实施由 Owner 后续选择。

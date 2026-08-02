@@ -56,7 +56,6 @@
 
 use futures::stream::BoxStream;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -126,7 +125,9 @@ pub struct Router {
     client: Arc<LmrsClient>,
     groups: HashMap<String, Vec<String>>,
     strategy: RoutingStrategy,
-    counter: AtomicUsize,
+    /// Per-group round-robin counters. Lazy-created on first use; traffic to
+    /// one group never shifts another group's rotation (RTR-001).
+    counters: Mutex<HashMap<String, usize>>,
     cooldown: Option<Duration>,
     cooldown_until: Mutex<HashMap<String, Instant>>,
 }
@@ -139,7 +140,7 @@ impl Router {
             client,
             groups: HashMap::new(),
             strategy: RoutingStrategy::Ordered,
-            counter: AtomicUsize::new(0),
+            counters: Mutex::new(HashMap::new()),
             cooldown: None,
             cooldown_until: Mutex::new(HashMap::new()),
         }
@@ -258,7 +259,17 @@ impl Router {
         match self.strategy {
             RoutingStrategy::Ordered => base,
             RoutingStrategy::RoundRobin => {
-                let start = self.counter.fetch_add(1, Ordering::Relaxed) % base.len();
+                // Per-group counter: lazily created on first use, so `route()`
+                // and `with_strategy()` ordering never matters and unregistered
+                // (literal) groups never allocate a counter. The counter lock is
+                // scoped to this block and never nested with the cooldown lock.
+                let mut counters = self
+                    .counters
+                    .lock()
+                    .expect("round-robin counters lock not poisoned");
+                let counter = counters.entry(group.to_string()).or_insert(0);
+                let start = *counter % base.len();
+                *counter += 1;
                 let mut rotated = base[start..].to_vec();
                 rotated.extend_from_slice(&base[..start]);
                 rotated
@@ -347,6 +358,7 @@ mod tests {
     use async_trait::async_trait;
     use futures::stream;
     use futures::StreamExt;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     struct FailingProvider {
         status: u16,
@@ -886,6 +898,183 @@ mod tests {
 
         // Group B's first request must land on b1 (its own start), never b2.
         let rb1 = router.chat("B", "hi").await.unwrap();
-        assert_eq!(rb1.content, "b1", "group A traffic must not shift group B start");
+        assert_eq!(
+            rb1.content, "b1",
+            "group A traffic must not shift group B start"
+        );
+    }
+
+    /// T-2: single-group round-robin behavior is unchanged — the rotation
+    /// cycles 0 → 1 → 0 within the group with no interference.
+    #[tokio::test]
+    async fn single_group_round_robin_cycles_unchanged() {
+        let client = Arc::new(LmrsClient::new());
+        let a = Arc::new(OkProvider::new("a"));
+        let b = Arc::new(OkProvider::new("b"));
+        client.set_custom("a", a).await;
+        client.set_custom("b", b).await;
+
+        let router = Router::new(client)
+            .with_strategy(RoutingStrategy::RoundRobin)
+            .route("grp", ["a/m", "b/m"]);
+        let r0 = router.chat("grp", "hi").await.unwrap();
+        let r1 = router.chat("grp", "hi").await.unwrap();
+        let r2 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r0.content, "a");
+        assert_eq!(r1.content, "b");
+        assert_eq!(r2.content, "a");
+    }
+
+    /// T-3: Ordered strategy never touches the counters — deployments always
+    /// tried in registration order regardless of interleaved traffic.
+    #[tokio::test]
+    async fn ordered_strategy_ignores_counters_across_groups() {
+        let client = Arc::new(LmrsClient::new());
+        let a1 = Arc::new(OkProvider::new("a1"));
+        let a2 = Arc::new(OkProvider::new("a2"));
+        let b1 = Arc::new(OkProvider::new("b1"));
+        let b2 = Arc::new(OkProvider::new("b2"));
+        client.set_custom("a1", a1).await;
+        client.set_custom("a2", a2).await;
+        client.set_custom("b1", b1).await;
+        client.set_custom("b2", b2).await;
+
+        let router = Router::new(client)
+            .route("A", ["a1/m", "a2/m"])
+            .route("B", ["b1/m", "b2/m"]);
+        let ra1 = router.chat("A", "hi").await.unwrap();
+        let rb1 = router.chat("B", "hi").await.unwrap();
+        let ra2 = router.chat("A", "hi").await.unwrap();
+        let rb2 = router.chat("B", "hi").await.unwrap();
+        assert_eq!(ra1.content, "a1");
+        assert_eq!(rb1.content, "b1");
+        assert_eq!(ra2.content, "a1");
+        assert_eq!(rb2.content, "b1");
+    }
+
+    /// T-4: unknown (literal) groups are forwarded as single deployments — the
+    /// RoundRobin path returns early (len <= 1) and never allocates a counter.
+    #[tokio::test]
+    async fn round_robin_unknown_group_forwards_literal() {
+        let client = Arc::new(LmrsClient::new());
+        let good = Arc::new(OkProvider::new("good"));
+        client.set_custom("good", good).await;
+
+        let router = Router::new(client).with_strategy(RoutingStrategy::RoundRobin);
+        let r0 = router.chat("good/gpt", "hi").await.unwrap();
+        let r1 = router.chat("good/gpt", "hi").await.unwrap();
+        assert_eq!(r0.content, "good");
+        assert_eq!(r1.content, "good");
+    }
+
+    /// T-5: cooldown filtering composes with per-group round-robin — a cooled
+    /// deployment is skipped while the group's own rotation still advances.
+    #[tokio::test]
+    async fn round_robin_composes_with_cooldown() {
+        let client = Arc::new(LmrsClient::new());
+        let primary = Arc::new(CountedProvider::new(Arc::new(FailingProvider::new(500))));
+        let secondary = Arc::new(CountedProvider::new(Arc::new(OkProvider::new("secondary"))));
+        client.set_custom("p", primary.clone()).await;
+        client.set_custom("s", secondary.clone()).await;
+
+        let router = Router::new(client)
+            .with_strategy(RoutingStrategy::RoundRobin)
+            .with_cooldown(Duration::from_secs(60))
+            .route("grp", ["p/m", "s/m"]);
+
+        // 1st: primary fails (enters cooldown), secondary succeeds.
+        let r1 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r1.content, "secondary");
+        assert_eq!(primary.calls(), 1);
+
+        // 2nd: primary still cooling, skipped; secondary succeeds again.
+        let r2 = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(r2.content, "secondary");
+        assert_eq!(primary.calls(), 1, "cooled primary must be skipped");
+        assert_eq!(secondary.calls(), 2);
+    }
+
+    /// T-6: two independent Router instances built from the same deployments
+    /// have independent counters (SHOULD-1: counter clones are independent —
+    /// value clone semantics, identical before/after the fix).
+    #[tokio::test]
+    async fn independent_routers_have_independent_counters() {
+        let client = Arc::new(LmrsClient::new());
+        let x1 = Arc::new(OkProvider::new("x1"));
+        let x2 = Arc::new(OkProvider::new("x2"));
+        client.set_custom("x1", x1).await;
+        client.set_custom("x2", x2).await;
+
+        let router_a = Router::new(client.clone())
+            .with_strategy(RoutingStrategy::RoundRobin)
+            .route("grp", ["x1/m", "x2/m"]);
+        let router_b = Router::new(client)
+            .with_strategy(RoutingStrategy::RoundRobin)
+            .route("grp", ["x1/m", "x2/m"]);
+
+        // Advance router_a once; router_b must still start at its own index 0.
+        let ra = router_a.chat("grp", "hi").await.unwrap();
+        assert_eq!(ra.content, "x1");
+        let rb = router_b.chat("grp", "hi").await.unwrap();
+        assert_eq!(rb.content, "x1", "router_b counter must be independent");
+    }
+
+    /// T-7: concurrent interleaved traffic across two groups — no data race,
+    /// and each group's rotation is unaffected by the other's.
+    ///
+    /// Uses a multi-threaded runtime so the blocking `std::sync::Barrier`
+    /// waiters can actually progress in parallel.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn concurrent_groups_do_not_interfere() {
+        use std::sync::Barrier;
+
+        let client = Arc::new(LmrsClient::new());
+        let a1 = Arc::new(OkProvider::new("a1"));
+        let a2 = Arc::new(OkProvider::new("a2"));
+        let b1 = Arc::new(OkProvider::new("b1"));
+        let b2 = Arc::new(OkProvider::new("b2"));
+        client.set_custom("a1", a1).await;
+        client.set_custom("a2", a2).await;
+        client.set_custom("b1", b1).await;
+        client.set_custom("b2", b2).await;
+
+        let router = Arc::new(
+            Router::new(client)
+                .with_strategy(RoutingStrategy::RoundRobin)
+                .route("A", ["a1/m", "a2/m"])
+                .route("B", ["b1/m", "b2/m"]),
+        );
+
+        let barrier = Arc::new(Barrier::new(4));
+        let mut handles = Vec::new();
+        for _ in 0..2 {
+            let r = router.clone();
+            let b = barrier.clone();
+            handles.push(tokio::spawn(async move {
+                b.wait();
+                for _ in 0..50 {
+                    let _ = r.chat("A", "hi").await.unwrap();
+                }
+            }));
+            let r = router.clone();
+            let b = barrier.clone();
+            handles.push(tokio::spawn(async move {
+                b.wait();
+                for _ in 0..50 {
+                    let _ = r.chat("B", "hi").await.unwrap();
+                }
+            }));
+        }
+        for h in handles {
+            h.await.unwrap();
+        }
+
+        // After concurrent traffic, each group's rotation is still its own:
+        // both groups advanced an even number of times (100), so the next
+        // start index is 0 — A → a1, B → b1. Group B is unaffected by A's count.
+        let r_a = router.chat("A", "hi").await.unwrap();
+        assert_eq!(r_a.content, "a1");
+        let r_b = router.chat("B", "hi").await.unwrap();
+        assert_eq!(r_b.content, "b1");
     }
 }

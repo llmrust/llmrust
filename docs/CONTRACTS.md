@@ -95,6 +95,7 @@ Every implementation of `Provider` must satisfy:
 6. **Cooldown filtering**: When cooldown is enabled, routing prefers deployments not in cooldown. Deployments in cooldown are deprioritized but not permanently excluded.
 7. **Fail-open on all-cooling**: If all deployments in a group are in cooldown, the Router fails open: all deployments are attempted in their original order rather than returning an error.
 8. **No background health check**: Cooldown is purely passive. No pings, probes, or background tasks. Deployment state is updated only as a side effect of routing.
+9. **Round-robin is per-group**: With `RoutingStrategy::RoundRobin`, the rotation counter is isolated per group — traffic to one group never shifts another group's next start. Single-group behavior is unchanged, and unregistered (literal) groups are always forwarded as a single deployment.
 
 ## Embeddings contract
 

@@ -4,8 +4,8 @@
 > **状态**：`ACTIVE SSOT — M2 进行中（public API freeze 生效）；下一任务 REA-004O`  
 > **目标版本**：`llmrust 0.1.3`  
 > **审计基线**：GitHub `main` @ `3d0734ac711de3aadf16331c0f9c21b1634a83a8`  
-> **规格版本**：`0.3`（SPEC-002：登记母规范 `docs/spcc.md`，吸收设计小样与守恒清单制度）  
-> **编制日期**：`2026-07-13`；**最近修订**：`2026-07-24`  
+> **规格版本**：`0.4`（SPEC-004：角色更换，架构师 Kimi → Notion AI）  
+> **编制日期**：`2026-07-13`；**最近修订**：`2026-08-02`  
 > **母规范**：`docs/spcc.md`（通用 SPCC 方法论 v1.0，2026-07-24 经 SPEC-002 登记入库）  
 > **仓库路径**：`docs/SPCC-0.1.3.md`
 
@@ -135,10 +135,10 @@ llmrust 是一个以 Rust 为核心的统一 LLM SDK，并可选提供 OpenAI/An
 | 阶段 | Owner | 架构师 | 执行者 | 状态 |
 |---|---|---|---|---|
 | 事故处置 | llmrust Owner（用户） | Codex | Grok | `DONE` — `INC-001`、`INC-002` 均已通过 |
-| Phase 0–2 | llmrust Owner（用户） | Kimi | CodeBuddy | `ACTIVE` — M2 进行中（freeze 生效）；下一任务 `STR-002G`（READY，待下发） |
-| Phase 3–5 | llmrust Owner（用户） | Kimi | CodeBuddy | `BLOCKED` — 等待前置阶段 |
+| Phase 0–2 | llmrust Owner（用户） | Notion AI | CodeBuddy | `ACTIVE` — M2 进行中（freeze 生效）；下一任务 `REA-004O`（READY，待下发） |
+| Phase 3–5 | llmrust Owner（用户） | Notion AI | CodeBuddy | `BLOCKED` — 等待前置阶段 |
 
-本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限。**2026-07-24 角色更换（SPEC-001，Owner 批准）**：前任架构师 Codex 的计划代理失效，Owner 指定 Kimi 接任唯一架构师，CodeBuddy 接任唯一执行者；历史任务（`INC-001`、`INC-002`、`SPEC-000`、`CI-001`）中 Codex/Grok 的裁定与回证继续有效，不回溯改写。自生效时起：Kimi 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 负责 Kimi 下发的产品代码、配置、测试和实现文档任务。Kimi 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Kimi 负责把决定写入本表并记录生效时间。
+本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限。**2026-07-24 角色更换（SPEC-001，Owner 批准）**：前任架构师 Codex 的计划代理失效，Owner 指定 Kimi 接任唯一架构师，CodeBuddy 接任唯一执行者；历史任务（`INC-001`、`INC-002`、`SPEC-000`、`CI-001`）中 Codex/Grok 的裁定与回证继续有效，不回溯改写。自生效时起：Kimi 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 负责 Kimi 下发的产品代码、配置、测试和实现文档任务。Kimi 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Kimi 负责把决定写入本表并记录生效时间。**2026-08-02 角色更换（SPEC-004，Owner 指令）**：Kimi 卸任，Owner 指定 Notion AI 接任唯一架构师；历史任务中 Kimi 的裁定与回证继续有效，不回溯改写。自生效时起：Notion AI 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 继续担任唯一执行者。Notion AI 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。后续角色更换由 Owner 决定方向，Notion AI 负责把决定写入本表并记录生效时间。
 
 Owner 不填写技术审计模板、不运行技术命令、不解释 scanner/CI/依赖/API 细节，也不在多个实现方案之间代替架构师作技术选择。执行者负责产出技术证据，架构师负责把证据裁定为 PASS/BLOCKED/REJECT，并向 Owner 只汇报：结果、用户/业务影响、剩余风险和明确建议。只有方向、范围、发布时间、成本或风险接受发生实质变化时，才请求 Owner 裁决；请求必须使用非技术语言解释“这是什么、为什么需要决定、各选项后果、架构师建议”。
 
@@ -1209,7 +1209,7 @@ flowchart TD
 ## 控制信息
 - Milestone：
 - 当前状态：READY
-- 架构师：Kimi
+- 架构师：Notion AI
 - 执行者：CodeBuddy
 - 分支名：`task/<任务ID>-短描述`
 - 目标人工 diff：
@@ -1303,7 +1303,7 @@ Issue body 必须包含完整执行令；不得只链接外部对话或要求执
 
 1. `INC-001` 已由 Codex 根据 Grok 报告与标准 scanner 补充证据裁定 PASS；token 撤销、owner、版本、原包和秘密扫描核验完成。
 2. `INC-002` 已独立验证 registry 为 `yanked=true`，且全新依赖解析不再选择 0.1.2；Incident 已关闭。
-3. 当前角色已确定：Owner 为 llmrust Owner（用户），架构师为 Kimi，执行者为 CodeBuddy（2026-07-24 起，SPEC-001）；未收到 Owner 新指令前不变更。
+3. 当前角色已确定：Owner 为 llmrust Owner（用户），架构师为 Notion AI，执行者为 CodeBuddy（2026-08-02 起，SPEC-004）；未收到 Owner 新指令前不变更。
 4. 已接受 0.1.3 作为 0.1.2 的干净纠偏版：不新增 Provider、新产品 API或新的公开 API 破坏。
 5. 已接受 `/health` 公开但仅返回无敏感 liveness 的契约。
 6. 已接受 M0–M3 严格串行、M4 起最多两个独立 PR 并行；每个实现合并后必须先完成状态回证 PR。
@@ -1325,6 +1325,7 @@ Owner 裁定记录：
 | 2026-07-14 | SPCC 由架构师先入库并持续维护 | Codex 执行治理分支/PR、状态、里程碑和证据账本维护；Grok 只做被派发的实现任务 | Owner |
 | 2026-07-24 | 批准角色更换与 SPEC-001 治理更新 | 架构师更换为 Kimi，执行者更换为 CodeBuddy；历史裁定有效；补建 GitHub Milestones；勘误 E-001/E-002/E-003 入档；规格版本升为 0.2 | Owner |
 | 2026-07-24 | 批准统一 SPCC 规范体系（SPEC-002） | `docs/spcc.md` 登记为母规范并列入 §0.2 权威顺序第 2 位；吸收设计小样闸门（§10.1）、守恒清单（§10.4/§13）、文档失实定级；合并执行口径维持项目化选择（§10.5）；规格版本升为 0.3 | Owner |
+| 2026-08-02 | 批准角色更换与 SPEC-004 治理更新 | 架构师更换为 Notion AI；历史裁定与回证有效；规格版本升为 0.4 | Owner |
 
 ---
 

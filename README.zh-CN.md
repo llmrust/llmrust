@@ -47,7 +47,7 @@ llmrust 会把 token 的对数概率——包括每个位置的 top-N 候选—�
 
 ### 3. 精简、正确、类型安全的核心
 
-`default = []` — 不主动启用任何可选项，依赖树保持精简，范围刻意收敛（不做向量库 / agent 框架等臃肿功能）。你获得的是 Anthropic 和 Gemini 的原生协议支持（而不只是 OpenAI 兼容的套壳）、OpenAI 兼容后端和 Ollama 的跨服务商 embeddings、完整的编译期类型安全、从不记录密钥或 prompt 内容的结构化 `tracing`，以及内置的重试 + router failover。当你需要的是一个干净、可预测的多服务商调用层，而不是一个重型框架时，这正是 llmrust 填补的位置。
+`default = []` — 不主动启用任何可选项，依赖树保持精简，范围刻意收敛（不做向量库 / agent 框架等臃肿功能）。你获得的是 Anthropic 和 Gemini 的原生协议支持（而不只是 OpenAI 兼容的套壳）、OpenAI 兼容后端和 Ollama 的跨服务商 embeddings、完整的编译期类型安全、从不记录密钥或 prompt 内容的结构化 `tracing`，以及内置的重试 + router failover，且 round-robin **按 group 隔离**（每个 group 的轮转独立——一个 group 的流量不会改变另一个 group 的起点）。当你需要的是一个干净、可预测的多服务商调用层，而不是一个重型框架时，这正是 llmrust 填补的位置。
 
 > **客观的范围说明：** llmrust 还很年轻。如果你现在需要最广的服务商目录，或者一个开箱即用的 agent / RAG 框架，`genai` 或 `rig` 可能更合适。llmrust 压注的是上面三个领域。
 
@@ -61,7 +61,7 @@ llmrust 会把 token 的对数概率——包括每个位置的 top-N 候选—�
 - **归一化 logprobs** — 在 OpenAI 兼容服务商和 Gemini 之间统一的 token 对数概率
 - **类型安全** — 基于 serde 和 thiserror 的完整编译期保证
 - **高性能** — 基于 reqwest + tokio 构建，极低开销
-- **零运行时依赖** — 单一二进制，无需 Python/Node
+- **无需外部运行时** — 原生 Rust 库，单一静态二进制交付，无需 Python/Node 解释器。可选能力（如内置 proxy）经 Cargo feature 门控，不增加默认运行时开销。
 
 ## 安装
 

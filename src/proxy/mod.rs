@@ -413,10 +413,12 @@ pub fn router(llm: Arc<LmrsClient>) -> Router {
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
         .route("/v1/embeddings", post(handle_embeddings))
         .route("/health", get(health_check))
-        // PRX-005: the handlers enforce the protocol-shaped 413 limit on the
-        // raw body; disable axum's default (plain-text 413) so the handlers
-        // own the limit path.
-        .layer(DefaultBodyLimit::max(usize::MAX))
+        // PRX-005: read-time hard limit = memory protection. NEVER set this
+        // to usize::MAX — an oversized body must be truncated DURING reading,
+        // not read fully then rejected. The from_fn layer below converts the
+        // resulting 413 into a protocol-shaped JSON body.
+        .layer(DefaultBodyLimit::max(proxy_max_body_bytes()))
+        .layer(from_fn(map_body_limit_response))
         .with_state(state)
 }
 
@@ -443,19 +445,37 @@ pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router 
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
         .route("/v1/embeddings", post(handle_embeddings))
-        // PRX-005: disable axum's default body limit — the handlers enforce
-        // the protocol-shaped 413 limit on the raw body.
-        .layer(DefaultBodyLimit::max(usize::MAX))
-        .with_state(state)
+        // PRX-005: read-time hard limit = memory protection. NEVER set this
+        // to usize::MAX — an oversized body must be truncated DURING reading.
+        // The map_body_limit layer (mounted outermost) converts the resulting
+        // 413 into a protocol-shaped JSON body.
+        .layer(DefaultBodyLimit::max(proxy_max_body_bytes()))
         .layer(from_fn(move |req, next| {
             let expected = token.clone();
             check_bearer(expected, req, next)
-        }));
+        }))
+        .layer(from_fn(map_body_limit_response))
+        .with_state(state);
     // SPCC §7.2: `/health` needs no authentication — register it AFTER the
     // auth layer so the middleware does not cover it (axum layers only apply
     // to routes registered before the layer call).
     router = router.route("/health", get(health_check));
     router
+}
+
+/// PRX-005: convert axum's default plain-text 413 (from DefaultBodyLimit)
+/// into a protocol-shaped JSON error body. `GET /health` is not covered by the
+/// body limit in practice, but the middleware is mounted on all routes; only
+/// 413 responses are rewritten, keyed by path so `/v1/messages` gets the
+/// Anthropic shape.
+async fn map_body_limit_response(req: Request<axum::body::Body>, next: Next) -> Response {
+    let path = req.uri().path().to_string();
+    let resp = next.run(req).await;
+    if resp.status() == StatusCode::PAYLOAD_TOO_LARGE {
+        let anthropic_shape = path == "/v1/messages";
+        return body_too_large_response(anthropic_shape);
+    }
+    resp
 }
 
 /// Bearer-token middleware. Returns 401 if the `Authorization` header is
@@ -620,11 +640,6 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
 
 /// Handle POST /v1/chat/completions.
 async fn handle_chat_completions(State(state): State<AppState>, body: String) -> Response {
-    // PRX-005 (SPCC §11.6): reject an oversized request body with a
-    // protocol-shaped 413 BEFORE any parsing/dispatch (zero upstream).
-    if body.len() > proxy_max_body_bytes() {
-        return body_too_large_response(false);
-    }
     // PRX-003 (SPCC §6.1/§7.3): reasoning-intent keys are not expressible on
     // the OpenAI-compatible proxy — reject them with 400 BEFORE any provider
     // dispatch (zero upstream), instead of silently dropping the field.

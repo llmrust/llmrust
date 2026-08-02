@@ -898,11 +898,6 @@ pub fn build_stream_response(
 
 /// Handle POST /v1/messages.
 pub async fn handle_messages(State(state): State<AppState>, body: String) -> Response {
-    // PRX-005 (SPCC §11.6): reject an oversized request body with a
-    // protocol-shaped 413 BEFORE any parsing/dispatch (zero upstream).
-    if body.len() > crate::proxy::proxy_max_body_bytes() {
-        return crate::proxy::body_too_large_response(true);
-    }
     // PRX-004 (SPCC §6.1/§7.3): thinking is not expressible end-to-end on the
     // Anthropic-compatible proxy in 0.1.3 (request path frozen) — reject a
     // `thinking` key with 400 BEFORE any provider dispatch (zero upstream),

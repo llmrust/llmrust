@@ -67,6 +67,8 @@
 
 ## 3. 能力声明草案（CAP-001 前身）
 
+> **已收口**：CAP-001 已按本矩阵逐字回填 `llmrust.capabilities.json` 与 `docs/CAPABILITIES.md`（2026-08-02，fixture 级核验；真实上游 E2E 属 E2E-001）。
+
 | Provider | request | stream | usage(cache/reasoning) | 能力表状态（0.1.3） |
 |---|---|---|---|---|
 | OpenAI | ✅ Mapped | ✅ Mapped（O-1 已实现） | ✅ Mapped | `implemented`（fixture 后），reasoning 仅 stream |

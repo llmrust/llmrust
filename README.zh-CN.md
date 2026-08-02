@@ -126,18 +126,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 支持的服务商
 
-| 服务商 | 模型 | 流式 | 工具调用 | Embeddings | 状态 |
-|---|---|---|---|---|---|
-| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | ✅ | 稳定 |
-| DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | ✅ | 稳定 |
-| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | ✅ | 稳定 |
-| OpenRouter | 通过 OpenRouter 访问任意模型 | ✅ | ✅ | ✅ | 稳定 |
-| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | ✅ | ➖ | 稳定 |
-| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | ✅ | ➖ | 稳定 |
-| Ollama | llama3.2, qwen2.5 等本地模型 | ✅ | ➖ | ✅ | 稳定（对话）|
+| 服务商 | 模型 | 流式 | 工具调用 | Embeddings | Reasoning | 状态 |
+|---|---|---|---|---|---|---|
+| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | ✅ | ✅（流式） | 稳定 |
+| DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | ✅ | ➖ | 稳定 |
+| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | ✅ | ➖ | 稳定 |
+| OpenRouter | 通过 OpenRouter 访问任意模型 | ✅ | ✅ | ✅ | ➖ | 稳定 |
+| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | ✅ | ➖ | ✅（流式） | 稳定 |
+| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | ✅ | ➖ | ✅（流式） | 稳定 |
+| Ollama | llama3.2, qwen2.5 等本地模型 | ✅ | ➖ | ✅ | ➖ | 稳定（对话）|
 
 > **功能支持说明**
 >
+> - **Reasoning** 在流式路径上为 OpenAI（`reasoning_effort`）、Anthropic（`thinking`）、Gemini（`thinkingConfig`）实现映射，增量经 `StreamChunk.thinking` 返回并做 usage 翻译（本地 fixture 级核验，2026-08-02）。非流式 `chat` 与 `stream_collect*` 聚合在存在 reasoning 时返回 `LlmError::Unsupported`（请改用原始 `stream()` 消费）。DeepSeek、Moonshot、OpenRouter、Ollama 在发网前拒绝 reasoning。真实上游 E2E 核验属 E2E-001。
 > - **Embeddings** 支持 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）通过 `/embeddings` 以及 Ollama 通过原生 `/api/embed`。Anthropic 和 Gemini 不支持 embeddings，返回 `LlmError::Unsupported`。这是 provider 级别的 embeddings——不是向量数据库或 RAG pipeline。实际上游模型支持可能不同。
 > - **工具调用 / Function calling** 同时支持 OpenAI 兼容服务商（OpenAI、DeepSeek、Moonshot、OpenRouter）以及 Anthropic、Gemini 的原生工具调用，非流式 `chat` 和流式 `stream` 两条路径都支持（流式工具调用会从分片中重建，并在终止 chunk 的 `StreamChunk.tool_calls` 中返回）。
 > - OpenAI 兼容代理同时接受现代 `tools` / `tool_choice` 和旧版 `functions` / `function_call` 请求字段，并统一转换为 llmrust 的工具模型。

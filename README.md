@@ -131,18 +131,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Supported Providers
 
-| Provider | Models | Streaming | Tool calling | Embeddings | Status |
-|---|---|---|---|---|---|
-| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | ✅ | Stable |
-| DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | ✅ | Stable |
-| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | ✅ | Stable |
-| OpenRouter | any model via OpenRouter | ✅ | ✅ | ✅ | Stable |
-| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | ✅ | ➖ | Stable |
-| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | ✅ | ➖ | Stable |
-| Ollama | llama3.2, qwen2.5, any local model | ✅ | ➖ | ✅ | Stable (chat) |
+| Provider | Models | Streaming | Tool calling | Embeddings | Reasoning | Status |
+|---|---|---|---|---|---|---|
+| OpenAI | gpt-4o, gpt-4o-mini, o1-preview | ✅ | ✅ | ✅ | ✅ (stream) | Stable |
+| DeepSeek | deepseek-chat, deepseek-coder | ✅ | ✅ | ✅ | ➖ | Stable |
+| Moonshot / Kimi | moonshot-v1-8k, kimi-latest | ✅ | ✅ | ✅ | ➖ | Stable |
+| OpenRouter | any model via OpenRouter | ✅ | ✅ | ✅ | ➖ | Stable |
+| Anthropic | claude-3.5-sonnet, claude-3-opus | ✅ | ✅ | ➖ | ✅ (stream) | Stable |
+| Google Gemini | gemini-2.0-flash, gemini-1.5-pro | ✅ | ✅ | ➖ | ✅ (stream) | Stable |
+| Ollama | llama3.2, qwen2.5, any local model | ✅ | ➖ | ✅ | ➖ | Stable (chat) |
 
 > **Feature support notes**
 >
+> - **Reasoning** is mapped on the streaming path for OpenAI (`reasoning_effort`), Anthropic (`thinking`), and Gemini (`thinkingConfig`), surfacing deltas via `StreamChunk.thinking` with usage translation (local-fixture verified 2026-08-02). Non-stream `chat` and the `stream_collect*` aggregates fail with `LlmError::Unsupported` when reasoning is present (consume the raw `stream()` instead). DeepSeek, Moonshot, OpenRouter, and Ollama reject reasoning before any network call. Real upstream E2E verification belongs to E2E-001.
 > - **Embeddings** are supported on OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter) via `/embeddings` and on Ollama via native `/api/embed`. Anthropic and Gemini do not support embeddings and return `LlmError::Unsupported`. This is provider-level embeddings — not a vector database or RAG pipeline. Actual upstream model support may vary.
 > - **Tool calling / function calling** is supported on the OpenAI-compatible providers (OpenAI, DeepSeek, Moonshot, OpenRouter) and natively on Anthropic and Gemini, on both the non-streaming `chat` path and the streaming `stream` path (streamed tool calls are reconstructed and surfaced as `StreamChunk.tool_calls` on the terminal chunk).
 > - The OpenAI-compatible proxy accepts both modern `tools` / `tool_choice` and legacy `functions` / `function_call` request fields, normalizing them to llmrust's unified tool model.

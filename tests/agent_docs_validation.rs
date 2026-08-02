@@ -345,3 +345,111 @@ fn capabilities_json_proxy_lists_embeddings_endpoint() {
         "features.proxy.endpoints must include 'POST /v1/embeddings'"
     );
 }
+
+// ── CAP-001: capability matrix must reflect real implementations ──
+
+/// Reasoning statuses the matrix may truthfully report.
+const REASONING_STATUSES: &[&str] = &["implemented", "unsupported", "model_dependent"];
+
+/// Expected reasoning status per provider — the truthful matrix from
+/// REA-001 §3 (CAP-001). An assertion failure means the capability claim
+/// drifted from the verified implementation, so the negative-test (write a
+/// wrong claim → must fail) is exactly this map being enforced.
+const EXPECTED_REASONING_STATUS: &[(&str, &str)] = &[
+    ("openai", "implemented"),
+    ("anthropic", "implemented"),
+    ("google", "implemented"),
+    ("deepseek", "unsupported"),
+    ("moonshot", "unsupported"),
+    ("openrouter", "unsupported"),
+    ("ollama", "unsupported"),
+];
+
+#[test]
+fn capabilities_json_providers_have_reasoning_matrix() {
+    let text = fs::read_to_string(repo_root().join("llmrust.capabilities.json")).unwrap();
+    let cap: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let providers = cap["providers"]
+        .as_object()
+        .expect("providers must be a JSON object");
+    for (name, entry) in providers {
+        let reasoning = entry
+            .get("reasoning")
+            .unwrap_or_else(|| panic!("provider '{name}' missing reasoning declaration"));
+        let status = reasoning
+            .get("status")
+            .and_then(|s| s.as_str())
+            .unwrap_or_else(|| panic!("provider '{name}' reasoning.status must be a string"));
+        assert!(
+            REASONING_STATUSES.contains(&status),
+            "provider '{name}' reasoning.status '{status}' not in {REASONING_STATUSES:?}"
+        );
+        let expected = EXPECTED_REASONING_STATUS
+            .iter()
+            .find(|(p, _)| *p == name)
+            .map(|(_, s)| *s)
+            .unwrap_or_else(|| panic!("provider '{name}' has no expected reasoning status"));
+        assert_eq!(
+            status, expected,
+            "provider '{name}' reasoning.status must be '{expected}' (REA-001 §3), got '{status}'"
+        );
+    }
+}
+
+#[test]
+fn capabilities_json_providers_have_verified_at() {
+    let text = fs::read_to_string(repo_root().join("llmrust.capabilities.json")).unwrap();
+    let cap: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let providers = cap["providers"]
+        .as_object()
+        .expect("providers must be a JSON object");
+    for (name, entry) in providers {
+        assert!(
+            entry.get("verified_at").is_some(),
+            "provider '{name}' missing verified_at (capability claims must be verified, SPCC §8.2)"
+        );
+    }
+}
+
+#[test]
+fn capabilities_json_no_retry_on_includes_429() {
+    let text = fs::read_to_string(repo_root().join("llmrust.capabilities.json")).unwrap();
+    let cap: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let no_retry = cap["client"]["retry"]["no_retry_on"]
+        .as_array()
+        .expect("client.retry.no_retry_on must be an array");
+    assert!(
+        no_retry
+            .iter()
+            .any(|e| e.as_str().unwrap_or("").to_lowercase().contains("429")),
+        "client.retry.no_retry_on must include 429 (API-003 / E-002 alignment)"
+    );
+}
+
+#[test]
+fn capabilities_md_no_stale_forwarding_claim() {
+    let text = fs::read_to_string(repo_root().join("docs").join("CAPABILITIES.md")).unwrap();
+    assert!(
+        !text.contains("forwards it to no provider"),
+        "CAPABILITIES.md still claims thinking is 'forwards it to no provider' — stale after REA-002/003/004G"
+    );
+    assert!(
+        !text.contains("not transmitted upstream"),
+        "CAPABILITIES.md still claims thinking is 'not transmitted upstream' — stale after REA-002/003/004G"
+    );
+}
+
+#[test]
+fn capabilities_md_ollama_lists_reasoning_unsupported() {
+    let text = fs::read_to_string(repo_root().join("docs").join("CAPABILITIES.md")).unwrap();
+    let ollama_section = text
+        .split("### Ollama")
+        .nth(1)
+        .and_then(|s| s.split("### ").next())
+        .expect("CAPABILITIES.md must have a '### Ollama' section");
+    let lower = ollama_section.to_lowercase();
+    assert!(
+        lower.contains("reasoning"),
+        "Ollama NOT-support section must list reasoning → Unsupported (REA-004O)"
+    );
+}

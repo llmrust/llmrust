@@ -20,8 +20,11 @@ Which features each provider supports, and how they map across providers.
 | **multi-turn** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **custom base URL** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **embeddings** | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ✅ |
+| **reasoning (request + stream + usage)** | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ➖ |
 
 > ✅ for embeddings means llmrust implements an embeddings transport for that provider. OpenAI, DeepSeek, Moonshot, and OpenRouter use OpenAI-compatible `/embeddings`; Ollama uses native `/api/embed`. Actual upstream/local model support may vary.
+
+> **Reasoning semantics**: ✅ for reasoning means llmrust maps the reasoning contract on the **streaming** path (request field + `StreamChunk.thinking` deltas + `thinking_done` + usage mapping), verified by local fixtures (2026-08-02). Non-stream `chat` and the `stream_collect*` aggregates **fail with `LlmError::Unsupported`** for these providers (reasoning cannot be carried losslessly in `ChatResponse` / aggregated text); `➖` providers reject reasoning before any network call. Real upstream E2E verification belongs to E2E-001 (SPCC §8.2, REA-001 §3).
 
 ## Sampling parameter support
 
@@ -46,21 +49,32 @@ Which features each provider supports, and how they map across providers.
 ## Thinking / reasoning control
 
 `ChatRequest.thinking` (type `ThinkingConfig`) and `ChatRequest::with_thinking` were introduced
-in **0.1.2** and formally **adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
-a **request-side contract only**:
+in **0.1.2** and formally **adopted as the 0.1.3 freeze baseline** (adjudication **D7**).
 
-- llmrust **accepts** the `thinking` field on the request (`disabled` / `enabled` with optional
-  `budget_tokens`), but **currently serializes and forwards it to no provider** (tracked as
-  **E-003**). Sending a non-`Disabled` value is accepted at the contract level only and is not
-  transmitted upstream; do **not** assume reasoning output is produced.
-- Response-side thinking/reasoning deltas from upstream models are surfaced via
-  `StreamChunk::thinking` and have been supported since 0.1.2 (Anthropic `thinking_delta`,
-  OpenAI-style `reasoning`, Gemini thought summaries). This is independent of the request-side
-  contract above.
+Request-side reasoning is mapped per provider (REA-002 / REA-003 / REA-004G / REA-004O):
 
-Because the request side has no provider landing, thinking/reasoning is **not** listed in the
-per-provider support matrix above; it is a contract surface, not a capability that any provider
-currently fulfills on the request path.
+- **Anthropic** (`implemented`): `Enabled` → `thinking: {type: "enabled", budget_tokens}` on
+  the wire; `Disabled` → omitted. Streamed `thinking_delta` / `signature_delta` /
+  `redacted_thinking` surface via `StreamChunk.thinking`; cache/reasoning usage is translated.
+- **OpenAI** (`implemented`): `Enabled{budget_tokens: None}` → `reasoning_effort: "medium"` on
+  the streaming path; `budget_tokens: Some(_)` is rejected (no OpenAI equivalent). Streamed
+  `reasoning` / `reasoning_content` map to `StreamChunk.thinking`; `reasoning_tokens` usage is
+  translated.
+- **Gemini** (`implemented`): `Enabled` → `thinkingConfig` on the wire (`thinkingBudget` is
+  optional upstream and omitted losslessly; `includeThoughts` is always requested when enabled).
+  Streamed `thought` parts surface via `StreamChunk.thinking`; `usageMetadata.thoughtsTokenCount`
+  maps to `Usage.reasoning_tokens`.
+- **DeepSeek / Moonshot / OpenRouter** (`unsupported`): no verified official reasoning/cache
+  fields; setting thinking fails with `LlmError::Unsupported` before any network call.
+- **Ollama** (`unsupported`): the wire offers only `options.think` (bool/level) with no lossless
+  mapping for `ThinkingConfig.budget_tokens`; setting thinking fails with `LlmError::Unsupported`
+  before any network call.
+
+Non-stream `chat` and the `stream_collect` / `stream_collect_full` aggregates fail with
+`LlmError::Unsupported` whenever reasoning is present — `ChatResponse` and the aggregate return
+values cannot carry reasoning losslessly (REA-001 §1.4, STR-003); callers must consume the raw
+`stream()` for reasoning streams. Capability status is verified at local-fixture level
+(2026-08-02); real upstream E2E verification belongs to E2E-001.
 
 ## Error normalization
 
@@ -115,6 +129,9 @@ This section exists to help AI agents avoid wasting time on impossible features.
 - No JSON mode (same reason).
 - No `top_p`, `stop`, `seed`, penalties, `n`, or request metadata fields.
 - Image content is flattened to text (local models may not support vision).
+- No reasoning: setting `ChatRequest.thinking` to a non-`Disabled` value fails with
+  `LlmError::Unsupported` before any network call (no lossless wire mapping for
+  `ThinkingConfig.budget_tokens`; REA-004O).
 
 ### Anthropic
 - No `seed`, `presence_penalty`, `frequency_penalty`, `logprobs`, `n`, `service_tier`, `store`, `metadata`, `user`.

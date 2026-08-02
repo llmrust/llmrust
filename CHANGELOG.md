@@ -53,6 +53,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deltas accept both the `reasoning` and `reasoning_content` field names into
   `StreamChunk.thinking`, and usage translation now maps `prompt_tokens_details.cached_tokens`
   → `cache_read_tokens` and `reasoning_tokens` → `reasoning_tokens`. (REA-003, Refs #133)
+- Gemini reasoning is wired on the streaming path (REA-004G): `ChatRequest.thinking`
+  maps to the native `thinkingConfig` (`thinkingBudget` is optional upstream, so a
+  missing budget is omitted losslessly; `includeThoughts` is always requested when
+  enabled), while non-stream `chat` with thinking enabled fails with
+  `LlmError::Unsupported` before any network call. Streamed `thought` parts surface via
+  `StreamChunk.thinking`, the terminal chunk marks `thinking_done = true` at most once,
+  and `usageMetadata.thoughtsTokenCount` maps to `Usage.reasoning_tokens`. (REA-004G,
+  Refs #136)
 - `ThinkingConfig` (enum) and `ChatRequest.thinking` / `ChatRequest::with_thinking` — introduced
   in 0.1.2 and **formally adopted as the 0.1.3 freeze baseline** (adjudication **D7**). This is
   a request-side contract only: no provider implements thinking/reasoning at this time (tracked

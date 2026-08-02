@@ -3216,4 +3216,69 @@ mod tests {
             msg.len()
         );
     }
+
+    /// `LLMRUST_PROXY_MAX_BYTES` must configure the body limit: with a small
+    /// value set, an oversized body is rejected with 413. Currently there is
+    /// no such configuration entry point → RED.
+    #[tokio::test]
+    async fn env_configured_body_limit_returns_413() {
+        std::env::set_var("LLMRUST_PROXY_MAX_BYTES", "1024"); // 1 KiB
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": "y".repeat(2048)}],
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request(&body))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "LLMRUST_PROXY_MAX_BYTES=1024 must reject a >1KiB body with 413"
+        );
+        std::env::remove_var("LLMRUST_PROXY_MAX_BYTES");
+    }
+
+    /// The chunked path's 413 must ALSO be a protocol-shaped JSON error body
+    /// (D3 drift: axum's default chunked 413 is plain text). Currently the
+    /// shape assertion is RED even though the status is 413.
+    #[tokio::test]
+    async fn oversized_chunked_body_returns_protocol_shaped_413() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router(llm);
+
+        let big = "x".repeat(3 * 1024 * 1024);
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": big}],
+        })
+        .to_string();
+        let req = Request::builder()
+            .method("POST")
+            .uri("/v1/chat/completions")
+            .header("content-type", "application/json")
+            .header("transfer-encoding", "chunked")
+            .body(Body::from(body))
+            .expect("failed to build request");
+
+        let response = app
+            .oneshot(req)
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+        let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+        assert_eq!(
+            json["error"]["type"],
+            "invalid_request_error",
+            "chunked 413 must be a protocol-shaped JSON error body, got: {json}"
+        );
+    }
 }

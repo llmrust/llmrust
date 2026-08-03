@@ -41,26 +41,15 @@ jobs:
         with:
           toolchain: 1.97.0
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-
-      - name: Run release pre-flight validator
-        run: ./.github/scripts/release-validate.sh
-
-      # Reuse CI-003 guards: dependency-edge + hotspot ledger.
-      - name: Reuse CI-003 architecture guards
-        run: cargo test --test architecture_guard
-
-      # Reuse CI-003 guard: release package allowlist (no .log / .env* / .secret).
-      - name: Reuse CI-003 package allowlist guard
-        run: cargo test --test package_guard
 
       # gitleaks primary scan (working tree), pinned + sha256-verified binary.
-      # Download hardening (REL-003 incident 2026-08-03): -f fails on HTTP
-      # errors (a 429/5xx body must never be saved as gitleaks.tar.gz), --retry
-      # absorbs transient runner-network failures, and a gzip integrity check
-      # runs before hashing so a corrupt download fails loudly here instead of
-      # surfacing as a confusing checksum mismatch. EXPECTED_SHA256 is the
-      # authoritative value (verified against the official checksums.txt).
+      # Runs BEFORE rust-cache and cargo tests so `target/` does not exist yet —
+      # scanning must cover only the source tree (REL-003 incident 2026-08-03:
+      # a target/ restored from rust-cache would surface examples/ build copies
+      # of placeholder tokens as false leaks). Download hardening: -f fails on
+      # HTTP errors, --retry absorbs transient runner-network failures, gzip -t
+      # fails loudly on a corrupt download. EXPECTED_SHA256 is the authoritative
+      # value (verified against the official checksums.txt).
       - name: gitleaks secret scan (working tree)
         run: |
           GV=8.21.2
@@ -85,6 +74,19 @@ jobs:
           fi
           tar -xzf gitleaks.tar.gz gitleaks
           ./gitleaks detect --source . --no-git --redact --config .gitleaks.toml
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Run release pre-flight validator
+        run: ./.github/scripts/release-validate.sh
+
+      # Reuse CI-003 guards: dependency-edge + hotspot ledger.
+      - name: Reuse CI-003 architecture guards
+        run: cargo test --test architecture_guard
+
+      # Reuse CI-003 guard: release package allowlist (no .log / .env* / .secret).
+      - name: Reuse CI-003 package allowlist guard
+        run: cargo test --test package_guard
 
   dry-run:
     name: Package + dry-run (no upload) + post-extract scan + provenance sample

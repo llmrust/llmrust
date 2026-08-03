@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Provider smoke matrix (E2E-001): a low-budget end-to-end harness
+  (`examples/e2e_smoke.rs`, env-gated by `LLMRUST_E2E=1`) plus a manual/weekly
+  GitHub Actions workflow (`.github/workflows/e2e-smoke.yml`) that calls each of
+  the 7 providers at its cheapest tier to surface upstream protocol drift that
+  local fixtures cannot cover. See `docs/E2E-SMOKE.md` for operator setup.
 - API freeze gate (Track ① of API-002): a `cargo-semver-checks` CI job comparing the
   public API against the `0.1.2` crates.io baseline. Proxy DTOs are exempt from this
   gate — they are classified `UNSTABLE` and feature-gated, so they are not compiled into

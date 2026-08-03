@@ -23,6 +23,7 @@ Some examples require API keys. Check the source for `std::env::var` calls to se
 | `router` | Multi-deployment routing with fallback and round-robin load balancing via `Router` | Yes (OPENAI_API_KEY + ANTHROPIC_API_KEY) |
 | `e2e_openai_compat` | End-to-end checks against a live OpenAI-compatible endpoint (chat, stream, tools, multi-turn, image) | Yes (E2E_API_KEY + E2E_BASE_URL + E2E_MODEL) |
 | `e2e_anthropic_compat` | End-to-end checks against a live Anthropic endpoint (chat, stream, image, streaming tool calls) | Yes (E2E_API_KEY + E2E_BASE_URL + E2E_MODEL) |
+| `e2e_smoke` | Low-budget provider smoke matrix across all 7 providers (chat + embeddings subset) — env-gated by `LLMRUST_E2E=1`; unset keys `skipped` (not fail). See `docs/E2E-SMOKE.md` | Yes (per-provider keys; `LLMRUST_E2E=1`) |
 
 ## Quick run
 

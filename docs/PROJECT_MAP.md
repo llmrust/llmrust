@@ -36,6 +36,7 @@ llmrust/
 │   ├── PROJECT_MAP.md      # This file
 │   ├── CAPABILITIES.md     # Per-provider feature matrix
 │   ├── CONTRACTS.md        # Semantic contracts
+│   ├── E2E-SMOKE.md        # Provider smoke matrix: operator + secret setup guide (E2E-001)
 │   └── architecture/       # Decomposition plans — 0.1.4+ candidate plans, NOT yet implemented
 │       ├── PROXY-DECOMPOSITION.md  # Proxy hot-spot split plan (future work, not applied)
 │       └── CORE-DECOMPOSITION.md   # Core hot-spot split plan (future work, not applied)

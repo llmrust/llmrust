@@ -86,3 +86,7 @@ path = "examples/e2e_openai_compat.rs"
 [[example]]
 name = "e2e_anthropic_compat"
 path = "examples/e2e_anthropic_compat.rs"
+
+[[example]]
+name = "e2e_smoke"
+path = "examples/e2e_smoke.rs"

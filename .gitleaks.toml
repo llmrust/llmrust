@@ -4,6 +4,12 @@
 # the green run does not trip on documented/example tokens. Real secrets in src/
 # are still scanned. The synthetic negative fixture lives under security/_neg/
 # (NOT allowlisted) and is reverted before merge.
+#
+# Allowlist policy (REL-003 incident 2026-08-03): exemptions are EXACT token
+# shapes via `regexes`, never directory-wide `paths` exemptions — a directory
+# exemption would let a real secret accidentally dropped into that directory
+# pass the gate. The previous `paths = [docs/.*, examples/.*, tests/.*]` was
+# removed for this reason.
 
 title = "llmrust gitleaks config"
 
@@ -11,15 +17,17 @@ title = "llmrust gitleaks config"
 useDefault = true
 
 [allowlist]
-# Paths that are allowed to contain example/placeholder tokens (never real secrets).
-paths = [
-  '''.*\.md$''',
-  '''docs/.*''',
-  '''examples/.*''',
-  '''tests/.*''',
-]
-# Allowlist of example/placeholder strings that are safe and must not fail the gate.
+# Allowlist of exact example/placeholder strings that are safe and must not
+# fail the gate. These match ONLY the literal placeholder tokens in the repo —
+# a real key shape anywhere (including examples/tests/docs) is still caught.
 regexes = [
   # AWS published example access key — documented, never a real credential.
-  '''AKIAIOSFODNN7EXAMPLE''',
+  "AKIAIOSFODNN7EXAMPLE",
+  # Placeholder bearer token in examples/proxy_server.rs doc comments (curl
+  # usage examples). Exact literal "dev-secret"; a real token is not exempted.
+  "dev-secret",
+  # Placeholder secret in examples/e2e_smoke.rs test stub.
+  "sk-e2e-test-secret-0123456789abcdef",
+  # Placeholder shared secret in README / README.zh-CN.md proxy curl examples.
+  "some-shared-secret",
 ]

@@ -43,17 +43,20 @@ jobs:
           components: rustfmt, clippy
 
       # gitleaks primary scan (working tree), pinned + sha256-verified binary.
-      # Runs BEFORE rust-cache and cargo tests so `target/` does not exist yet —
-      # scanning must cover only the source tree (REL-003 incident 2026-08-03:
-      # a target/ restored from rust-cache would surface examples/ build copies
-      # of placeholder tokens as false leaks). Download hardening: -f fails on
-      # HTTP errors, --retry absorbs transient runner-network failures, gzip -t
-      # fails loudly on a corrupt download. EXPECTED_SHA256 is the authoritative
-      # value (verified against the official checksums.txt).
+      # Runs BEFORE rust-cache, cargo tests, and the clean-tree validator so
+      # `target/` does not exist yet — scanning must cover only the source tree
+      # (REL-003 incident 2026-08-03: a target/ restored from rust-cache would
+      # surface examples/ build copies of placeholder tokens as false leaks).
+      # The binary downloads into $RUNNER_TEMP so the working tree stays clean
+      # (release-validate.sh's dirty-tree gate must not see our artifacts).
+      # Download hardening: -f fails on HTTP errors, --retry absorbs transient
+      # runner-network failures, gzip -t fails loudly on a corrupt download.
+      # EXPECTED_SHA256 is the authoritative value (official checksums.txt).
       - name: gitleaks secret scan (working tree)
         run: |
           GV=8.21.2
           EXPECTED_SHA256=5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+          cd "$RUNNER_TEMP"
           curl -fsSL --retry 5 --retry-all-errors --retry-connrefused --retry-delay 2 \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GV}/gitleaks_${GV}_linux_x64.tar.gz" -o gitleaks.tar.gz
           if ! gzip -t gitleaks.tar.gz; then
@@ -73,7 +76,8 @@ jobs:
             exit 1
           fi
           tar -xzf gitleaks.tar.gz gitleaks
-          ./gitleaks detect --source . --no-git --redact --config .gitleaks.toml
+          cd - >/dev/null
+          "$RUNNER_TEMP/gitleaks" detect --source . --no-git --redact --config .gitleaks.toml
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
@@ -134,7 +138,9 @@ jobs:
           GV=8.21.2
           EXPECTED_SHA256=5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
           # Download hardening (REL-003 incident 2026-08-03): same -f/--retry +
-          # gzip sanity as the validate job's primary scan.
+          # gzip sanity as the validate job's primary scan. Binary downloads to
+          # $RUNNER_TEMP so the working tree stays clean.
+          cd "$RUNNER_TEMP"
           curl -fsSL --retry 5 --retry-all-errors --retry-connrefused --retry-delay 2 \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GV}/gitleaks_${GV}_linux_x64.tar.gz" -o gitleaks.tar.gz
           if ! gzip -t gitleaks.tar.gz; then
@@ -154,7 +160,8 @@ jobs:
             exit 1
           fi
           tar -xzf gitleaks.tar.gz gitleaks
-          ./gitleaks detect --source extract --no-git --redact --config .gitleaks.toml
+          cd - >/dev/null
+          "$RUNNER_TEMP/gitleaks" detect --source extract --no-git --redact --config .gitleaks.toml
 
       - name: Publish-freeze reminder
         run: echo "::notice::This is a DRY RUN. No artifact was uploaded. Actual publish requires Owner approval (SPCC §3.3)."

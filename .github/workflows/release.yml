@@ -137,3 +137,43 @@ jobs:
         run: cargo fmt --all --check
       - name: cargo clippy (all targets, all features, -D warnings)
         run: cargo clippy --all-targets --all-features -- -D warnings
+
+  publish:
+    name: Publish to crates.io (Trusted Publishing)
+    # REL-003A (Issue #191): real-upload channel. Runs only after BOTH the
+    # dry-run gate (needs validate, transitively the four-gate pre-flight) AND
+    # the fmt/clippy gate have passed — a red quality gate must never block the
+    # upload from being reached (architect MUST-1). Publishing identity is the
+    # short-lived OIDC token from rust-lang/crates-io-auth-action (crates.io
+    # Trusted Publishing), never a stored long-lived API token (0.1.2 lesson).
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [dry-run, guards-fmt-clippy]
+    environment: release
+    permissions:
+      id-token: write          # OIDC token exchange required (job level)
+      contents: read           # actions/checkout requires read; job-level permissions replaces the workflow-level block
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.ref }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.97.0
+      - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5 (pinned SHA per §9.1)
+        id: auth
+      - name: cargo publish
+        run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+      - name: Verify crate visible on crates.io (bounded poll)
+        run: |
+          VER="${GITHUB_REF#refs/tags/v}"
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              "https://crates.io/api/v1/crates/llmrust/${VER}" || true)
+            [ "$STATUS" = "200" ] && { echo "::notice::crate ${VER} visible on crates.io (poll ${i})"; exit 0; }
+            sleep 10
+          done
+          echo "::error::crate ${VER} not visible on crates.io after 300s"
+          exit 1

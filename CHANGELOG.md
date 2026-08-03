@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Publishing channel (REL-003A): the tag-only release pipeline now carries a
+  real-upload `publish` job using crates.io **Trusted Publishing (OIDC)**
+  (`rust-lang/crates-io-auth-action`, pinned SHA) — a short-lived publishing
+  identity instead of a stored long-lived API token. The pre-flight four gates
+  and the fmt/clippy gate must both pass before any upload; crates.io visibility
+  is verified by a bounded poll. The channel is armed but **not** fired by this
+  change — the first real upload happens on the `v0.1.3` tag (REL-003).
 - Provider smoke matrix (E2E-001): a low-budget end-to-end harness
   (`examples/e2e_smoke.rs`, env-gated by `LLMRUST_E2E=1`) plus a manual/weekly
   GitHub Actions workflow (`.github/workflows/e2e-smoke.yml`) that calls each of

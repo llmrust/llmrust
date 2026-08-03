@@ -11,7 +11,7 @@
 
 本文件是 llmrust 0.1.3 的已批准项目级 SPCC。`SPEC-000` 合入仓库后，它成为仓库内的单一事实源（SSOT）。在入库前只允许执行无代码分支的 Incident 任务；不得创建业务实现分支或编写业务代码。
 
-本文同时约束人类与 AI agent。任何参与者都不得以“自动生成”“只是重构”“顺手修复”“先让 CI 绿”为理由绕过任务边界。
+本文同时约束人类与 AI agent。任何参与者都不得以"自动生成""只是重构""顺手修复""先让 CI 绿"为理由绕过任务边界。
 
 ## 0.5 规格勘误表
 
@@ -53,7 +53,7 @@
 
 母规范与本规格冲突时，以本规格的项目化选择为准并显式注明；母规范中本规格原先未覆盖的程序性规则（设计小样、守恒清单、文档失实定级等）自 SPEC-002 起生效，落地条款见 §10.1 与 §13。
 
-“代码现在就是这样”不构成保留错误行为的理由。发现上层与下层事实冲突时立即熔断，由架构师提出规格勘误或实现修复，不允许执行者自行选择解释。
+"代码现在就是这样"不构成保留错误行为的理由。发现上层与下层事实冲突时立即熔断，由架构师提出规格勘误或实现修复，不允许执行者自行选择解释。
 
 外部供应商协议以对应供应商的官方版本化文档和真实响应证据为准。引用外部协议的任务必须记录核验日期；不得凭记忆实现。
 
@@ -114,7 +114,7 @@ llmrust 是一个以 Rust 为核心的统一 LLM SDK，并可选提供 OpenAI/An
 - 以性能为目的的大规模重写或更换 HTTP/异步运行时；
 - 扩大代理为完整生产网关（计费、租户、数据库、复杂限流等）；
 - 未直接服务于本规格的依赖升级或代码美化；
-- 为追求目录“像某个标杆项目”而机械搬迁代码。
+- 为追求目录"像某个标杆项目"而机械搬迁代码。
 
 发现非目标需求时，记录到 0.3+ 候选清单，不得夹入整改 PR。
 
@@ -140,11 +140,11 @@ llmrust 是一个以 Rust 为核心的统一 LLM SDK，并可选提供 OpenAI/An
 
 本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限。**2026-07-24 角色更换（SPEC-001，Owner 批准）**：前任架构师 Codex 的计划代理失效，Owner 指定 Kimi 接任唯一架构师，CodeBuddy 接任唯一执行者；历史任务（`INC-001`、`INC-002`、`SPEC-000`、`CI-001`）中 Codex/Grok 的裁定与回证继续有效，不回溯改写。自生效时起：Kimi 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 负责 Kimi 下发的产品代码、配置、测试和实现文档任务。Kimi 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Kimi 负责把决定写入本表并记录生效时间。**2026-08-02 角色更换（SPEC-004，Owner 指令）**：Kimi 卸任，Owner 指定 Notion AI 接任唯一架构师；历史任务中 Kimi 的裁定与回证继续有效，不回溯改写。自生效时起：Notion AI 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 继续担任唯一执行者。Notion AI 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。后续角色更换由 Owner 决定方向，Notion AI 负责把决定写入本表并记录生效时间。
 
-Owner 不填写技术审计模板、不运行技术命令、不解释 scanner/CI/依赖/API 细节，也不在多个实现方案之间代替架构师作技术选择。执行者负责产出技术证据，架构师负责把证据裁定为 PASS/BLOCKED/REJECT，并向 Owner 只汇报：结果、用户/业务影响、剩余风险和明确建议。只有方向、范围、发布时间、成本或风险接受发生实质变化时，才请求 Owner 裁决；请求必须使用非技术语言解释“这是什么、为什么需要决定、各选项后果、架构师建议”。
+Owner 不填写技术审计模板、不运行技术命令、不解释 scanner/CI/依赖/API 细节，也不在多个实现方案之间代替架构师作技术选择。执行者负责产出技术证据，架构师负责把证据裁定为 PASS/BLOCKED/REJECT，并向 Owner 只汇报：结果、用户/业务影响、剩余风险和明确建议。只有方向、范围、发布时间、成本或风险接受发生实质变化时，才请求 Owner 裁决；请求必须使用非技术语言解释"这是什么、为什么需要决定、各选项后果、架构师建议"。
 
 ### 2.2 安全事故 Break-glass
 
-凭证撤销、账户冻结和阻止正在发生的未授权发布不受“先建 Issue/PR”限制，因为这些动作不修改仓库代码且延迟会扩大损害。
+凭证撤销、账户冻结和阻止正在发生的未授权发布不受"先建 Issue/PR"限制，因为这些动作不修改仓库代码且延迟会扩大损害。
 
 Break-glass 规则：
 
@@ -183,7 +183,7 @@ Break-glass 规则：
 | 0.1.2 可追溯性 | 发布自 dirty 工作区；GitHub 无对应 `v0.1.2` tag |
 | 安全事件 | 0.1.2 包含不应发布的日志，日志中出现 crates.io 发布凭证；本规格不复述凭证 |
 | API 状态 | 0.1.2 对 `Usage`、`StreamChunk` 做了 patch 级源码破坏性变更 |
-| 功能状态 | reasoning/cache 只部分落地，存在“公开 API 看似支持、Provider 实际忽略”的路径 |
+| 功能状态 | reasoning/cache 只部分落地，存在"公开 API 看似支持、Provider 实际忽略"的路径 |
 | CI 状态 | 编译、测试、Clippy、rustdoc、fmt、dry-run、MSRV 已存在；缺安全、semver、secret、package 完整性和 tag-only release 门禁 |
 
 基线证据：
@@ -281,7 +281,7 @@ Phase 0 必须加入可证伪的架构测试，至少覆盖：
 
 ### 5.1 基本规则
 
-0.1.3 是恢复性 patch release，**不允许新增任何有意的 Rust 源码破坏或序列化形状破坏**。0.1.2 已经造成的兼容性问题作为事故事实单独记录，但不得在 0.1.3 中继续扩大。安全默认值、错误处理和“静默成功改为明确失败”等纠偏行为，只能限于本规格已列明的问题并在 CHANGELOG 中突出说明。需要重新设计公开类型的工作推迟到未来经 Owner 单独批准的版本。
+0.1.3 是恢复性 patch release，**不允许新增任何有意的 Rust 源码破坏或序列化形状破坏**。0.1.2 已经造成的兼容性问题作为事故事实单独记录，但不得在 0.1.3 中继续扩大。安全默认值、错误处理和"静默成功改为明确失败"等纠偏行为，只能限于本规格已列明的问题并在 CHANGELOG 中突出说明。需要重新设计公开类型的工作推迟到未来经 Owner 单独批准的版本。
 
 以下均属于公开契约变更：
 
@@ -295,7 +295,7 @@ Phase 0 必须加入可证伪的架构测试，至少覆盖：
 
 ### 5.2 Rust 特有红线
 
-- 给可穷尽公开 struct 新增字段是源码破坏，不得称为“additive 零破坏”；
+- 给可穷尽公开 struct 新增字段是源码破坏，不得称为"additive 零破坏"；
 - 给可穷尽 enum 新增 variant 可能破坏下游 `match`；
 - 给 public trait 新增无默认实现的方法是破坏性变更；
 - `#[serde(default)]` 只能改善部分反序列化兼容性，不代表 Rust API 或所有 JSON 消费者兼容；
@@ -314,7 +314,7 @@ Phase 0 必须加入可证伪的架构测试，至少覆盖：
 - `Provider` trait 的变更必须同时验证所有原生 Provider、OpenAI-compatible 包装器和 `RetryProvider`；
 - proxy DTO 是否属于承诺的 Rust API 必须明确；不承诺时应缩小可见性，承诺时纳入 semver 检查。
 
-0.1.3 新增 `COMPATIBILITY-0.1.3.md`，说明 0.1.1、受污染的 0.1.2 与干净 0.1.3 的关系，并明确“0.1.3 不要求新的源码迁移”。若实际出现必须迁移的变化，任务立即熔断并回到 Owner，而不是补写迁移文档把破坏合理化。
+0.1.3 新增 `COMPATIBILITY-0.1.3.md`，说明 0.1.1、受污染的 0.1.2 与干净 0.1.3 的关系，并明确"0.1.3 不要求新的源码迁移"。若实际出现必须迁移的变化，任务立即熔断并回到 Owner，而不是补写迁移文档把破坏合理化。
 
 ### 5.4 Semver 门禁
 
@@ -322,7 +322,7 @@ Phase 0 必须加入可证伪的架构测试，至少覆盖：
 - 相对 0.1.2 不允许新增破坏；相对 0.1.1 的既有差异只记录为继承事故，不得继续扩大；
 - `SPEC-000` 合入即冻结 public API；任何新增破坏必须回到 Owner，并默认移出 0.1.3；
 - 0.1.3 发布后：CI 以 0.1.3 为 baseline 运行 `cargo-semver-checks`，失败即阻断；
-- patch 版本不得包含工具判定的 major/minor 级破坏；不得以“CI 其他项全绿”覆盖 semver 红灯。
+- patch 版本不得包含工具判定的 major/minor 级破坏；不得以"CI 其他项全绿"覆盖 semver 红灯。
 
 ---
 
@@ -348,7 +348,7 @@ Phase 0 必须加入可证伪的架构测试，至少覆盖：
 - `unsupported`：主动返回 Unsupported；
 - `passthrough_only`：仅可通过显式 `extra` 使用，不算一等支持。
 
-README 中的 ✅ 只能用于 `implemented=true`；“已支持”不得仅凭字段存在、Serde 能解析或上游理论支持。
+README 中的 ✅ 只能用于 `implemented=true`；"已支持"不得仅凭字段存在、Serde 能解析或上游理论支持。
 
 ### 6.3 Reasoning/Thinking 契约
 
@@ -484,7 +484,7 @@ START -> CONTENT/REASONING/TOOL (0..N) -> TERMINAL (恰好 1 次) -> CLOSED
 - Retry 策略、Provider 字段支持、reasoning 和 embeddings 声明必须由测试验证；
 - 人类表格与机器 JSON 至少有一条自动一致性检查；
 - 能力声明包含 `implemented`、`verified_at`、`model_dependent` 和说明，不再用单一布尔值掩盖条件支持；
-- 0.1.3 发布前不得存在“代码未映射但能力表写支持”的条目。
+- 0.1.3 发布前不得存在"代码未映射但能力表写支持"的条目。
 
 ### 8.3 日志红线
 
@@ -605,7 +605,7 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 - 手写 diff 目标不超过 400 行；
 - 401–800 行必须在开工前提交拆分说明并获架构师批准；
 - 超过 800 行默认 REJECT，自动生成物、golden fixtures 或机械迁移必须单独说明；
-- 已超过 800 行的生产文件不准增加新职责；触碰时生产代码净行数原则上不得增长，除非任务明确以“先测试后拆分”的短期步骤授权；
+- 已超过 800 行的生产文件不准增加新职责；触碰时生产代码净行数原则上不得增长，除非任务明确以"先测试后拆分"的短期步骤授权；
 - 临时桥、re-export、TODO、lint allow 必须关联拆除任务与截止阶段。
 
 ### 10.4 PR 必填内容
@@ -699,7 +699,7 @@ flowchart TD
 
 #### 11.1.3 任务状态登记表
 
-本表是任务当前状态的唯一主干记录。下方任务卡中的“初始状态”只描述本草案建立时的起点，不参与后续状态判断。
+本表是任务当前状态的唯一主干记录。下方任务卡中的"初始状态"只描述本草案建立时的起点，不参与后续状态判断。
 
 | ID | Milestone | 状态 | 前置 | Issue | 实现 PR | Merge SHA | 状态 PR |
 |---|---|---|---|---|---|---|---|
@@ -729,7 +729,7 @@ flowchart TD
 | `STR-003` | M2 | `DONE` | `REA-002`,`REA-003`,`REA-004G`,`REA-004O` | [#144](https://github.com/llmrust/llmrust/issues/144) | [#145](https://github.com/llmrust/llmrust/pull/145) | `3ed23c3923961efdffed9283e3759964f2968ad8` | STATE-STR-003（本 PR） |
 | `CAP-001` | M2 | `DONE` | `STR-003` | [#147](https://github.com/llmrust/llmrust/issues/147) | [#148](https://github.com/llmrust/llmrust/pull/148) | `62a867ae5911a52aa179181896f0f8fb9599beda` | STATE-CAP-001（本 PR） |
 | `PRX-001` | M3 | `DONE` | M2 DONE | [#150](https://github.com/llmrust/llmrust/issues/150) | [#152](https://github.com/llmrust/llmrust/pull/152) | `7776d9cdd8f77a61abddddef37c95b6f075eefaf` | STATE-PRX-001（本 PR） |
-| `PRX-002` | M3 | `DONE` | `PRX-001` | [#154](https://github.com/llmrust/llmrust/issues/154) | [#155](https://github.com/llmrust/llmrust/pull/155) | `f8ebf7582f1b7dadc02ebf1d873c3bf594b12c00` | STATE-PRX-002（本 PR） |
+| `PRX-002` | M3 | `DONE` | `PRX-001` | [#154](https://github.com/llmrust/llmrust/issues/154) | [PR #155](https://github.com/llmrust/llmrust/pull/155) | `f8ebf7582f1b7dadc02ebf1d873c3bf594b12c00` | STATE-PRX-002（本 PR） |
 | `PRX-003` | M3 | `DONE` | `STR-003`,`REA-003` | [#157](https://github.com/llmrust/llmrust/issues/157) | [#158](https://github.com/llmrust/llmrust/pull/158) | `aff47ecc8033389d012ffa667cbb3cbd750e6fd1` | STATE-PRX-003（本 PR） |
 | `PRX-004` | M3 | `DONE` | `STR-003`,`REA-002` | [#160](https://github.com/llmrust/llmrust/issues/160) | [#161](https://github.com/llmrust/llmrust/pull/161) | `96d45ff5cc40b2444aebb61db3736c3fce96bf37` | STATE-PRX-004（本 PR） |
 | `PRX-005` | M3 | `DONE` | `PRX-002`,`PRX-003`,`PRX-004` | [#163](https://github.com/llmrust/llmrust/issues/163) | [#164](https://github.com/llmrust/llmrust/pull/164) | `fd2ee1aea0fe8beaced220c6f97dc2c87f1c07eb` | STATE-PRX-005（本 PR） |
@@ -778,4 +778,4 @@ flowchart TD
 | `PRX-002` | [#154](https://github.com/llmrust/llmrust/issues/154) | [PR #155](https://github.com/llmrust/llmrust/pull/155)（/health 豁免认证：`/health` 在 auth 层之后注册（方案 A）；自造 `constant_time_eq` 删除、`subtle::ConstantTimeEq` 替换（架构师预批唯一新依赖边，optional + proxy feature，cargo-deny 通过）；空白/空 token 双层拒绝（构造 panic + serve() 启动 io error，有效 key trim 后使用——footgun 修复记档）；README 双语 + SECURITY.md + CHANGELOG 同步；proxy/mod.rs 台账 2671→2875 写实际值） | 设计依据回证前置（#154 comment 5158114483，开工前）；失败先行红→绿（`3a6181c` 红 5 靶 → `82ddb25` 绿 6/6 + 267 lib 零回归）；CI run `30750361171`/`30750361162` 七项全绿（head `82ddb25`）；预算偏差一笔追认（红测试 193>140：timeout 基建 + token 矩阵，总上限 220→300、实测 285，不设先例）；生产净 +11 核准（三项授权改动无赘肉）；方案 A 权威挂载顺序澄清在案（评论示意图不构成实现依据） | `f8ebf7582f1b7dadc02ebf1d873c3bf594b12c00`（2026-08-02） | STATE-PRX-002（本 PR） | M3 2/5（40%） | `DONE` — Notion AI（架构师） |
 | `PRX-003` | [#157](https://github.com/llmrust/llmrust/issues/157) | [PR #158](https://github.com/llmrust/llmrust/pull/158)（reasoning 请求边界拒绝：handler 原始 body → `serde_json::Value` 预解析，顶层含 `reasoning_effort`/`reasoning`/`thinking` 任一键 → 400 `invalid_request_error` 零上行，未命中照常反序列化；JSON 语法错误路径经共享 `invalid_json_response` 辅助保持既有语义；reasoning 增量守卫：非空 `thinking` 或 `thinking_done == Some(true)` → 恰好一个 `stream_error` 事件后 `[DONE]`，与错误臂同构；CONTRACTS 第 11 条 + README 双语 + CHANGELOG 同步；proxy/mod.rs 台账 2875→3097 写实际值） | 设计依据回证前置（#157 comment 5158422082，开工前）；失败先行红→绿（`2e0913b` 红 5 靶 → `98c7041` 绿 6/6 + 273 lib 零回归，13 既有 stream 测试零修改零回归）；CI run `30751894979`/`30751894948` 七项全绿（head `98c7041`）；预算偏差一笔追认（总上限 250→275、实测 266：文档+台账 45 vs 预估 20，DoD 文档一致性强制内容，不设先例）；SHOULD-1（chat completions content-type 415→400 放宽）架构师裁接受记档；台账 3097 经 hunk 数学独立验算闭合（2875+55+167） | `aff47ecc8033389d012ffa667cbb3cbd750e6fd1`（2026-08-02） | STATE-PRX-003（本 PR） | M3 3/5（60%） | `DONE` — Notion AI（架构师） |
 | `PRX-004` | [#160](https://github.com/llmrust/llmrust/issues/160) | [PR #161](https://github.com/llmrust/llmrust/pull/161)（thinking 块映射：非空 `thinking` → `content_block_start` type `thinking` + `thinking_delta`，`thinking_done`/转段/终态先关后开，不发 `signature_delta`（StreamChunk 无 signature，CONTRACTS 声明有损路径）；工具片段重组：`active_tool` 状态机按 id 跟踪，同 id 追加 `input_json_delta` 到同一 index，换 id 先关后开，终态段补关恰好一次；截流错误化：`flush()` 仅产 `event: error`（`api_error`）与 Some(Err) 错误臂同构、不补发块关闭，不再伪造 end_turn；thinking 请求边界拒绝：raw Value 预解析查 `thinking` 键 → 400 Anthropic 形状 `invalid_request_error` 零上行，JSON 语法错误路径经 `invalid_json_body_response` 辅助保持既有语义；CONTRACTS 第 5-8 条 + README 双语 + CHANGELOG 同步；anthropic_proxy.rs 台账 1520→1864 写实际值） | 设计依据回证前置（#160 comment 5158648393，开工前）；失败先行红→绿（`e6d25e6` 红 5 靶 → `1786c04` 绿 5/5 + 278 lib 零回归，9 既有 stream-state 测试零修改零回归）；CI run `30753641765`/`30753641715` 七项全绿（head `1786c04`，执行侧直查回证）；预算裁决 350→≤500（实测 495，§10.3 401-800 档，原子性说明入档，不设先例）；SHOULD-1（malformed-JSON 错误体转 Anthropic 形状，顺带修复 P2-4 两协议不对称）与靶③断言硬化（只数 event: 行避免误计 JSON type）均架构师裁接受记档；评审/合并令经 Owner 聊天中继、PR 无 APPROVE 留痕（与 #158 同型，根治列入 GOV 卡方案）；台账 1864 经 hunk 数学独立验算闭合（1520+142+202） | `96d45ff5cc40b2444aebb61db3736c3fce96bf37`（2026-08-02） | STATE-PRX-004（本 PR） | M3 4/5（80%） | `DONE` — Notion AI（架构师） |
-| `PRX-005` | [#163](https://github.com/llmrust/llmrust/issues/163) | [PR #164](https://github.com/llmrust/llmrust/pull/164)（请求体上限：两 router 挂 `DefaultBodyLimit::max(proxy_max_body_bytes())` 读时硬截断（禁止 `usize::MAX`）+ `map_body_limit_response` 中间件按路径重写协议形状 413（`/v1/messages` → Anthropic 形状），`LLMRUST_PROXY_MAX_BODY_BYTES` env 配置缺省 2 MiB、chunked 同样生效；错误归一：`Parse`→502 `api_error`（非 JSON 固定措辞）、`Http`→502 「upstream connection failed」、message 截断 ≤200 唯一机械规则、不伪造 error type，两协议同修正；SECURITY.md 部署章节（含 vision/base64 大载荷调高 env 指引）+ README 双语 + CONTRACTS 映射表 + CHANGELOG 同步；proxy/mod.rs 台账 3097→3327、anthropic_proxy.rs 1864→1884 写实际值） | 设计依据回证前置（#163 comment 5159073414，开工前）；架构师裁定留痕 
+| `PRX-005` | [#163](https://github.com/llmrust/llmrust/issues/163) | [PR #164](https://github.com/llmrust/llmrust/pull/164)（请求体上限：两 router 挂 `DefaultBodyLimit::max(proxy_max_body_bytes())` 读时硬截断（禁止 `usize::MAX`）+ `map_body_limit_response` 中间件按路径重写协议形状 413（`/v1/messages` → Anthropic 形状），`LLMRUST_PROXY_MAX_BODY_BYTES` env 配置缺省 2 MiB、chunked 同样生效；错误归一：`Parse`→502 `api_error`（非 JSON 固定措辞）、`Http`→502 「upstream connection failed」、message 截断 ≤200 唯一机械规则、不伪造 error type，两协议同修正；SECURITY.md 部署章节（含 vision/base64 大载荷调高 env 指引）+ README 双语 + CONTRACTS 映射表 + CHANGELOG 同步；proxy/mod.rs 台账 3097→3327、anthropic_proxy.rs 1864→1884 写实际值） | 设计依据回证前置（#163 comment 5159073414，开工前）；架构师裁定留痕 #163 comment 5159108131（2 MiB/单一 env/映射表修正 Parse→502 + 截断 ≤200 唯一机械规则/预算 ≤400）；失败先行红→绿（`ccc274a`/`ab2bbff` 红 4 靶 → `a1df02f` 绿 5/5 + 283 lib 零回归）；评审 MUST-FIX-1（usize::MAX 禁

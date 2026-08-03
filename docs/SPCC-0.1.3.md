@@ -1,7 +1,7 @@
 # llmrust SPCC 0.1.3 项目规格
 
 > **文档编号**：`LLMRUST-SPCC-013`  
-> **状态**：`ACTIVE SSOT — M2 DONE（10/10 封板，public API freeze 生效）；M3 DONE（5/5 封板）；M4 DONE（4/4 封板）；M5 ACTIVE（0/4）`  
+> **状态**：`ACTIVE SSOT — M2 DONE（10/10 封板，public API freeze 生效）；M3 DONE（5/5 封板）；M4 DONE（4/4 封板）；M5 ACTIVE（1/4）`  
 > **目标版本**：`llmrust 0.1.3`  
 > **审计基线**：GitHub `main` @ `3d0734ac711de3aadf16331c0f9c21b1634a83a8`  
 > **规格版本**：`0.4`（SPEC-004：角色更换，架构师 Kimi → Notion AI）  
@@ -136,7 +136,7 @@ llmrust 是一个以 Rust 为核心的统一 LLM SDK，并可选提供 OpenAI/An
 |---|---|---|---|---|
 | 事故处置 | llmrust Owner（用户） | Codex | Grok | `DONE` — `INC-001`、`INC-002` 均已通过 |
 | Phase 0–2 | llmrust Owner（用户） | Notion AI | CodeBuddy | `DONE` — M0/M1/M2/M3 均封板 |
-| Phase 3–5 | llmrust Owner（用户） | Notion AI | CodeBuddy | `ACTIVE` — M4 4/4 封板；M5 ACTIVE（0/4）；下一任务 `E2E-001`（READY，待下发） |
+| Phase 3–5 | llmrust Owner（用户） | Notion AI | CodeBuddy | `ACTIVE` — M4 4/4 封板；M5 ACTIVE（1/4）；下一任务 `RC-001`（READY，待下发） |
 
 本轮角色于 2026-07-13 由 Owner 指定，并于 2026-07-14 明确治理写权限。**2026-07-24 角色更换（SPEC-001，Owner 批准）**：前任架构师 Codex 的计划代理失效，Owner 指定 Kimi 接任唯一架构师，CodeBuddy 接任唯一执行者；历史任务（`INC-001`、`INC-002`、`SPEC-000`、`CI-001`）中 Codex/Grok 的裁定与回证继续有效，不回溯改写。自生效时起：Kimi 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 负责 Kimi 下发的产品代码、配置、测试和实现文档任务。Kimi 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。若需更换任一角色，由 Owner 决定方向，Kimi 负责把决定写入本表并记录生效时间。**2026-08-02 角色更换（SPEC-004，Owner 指令）**：Kimi 卸任，Owner 指定 Notion AI 接任唯一架构师；历史任务中 Kimi 的裁定与回证继续有效，不回溯改写。自生效时起：Notion AI 负责 SPCC 的持续更新、任务状态、里程碑、证据账本、规格勘误及对应治理 PR；CodeBuddy 继续担任唯一执行者。Notion AI 不代写自己将要评审的产品实现，CodeBuddy 不修改 SPCC。后续角色更换由 Owner 决定方向，Notion AI 负责把决定写入本表并记录生效时间。
 
@@ -682,7 +682,7 @@ allowlist 变更必须作为独立、可审查 diff；禁止为了让未知文�
 | `0.1.3 / M2 Provider Correctness` | 修复流、reasoning、usage 契约 | 10/10 | 100% | `DONE` | — | 十项任务 DONE，能力声明与 fixture 一致 |
 | `0.1.3 / M3 Proxy Security` | 收紧代理默认安全与 wire 行为 | 5/5 | 100% | `DONE` | — | 五项任务 DONE，安全负例全部通过 |
 | `0.1.3 / M4 Maintainability` | 冻结热点、修正 Router 状态并形成拆分蓝图 | 4/4 | 100% | `DONE` | — | 热点守卫、Router 隔离、拆分设计和文档一致性完成 |
-| `0.1.3 / M5 Release` | 审计并发布干净 0.1.3 | 0/4 | 0% | `ACTIVE` | `E2E-001` | crates.io/docs.rs/GitHub tag 三方一致 |
+| `0.1.3 / M5 Release` | 审计并发布干净 0.1.3 | 1/4 | 25% | `ACTIVE` | `RC-001` | crates.io/docs.rs/GitHub tag 三方一致 |
 
 进度只按 `DONE / 总任务数` 计算，不按代码行、PR 数或主观百分比估算。Milestone 中任何 P0/P1 回归都会把状态改回 `BLOCKED`，即使百分比已经达到 100%。
 
@@ -737,8 +737,8 @@ flowchart TD
 | `ARC-002` | M4 | `DONE` | M3 DONE, `CI-003` | [#170](https://github.com/llmrust/llmrust/issues/170) | [#172](https://github.com/llmrust/llmrust/pull/172) | `7324ea7bbd14977d7367ec7480f3ce27f2b52651` | STATE-ARC-002（本 PR） |
 | `RTR-001` | M4 | `DONE` | M3 DONE, `CI-003` | [#174](https://github.com/llmrust/llmrust/issues/174) | [#175](https://github.com/llmrust/llmrust/pull/175) | `3ee385a75795978c17dd1d1be529156388bc6c71` | STATE-RTR-001（本 PR） |
 | `DOC-002` | M4 | `DONE` | `ARC-001`,`ARC-002`,`RTR-001`,`CAP-001` | [#177](https://github.com/llmrust/llmrust/issues/177) | [#178](https://github.com/llmrust/llmrust/pull/178) | `86d2c9c66029b3e9dc4c33d67d196a6eeba2f7ff` | STATE-DOC-002（本 PR） |
-| `E2E-001` | M5 | `READY` | M4 DONE | — | — | — | — |
-| `RC-001` | M5 | `BLOCKED` | M4 DONE, `E2E-001` | — | — | — | — |
+| `E2E-001` | M5 | `DONE` | M4 DONE | [#181](https://github.com/llmrust/llmrust/issues/181) | [#182](https://github.com/llmrust/llmrust/pull/182) | `75a265086cee0633ccd5bd832efdf6f30759f1e6` | STATE-E2E-001（本 PR） |
+| `RC-001` | M5 | `READY` | M4 DONE, `E2E-001` | — | — | — | — |
 | `REL-002` | M5 | `BLOCKED` | `RC-001` | — | — | — | — |
 | `REL-003` | M5 | `BLOCKED` | `REL-001`,`REL-002` | — | — | — | — |
 
@@ -782,6 +782,7 @@ flowchart TD
 | `ARC-002` | [#170](https://github.com/llmrust/llmrust/issues/170) | [PR #172](https://github.com/llmrust/llmrust/pull/172)（Core 热点拆分推演文档：五文件行区间映射 6445 行全覆盖（3985 生产 + 2460 测试）；API 路径影响表（root/prelude/provider 结构体三层，冻结期零路径变更）；14 步迁移 ≤400/步含回滚点与 golden fixture 前置（§5.0 freeze 锚策略）；14 张未来任务卡严格 1:1 含测试外迁与 RTR-001 边界单列；零生产/测试/台账 diff） | 设计依据 APPROVE（#170 comment 5160113328）；开工熔断处置——anthropic.rs 台账 1484→1483 真相修正（GOV PR #171 架构师专属）+ 执行令算术勘误 6407→6445（#170）；实现首轮 CHANGES（2 MUST + 1 SHOULD，#172 comment 5160153010）全数处置；CI run `30765310250`/`30765310257` 七项全绿（head `cdbabea`）；本地/远端/PR head 三点一致 | `7324ea7bbd14977d7367ec7480f3ce27f2b52651`（2026-08-03） | STATE-ARC-002（本 PR） | M4 2/4（50%） | `DONE` — Notion AI（架构师） |
 | `RTR-001` | [#174](https://github.com/llmrust/llmrust/issues/174) | [PR #175](https://github.com/llmrust/llmrust/pull/175)（Router round-robin 按 group 隔离：counter: AtomicUsize → counters: Mutex<HashMap<String, usize>> 惰性建立、未知组不建计数器；resolve() per-group 读取、锁分离不嵌套、仅 std 无新依赖；失败先行红→绿（2e5120d→341659c）；T-1..T-7 编号化测试；CONTRACTS 条款 9 + CHANGELOG Fixed 登记；台账 851→1080 写实际值） | 设计小样 APPROVE + SHOULD-1 Clone 行口径修正（#174 comment 5160260911）；失败先行红提交回证（#174 comment 5160272374）；实现首轮评审 APPROVE + AUTHORIZE MERGE（#175 comment 5160377932，SHOULD-1 T-6 .clone() 覆盖记档）；CI run `30767248822`/`30767248803` 七项全绿（head `341659c`）；本地/远端/PR head 三点一致 | `3ee385a75795978c17dd1d1be529156388bc6c71`（2026-08-03） | STATE-RTR-001（本 PR） | M4 3/4（75%） | `DONE` — Notion AI（架构师） |
 | `DOC-002` | [#177](https://github.com/llmrust/llmrust/issues/177) | [PR #178](https://github.com/llmrust/llmrust/pull/178)（文档、版本与能力元数据一致性门禁：crate version / provider count / feature names / capability states 校验全过；「zero runtime dependencies」歧义纠正为「No external runtime required / 无需外部运行时」（README EN:64/ZH:64 双语成对）；PROJECT_MAP 反映当前结构（router.rs per-group (RTR-001) 行 + architecture/ 目录标注 0.1.4+ candidate plans, NOT yet implemented）；README EN:50/ZH:50 双语 per-group 补写（与 CONTRACTS 条款 9 / RTR-001 落地一致）；api-inventory 与 lib.rs root 逐字节一致（prelude 缺 FinishReason 如实声明）；旧值 1484/851 与 TODO/FIXME 零残留；文档链接全部有效；故意改错四类（版本/Provider 数/Retry 429/reasoning 状态）红→还原绿实证；零生产/测试/台账/capabilities diff） | 执行令初版架构师侧范围错误→执行侧逐字引用卡原文暴露（逐字引用纪律正面先例第三起）→勘误对齐卡全文+设计依据 CHANGES 重做（#177 comment 5160492254）→重做版 APPROVE（#177 comment 5160519825）；实现首轮评审 APPROVE + AUTHORIZE MERGE（#178 comment 5160580579，CHANGELOG 不登记裁定记档）；CI run `30769278215`/`30769278189` 七项全绿（head `2d4e92a`）；本地/远端/PR head 三点一致 | `86d2c9c66029b3e9dc4c33d67d196a6eeba2f7ff`（2026-08-03） | STATE-DOC-002（本 PR） | M4 4/4（100%）— **封板** | `DONE` — Notion AI（架构师） |
+| `E2E-001` | [#181](https://github.com/llmrust/llmrust/issues/181) | [PR #182](https://github.com/llmrust/llmrust/pull/182)（受限 Provider smoke matrix：env 门控 harness examples/e2e_smoke.rs（LLMRUST_E2E=1 未设零网络零执行 exit 0）+ 手动/周 workflow（不挂 PR/push、contents: read、fork 零 secret）+ docs/E2E-SMOKE.md；7+1 钉死模型 ID 官方核验 2026-08-03；逐 Provider 子集按设计小样（openai chat+stream+tools+reasoning+embed / anthropic+google chat+stream+tools+reasoning / deepseek+moonshot+openrouter chat+stream+tools / ollama chat+stream+embed）；脱敏 6 字段 CSV；skip 非 fail（Ollama server 探测 ≤2s）；预算 ≤$0.10/run、max_tokens ≤128、超时 30s、并发 ≤2；T-1..T-6 内置） | 设计小样 APPROVE + 3 SHOULD（#181 comment 5160760281）→ SHOULD-1 模型 ID 官方核验熔断（#181 comment 5161005465，纪律正面先例第九起）→ 钉死裁定（#181 comment 5161033996）→ 实现首轮 CHANGES 1 MUST + 1 SHOULD（#182 comment 5161084686：子集覆盖收窄未申报 + 缺 §10.4 节）全数处置 → 复核 APPROVE + AUTHORIZE MERGE（#182 comment 5161133045）；CI run `30774628235`/`30774628216` 七项全绿（head `8ce3733`）；本地/远端/PR head 三点一致；真实 run ×2 调度授权（#181 comment 5161490493）执行完毕：run `30777830889`（01:50:31Z success）+ `30777909013`（01:52:34Z success）串行，逐路径完全一致——deepseek+google chat/stream/tools 全 ok 200，google/reasoning 400 api（契约一致：gemini-3.1-flash-lite 非 thinking 模型，符合 REA-004G），moonshot 401 api×3（已解释波动：认证层拒绝，列后续调查候选），openai/anthropic/openrouter/ollama skipped（无 key/无本地 server）；成本 ≈$0.0006 ≪ $0.20 授权额度；证据验收裁定 #181 comment 5161543001；O-1（openai reasoning 真实端点）未覆盖结转记档 | `75a265086cee0633ccd5bd832efdf6f30759f1e6`（2026-08-03） | STATE-E2E-001（本 PR） | M5 1/4（25%） | `DONE` — Notion AI（架构师） |
 
 状态 PR必须同时更新：§11.1.2 Milestone 计数、§11.1.3 任务状态与引用、§11.1.4 回证账本。三处不一致直接 REJECT。
 

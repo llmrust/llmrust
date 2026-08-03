@@ -54,20 +54,25 @@
 - 每个已合并实现 PR 在 §11.1.3 均有状态 PR 引用（E2E-001 行含 STATE-E2E-001（本 PR））✅
 - SPCC 中 `MERGED_PENDING_STATE` 仅出现在规则定义/状态机说明/DoD 条款（§10.5/§11.1.4/§11.8），非状态残留 ✅
 
-### A-4 Milestone 实际枚举（MUST-2 修正口径）
+### A-4 Milestone 实际枚举（MUST-2 修正口径，评审后实证修订）
 
-实际枚举各 GitHub milestone 开/闭 issue（含挂载 PR）：
+逐 issue 实证枚举各 GitHub milestone 开/闭 issue（28 张任务 Issue 逐一核 `milestone` 字段 + gh milestone API 交叉验证）：
 
-| Milestone | open | closed | 实际枚举（issue 关联） |
+| Milestone | open | closed | 实际枚举（issue 关联，实证） |
 |-----------|------|--------|------------------------|
 | 0.1.3 / INC Incident | 0 | 0 | 治理任务无 issue |
-| 0.1.3 / M0 Foundation | 0 | 4 | CI-001/002/003 + REL-001 |
-| 0.1.3 / M2 Provider Correctness | 0 | 6 | STR-001/002A/002G/REA-001/002/003（任务 10，治理任务 REA-004G/O 与 CAP-001 分属 M2 任务计数但 issue 关联 6）|
-| 0.1.3 / M3 Proxy Security | 0 | 5 | PRX-001..005 |
-| 0.1.3 / M4 Maintainability | 0 | 4 | ARC-001/002 + RTR-001 + DOC-002 |
-| 0.1.3 / M5 Release | 1 | 1 | #181 闭 + #184 开（RC-001） |
+| 0.1.3 / M0 Foundation | 0 | 4 | #83 CI-001 / #88 CI-002 / #94 CI-003 / #97 REL-001 |
+| 0.1.3 / M1 API Freeze | 0 | 4 | #100 API-001 / #103 API-002 / #106 API-003 / #113 DOC-001 |
+| 0.1.3 / M2 Provider Correctness | 0 | 6 | #116 STR-001 / #119 STR-002A / #122 STR-002G 修复卡 / #141 REA-004O / #144 STR-003 / #147 CAP-001 |
+| 0.1.3 / M3 Proxy Security | 0 | 5 | #150 PRX-001 / #154 PRX-002 / #157 PRX-003 / #160 PRX-004 / #163 PRX-005 |
+| 0.1.3 / M4 Maintainability | 0 | 4 | #167 ARC-001 / #170 ARC-002 / #174 RTR-001 / #177 DOC-002 |
+| 0.1.3 / M5 Release | 1 | 1 | #181 E2E-001 闭 + #184 RC-001 开 |
 
-与预期（M0 4 / M1 4 / M2 6 / M3 5 / M4 4 / M5 2）**完全一致** ✅。与 §11.1.2 任务计数的差异（M2 任务 10 vs issue 6）由「治理任务无 issue」解释（REA-004G/REA-004O/CAP-001 等以状态 PR 而非独立 issue 落地）——记档说明，非缺陷。
+**实证发现（评审后修订）**：28 张任务 Issue 中 **5 张未挂 milestone**：#124（STR-002G 初始卡）、#127 REA-001、#130 REA-002、#133 REA-003、#136 REA-004G。其中 STR-002G 有同名修复卡 #122 已挂 M2（gh milestone 计数以挂载为准 closed_issues=6，与上表一致）；REA-001/002/003/004G 四张 REA 卡均无 milestone 字段。gh milestone API 计数（M0 4/M1 4/M2 6/M3 5/M4 4/M5 2）与上表实证一致 ✅。
+
+**与架构师评审裁定的差异（如实记档）**：架构师 MUST-2 裁定称"M2 实际挂载 9（6+REA-004O/STR-003/CAP-001），仅 #136 缺口"——执行侧逐 issue 实证为 **M2 挂载 6（含 #122 STR-002G 修复卡）、缺口 5 张（#124/#127/#130/#133/#136）**。差异根因：架构师将 #124（STR-002G 初始 Issue，未挂）误认为挂载项且未计入 #122（修复卡，已挂）；gh milestone closed_issues=6 为权威计数，佐证执行侧实证。双方教训同一：milestone 计数必须逐 issue 实证字段，不得凭推断。
+
+与 §11.1.2 任务计数的差异（M2 任务 10 vs issue 挂载 6 + 5 缺口）由「5 张 REA/STR-002G 初始卡未挂 milestone」解释——记档说明，FND-011 登记。
 
 ### A-5 分支清单
 
@@ -112,7 +117,7 @@
 
 ### C-2 豁免台账
 
-- §9.4 豁免条款：无期限豁免禁止合入、台账只准减少——现有豁免（E-004 等）均带任务与复议日 ✅
+- §9.4 豁免条款：无期限豁免禁止合入、台账只准减少——实际豁免台账为 `deny.toml`（CI-002 建立，cargo-deny 全绿佐证）；E-004 为**规格勘误**（FinishReason 文档措辞修正，非豁免条目，已并入 DOC-001）✅
 - 供应链豁免：cargo-deny 全绿（C-1 佐证），无未授权豁免 ✅
 
 ### C-3 技术债结转登记（10 项结转审计项逐项处置，见 G-1 findings）
@@ -202,13 +207,14 @@
 | FND-008 | C | P3 | **T-6 .clone() 断言补强**（RTR-001 SHOULD 记档） | 登记（0.1.4+） |
 | FND-009 | C | P3 | **O-2/O-3/O-4、E-004**（Anthropic adaptive / thoughtSignature / Gemini thinkingLevel / FinishReason 扩展性） | 登记（0.2 候选） |
 | FND-010 | E/C | P2 | **Moonshot 平台日落 2026-08-31** 与发布时序 | 0.1.3 发布（预计 08-03→中旬）早于日落；0.1.4 前须处置 moonshot base_url（关联 FND-001） |
+| FND-011 | A | P2 | **5 张任务 Issue 未挂 milestone**（#124 STR-002G 初始卡 / #127 REA-001 / #130 REA-002 / #133 REA-003 / #136 REA-004G）：bookkeeping 级三方不一致（§11.1.2 任务计数 vs GitHub milestone 挂载）；gh milestone 计数（M2 closed=6）不受影响（含 #122 STR-002G 修复卡） | **治理动作候选**：架构师授权 `gh issue edit {124,127,130,133,136} --milestone "0.1.3 / M2 Provider Correctness"`（零代码零风险，可随本 PR 修复后立即执行）或登记为发布后清理项——二选一，报告如实记录；GO 结论不受影响（P2） |
 
 ### G-2 结论：**GO**（附依据）
 
 **GO 依据**：
 1. **零开放 P0/P1**（findings 全 P2/P3）✅
 2. **零 MERGED_PENDING_STATE**（A-3）✅
-3. **Issue/Milestone/SPCC 三方一致**（A-1/A-2/A-4：28/28 任务 CLOSED、milestone 计数与 SPCC 对账一致、账本可追溯）✅
+3. **Issue/Milestone/SPCC 三方一致**（A-1/A-2/A-4：28/28 任务 CLOSED、milestone 计数实证与 gh API 一致、账本可追溯；**除 FND-011 已登记 P2 bookkeeping 缺口（5 张 REA/STR-002G 初始卡未挂 milestone）外一致**）✅
 4. **本地门禁全绿**（B：8/9 直接通过 + 1 以 CI 门禁在案替代，零红灯）✅
 5. **发布完整性核验通过**（D：package 允许模式干净、版本四方一致、semver 基线稳、release workflow 就绪）✅
 6. **E2E 证据链完整**（真实 run ×2 一致、费用 ≪ 预算、能力声明如实）✅

@@ -453,3 +453,30 @@ fn capabilities_md_ollama_lists_reasoning_unsupported() {
         "Ollama NOT-support section must list reasoning → Unsupported (REA-004O)"
     );
 }
+
+#[test]
+fn changelog_has_013_release_header() {
+    // REL-002: the release-commit changelog must pin the exact 0.1.3 version
+    // header with the release date (2026-08-03). Guards against version/date
+    // drift between Cargo.toml, capabilities.json, and the published changelog
+    // (DoD "版本断言一致").
+    let text = fs::read_to_string(repo_root().join("CHANGELOG.md")).unwrap();
+    assert!(
+        text.contains("## [0.1.3] - 2026-08-03"),
+        "CHANGELOG.md must contain '## [0.1.3] - 2026-08-03' (REL-002 release header)"
+    );
+    // The first `## [x.y.z] - date` heading must be the 0.1.3 one (no Unreleased
+    // section remaining, no stale earlier version appearing first).
+    let first_heading = text
+        .lines()
+        .find(|l| l.starts_with("## ["))
+        .expect("CHANGELOG.md must have at least one '## [version] - date' heading");
+    assert_eq!(
+        first_heading, "## [0.1.3] - 2026-08-03",
+        "first CHANGELOG heading must be the 0.1.3 release header, got: {first_heading}"
+    );
+    assert!(
+        !text.contains("## [Unreleased]"),
+        "CHANGELOG.md must not retain an [Unreleased] section after REL-002"
+    );
+}

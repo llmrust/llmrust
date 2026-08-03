@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.3] - 2026-08-03
 
 ### Added
 
@@ -159,6 +159,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   next round-robin start. The counter is now a per-group `Mutex<HashMap<String, usize>>`, lazily
   created on first use; single-group behavior, `Ordered` strategy, unknown-group literal
   forwarding, and cooldown/failover semantics are all unchanged. (RTR-001, Refs #174)
+
+### Security
+
+- 0.1.3 is a **governance + API-freeze + incident-remediation** release (see
+  `docs/COMPATIBILITY-0.1.3.md` for the full account). It hardens the proxy's default
+  security posture: no permissive CORS allow-origin by default, loopback-bound example,
+  constant-time token comparison, `/health` auth exemption, request-body limits, and
+  protocol-shaped error normalization (PRX-001…PRX-005). Supply-chain and secret-scanning
+  gates (cargo-deny, gitleaks, RustSec) run on every PR. No credentials are logged or
+  stored anywhere in this crate.
 
 ## [0.1.1] - 2026-06-16
 

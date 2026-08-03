@@ -1,5 +1,7 @@
 # Compatibility & Upgrade Notes — llmrust 0.1.3
 
+> **Release date: 2026-08-03**
+
 > Audience: downstream crates upgrading from 0.1.1 or 0.1.2 (and especially anyone
 > affected by the yanked 0.1.2).
 >

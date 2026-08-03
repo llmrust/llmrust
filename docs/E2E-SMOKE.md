@@ -58,19 +58,48 @@ re-verify before changing any of these.
   paid tier (≤ $0.05/$0.10 per 1M) pinned at that time.
 - **ollama `llama3.2`** — local, no price; skip trigger is **server
   unreachable** (2 s connect probe to `127.0.0.1:11434`), not "no key"
-  (architect ruling SHOULD-3).
+  (architect ruling SHOULD-3). Ollama's embed path uses `nomic-embed-text`
+  (the project's existing embedding example model; runs only when the local
+  server is reachable, otherwise `skipped`).
+- **Per-provider subsets** (design-sample pinned, enforced by T-5): openai =
+  chat + stream + tools + reasoning + embed; anthropic = chat + stream + tools
+  + reasoning; google = chat + stream + tools + reasoning; deepseek / moonshot /
+  openrouter = chat + stream + tools; ollama = chat + stream + embed. Stream
+  (SSE/NDJSON) and tools (function-call wire) are exercised because they are
+  the highest-frequency upstream-drift surfaces. Reasoning paths run on the
+  streaming surface (where llmrust maps reasoning); a contract-conformant
+  `LlmError::Unsupported` is a **valid** E2E result, not a failure, and is
+  recorded in the summary.
 
 ## 2. Budget ceiling
 
 - **Per run ≤ $0.10** (constant `BUDGET_USD_CENTS = 10` in the harness).
 - Fixed minimal prompt `"Reply with the single word: pong"` (≤ 20 words),
-  `max_tokens ≤ 128` per chat path, 30 s timeout, concurrency ≤ 2.
+  `max_tokens ≤ 128` per path, 30 s timeout, concurrency ≤ 2.
 - Anthropic reasoning path uses `budget_tokens = 1024` and
   `max_tokens = 2048` (REA-002 requires a non-empty thinking budget; ≈ $0.015
   at Haiku 4.5 pricing — still ≪ $0.10).
-- Estimated per-run cost (one request per path): openai ≈ $0.00005,
-  anthropic ≈ $0.0007, google ≈ $0.0002, deepseek ≈ $0.00004,
-  moonshot ≈ $0.0005, openrouter $0, embeddings ≈ $0.000001.
+
+### Per-path subset & cost estimate (design-sample pinned)
+
+Each provider runs its design-sample subset (`chat / stream / tools /
+reasoning / embed`). One request per path; estimates assume the pinned prices
+above and a ≤ 128-token response (reasoning variant excepted):
+
+| Provider | Paths | Est. cost/run |
+|----------|-------|---------------|
+| openai | chat, stream, tools, reasoning, embed | ≈ $0.00025 |
+| anthropic | chat, stream, tools, reasoning | ≈ $0.016 |
+| google | chat, stream, tools, reasoning | ≈ $0.0008 |
+| deepseek | chat, stream, tools | ≈ $0.0001 |
+| moonshot | chat, stream, tools | ≈ $0.0016 |
+| openrouter | chat, stream, tools | $0 (free tier) |
+| ollama | chat, stream, embed | $0 (local) |
+
+Total ≈ **$0.019 ≪ $0.10** — budget ceiling holds with a 5× margin even if
+every path runs once. `usage` token counts are recorded in the run summary
+as they come back (per-response `Usage`), which the DoD cost-within-ceiling
+proof uses.
 
 ## 3. Secret configuration (Owner setup)
 

@@ -1,9 +1,10 @@
 //! E2E-001: restricted provider smoke matrix.
 //!
 //! Low-budget real-upstream calls to surface protocol drift that local
-//! fixtures cannot cover. Runs a single cheap chat request per provider (plus
-//! an OpenAI embeddings call and the O-1 reasoning paths) and prints only
-//! status/count/error-kind — never prompts, responses, or keys.
+//! fixtures cannot cover. For each provider the harness runs the subset pinned
+//! in the approved design sample (chat / stream / tools / reasoning / embed,
+//! per capability matrix) and prints only status/count/error-kind — never
+//! prompts, responses, or keys.
 //!
 //! # Gate
 //!
@@ -24,6 +25,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use futures::StreamExt;
 use llmrust::providers::anthropic::AnthropicProvider;
 use llmrust::providers::deepseek::DeepSeekProvider;
 use llmrust::providers::google::GoogleProvider;
@@ -32,15 +34,16 @@ use llmrust::providers::ollama::OllamaProvider;
 use llmrust::providers::openai::OpenAIProvider;
 use llmrust::providers::openrouter::OpenRouterProvider;
 use llmrust::providers::{LlmError, Provider, ProviderConfig};
-use llmrust::types::{ChatRequest, EmbeddingRequest, ThinkingConfig};
+use llmrust::types::{ChatRequest, EmbeddingRequest, ThinkingConfig, Tool};
 
 // ── Budget / gate constants ──────────────────────────────────────────────
 
 /// Env var that arms the harness. Anything other than exactly `"1"` disarms it.
 pub const E2E_GATE_ENV: &str = "LLMRUST_E2E";
 
-/// Max output tokens per chat path (SPCC §11.7 E2E-001: fixed minimal input
-/// and max token ceiling).
+/// Max output tokens per path (SPCC §11.7 E2E-001: fixed minimal input and
+/// max token ceiling). Reasoning paths may raise this where the upstream
+/// contract requires it (see `ANTHROPIC_REASONING_*`).
 pub const MAX_TOKENS: u64 = 128;
 
 /// Per-request timeout in seconds (SPCC §11.7: timeout ceiling).
@@ -58,9 +61,13 @@ pub const BUDGET_USD_CENTS: u64 = 10;
 pub const OLLAMA_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 pub const OLLAMA_DEFAULT_ADDR: &str = "127.0.0.1:11434";
 
-/// Fixed minimal prompt (≤ 20 words) — identical for every chat path so cost
-/// and token counts stay comparable across providers.
+/// Fixed minimal prompt (≤ 20 words) — identical for every path so cost and
+/// token counts stay comparable across providers.
 pub const PROMPT: &str = "Reply with the single word: pong";
+
+/// Tool schema used on the `tools` path — single string field, one round-trip.
+const TOOL_SCHEMA: &str =
+    r#"{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"]}"#;
 
 // ── Pinned model IDs (verified 2026-08-03 against official docs; see docs/E2E-SMOKE.md) ──
 
@@ -72,6 +79,7 @@ pub const MODEL_DEEPSEEK: &str = "deepseek-v4-flash";
 pub const MODEL_MOONSHOT: &str = "kimi-k2.6";
 pub const MODEL_OPENROUTER: &str = "nvidia/nemotron-3-ultra-550b-a55b:free";
 pub const MODEL_OLLAMA: &str = "llama3.2";
+pub const MODEL_OLLAMA_EMBED: &str = "nomic-embed-text";
 
 /// Anthropic thinking requires a non-empty budget (REA-002/O-6: the upstream
 /// SDK type makes `budget_tokens` mandatory). 1024 is the minimum the
@@ -83,8 +91,22 @@ pub const ANTHROPIC_REASONING_MAX_TOKENS: u64 = 2048;
 
 // ── Matrix ───────────────────────────────────────────────────────────────
 
-/// Reasoning subset of a target (O-1 carry-over: real-endpoint verification of
-/// the REA-003/REA-002 reasoning paths on the providers that map them).
+/// A path exercised against a provider (design-sample subset).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Path {
+    /// Non-streaming chat completion.
+    Chat,
+    /// Streaming chat completion (SSE/NDJSON surface — high drift surface).
+    Stream,
+    /// Single-function tool call wire round-trip.
+    Tools,
+    /// Reasoning path (O-1 carry-over; stream-based where upstream maps it).
+    Reasoning,
+    /// Embeddings call.
+    Embed,
+}
+
+/// Reasoning mapping of a provider (per REASONING-CONTRACT).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ReasoningKind {
     /// No reasoning path for this provider in 0.1.3.
@@ -93,6 +115,8 @@ pub enum ReasoningKind {
     OpenAiEffort,
     /// Anthropic extended thinking mapping (REA-002).
     AnthropicThinking,
+    /// Google `thinkingConfig` mapping (REA-004G).
+    GoogleThinking,
 }
 
 /// One row of the smoke matrix.
@@ -102,8 +126,10 @@ pub struct SmokeTarget {
     pub model: &'static str,
     /// Env vars checked, in order, for an API key. Empty for Ollama.
     pub key_envs: &'static [&'static str],
+    /// Subset exercised for this provider (design-sample pinned).
+    pub paths: &'static [Path],
     pub reasoning: ReasoningKind,
-    pub embed: bool,
+    pub embed_model: Option<&'static str>,
 }
 
 /// The pinned 7-provider matrix. Model IDs are exact and official-verified;
@@ -114,50 +140,63 @@ pub fn matrix() -> Vec<SmokeTarget> {
             provider: "openai",
             model: MODEL_OPENAI_CHAT,
             key_envs: &["OPENAI_API_KEY", "LLMRUST_OPENAI_KEY"],
+            paths: &[
+                Path::Chat,
+                Path::Stream,
+                Path::Tools,
+                Path::Reasoning,
+                Path::Embed,
+            ],
             reasoning: ReasoningKind::OpenAiEffort,
-            embed: true,
+            embed_model: Some(MODEL_OPENAI_EMBED),
         },
         SmokeTarget {
             provider: "anthropic",
             model: MODEL_ANTHROPIC,
             key_envs: &["ANTHROPIC_API_KEY", "LLMRUST_ANTHROPIC_KEY"],
+            paths: &[Path::Chat, Path::Stream, Path::Tools, Path::Reasoning],
             reasoning: ReasoningKind::AnthropicThinking,
-            embed: false,
+            embed_model: None,
         },
         SmokeTarget {
             provider: "google",
             model: MODEL_GOOGLE,
             key_envs: &["GOOGLE_API_KEY", "LLMRUST_GOOGLE_KEY"],
-            reasoning: ReasoningKind::None,
-            embed: false,
+            paths: &[Path::Chat, Path::Stream, Path::Tools, Path::Reasoning],
+            reasoning: ReasoningKind::GoogleThinking,
+            embed_model: None,
         },
         SmokeTarget {
             provider: "deepseek",
             model: MODEL_DEEPSEEK,
             key_envs: &["DEEPSEEK_API_KEY", "LLMRUST_DEEPSEEK_KEY"],
+            paths: &[Path::Chat, Path::Stream, Path::Tools],
             reasoning: ReasoningKind::None,
-            embed: false,
+            embed_model: None,
         },
         SmokeTarget {
             provider: "moonshot",
             model: MODEL_MOONSHOT,
             key_envs: &["MOONSHOT_API_KEY", "LLMRUST_MOONSHOT_KEY"],
+            paths: &[Path::Chat, Path::Stream, Path::Tools],
             reasoning: ReasoningKind::None,
-            embed: false,
+            embed_model: None,
         },
         SmokeTarget {
             provider: "openrouter",
             model: MODEL_OPENROUTER,
             key_envs: &["OPENROUTER_API_KEY", "LLMRUST_OPENROUTER_KEY"],
+            paths: &[Path::Chat, Path::Stream, Path::Tools],
             reasoning: ReasoningKind::None,
-            embed: false,
+            embed_model: None,
         },
         SmokeTarget {
             provider: "ollama",
             model: MODEL_OLLAMA,
             key_envs: &[],
+            paths: &[Path::Chat, Path::Stream, Path::Embed],
             reasoning: ReasoningKind::None,
-            embed: false,
+            embed_model: Some(MODEL_OLLAMA_EMBED),
         },
     ]
 }
@@ -217,10 +256,11 @@ pub fn error_kind_label(e: &LlmError) -> &'static str {
     }
 }
 
-/// Redacted single-line record: `provider, model, ok|error|skipped, status,
-/// ms, error_kind`. Never contains prompts, responses, or keys.
+/// Redacted single-line record:
+/// `provider/path, model, ok|error|skipped, status, ms, error_kind`.
+/// Never contains prompts, responses, or keys.
 pub fn format_row(
-    provider: &str,
+    provider_path: &str,
     model: &str,
     outcome: &str,
     status: Option<u16>,
@@ -230,7 +270,7 @@ pub fn format_row(
     let status = status.map(|s| s.to_string()).unwrap_or_else(|| "-".into());
     let ms = ms.map(|m| m.to_string()).unwrap_or_else(|| "-".into());
     let kind = kind.unwrap_or("-");
-    format!("{provider}, {model}, {outcome}, {status}, {ms}, {kind}")
+    format!("{provider_path}, {model}, {outcome}, {status}, {ms}, {kind}")
 }
 
 // ── Runtime ──────────────────────────────────────────────────────────────
@@ -266,87 +306,169 @@ async fn ollama_reachable() -> bool {
     .unwrap_or(false)
 }
 
-/// Outcome of one chat path: status, elapsed ms, and error-kind label
+/// Outcome of one path: status, elapsed ms, and error-kind label
 /// (`None` on success).
-struct ChatOutcome {
+struct PathOutcome {
     status: Option<u16>,
     ms: u64,
     kind: Option<&'static str>,
 }
 
-/// Run one embeddings path against the real upstream, bounded by the timeout.
-async fn run_embed(provider: &dyn Provider, model: &str) -> ChatOutcome {
+impl PathOutcome {
+    fn ok(ms: u64) -> Self {
+        Self {
+            status: Some(200),
+            ms,
+            kind: None,
+        }
+    }
+    fn err(ms: u64, e: &LlmError) -> Self {
+        let status = match e {
+            LlmError::Api { status, .. } => Some(*status),
+            _ => None,
+        };
+        Self {
+            status,
+            ms,
+            kind: Some(error_kind_label(e)),
+        }
+    }
+    fn timeout(ms: u64) -> Self {
+        Self {
+            status: None,
+            ms,
+            kind: Some("timeout"),
+        }
+    }
+}
+
+/// Run one chat path (non-streaming) against the real upstream.
+async fn run_chat(provider: &dyn Provider, model: &str) -> PathOutcome {
+    let req = ChatRequest::new(model, PROMPT).with_max_tokens(MAX_TOKENS);
+    let start = Instant::now();
+    let result = tokio::time::timeout(Duration::from_secs(TIMEOUT_SECS), provider.chat(&req)).await;
+    let ms = start.elapsed().as_millis() as u64;
+    match result {
+        Ok(Ok(_)) => PathOutcome::ok(ms),
+        Ok(Err(e)) => PathOutcome::err(ms, &e),
+        Err(_) => PathOutcome::timeout(ms),
+    }
+}
+
+/// Consume a stream up to the first chunk: parsed chunk, error, clean end, or
+/// timeout. Returns `(chunks, first_error)`.
+async fn collect_first_chunk(
+    stream: &mut (impl futures::Stream<Item = Result<llmrust::types::StreamChunk, LlmError>> + Unpin),
+) -> (u32, Option<LlmError>) {
+    let next = tokio::time::timeout(Duration::from_secs(TIMEOUT_SECS), stream.next()).await;
+    match next {
+        Ok(Some(Ok(_))) => (1, None),
+        Ok(Some(Err(e))) => (0, Some(e)),
+        Ok(None) => (0, Some(LlmError::Stream("empty stream".into()))),
+        Err(_) => (0, Some(LlmError::Stream("timeout".into()))),
+    }
+}
+
+/// Run one streaming path — collect at least one chunk to prove the SSE/NDJSON
+/// surface parses end to end (drift's highest-frequency surface).
+async fn run_stream(provider: &dyn Provider, model: &str) -> PathOutcome {
+    let req = ChatRequest::new(model, PROMPT)
+        .with_stream()
+        .with_max_tokens(MAX_TOKENS);
+    let start = Instant::now();
+    let result =
+        tokio::time::timeout(Duration::from_secs(TIMEOUT_SECS), provider.stream(&req)).await;
+    let ms = start.elapsed().as_millis() as u64;
+    match result {
+        Ok(Ok(mut stream)) => {
+            let (chunks, first_err) = collect_first_chunk(&mut stream).await;
+            match first_err {
+                Some(e) if chunks == 0 => PathOutcome::err(ms, &e),
+                _ => PathOutcome::ok(ms),
+            }
+        }
+        Ok(Err(e)) => PathOutcome::err(ms, &e),
+        Err(_) => PathOutcome::timeout(ms),
+    }
+}
+
+/// Run one tool-call path — minimal single-function round-trip.
+async fn run_tools(provider: &dyn Provider, model: &str) -> PathOutcome {
+    let tool = Tool::function(
+        "get_answer",
+        Some("Return the single-word answer".into()),
+        serde_json::from_str(TOOL_SCHEMA).expect("static tool schema"),
+    );
+    let req = ChatRequest::new(model, PROMPT)
+        .with_max_tokens(MAX_TOKENS)
+        .with_tools(vec![tool]);
+    let start = Instant::now();
+    let result = tokio::time::timeout(Duration::from_secs(TIMEOUT_SECS), provider.chat(&req)).await;
+    let ms = start.elapsed().as_millis() as u64;
+    match result {
+        Ok(Ok(_)) => PathOutcome::ok(ms),
+        Ok(Err(e)) => PathOutcome::err(ms, &e),
+        Err(_) => PathOutcome::timeout(ms),
+    }
+}
+
+/// Run the reasoning path (O-1 carry-over). Stream-based where the upstream
+/// maps reasoning on the streaming surface; contract-conformant
+/// `LlmError::Unsupported` is a valid E2E result, not a failure.
+async fn run_reasoning(provider: &dyn Provider, model: &str, kind: ReasoningKind) -> PathOutcome {
+    let mut req = ChatRequest::new(model, PROMPT)
+        .with_stream()
+        .with_max_tokens(match kind {
+            ReasoningKind::AnthropicThinking => ANTHROPIC_REASONING_MAX_TOKENS,
+            _ => MAX_TOKENS,
+        });
+    match kind {
+        ReasoningKind::OpenAiEffort => {
+            req.thinking = Some(ThinkingConfig::Enabled {
+                budget_tokens: None,
+            });
+        }
+        ReasoningKind::AnthropicThinking => {
+            req.thinking = Some(ThinkingConfig::Enabled {
+                budget_tokens: Some(ANTHROPIC_REASONING_BUDGET),
+            });
+        }
+        ReasoningKind::GoogleThinking => {
+            req.thinking = Some(ThinkingConfig::Enabled {
+                budget_tokens: None,
+            });
+        }
+        ReasoningKind::None => unreachable!("reasoning path requires a reasoning kind"),
+    }
+
+    let start = Instant::now();
+    let result =
+        tokio::time::timeout(Duration::from_secs(TIMEOUT_SECS), provider.stream(&req)).await;
+    let ms = start.elapsed().as_millis() as u64;
+    match result {
+        Ok(Ok(mut stream)) => {
+            let (chunks, first_err) = collect_first_chunk(&mut stream).await;
+            match first_err {
+                Some(e) if chunks == 0 => PathOutcome::err(ms, &e),
+                _ => PathOutcome::ok(ms),
+            }
+        }
+        Ok(Err(e)) => PathOutcome::err(ms, &e),
+        Err(_) => PathOutcome::timeout(ms),
+    }
+}
+
+/// Run one embeddings path against the real upstream.
+async fn run_embed(provider: &dyn Provider, model: &str) -> PathOutcome {
     let req = EmbeddingRequest::new(model, "ping");
     let start = Instant::now();
     let result =
         tokio::time::timeout(Duration::from_secs(TIMEOUT_SECS), provider.embed(&req)).await;
     let ms = start.elapsed().as_millis() as u64;
     match result {
-        Ok(Ok(_resp)) => ChatOutcome {
-            status: Some(200),
-            ms,
-            kind: None,
-        },
-        Ok(Err(LlmError::Api { status, .. })) => ChatOutcome {
-            status: Some(status),
-            ms,
-            kind: Some("api"),
-        },
-        Ok(Err(e)) => ChatOutcome {
-            status: None,
-            ms,
-            kind: Some(error_kind_label(&e)),
-        },
-        Err(_) => ChatOutcome {
-            status: None,
-            ms,
-            kind: Some("timeout"),
-        },
-    }
-}
-
-/// Run one chat path against the real upstream, bounded by the timeout.
-/// On success `kind` is `None`; on failure `status` carries the HTTP status
-/// when known (from `LlmError::Api`).
-async fn run_chat(provider: &dyn Provider, model: &str, reasoning: ReasoningKind) -> ChatOutcome {
-    let mut req = ChatRequest::new(model, PROMPT).with_max_tokens(match reasoning {
-        ReasoningKind::AnthropicThinking => ANTHROPIC_REASONING_MAX_TOKENS,
-        _ => MAX_TOKENS,
-    });
-    if reasoning == ReasoningKind::OpenAiEffort {
-        req.thinking = Some(ThinkingConfig::Enabled {
-            budget_tokens: None,
-        });
-    } else if reasoning == ReasoningKind::AnthropicThinking {
-        req.thinking = Some(ThinkingConfig::Enabled {
-            budget_tokens: Some(ANTHROPIC_REASONING_BUDGET),
-        });
-    }
-
-    let start = Instant::now();
-    let result = tokio::time::timeout(Duration::from_secs(TIMEOUT_SECS), provider.chat(&req)).await;
-    let ms = start.elapsed().as_millis() as u64;
-    match result {
-        Ok(Ok(_resp)) => ChatOutcome {
-            status: Some(200),
-            ms,
-            kind: None,
-        },
-        Ok(Err(LlmError::Api { status, .. })) => ChatOutcome {
-            status: Some(status),
-            ms,
-            kind: Some("api"),
-        },
-        Ok(Err(e)) => ChatOutcome {
-            status: None,
-            ms,
-            kind: Some(error_kind_label(&e)),
-        },
-        Err(_) => ChatOutcome {
-            status: None,
-            ms,
-            kind: Some("timeout"),
-        },
+        Ok(Ok(_)) => PathOutcome::ok(ms),
+        Ok(Err(e)) => PathOutcome::err(ms, &e),
+        Err(_) => PathOutcome::timeout(ms),
     }
 }
 
@@ -357,7 +479,7 @@ async fn main() {
         println!("skipped: {E2E_GATE_ENV} not set to '1' (zero network, zero execution)");
         return;
     }
-    println!("provider, model, ok|error|skipped, status, ms, error_kind");
+    println!("provider/path, model, ok|error|skipped, status, ms, error_kind");
 
     let sem = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENCY));
     let mut handles = Vec::new();
@@ -367,8 +489,8 @@ async fn main() {
     }
     let mut lines = Vec::new();
     for h in handles {
-        if let Ok(line) = h.await {
-            lines.push(line);
+        if let Ok(mut target_lines) = h.await {
+            lines.append(&mut target_lines);
         }
     }
     // Sort for deterministic output regardless of scheduling.
@@ -378,10 +500,19 @@ async fn main() {
     }
 }
 
-async fn run_target(t: SmokeTarget, sem: Arc<tokio::sync::Semaphore>) -> String {
+async fn run_target(t: SmokeTarget, sem: Arc<tokio::sync::Semaphore>) -> Vec<String> {
     let _permit = match sem.acquire().await {
         Ok(p) => p,
-        Err(_) => return format_row(t.provider, t.model, "error", None, None, Some("semaphore")),
+        Err(_) => {
+            return vec![format_row(
+                &format!("{}/semaphore", t.provider),
+                t.model,
+                "error",
+                None,
+                None,
+                Some("semaphore"),
+            )]
+        }
     };
 
     let gate = std::env::var(E2E_GATE_ENV).ok();
@@ -393,56 +524,42 @@ async fn run_target(t: SmokeTarget, sem: Arc<tokio::sync::Semaphore>) -> String 
     };
 
     if skip.is_some() {
-        return format_row(t.provider, t.model, "skipped", None, None, None);
+        return vec![format_row(t.provider, t.model, "skipped", None, None, None)];
     }
 
     let key = resolve_key(&t).unwrap_or_default();
     let provider = provider_for(&t, &key);
 
     let mut lines = Vec::new();
-    let out = run_chat(provider.as_ref(), t.model, t.reasoning).await;
-    let chat_label = format!("{}/chat", t.provider);
-    match out.kind {
-        None => lines.push(format_row(
-            &chat_label,
-            t.model,
-            "ok",
-            out.status,
-            Some(out.ms),
-            None,
-        )),
-        Some(kind) => lines.push(format_row(
-            &chat_label,
-            t.model,
-            "error",
-            out.status,
-            Some(out.ms),
-            Some(kind),
-        )),
-    }
-    if t.embed {
-        let embed_out = run_embed(provider.as_ref(), MODEL_OPENAI_EMBED).await;
-        let embed_label = format!("{}/embed", t.provider);
-        match embed_out.kind {
+    for path in t.paths {
+        let label = format!("{}/{:?}", t.provider, path).to_lowercase();
+        let outcome = match path {
+            Path::Chat => run_chat(provider.as_ref(), t.model).await,
+            Path::Stream => run_stream(provider.as_ref(), t.model).await,
+            Path::Tools => run_tools(provider.as_ref(), t.model).await,
+            Path::Reasoning => run_reasoning(provider.as_ref(), t.model, t.reasoning).await,
+            Path::Embed => run_embed(provider.as_ref(), t.embed_model.unwrap_or(t.model)).await,
+        };
+        match outcome.kind {
             None => lines.push(format_row(
-                &embed_label,
-                MODEL_OPENAI_EMBED,
+                &label,
+                t.model,
                 "ok",
-                embed_out.status,
-                Some(embed_out.ms),
+                outcome.status,
+                Some(outcome.ms),
                 None,
             )),
             Some(kind) => lines.push(format_row(
-                &embed_label,
-                MODEL_OPENAI_EMBED,
+                &label,
+                t.model,
                 "error",
-                embed_out.status,
-                Some(embed_out.ms),
+                outcome.status,
+                Some(outcome.ms),
                 Some(kind),
             )),
         }
     }
-    lines.join("\n")
+    lines
 }
 
 #[cfg(test)]
@@ -468,11 +585,18 @@ mod tests {
         // T-2: redaction — a forged key value and the prompt must never appear
         // in any row emitted by format_row.
         let secret = "sk-e2e-test-secret-0123456789abcdef";
-        let row = format_row("openai", MODEL_OPENAI_CHAT, "ok", Some(200), Some(42), None);
+        let row = format_row(
+            "openai/chat",
+            MODEL_OPENAI_CHAT,
+            "ok",
+            Some(200),
+            Some(42),
+            None,
+        );
         assert!(!row.contains(secret), "key leaked into row: {row}");
         assert!(!row.contains(PROMPT), "prompt leaked into row: {row}");
         let err_row = format_row(
-            "deepseek",
+            "deepseek/stream",
             MODEL_DEEPSEEK,
             "error",
             Some(401),
@@ -481,7 +605,6 @@ mod tests {
         );
         assert!(!err_row.contains(secret));
         assert!(!err_row.contains(PROMPT));
-        // The full harness output buffer must also stay clean.
         let all = format!("{}\n{}\n", row, err_row);
         assert!(!all.contains(secret));
         assert!(!all.contains(PROMPT));
@@ -494,8 +617,9 @@ mod tests {
             provider: "deepseek",
             model: MODEL_DEEPSEEK,
             key_envs: &["DEEPSEEK_API_KEY"],
+            paths: &[Path::Chat],
             reasoning: ReasoningKind::None,
-            embed: false,
+            embed_model: None,
         };
         std::env::remove_var("DEEPSEEK_API_KEY");
         assert_eq!(
@@ -508,15 +632,15 @@ mod tests {
             provider: "ollama",
             model: MODEL_OLLAMA,
             key_envs: &[],
+            paths: &[Path::Chat],
             reasoning: ReasoningKind::None,
-            embed: false,
+            embed_model: Some(MODEL_OLLAMA_EMBED),
         };
         assert_eq!(
             skip_reason(&ollama_t, Some("1"), false, false),
             Some(SkipReason::OllamaUnreachable)
         );
         assert_eq!(skip_reason(&ollama_t, Some("1"), false, true), None);
-        // Skipped is not a failure: the label is distinct.
         assert_ne!(
             skip_reason(&ollama_t, Some("1"), false, false),
             Some(SkipReason::GateDisarmed)
@@ -525,26 +649,38 @@ mod tests {
 
     #[test]
     fn t4_output_format_is_redacted_csv() {
-        // T-4: output format — fixed 6-field CSV with "-" placeholders.
-        let ok = format_row("openai", MODEL_OPENAI_CHAT, "ok", Some(200), Some(42), None);
-        assert_eq!(ok, "openai, gpt-5-nano, ok, 200, 42, -");
+        // T-4: output format — fixed 6-field CSV with "-" placeholders and
+        // provider/path labels.
+        let ok = format_row(
+            "openai/chat",
+            MODEL_OPENAI_CHAT,
+            "ok",
+            Some(200),
+            Some(42),
+            None,
+        );
+        assert_eq!(ok, "openai/chat, gpt-5-nano, ok, 200, 42, -");
         let skip = format_row("ollama", MODEL_OLLAMA, "skipped", None, None, None);
         assert_eq!(skip, "ollama, llama3.2, skipped, -, -, -");
         let err = format_row(
-            "google",
+            "google/stream",
             MODEL_GOOGLE,
             "error",
             Some(500),
             Some(9),
             Some("api"),
         );
-        assert_eq!(err, "google, gemini-3.1-flash-lite, error, 500, 9, api");
+        assert_eq!(
+            err,
+            "google/stream, gemini-3.1-flash-lite, error, 500, 9, api"
+        );
     }
 
     #[test]
     fn t5_matrix_covers_all_7_providers_and_pins_ids() {
         // T-5: subset coverage — static reference check: all 7 providers
-        // present, unique, exact pinned IDs, no vague wording.
+        // present, unique, exact pinned IDs, no vague wording, and the per
+        // provider path subset matches the design sample.
         let m = matrix();
         let names: Vec<&str> = m.iter().map(|t| t.provider).collect();
         for expected in [
@@ -562,6 +698,7 @@ mod tests {
         sorted.sort_unstable();
         sorted.dedup();
         assert_eq!(sorted.len(), names.len(), "duplicate provider in matrix");
+
         for t in &m {
             assert!(!t.model.is_empty());
             assert!(
@@ -570,8 +707,49 @@ mod tests {
                 t.model
             );
         }
-        // OpenAI is the only embeddings target in the pinned matrix.
-        assert!(m.iter().filter(|t| t.embed).all(|t| t.provider == "openai"));
+
+        // Design-sample subset pinning:
+        // openai: chat + stream + tools + reasoning + embed
+        // anthropic/google: chat + stream + tools + reasoning
+        // deepseek/moonshot/openrouter: chat + stream + tools
+        // ollama: chat + stream + embed
+        let by_name = |n: &str| m.iter().find(|t| t.provider == n).unwrap();
+        let paths_of = |n: &str| by_name(n).paths.to_vec();
+        assert_eq!(
+            paths_of("openai"),
+            vec![
+                Path::Chat,
+                Path::Stream,
+                Path::Tools,
+                Path::Reasoning,
+                Path::Embed
+            ]
+        );
+        assert_eq!(
+            paths_of("anthropic"),
+            vec![Path::Chat, Path::Stream, Path::Tools, Path::Reasoning]
+        );
+        assert_eq!(
+            paths_of("google"),
+            vec![Path::Chat, Path::Stream, Path::Tools, Path::Reasoning]
+        );
+        for n in ["deepseek", "moonshot", "openrouter"] {
+            assert_eq!(paths_of(n), vec![Path::Chat, Path::Stream, Path::Tools]);
+        }
+        assert_eq!(
+            paths_of("ollama"),
+            vec![Path::Chat, Path::Stream, Path::Embed]
+        );
+        // Reasoning kinds pinned per provider.
+        assert_eq!(by_name("openai").reasoning, ReasoningKind::OpenAiEffort);
+        assert_eq!(
+            by_name("anthropic").reasoning,
+            ReasoningKind::AnthropicThinking
+        );
+        assert_eq!(by_name("google").reasoning, ReasoningKind::GoogleThinking);
+        // Embed targets: openai (hosted) and ollama (local).
+        assert_eq!(by_name("openai").embed_model, Some(MODEL_OPENAI_EMBED));
+        assert_eq!(by_name("ollama").embed_model, Some(MODEL_OLLAMA_EMBED));
     }
 
     #[test]

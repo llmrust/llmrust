@@ -150,6 +150,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **FIX-R2 (FND-R2)**: the OpenAI-compatible streaming path now marks
+  `StreamChunk.thinking_done = Some(true)` on the terminal chunk that surfaced
+  a thinking increment (`reasoning` / `reasoning_content`), satisfying
+  CONTRACTS.md Provider stream contract §7. Previously the terminal chunk
+  carried the `thinking` delta but never emitted the end-of-thinking marker, a
+  substantive deviation from the contract (disclosed as a known limitation in
+  the v0.1.3 release notes; this change ships in the 0.1.4 batch and will be
+  declared resolved there). Includes a failure-first regression test
+  (`stream_reasoning_terminal_chunk_marks_thinking_done`). Other providers
+  (Anthropic/Gemini) already emit `thinking_done`; this aligns the OpenAI path.
 - Retry contract clarification (API-003): `RetryProvider` does **not** retry HTTP `429`
   (rate-limit) responses — only `HTTP 5xx`, network errors, and transient stream errors are
   retried. The previously published `llmrust.capabilities.json` incorrectly listed

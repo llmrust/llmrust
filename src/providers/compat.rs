@@ -368,14 +368,23 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
                 .reasoning
                 .clone()
                 .or_else(|| choice.delta.reasoning_content.clone());
+            let done = finish_reason.is_some();
+            // FIX-R2 (FND-R2, Contract §7 / CONTRACTS.md L33): providers that
+            // map reasoning on the streaming path must mark the end of the
+            // thinking stage with `StreamChunk.thinking_done = Some(true)` at
+            // most once on the terminal chunk. OpenAI o-series streams the
+            // `reasoning` delta and finishes on the same terminal chunk — the
+            // thinking stage ends there, so the terminal chunk must carry the
+            // marker whenever this line surfaced a thinking increment.
+            let thinking_done = done.then_some(thinking.is_some());
             vec![Ok(StreamChunk {
                 delta: choice.delta.content.clone().unwrap_or_default(),
-                done: finish_reason.is_some(),
+                done,
                 finish_reason,
                 usage,
                 tool_calls,
                 thinking,
-                ..Default::default()
+                thinking_done,
             })]
         }
         None => {
@@ -1076,6 +1085,29 @@ mod tests {
         assert_eq!(chunk.thinking.as_deref(), Some("thinking..."));
         assert_eq!(chunk.delta, "hi");
         assert!(chunk.done);
+    }
+
+    #[test]
+    fn stream_reasoning_terminal_chunk_marks_thinking_done() {
+        // FIX-R2 (FND-R2): Contract §7 (CONTRACTS.md L33) — providers that
+        // map reasoning on the streaming path must mark the end of the
+        // thinking stage with `StreamChunk.thinking_done = Some(true)` at
+        // most once on the terminal chunk. OpenAI's o-series streams the
+        // `reasoning` delta and then finishes with `finish_reason:"stop"`
+        // on the same terminal chunk; the thinking stage ends there, so the
+        // terminal chunk must carry `thinking_done: Some(true)`.
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"choices":[{"delta":{"reasoning":"thinking...","content":"hi"},"finish_reason":"stop"}]}"#,
+        );
+        let chunk = chunks.into_iter().next().unwrap().unwrap();
+        assert!(chunk.done, "terminal chunk must be done");
+        assert_eq!(
+            chunk.thinking_done,
+            Some(true),
+            "terminal chunk that surfaced thinking must mark thinking_done = Some(true) per Contract §7"
+        );
     }
 
     #[test]

@@ -4,7 +4,7 @@
   "baseline_lines": {
     "src/proxy/mod.rs": 3327,
     "src/proxy/anthropic_proxy.rs": 1884,
-    "src/providers/compat.rs": 1488,
+    "src/providers/compat.rs": 1487,
     "src/providers/google.rs": 1524,
     "src/types.rs": 1132,
     "src/providers/anthropic.rs": 1483,
@@ -134,9 +134,9 @@
     },
     {
       "file": "src/providers/compat.rs",
-      "old": 1456,
-      "new": 1488,
-      "reason": "FIX-R2 (#198) growth: OpenAI streaming path now marks `StreamChunk.thinking_done = Some(true)` on the terminal chunk that surfaced a thinking increment (Contract §7 / CONTRACTS.md L33 compliance, FND-R2) + one regression test (failure-first: `stream_reasoning_terminal_chunk_marks_thinking_done` red → green). Growth is real implementation + test, not inflated; ledger records the ACTUAL line count (never headroom). Ledger adjustment is normally the architect-only action per §11.1.4 — executed under Owner's 2026-08-04 directive to proceed independently while the architect's quota is exhausted, recorded for architect review on quota restore. Baseline 1455 in the ledger was one line stale vs main 1456 (git numstat 1456 +34 −2 = 1488); set to the real count.",
+      "old": 1455,
+      "new": 1487,
+      "reason": "FIX-R2 (#198) growth: OpenAI streaming path now marks `StreamChunk.thinking_done = Some(true)` on the terminal chunk that surfaced a thinking increment (Contract §7 / CONTRACTS.md L33 compliance, FND-R2) + one regression test (failure-first: `stream_reasoning_terminal_chunk_marks_thinking_done` red → green). Growth is real implementation + test, not inflated; ledger records the ACTUAL wc -l line count (E-101: wc -l is the single source of truth, never headroom). Ledger adjustment is normally the architect-only action per §11.1.4 — executed under Owner's 2026-08-04 directive to proceed independently while the architect's quota is exhausted, recorded for architect review on quota restore. Baseline 1455 = main wc -l (git numstat +34/−2 = +32 net).",
       "authorized_by": "Owner 2026-08-04 independent-continuation directive (architect quota exhausted; ledger adjustment per §11.1.4 architect-only rule, deferred to architect review on restore)",
       "date": "2026-08-04"
     }

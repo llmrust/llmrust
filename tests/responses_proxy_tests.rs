@@ -8,6 +8,8 @@
 //!
 //! No real API calls — only fake providers.
 
+#![cfg(feature = "proxy")]
+
 use std::sync::Arc;
 
 use axum::{
@@ -316,6 +318,21 @@ async fn responses_stream_with_mock_provider() {
         "stream must end with [DONE], got: {text}"
     );
 
+    // response.completed must carry the harvested usage (llmrust emits the
+    // usage chunk *after* the terminal done:true chunk; the handler must
+    // keep polling to attach it).
+    let completed: Vec<&serde_json::Value> = events
+        .iter()
+        .filter(|e| e["type"] == "response.completed")
+        .collect();
+    assert!(!completed.is_empty(), "missing response.completed");
+    assert_eq!(
+        completed[0]["response"]["usage"]["input_tokens"], 3,
+        "completed usage must be harvested, got: {}",
+        completed[0]
+    );
+    assert_eq!(completed[0]["response"]["usage"]["output_tokens"], 5);
+
     // Delta payloads must carry item_id/output_index/content_index for
     // client-side assembly (Codex requires these).
     let deltas: Vec<&serde_json::Value> = events
@@ -419,8 +436,9 @@ async fn responses_unknown_provider_returns_error() {
         .oneshot(build_responses_request(&body))
         .await
         .expect("request failed");
-    // Unknown provider must not be 200; llmrust maps it to an error status.
-    assert_ne!(response.status(), StatusCode::OK);
+    // Unknown provider must map to a deterministic 4xx (BAD_REQUEST from
+    // responses_error_from_llm_error for LlmError::UnknownProvider).
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

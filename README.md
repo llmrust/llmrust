@@ -337,7 +337,7 @@ curl http://localhost:3000/v1/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer some-shared-secret" \
   -d '{
-    "model": "deepseek/deepseek-chat",
+    "model": "openai/gpt-4o",
     "input": [{"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Hello!"}]}],
     "stream": true
   }'

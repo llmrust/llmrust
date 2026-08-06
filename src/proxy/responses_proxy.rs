@@ -24,8 +24,8 @@ use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    ChatRequest, ChatResponse, Content, ContentPart, Message, Role, StreamChunk, ThinkingConfig,
-    Tool, ToolChoice, Usage,
+    ChatRequest, ChatResponse, Content, ContentPart, FunctionCall, Message, Role, StreamChunk,
+    ThinkingConfig, Tool, ToolCall, ToolChoice, Usage,
 };
 use crate::LlmError;
 
@@ -264,11 +264,9 @@ fn convert_request(req: &ResponsesRequest) -> Result<ChatRequest, String> {
             }
         }
         Some(ResponsesInput::Items(items)) => {
-            let mut pending_tool_outputs: Vec<String> = Vec::new();
             for item in items {
                 match item {
                     ResponsesInputItem::Message { role, content } => {
-                        flush_tool_outputs(&mut messages, &mut pending_tool_outputs);
                         let parts = content_parts_to_llmrust(content);
                         if parts.is_empty() {
                             continue;
@@ -298,9 +296,20 @@ fn convert_request(req: &ResponsesRequest) -> Result<ChatRequest, String> {
                         let call_id = call_id.clone().unwrap_or_default();
                         let name = name.clone().unwrap_or_default();
                         let arguments = arguments.clone().unwrap_or_default();
-                        messages.push(Message::assistant(format!(
-                            "[tool_call id={call_id} name={name} arguments={arguments}]"
-                        )));
+                        // Preserve the structured tool call (assistant turn with
+                        // tool_calls) so multi-turn function calling stays real,
+                        // instead of degrading it to fake text.
+                        messages.push(Message {
+                            role: Role::Assistant,
+                            content: Content::Text(String::new()),
+                            tool_calls: Some(vec![ToolCall {
+                                id: call_id.clone(),
+                                call_type: "function".to_string(),
+                                function: FunctionCall { name, arguments },
+                            }]),
+                            tool_call_id: None,
+                            name: None,
+                        });
                     }
                     ResponsesInputItem::FunctionCallOutput { call_id, output } => {
                         let call_id = call_id.clone().unwrap_or_default();
@@ -314,11 +323,17 @@ fn convert_request(req: &ResponsesRequest) -> Result<ChatRequest, String> {
                                 }
                             })
                             .unwrap_or_default();
-                        pending_tool_outputs.push(format!("[tool_result call_id={call_id}]{out}"));
+                        // Tool result message carries the call id (tool role).
+                        messages.push(Message {
+                            role: Role::Tool,
+                            content: Content::Text(out),
+                            tool_calls: None,
+                            tool_call_id: Some(call_id),
+                            name: None,
+                        });
                     }
                 }
             }
-            flush_tool_outputs(&mut messages, &mut pending_tool_outputs);
         }
         None => {}
     }
@@ -355,16 +370,6 @@ fn convert_request(req: &ResponsesRequest) -> Result<ChatRequest, String> {
     Ok(chat)
 }
 
-/// Flush accumulated tool-output marker messages into the message list.
-fn flush_tool_outputs(messages: &mut Vec<Message>, pending: &mut Vec<String>) {
-    if pending.is_empty() {
-        return;
-    }
-    let joined = pending.join("\n");
-    messages.push(Message::user(joined));
-    pending.clear();
-}
-
 /// Convert Responses content parts to llmrust [`ContentPart`]s.
 fn content_parts_to_llmrust(parts: &[ResponsesContentPart]) -> Vec<ContentPart> {
     let mut out = Vec::new();
@@ -385,7 +390,9 @@ fn content_parts_to_llmrust(parts: &[ResponsesContentPart]) -> Vec<ContentPart> 
                 };
                 out.push(ContentPart::image_url(url));
             }
-            ResponsesContentPart::Unknown => {}
+            ResponsesContentPart::Unknown => {
+                tracing::warn!("responses proxy: skipping unknown content part type");
+            }
         }
     }
     out
@@ -493,9 +500,15 @@ struct SseState {
     id: String,
     model: String,
     msg_id: String,
+    tool_item_ids: Vec<String>,
+    tool_args_by_item: std::collections::HashMap<String, String>,
+    full_text: String,
+    terminal_usage: Option<Usage>,
     item_sent: bool,
     part_sent: bool,
-    tool_item_sent: bool,
+    tool_items_sent: usize,
+    done_seen: bool,
+    awaiting_terminal: bool,
     terminated: bool,
     queue: std::collections::VecDeque<String>,
 }
@@ -525,9 +538,15 @@ fn build_stream_response(
         id,
         model,
         msg_id,
+        tool_item_ids: Vec::new(),
+        tool_args_by_item: std::collections::HashMap::new(),
+        full_text: String::new(),
+        terminal_usage: None,
         item_sent: false,
         part_sent: false,
-        tool_item_sent: false,
+        tool_items_sent: 0,
+        done_seen: false,
+        awaiting_terminal: false,
         terminated: false,
         queue: std::collections::VecDeque::new(),
     };
@@ -553,11 +572,60 @@ fn build_stream_response(
                 return None;
             }
 
+            // After `done` we keep polling to harvest the trailing usage
+            // chunk that OpenAI-compatible providers emit (usage arrives on a
+            // chunk *after* the terminal `done: true` chunk). Once the stream
+            // ends, emit the final `response.completed` carrying the full
+            // output array and the harvested usage.
+            if st.awaiting_terminal {
+                match st.inner.next().await {
+                    Some(Ok(chunk)) => {
+                        if let Some(u) = chunk.usage {
+                            st.terminal_usage = Some(u);
+                        }
+                        // Drain any remaining tool-argument fragments too.
+                        if let Some(tool_calls) = &chunk.tool_calls {
+                            for tc in tool_calls {
+                                if !tc.function.arguments.is_empty() {
+                                    st.tool_args_by_item
+                                        .entry(tc.id.clone())
+                                        .and_modify(|a| a.push_str(&tc.function.arguments))
+                                        .or_insert_with(|| tc.function.arguments.clone());
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                    Some(Err(e)) => {
+                        st.terminated = true;
+                        st.push(serde_json::json!({
+                            "type": "response.failed",
+                            "response": {
+                                "id": st.id, "object": "response", "status": "failed",
+                                "model": st.model,
+                                "error": {"message": e.to_string(), "code": "upstream_error"},
+                            }
+                        }));
+                        continue;
+                    }
+                    None => {
+                        st.terminated = true;
+                        emit_completed(&mut st);
+                        continue;
+                    }
+                }
+            }
+
             match st.inner.next().await {
                 Some(Ok(chunk)) => {
                     let has_tool = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
 
-                    if !st.item_sent && !chunk.delta.is_empty() {
+                    // Accumulate text for the completed output snapshot.
+                    if !chunk.delta.is_empty() {
+                        st.full_text.push_str(&chunk.delta);
+                    }
+
+                    if !st.item_sent && (!chunk.delta.is_empty() || chunk.done) {
                         st.item_sent = true;
                         st.push(serde_json::json!({
                             "type": "response.output_item.added",
@@ -578,18 +646,38 @@ fn build_stream_response(
                         }));
                     }
 
-                    if !st.tool_item_sent && has_tool {
-                        st.tool_item_sent = true;
-                        if let Some(tc) = chunk.tool_calls.as_ref().and_then(|c| c.first()) {
-                            st.push(serde_json::json!({
-                                "type": "response.output_item.added",
-                                "output_index": 1,
-                                "item": {
-                                    "id": tc.id, "type": "function_call",
-                                    "status": "in_progress", "name": tc.function.name,
-                                    "call_id": tc.id, "arguments": "",
+                    // Emit one function_call output item per tool call (not
+                    // just the first), with distinct output_index.
+                    if has_tool {
+                        if let Some(tool_calls) = &chunk.tool_calls {
+                            for tc in tool_calls {
+                                let idx = st.tool_items_sent + 1;
+                                let already_sent = st.tool_item_ids.contains(&tc.id);
+                                if !already_sent {
+                                    st.tool_item_ids.push(tc.id.clone());
+                                    st.tool_items_sent += 1;
+                                    st.push(serde_json::json!({
+                                        "type": "response.output_item.added",
+                                        "output_index": idx,
+                                        "item": {
+                                            "id": tc.id, "type": "function_call",
+                                            "status": "in_progress", "name": tc.function.name,
+                                            "call_id": tc.id, "arguments": "",
+                                        }
+                                    }));
                                 }
-                            }));
+                                if !tc.function.arguments.is_empty() {
+                                    st.tool_args_by_item
+                                        .entry(tc.id.clone())
+                                        .and_modify(|a| a.push_str(&tc.function.arguments))
+                                        .or_insert_with(|| tc.function.arguments.clone());
+                                    st.push(serde_json::json!({
+                                        "type": "response.function_call_arguments.delta",
+                                        "item_id": tc.id, "output_index": idx,
+                                        "delta": tc.function.arguments,
+                                    }));
+                                }
+                            }
                         }
                     }
 
@@ -601,63 +689,48 @@ fn build_stream_response(
                         }));
                     }
 
-                    if let Some(tool_calls) = &chunk.tool_calls {
-                        for tc in tool_calls {
-                            if !tc.function.arguments.is_empty() {
-                                st.push(serde_json::json!({
-                                    "type": "response.function_call_arguments.delta",
-                                    "item_id": tc.id, "output_index": 1,
-                                    "delta": tc.function.arguments,
-                                }));
-                            }
-                        }
-                    }
-
                     if chunk.done {
-                        st.terminated = true;
+                        // Close the message item now; keep the stream open to
+                        // harvest usage, then emit completed when the stream
+                        // ends.
+                        st.done_seen = true;
                         st.push(serde_json::json!({
                             "type": "response.output_item.done",
                             "output_index": 0,
                             "item": {
                                 "id": st.msg_id, "type": "message", "role": "assistant",
-                                "status": "completed", "content": [],
+                                "status": "completed",
+                                "content": [{
+                                    "type": "output_text",
+                                    "text": st.full_text,
+                                    "annotations": [],
+                                }],
                             }
                         }));
-                        if has_tool {
-                            if let Some(tc) = chunk.tool_calls.as_ref().and_then(|c| c.first()) {
-                                st.push(serde_json::json!({
-                                    "type": "response.output_item.done",
-                                    "output_index": 1,
-                                    "item": {
-                                        "id": tc.id, "type": "function_call",
-                                        "status": "completed", "name": tc.function.name,
-                                        "call_id": tc.id, "arguments": tc.function.arguments,
-                                    }
-                                }));
-                            }
+                        let tool_ids: Vec<String> = st.tool_item_ids.clone();
+                        for (i, tc_id) in tool_ids.iter().enumerate() {
+                            let idx = i + 1;
+                            let args = st.tool_args_by_item.get(tc_id).cloned().unwrap_or_default();
+                            let name = chunk
+                                .tool_calls
+                                .as_ref()
+                                .and_then(|cs| cs.iter().find(|c| &c.id == tc_id))
+                                .map(|c| c.function.name.clone())
+                                .unwrap_or_else(|| "unknown".to_string());
+                            st.push(serde_json::json!({
+                                "type": "response.output_item.done",
+                                "output_index": idx,
+                                "item": {
+                                    "id": tc_id, "type": "function_call",
+                                    "status": "completed", "name": name,
+                                    "call_id": tc_id, "arguments": args,
+                                }
+                            }));
                         }
-                        let usage = chunk.usage.map(|u| {
-                            serde_json::json!({
-                                "input_tokens": u.prompt_tokens,
-                                "output_tokens": u.completion_tokens,
-                                "total_tokens": u.total_tokens,
-                                "input_tokens_details": {
-                                    "cached_tokens": u.cache_read_tokens.unwrap_or(0),
-                                },
-                                "output_tokens_details": {
-                                    "reasoning_tokens": u.reasoning_tokens.unwrap_or(0),
-                                },
-                            })
-                        });
-                        st.push(serde_json::json!({
-                            "type": "response.completed",
-                            "response": {
-                                "id": st.id, "object": "response", "status": "completed",
-                                "model": st.model, "output": [],
-                                "usage": usage,
-                            }
-                        }));
-                        // Fall through to drain the queue on the next iteration.
+                        if let Some(u) = chunk.usage {
+                            st.terminal_usage = Some(u);
+                        }
+                        st.awaiting_terminal = true;
                         continue;
                     }
 
@@ -678,13 +751,7 @@ fn build_stream_response(
                 }
                 None => {
                     st.terminated = true;
-                    st.push(serde_json::json!({
-                        "type": "response.completed",
-                        "response": {
-                            "id": st.id, "object": "response", "status": "completed",
-                            "model": st.model, "output": [],
-                        }
-                    }));
+                    emit_completed(&mut st);
                     continue;
                 }
             }
@@ -704,6 +771,59 @@ fn build_stream_response(
                 .text("keep-alive"),
         )
         .into_response()
+}
+
+/// Emit the terminal `response.completed` event with the full output array
+/// (message content plus any function calls) and the harvested usage.
+fn emit_completed(st: &mut SseState) {
+    let mut output: Vec<serde_json::Value> = Vec::new();
+    output.push(serde_json::json!({
+        "id": st.msg_id,
+        "type": "message",
+        "role": "assistant",
+        "status": "completed",
+        "content": [{
+            "type": "output_text",
+            "text": st.full_text,
+            "annotations": [],
+        }],
+    }));
+    for (i, tc_id) in st.tool_item_ids.iter().enumerate() {
+        let _ = i;
+        let args = st.tool_args_by_item.get(tc_id).cloned().unwrap_or_default();
+        output.push(serde_json::json!({
+            "id": tc_id,
+            "type": "function_call",
+            "status": "completed",
+            "call_id": tc_id,
+            "name": "unknown",
+            "arguments": args,
+        }));
+    }
+    let usage = st.terminal_usage.take().map(|u| {
+        serde_json::json!({
+            "input_tokens": u.prompt_tokens,
+            "output_tokens": u.completion_tokens,
+            "total_tokens": u.total_tokens,
+            "input_tokens_details": {
+                "cached_tokens": u.cache_read_tokens.unwrap_or(0),
+            },
+            "output_tokens_details": {
+                "reasoning_tokens": u.reasoning_tokens.unwrap_or(0),
+            },
+        })
+    });
+    st.push(serde_json::json!({
+        "type": "response.completed",
+        "response": {
+            "id": st.id,
+            "object": "response",
+            "status": "completed",
+            "model": st.model,
+            "output": output,
+            "usage": usage,
+        }
+    }));
 }
 
 // ── Handler ──────────────────────────────

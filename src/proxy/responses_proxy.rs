@@ -502,6 +502,7 @@ struct SseState {
     msg_id: String,
     tool_item_ids: Vec<String>,
     tool_args_by_item: std::collections::HashMap<String, String>,
+    tool_names_by_item: std::collections::HashMap<String, String>,
     full_text: String,
     terminal_usage: Option<Usage>,
     item_sent: bool,
@@ -540,6 +541,7 @@ fn build_stream_response(
         msg_id,
         tool_item_ids: Vec::new(),
         tool_args_by_item: std::collections::HashMap::new(),
+        tool_names_by_item: std::collections::HashMap::new(),
         full_text: String::new(),
         terminal_usage: None,
         item_sent: false,
@@ -651,11 +653,22 @@ fn build_stream_response(
                     if has_tool {
                         if let Some(tool_calls) = &chunk.tool_calls {
                             for tc in tool_calls {
-                                let idx = st.tool_items_sent + 1;
                                 let already_sent = st.tool_item_ids.contains(&tc.id);
-                                if !already_sent {
+                                let idx = if already_sent {
+                                    // Real index of this tool among all tool
+                                    // items (arguments deltas on later chunks
+                                    // must keep pointing at the item).
+                                    st.tool_item_ids
+                                        .iter()
+                                        .position(|x| x == &tc.id)
+                                        .map(|p| p + 1)
+                                        .unwrap_or(st.tool_items_sent + 1)
+                                } else {
                                     st.tool_item_ids.push(tc.id.clone());
                                     st.tool_items_sent += 1;
+                                    st.tool_items_sent
+                                };
+                                if !already_sent {
                                     st.push(serde_json::json!({
                                         "type": "response.output_item.added",
                                         "output_index": idx,
@@ -665,6 +678,14 @@ fn build_stream_response(
                                             "call_id": tc.id, "arguments": "",
                                         }
                                     }));
+                                }
+                                // Remember the tool name on first sighting with
+                                // a non-empty name (real streaming sends name on
+                                // the first chunk; later chunks may omit it).
+                                if !tc.function.name.is_empty() {
+                                    st.tool_names_by_item
+                                        .entry(tc.id.clone())
+                                        .or_insert_with(|| tc.function.name.clone());
                                 }
                                 if !tc.function.arguments.is_empty() {
                                     st.tool_args_by_item
@@ -711,12 +732,11 @@ fn build_stream_response(
                         for (i, tc_id) in tool_ids.iter().enumerate() {
                             let idx = i + 1;
                             let args = st.tool_args_by_item.get(tc_id).cloned().unwrap_or_default();
-                            let name = chunk
-                                .tool_calls
-                                .as_ref()
-                                .and_then(|cs| cs.iter().find(|c| &c.id == tc_id))
-                                .map(|c| c.function.name.clone())
-                                .unwrap_or_else(|| "unknown".to_string());
+                            let name = st
+                                .tool_names_by_item
+                                .get(tc_id)
+                                .cloned()
+                                .unwrap_or_default();
                             st.push(serde_json::json!({
                                 "type": "response.output_item.done",
                                 "output_index": idx,
@@ -788,15 +808,23 @@ fn emit_completed(st: &mut SseState) {
             "annotations": [],
         }],
     }));
-    for (i, tc_id) in st.tool_item_ids.iter().enumerate() {
-        let _ = i;
-        let args = st.tool_args_by_item.get(tc_id).cloned().unwrap_or_default();
+    for tc_id in st.tool_item_ids.clone() {
+        let args = st
+            .tool_args_by_item
+            .get(&tc_id)
+            .cloned()
+            .unwrap_or_default();
+        let name = st
+            .tool_names_by_item
+            .get(&tc_id)
+            .cloned()
+            .unwrap_or_default();
         output.push(serde_json::json!({
             "id": tc_id,
             "type": "function_call",
             "status": "completed",
             "call_id": tc_id,
-            "name": "unknown",
+            "name": name,
             "arguments": args,
         }));
     }

@@ -119,6 +119,95 @@ impl Provider for ToolCallProvider {
     }
 }
 
+/// Provider shaped like a REAL OpenAI-compatible streaming tool call:
+/// the name arrives on the FIRST chunk, `arguments` arrive as several
+/// incremental deltas, and the terminal (`done: true`) chunk carries
+/// NO `tool_calls` at all. This is the shape that exposed `"unknown"`
+/// tool names and misaligned `output_index` in `response.completed`.
+struct IncrementalToolCallProvider;
+
+#[async_trait::async_trait]
+impl Provider for IncrementalToolCallProvider {
+    async fn chat(&self, _req: &ChatRequest) -> llmrust::Result<ChatResponse> {
+        Ok(ChatResponse {
+            content: String::new(),
+            model: "tool-model".to_string(),
+            tool_calls: Some(vec![ToolCall {
+                id: "call_1".to_string(),
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: "get_weather".to_string(),
+                    arguments: r#"{"city":"SF"}"#.to_string(),
+                },
+            }]),
+            finish_reason: Some(FinishReason::ToolCalls),
+            ..Default::default()
+        })
+    }
+
+    async fn stream(
+        &self,
+        _req: &ChatRequest,
+    ) -> llmrust::Result<BoxStream<'static, llmrust::Result<StreamChunk>>> {
+        let chunks: Vec<llmrust::Result<StreamChunk>> = vec![
+            // Chunk 1: tool name + first arguments fragment (no delta text).
+            Ok(StreamChunk {
+                delta: String::new(),
+                done: false,
+                finish_reason: None,
+                tool_calls: Some(vec![ToolCall {
+                    id: "call_1".to_string(),
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: "get_weather".to_string(),
+                        arguments: r#"{"city":"SF"}"#.to_string(),
+                    },
+                }]),
+                usage: None,
+                thinking: None,
+                thinking_done: None,
+            }),
+            // Chunk 2: arguments fragment only, NO name, NO tool_calls
+            // presence requirement is fine (second call same id, empty args).
+            Ok(StreamChunk {
+                delta: String::new(),
+                done: false,
+                finish_reason: None,
+                tool_calls: Some(vec![ToolCall {
+                    id: "call_1".to_string(),
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: String::new(),
+                        arguments: String::new(),
+                    },
+                }]),
+                usage: None,
+                thinking: None,
+                thinking_done: None,
+            }),
+            // Terminal chunk: done, NO tool_calls at all — the shape that
+            // real providers emit and that used to lose the tool name.
+            Ok(StreamChunk {
+                delta: String::new(),
+                done: true,
+                finish_reason: Some(FinishReason::ToolCalls),
+                tool_calls: None,
+                usage: Some(llmrust::Usage {
+                    prompt_tokens: 3,
+                    completion_tokens: 5,
+                    total_tokens: 8,
+                    cache_read_tokens: Some(0),
+                    cache_write_tokens: None,
+                    reasoning_tokens: Some(2),
+                }),
+                thinking: None,
+                thinking_done: None,
+            }),
+        ];
+        Ok(Box::pin(stream::iter(chunks)))
+    }
+}
+
 /// Provider that returns an upstream API error.
 struct ApiErrorProvider;
 
@@ -401,6 +490,99 @@ async fn responses_stream_forwards_tool_calls() {
         saw_args_delta,
         "expected function_call_arguments.delta, got events: {text}"
     );
+}
+
+/// Regression test for the review finding: with a REAL streaming shape
+/// (name on first chunk, arguments split across chunks, terminal chunk with
+/// no tool_calls), the tool name must survive into both the `output_item.done`
+/// event and the final `response.completed.output` — never `"unknown"` — and
+/// `output_index` must stay stable across incremental argument deltas.
+#[tokio::test]
+async fn responses_stream_incremental_tool_call_preserves_name() {
+    let llm = Arc::new(LmrsClient::new());
+    llm.set_custom("tool", Arc::new(IncrementalToolCallProvider))
+        .await;
+    let app = llmrust::proxy::router(llm);
+
+    let body = serde_json::json!({
+        "model": "tool/tool-model",
+        "input": [{"type": "message", "role": "user", "content": [{"type": "input_text", "text": "weather?"}]}],
+        "stream": true,
+    })
+    .to_string();
+
+    let response = app
+        .oneshot(build_responses_request(&body))
+        .await
+        .expect("request failed");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let bytes = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body read failed");
+    let text = String::from_utf8(bytes.to_vec()).expect("body is not UTF-8");
+    let events = sse_json_events(&text);
+
+    // 1. The added item carries the name (first chunk).
+    let added = events
+        .iter()
+        .find(|e| e["type"] == "response.output_item.added")
+        .expect("missing output_item.added");
+    assert_eq!(added["item"]["name"], "get_weather");
+
+    // 2. Every function_call done item must carry the real name.
+    let mut done_names: Vec<&str> = events
+        .iter()
+        .filter(|e| e["type"] == "response.output_item.done")
+        .filter(|e| e["item"]["type"] == "function_call")
+        .map(|e| e["item"]["name"].as_str().unwrap_or_default())
+        .collect();
+    assert_eq!(
+        done_names,
+        vec!["get_weather"],
+        "tool name lost in done item"
+    );
+
+    // 3. Arguments must be fully accumulated from the split deltas.
+    let done_item = events
+        .iter()
+        .find(|e| e["type"] == "response.output_item.done" && e["item"]["type"] == "function_call")
+        .expect("missing function_call done");
+    assert_eq!(done_item["item"]["arguments"], r#"{"city":"SF"}"#);
+    let _ = &mut done_names;
+
+    // 4. The final completed.output carries the tool with the REAL name.
+    let completed = events
+        .iter()
+        .find(|e| e["type"] == "response.completed")
+        .expect("missing response.completed");
+    let outputs = completed["response"]["output"]
+        .as_array()
+        .expect("output array");
+    let tool = outputs
+        .iter()
+        .find(|o| o["type"] == "function_call")
+        .expect("function_call in completed.output");
+    assert_eq!(
+        tool["name"], "get_weather",
+        "completed.output tool name must not be unknown, got: {}",
+        completed
+    );
+
+    // 5. output_index stays stable across the incremental deltas (always 1).
+    for d in events
+        .iter()
+        .filter(|e| e["type"] == "response.function_call_arguments.delta")
+    {
+        assert_eq!(
+            d["output_index"], 1,
+            "incremental delta must keep pointing at the same item: {d}"
+        );
+    }
+
+    // 6. usage must still be harvested (chunk 3 carries it after done:true).
+    assert_eq!(completed["response"]["usage"]["input_tokens"], 3);
+    assert_eq!(completed["response"]["usage"]["output_tokens"], 5);
 }
 
 #[tokio::test]

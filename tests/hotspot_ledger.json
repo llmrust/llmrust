@@ -4,6 +4,7 @@
   "baseline_lines": {
     "src/proxy/mod.rs": 3330,
     "src/proxy/anthropic_proxy.rs": 1884,
+    "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1455,
     "src/providers/google.rs": 1524,
     "src/types.rs": 1132,
@@ -137,7 +138,15 @@
       "old": 3327,
       "new": 3330,
       "reason": "Responses API (/v1/responses) support: register responses_proxy::handle_responses in router() and router_with_auth() (+2 route lines) and declare mod responses_proxy (+1 line). Test code lives in tests/responses_proxy_tests.rs (not in the hotspot file). Ledger records the ACTUAL line count.",
-      "authorized_by": "PENDING architect ratification (PR #204 review: this baseline adjustment is required for CI's hotspot guard to pass; ledger writes actual count — awaiting architect approval per §11.1.4 architect-only rule)",
+      "authorized_by": "architect (PR #204 review 2026-08-06: baseline adjustment 3327->3330 approved — diff is +3 lines, mod declaration + two route registrations only, no logic growth)",
+      "date": "2026-08-06"
+    },
+    {
+      "file": "src/proxy/responses_proxy.rs",
+      "old": 0,
+      "new": 964,
+      "reason": "PR #204 (Responses API): new proxy handler file at 964 lines, above the 800-line §4.4 threshold — placed on the hotspot ledger per architect review ruling (new over-threshold files must be registered, not exempt). Baseline records the ACTUAL line count after cargo fmt (936 at audit + 28 added by the review-fix commit: tool_names_by_item tracking, position()-based output_index, incremental-stream regression test support).",
+      "authorized_by": "architect (PR #204 review 2026-08-06: over-threshold new file must be registered on the hotspot ledger per §4.4 ruling)",
       "date": "2026-08-06"
     }
   ]

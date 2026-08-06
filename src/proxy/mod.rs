@@ -45,6 +45,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 mod anthropic_proxy;
+mod responses_proxy;
 
 use crate::types::{EmbeddingRequest, EmbeddingUsage, FinishReason};
 use crate::{
@@ -411,6 +412,7 @@ pub fn router(llm: Arc<LmrsClient>) -> Router {
     Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
+        .route("/v1/responses", post(responses_proxy::handle_responses))
         .route("/v1/embeddings", post(handle_embeddings))
         .route("/health", get(health_check))
         // PRX-005: read-time hard limit = memory protection. NEVER set this
@@ -444,6 +446,7 @@ pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router 
     let mut router = Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
+        .route("/v1/responses", post(responses_proxy::handle_responses))
         .route("/v1/embeddings", post(handle_embeddings))
         // PRX-005: read-time hard limit = memory protection. NEVER set this
         // to usize::MAX — an oversized body must be truncated DURING reading.

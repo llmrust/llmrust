@@ -16,6 +16,17 @@ fn package_list_contains_only_allowed_files() {
         .output()
         .expect("failed to run `cargo package --list`");
 
+    // N-4 (architecture audit 2026-08-04): the guard must be fail-closed — if
+    // `cargo package --list` itself fails, the empty stdout must not look like
+    // "zero forbidden files". Assert the exit status and surface stderr before
+    // trusting the listing.
+    assert!(
+        output.status.success(),
+        "`cargo package --list` failed (exit {:?}); stderr:\n{}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
     let listing = String::from_utf8_lossy(&output.stdout);
     let mut violations = Vec::new();
 

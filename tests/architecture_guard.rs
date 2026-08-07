@@ -123,9 +123,9 @@ fn hotspot_files_do_not_grow() {
         } else {
             0
         };
-        if current > expected {
+        if current != expected {
             violations.push(format!(
-                "{file}: {current} lines > baseline {expected} (net growth forbidden by SPCC §4.4)"
+                "{file}: {current} lines != baseline {expected} (hotspot drift in either direction forbidden by SPCC §4.4; shrink = REL-003 truncation class)"
             ));
         }
     }

@@ -79,28 +79,156 @@ fn forbidden_edges() -> Vec<(&'static str, &'static str)> {
     ]
 }
 
-#[test]
-fn dependency_edges_are_respected() {
-    let mut violations = Vec::new();
-    for (file, prefix) in forbidden_edges() {
-        let path = Path::new(file);
-        if !path.exists() {
+/// Strip `//` line comments and `/* … */` block comments from Rust source.
+///
+/// Needed before scanning for `use` statements: a commented-out import
+/// (`// use crate::proxy::Router;` or `/* use crate::proxy::Router; */`) is NOT a
+/// dependency edge and must not be reported (false positive). The previous
+/// line-prefix scanner flagged it.
+pub fn strip_comments(src: &str) -> String {
+    let bytes = src.as_bytes();
+    let mut out = String::with_capacity(src.len());
+    let mut i = 0;
+    let mut in_line = false;
+    let mut in_block = false;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if in_line {
+            if c == b'\n' {
+                in_line = false;
+                out.push('\n');
+            }
+            i += 1;
             continue;
         }
-        let src = match fs::read_to_string(path) {
-            Ok(s) => s,
-            Err(_) => continue,
-        };
-        for line in src.lines() {
-            let trimmed = line.trim_start();
-            if !(trimmed.starts_with("use ") || trimmed.starts_with("pub use ")) {
-                continue;
+        if in_block {
+            if c == b'*' && bytes.get(i + 1) == Some(&b'/') {
+                in_block = false;
+                i += 2;
+            } else {
+                if c == b'\n' {
+                    out.push('\n');
+                }
+                i += 1;
             }
-            if trimmed.contains(prefix) {
-                violations.push(format!("{file}: `{trimmed}` (forbidden edge `{prefix}`)"));
+            continue;
+        }
+        if c == b'/' && bytes.get(i + 1) == Some(&b'/') {
+            in_line = true;
+            i += 2;
+            continue;
+        }
+        if c == b'/' && bytes.get(i + 1) == Some(&b'*') {
+            in_block = true;
+            i += 2;
+            continue;
+        }
+        // Keep bytes as-is; multi-byte UTF-8 passes through untouched.
+        out.push(c as char);
+        i += 1;
+    }
+    out
+}
+
+/// Collect every `use` **statement** in the source, whitespace-normalized.
+///
+/// Robust against the bypass forms the line-prefix scanner missed
+/// (`GRD-004`):
+/// - `pub use …`, `pub(crate) use …`, `pub(super) use …` (any visibility);
+/// - attributes on the preceding line (`#[cfg(test)] use …`);
+/// - `use` inside a macro invocation body (`some_macro! { use …; }`);
+/// - **multi-line** `use` statements (collected up to the terminating `;`).
+///
+/// Comment content is removed first, so commented-out imports are ignored.
+pub fn use_statements(src: &str) -> Vec<String> {
+    let cleaned = strip_comments(src);
+    let mut out = Vec::new();
+    let chars: Vec<char> = cleaned.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        // Find the token `use` at a word boundary.
+        if chars[i] == 'u'
+            && i + 3 <= chars.len()
+            && chars[i..(i + 3).min(chars.len())]
+                .iter()
+                .collect::<String>()
+                == "use"
+            && (i == 0 || !is_ident_char(chars[i - 1]))
+            && (i + 3 == chars.len() || !is_ident_char(chars[i + 3]))
+        {
+            // Collect until the terminating ';' (multi-line safe).
+            let start = i;
+            let mut j = i;
+            let mut stmt = String::new();
+            let mut depth = 0i32;
+            while j < chars.len() {
+                let ch = chars[j];
+                if ch == '{' {
+                    depth += 1;
+                } else if ch == '}' {
+                    depth -= 1;
+                }
+                if ch == ';' && depth <= 0 {
+                    break;
+                }
+                stmt.push(ch);
+                j += 1;
+            }
+            let normalized = stmt.split_whitespace().collect::<Vec<_>>().join(" ");
+            if !normalized.is_empty() {
+                out.push(normalized);
+            }
+            i = j.max(start + 3);
+            continue;
+        }
+        i += 1;
+    }
+    out
+}
+
+fn is_ident_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
+
+/// **纯函数**：给定 `(file, source)` 与禁用边表，返回违规。
+///
+/// 抽出来是为了让每种绕过形态都能被负例直接驱动，不必造真文件。
+pub fn edge_violations(files: &[(String, String)], edges: &[(String, String)]) -> Vec<String> {
+    let mut violations = Vec::new();
+    for (file, src) in files {
+        for stmt in use_statements(src) {
+            // 匹配用"去空白形态"：跨行 use 归一化后会带上空格
+            // （`use crate::\n proxy::Router;` → `use crate:: proxy::Router`），
+            // 直接 contains("crate::proxy") 会漏判。
+            let compact: String = stmt.chars().filter(|c| !c.is_whitespace()).collect();
+            for (edge_file, prefix) in edges {
+                if edge_file == file && compact.contains(prefix.as_str()) {
+                    violations.push(format!("{file}: `{stmt}` (forbidden edge `{prefix}`)"));
+                }
             }
         }
     }
+    violations
+}
+
+#[test]
+fn dependency_edges_are_respected() {
+    let edges: Vec<(String, String)> = forbidden_edges()
+        .into_iter()
+        .map(|(f, p)| (f.to_string(), p.to_string()))
+        .collect();
+
+    let mut files: Vec<(String, String)> = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for (file, _) in &edges {
+        if seen.insert(file.clone()) {
+            if let Ok(src) = fs::read_to_string(Path::new(file)) {
+                files.push((file.clone(), src));
+            }
+        }
+    }
+
+    let violations = edge_violations(&files, &edges);
     assert!(
         violations.is_empty(),
         "Dependency-edge violations found (SPCC §4.3):\n{}",
@@ -278,5 +406,137 @@ fn hotspot_coverage_detects_unlisted_oversized_file() {
         violations[0].contains("src/unlisted_big.rs"),
         "the flagged file must be the unlisted one, got: {}",
         violations[0]
+    );
+}
+
+// ── GRD-004 负例：每种绕过形态都必须被拦（SPCC §3） ──────────────────────
+
+fn edges(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
+    pairs
+        .iter()
+        .map(|(f, p)| (f.to_string(), p.to_string()))
+        .collect()
+}
+
+fn files(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
+    pairs
+        .iter()
+        .map(|(f, s)| (f.to_string(), s.to_string()))
+        .collect()
+}
+
+const TARGET: &str = "src/types.rs";
+const FORBIDDEN: &str = "crate::proxy";
+
+/// 形态 1：朴素 `use`（基线，旧扫描器也能抓到）。
+#[test]
+fn grd004_plain_use_is_caught() {
+    let v = edge_violations(
+        &files(&[(TARGET, "use crate::proxy::Router;\n")]),
+        &edges(&[(TARGET, FORBIDDEN)]),
+    );
+    assert_eq!(v.len(), 1, "got {v:?}");
+}
+
+/// 形态 2：`pub use`（旧扫描器抓得到，钉住不回归）。
+#[test]
+fn grd004_pub_use_is_caught() {
+    let v = edge_violations(
+        &files(&[(TARGET, "pub use crate::proxy::Router;\n")]),
+        &edges(&[(TARGET, FORBIDDEN)]),
+    );
+    assert_eq!(v.len(), 1, "got {v:?}");
+}
+
+/// 形态 3：**`pub(crate) use`** —— 旧扫描器 `starts_with("pub use ")` 抓不到。
+#[test]
+fn grd004_pub_crate_use_is_caught() {
+    let v = edge_violations(
+        &files(&[(TARGET, "pub(crate) use crate::proxy::Router;\n")]),
+        &edges(&[(TARGET, FORBIDDEN)]),
+    );
+    assert_eq!(v.len(), 1, "got {v:?}");
+}
+
+/// 形态 4：**带属性的 `use`**（属性在上一行）—— 旧扫描器逐行看前缀，抓不到。
+#[test]
+fn grd004_attributed_use_is_caught() {
+    let v = edge_violations(
+        &files(&[(TARGET, "#[cfg(test)]\nuse crate::proxy::Router;\n")]),
+        &edges(&[(TARGET, FORBIDDEN)]),
+    );
+    assert_eq!(v.len(), 1, "got {v:?}");
+}
+
+/// 形态 5：**宏体内的 `use`** —— 旧扫描器（行首前缀）抓不到。
+#[test]
+fn grd004_macro_internal_use_is_caught() {
+    let v = edge_violations(
+        &files(&[(TARGET, "some_macro! { use crate::proxy::Router; }\n")]),
+        &edges(&[(TARGET, FORBIDDEN)]),
+    );
+    assert_eq!(v.len(), 1, "got {v:?}");
+}
+
+/// 形态 6：**跨行 `use`** —— 路径被换行拆开，旧扫描器只看单行，抓不到。
+#[test]
+fn grd004_multiline_use_is_caught() {
+    let v = edge_violations(
+        &files(&[(TARGET, "use crate::\n    proxy::Router;\n")]),
+        &edges(&[(TARGET, FORBIDDEN)]),
+    );
+    assert_eq!(v.len(), 1, "got {v:?}");
+}
+
+/// 形态 7：**花括号多行 use** —— `use crate::proxy::{A,\n B};`。
+#[test]
+fn grd004_braced_multiline_use_is_caught() {
+    let v = edge_violations(
+        &files(&[(
+            TARGET,
+            "use crate::proxy::{\n    Router,\n    Server,\n};\n",
+        )]),
+        &edges(&[(TARGET, FORBIDDEN)]),
+    );
+    assert_eq!(v.len(), 1, "got {v:?}");
+}
+
+/// 反例（**假阳性**）：注释掉的 import **不得**被判违规。
+///
+/// 旧扫描器会把 `/* use crate::proxy::Router; */` 这类内容当成边（因为它只看行首）。
+#[test]
+fn grd004_commented_out_use_is_not_flagged() {
+    let src = "// use crate::proxy::Router;\n\
+               /* use crate::proxy::Server; */\n\
+               /*\n use crate::proxy::Inner;\n */\n";
+    let v = edge_violations(&files(&[(TARGET, src)]), &edges(&[(TARGET, FORBIDDEN)]));
+    assert!(
+        v.is_empty(),
+        "commented-out imports must not be flagged; got {v:?}"
+    );
+}
+
+/// 反例（**假阳性**）：把禁用串写进字符串字面量/普通标识符里不得误伤。
+#[test]
+fn grd004_unrelated_mentions_are_not_flagged() {
+    let src = "let note = \"crate::proxy is forbidden\";\n\
+               fn crate_proxy_helper() {}\n";
+    let v = edge_violations(&files(&[(TARGET, src)]), &edges(&[(TARGET, FORBIDDEN)]));
+    assert!(
+        v.is_empty(),
+        "non-import mentions must not be flagged; got {v:?}"
+    );
+}
+
+/// 边界：不同文件的边**不得**互串（edge 表按文件匹配）。
+#[test]
+fn grd004_edges_are_file_scoped() {
+    let v = edge_violations(
+        &files(&[("src/router.rs", "use crate::proxy::Router;\n")]),
+        &edges(&[(TARGET, FORBIDDEN)]),
+    );
+    assert!(
+        v.is_empty(),
+        "an edge for {TARGET} must not fire on another file; got {v:?}"
     );
 }

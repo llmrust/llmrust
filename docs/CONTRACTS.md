@@ -109,3 +109,32 @@ Every implementation of `Provider` must satisfy:
 8. **Unsupported providers**: Anthropic and Google Gemini do not implement embeddings and continue to return `LlmError::Unsupported` via the default `Provider::embed`.
 9. **Proxy endpoint**: `POST /v1/embeddings` accepts string or string-array input, float encoding only. Base64 and token arrays return 400 `invalid_request_error`. Provider/model routing works identically to chat proxy. Unsupported providers map to 400 (not 502).
 10. **Ollama embeddings**: Uses native `POST /api/embed`. Does not send `user`. `prompt_eval_count` maps to `EmbeddingUsage`. Actual local model support depends on installed model.
+
+## Capability adjudication contract (`CAP-003`)
+
+Every request that reaches `LmrsClient::chat_with` / `stream_with` passes through **one**
+capability adjudication at the unified entry point, before any provider call:
+
+1. **Basis**: the ruling derives **only** from `Provider::capabilities()`. Every rejection
+   must name the capability face it is based on — `Unsupported` is never a lazy fallback.
+2. **Reject** (`LlmError::Unsupported`): when the request demands a capability the provider
+   **declares** as `unsupported`:
+   - `tools`/`tool_choice` with `tool_calling` (non-stream) or `tool_calling_stream` (stream)
+     unsupported — e.g. **Ollama is refused instead of silently dropping `tools`**;
+   - image content with `image_input` unsupported.
+3. **Warn** (one `tracing::warn` per `(provider, capability-face)` per process): `n > 1`
+   stays **allowed** — llmrust returns only the first completion; the remaining choices are
+   discarded and upstream may still bill for all N. This semantics is unchanged from 0.1.3.
+4. **Pass**: everything else, with **no side effects**. Supported paths are behaviorally
+   identical to 0.1.3.
+5. **No silent drop**: dropping a requested capability without a `Reject` or a `Warn` trace
+   violates SPCC §6.3 (silent-failure ban).
+6. **Unknown declaration is conservative**: a provider that does not override
+   `capabilities()` is treated as all-`unsupported` **plus** a one-time warning — never as
+   "everything supported".
+7. **Adjudication lives at the entry point only**: provider implementations must not perform
+   their own capability checks (the 0.1.3 `warn_if_unsupported_n` call sites inside
+   Anthropic/Google/OpenAI-compatible providers were removed by `CAP-003`).
+8. **No content leakage**: verdict messages must not contain prompts, responses, or
+   credentials.
+

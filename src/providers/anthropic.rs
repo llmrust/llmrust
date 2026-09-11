@@ -817,7 +817,6 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
 #[async_trait]
 impl Provider for AnthropicProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
-        crate::providers::warn_if_unsupported_n("anthropic", req.n);
         // REA-002 (SPCC §6.3): `ChatResponse` cannot carry reasoning, so a
         // non-stream chat with thinking enabled fails BEFORE any network call.
         // `build_body` also rejects `Enabled{budget_tokens: None}` here.
@@ -925,7 +924,6 @@ impl Provider for AnthropicProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
-        crate::providers::warn_if_unsupported_n("anthropic", req.n);
         // REA-002: `Enabled{budget_tokens: None}` fails here, before network.
         let body = build_body(req, true)?;
 
@@ -991,6 +989,7 @@ impl Provider for AnthropicProvider {
     fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
         use crate::providers::capabilities::{Capabilities, Capability, EvidenceKind};
         Capabilities {
+            declared: true,
             protocol: "anthropic",
             chat: Capability::implemented(),
             stream: Capability::implemented(),

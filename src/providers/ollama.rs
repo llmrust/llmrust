@@ -442,6 +442,7 @@ impl Provider for OllamaProvider {
     fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
         use crate::providers::capabilities::{Capabilities, Capability};
         Capabilities {
+            declared: true,
             protocol: "ollama",
             chat: Capability::implemented(),
             stream: Capability::implemented(),

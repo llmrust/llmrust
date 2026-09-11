@@ -828,7 +828,6 @@ fn build_body<'a>(
 #[async_trait]
 impl Provider for GoogleProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
-        crate::providers::warn_if_unsupported_n("google", req.n);
         // REA-004G (SPCC §6.3): `ChatResponse` cannot carry reasoning, so a
         // non-stream chat with thinking enabled fails BEFORE any network call.
         if thinking_enabled(&req.thinking) {
@@ -942,7 +941,6 @@ impl Provider for GoogleProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
-        crate::providers::warn_if_unsupported_n("google", req.n);
         let (contents, system_instruction) = build_contents(req);
         let body = build_body(req, &contents, system_instruction);
 
@@ -1010,6 +1008,7 @@ impl Provider for GoogleProvider {
     fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
         use crate::providers::capabilities::{Capabilities, Capability, EvidenceKind};
         Capabilities {
+            declared: true,
             protocol: "google",
             chat: Capability::implemented(),
             stream: Capability::implemented(),

@@ -3,7 +3,7 @@
   "threshold": 500,
   "baseline_lines": {
     "src/proxy/mod.rs": 3558,
-    "src/proxy/anthropic_proxy.rs": 1886,
+    "src/proxy/anthropic_proxy.rs": 2053,
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1513,
     "src/providers/google.rs": 1614,
@@ -376,6 +376,14 @@
       "reason": "ERR-005 (N2) / F-D2: `router_with_auth` now trims the configured token before storing it, so validation and the request-side comparison agree (+140 wc -l measured, overwhelmingly tests: the whitespace-only refusal, the padded-config authentication matrix over three padding shapes, the unchanged-behaviour pin, and the strength-not-weakened check, plus the written decision rationale in the function body). The one-line behaviour change is `let token = expected_token;` → `expected_token.trim().to_string()`; the bulk is the proof that it is safe.",
       "authorized_by": "ERR-005 card (N2) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
+    },
+    {
+      "file": "src/proxy/anthropic_proxy.rs",
+      "old": 1886,
+      "new": 2053,
+      "reason": "H-3 (external audit — the ORIGINAL H-3, `normalize_stop_reason` echoing unknown upstream strings): signature changed to return `Option<String>` so that an unknown/attacker-influenced upstream finish reason becomes `null` on the Anthropic wire instead of being echoed verbatim (measured before the fix: `Other(\"FINISH_REASON_UNSPECIFIED\")` and even `Other(\"../../../etc/passwd\")` were emitted as `stop_reason`; Anthropic's field is an ENUM, so any echo violates the downstream schema). Also corrected `ContentFilter` → `refusal` (it previously emitted the non-Anthropic value `content_filter`). Unknown ⇒ `None` + a truncated `tracing::warn` trace (≤200 chars, per ERR-002) rather than picking a value, because writing `end_turn` for an unknown reason would fabricate a completion claim — the ERR-003 error class. The streaming site distinguishes 'no reason given' (keeps the pre-existing has_tools synthesis) from 'reason given but unknown' (null, no fallback). +167 wc -l measured, overwhelmingly tests: the 3-way unit matrix (unknown refused, known preserved, over-long refused) and an end-to-end test asserting `stop_reason` is null AND the raw string appears nowhere in the response body.",
+      "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」+ 审核官 2026-09-11 回执（H-3 本体 file:line 与期望行为）— ledger adjustment per §11.1.4",
+      "date": "2026-09-12"
     }
   ]
 }

@@ -392,7 +392,7 @@ pub fn build_response(resp: ChatResponse, id: &str) -> AnthropicResponse {
         }
     }
 
-    let stop_reason = resp.finish_reason.as_ref().map(normalize_stop_reason);
+    let stop_reason = resp.finish_reason.as_ref().and_then(normalize_stop_reason);
     let (input_tokens, output_tokens) = match &resp.usage {
         Some(u) => (u.prompt_tokens, u.completion_tokens),
         None => (0, 0),
@@ -413,13 +413,48 @@ pub fn build_response(resp: ChatResponse, id: &str) -> AnthropicResponse {
     }
 }
 
-/// Normalize a provider-specific stop reason to Anthropic conventions.
-fn normalize_stop_reason(reason: &FinishReason) -> String {
+/// 把内部 [`FinishReason`] 映射为 **Anthropic `stop_reason`** 的合法取值。
+///
+/// **`H-3`（外部审计）：未知串不得原样回显。**
+///
+/// 修复前，未列入映射的分支走 `other => other.as_str().to_string()`，于是
+/// **上游/调用方可控的任意字符串会被原样写进 Anthropic 的 `stop_reason`**：
+/// - Gemini 的 `FINISH_REASON_UNSPECIFIED`（`ERR-003` 起改走 `Other(..)`）会原样泄出；
+/// - 实测 `Other("../../../etc/passwd")` 同样原样泄出（路径形状的串）；
+/// - Anthropic 的 `stop_reason` 是**枚举**（`end_turn`/`max_tokens`/`stop_sequence`/
+///   `tool_use`/`pause_turn`/`refusal`），回显任意串**违反下游 schema**。
+///
+/// 顺带修正：`ContentFilter` 此前回显为 `"content_filter"`——**不是** Anthropic 的取值；
+/// Anthropic 对应语义是 **`refusal`**。
+///
+/// **为什么未知串返回 `None` 而不是挑一个值**：把"未知"写成 `end_turn` 等于**编造"正常结束"**
+/// ——与 `ERR-003` 同类错误。Anthropic wire 上 `stop_reason: null` 是合法表达（未知/未确定），
+/// 故未知 ⇒ **`None`（wire 上 `null`）**，并**留 `tracing::warn` 痕迹**（§6.3：降级必须留痕；
+/// 且痕迹**不得含无界内容**——故原始串**截断**后记录，依 `ERR-002` 的 ≤200 字符上界口径）。
+fn normalize_stop_reason(reason: &FinishReason) -> Option<String> {
+    /// 留痕时对上游原始串的长度上界（与代理错误体的 ≤200 口径一致）。
+    const MAX_ECHO_TRACE_CHARS: usize = 200;
+
     match reason {
-        FinishReason::Stop | FinishReason::EndTurn => "end_turn".to_string(),
-        FinishReason::ToolCalls | FinishReason::ToolUse => "tool_use".to_string(),
-        FinishReason::Length | FinishReason::MaxTokens => "max_tokens".to_string(),
-        other => other.as_str().to_string(),
+        FinishReason::Stop | FinishReason::EndTurn => Some("end_turn".to_string()),
+        FinishReason::ToolCalls | FinishReason::ToolUse => Some("tool_use".to_string()),
+        FinishReason::Length | FinishReason::MaxTokens => Some("max_tokens".to_string()),
+        FinishReason::StopSequence => Some("stop_sequence".to_string()),
+        // Anthropic 的合法取值是 `refusal`（此前错误地回显 `content_filter`）。
+        FinishReason::ContentFilter => Some("refusal".to_string()),
+        // 未知/上游自定义：**不回显**，返回 `None`（wire 上 `null`），并留痕（截断）。
+        FinishReason::Other(raw) => {
+            let mut shown: String = raw.chars().take(MAX_ECHO_TRACE_CHARS).collect();
+            if raw.chars().count() > MAX_ECHO_TRACE_CHARS {
+                shown.push('…');
+            }
+            tracing::warn!(
+                upstream_finish_reason = %shown,
+                "anthropic proxy: unknown upstream finish reason is NOT echoed into `stop_reason` \
+                 (not a valid Anthropic value); emitting null instead (H-3)"
+            );
+            None
+        }
     }
 }
 
@@ -757,17 +792,20 @@ impl AnthropicStreamState {
                 self.next_block_index = 1;
             }
 
-            let stop_reason = chunk
-                .finish_reason
-                .as_ref()
-                .map(normalize_stop_reason)
-                .unwrap_or_else(|| {
-                    if has_tools {
-                        "tool_use".to_string()
-                    } else {
-                        "end_turn".to_string()
-                    }
-                });
+            // `H-3`：**必须区分两种"没有合法值"**——
+            // ① `finish_reason` 为 `None`（上游未给出终结原因）⇒ **保持既有合成行为**
+            //    （依 `has_tools` 择 `tool_use`/`end_turn`；非本卡范围，行为不变）；
+            // ② `finish_reason = Some(未知/Other(..))` ⇒ **`null`**，**不得**回退到合成值
+            //    ——那会把"未知"写成"正常结束"，正是 `ERR-003` 的错法。
+            // 旧写法 `.map(normalize_stop_reason).unwrap_or_else(..)` 会把 ② 也吞进 ①。
+            let stop_reason: Option<String> = match chunk.finish_reason.as_ref() {
+                Some(fr) => normalize_stop_reason(fr),
+                None => Some(if has_tools {
+                    "tool_use".to_string()
+                } else {
+                    "end_turn".to_string()
+                }),
+            };
 
             let output_tokens = self.usage.as_ref().map_or(0, |u| u.completion_tokens);
 
@@ -1301,11 +1339,80 @@ mod tests {
 
     #[test]
     fn stop_reason_normalization() {
-        assert_eq!(normalize_stop_reason(&FinishReason::Stop), "end_turn");
-        assert_eq!(normalize_stop_reason(&FinishReason::EndTurn), "end_turn");
-        assert_eq!(normalize_stop_reason(&FinishReason::ToolCalls), "tool_use");
-        assert_eq!(normalize_stop_reason(&FinishReason::ToolUse), "tool_use");
-        assert_eq!(normalize_stop_reason(&FinishReason::Length), "max_tokens");
+        // 既有映射（不得回归）——现返回 `Option`，合法值均为 `Some`。
+        assert_eq!(
+            normalize_stop_reason(&FinishReason::Stop).as_deref(),
+            Some("end_turn")
+        );
+        assert_eq!(
+            normalize_stop_reason(&FinishReason::EndTurn).as_deref(),
+            Some("end_turn")
+        );
+        assert_eq!(
+            normalize_stop_reason(&FinishReason::ToolCalls).as_deref(),
+            Some("tool_use")
+        );
+        assert_eq!(
+            normalize_stop_reason(&FinishReason::ToolUse).as_deref(),
+            Some("tool_use")
+        );
+        assert_eq!(
+            normalize_stop_reason(&FinishReason::Length).as_deref(),
+            Some("max_tokens")
+        );
+        // 顺带修正：`StopSequence` 本就合法；`ContentFilter` 此前错回显 `content_filter`。
+        assert_eq!(
+            normalize_stop_reason(&FinishReason::StopSequence).as_deref(),
+            Some("stop_sequence")
+        );
+        assert_eq!(
+            normalize_stop_reason(&FinishReason::ContentFilter).as_deref(),
+            Some("refusal"),
+            "Anthropic's value for a filtered stop is `refusal`, not `content_filter`"
+        );
+    }
+
+    /// **`H-3` 本卡正题（负例）**：未知/上游自定义串**不得**进入 `stop_reason`。
+    #[test]
+    fn h3_unknown_finish_reason_is_not_echoed() {
+        for raw in [
+            "FINISH_REASON_UNSPECIFIED",
+            "../../../etc/passwd",
+            "<script>alert(1)</script>",
+            "",
+        ] {
+            let got = normalize_stop_reason(&FinishReason::Other(raw.to_string()));
+            assert_eq!(
+                got, None,
+                "H-3: `Other({raw:?})` must NOT be echoed into `stop_reason` (got {got:?})"
+            );
+        }
+    }
+
+    /// 正向对照：**已知**原因必须照常给出合法值（不得因本卡被误伤为 `None`）。
+    #[test]
+    fn h3_known_reasons_still_produce_values() {
+        for (fr, want) in [
+            (FinishReason::Stop, "end_turn"),
+            (FinishReason::ToolUse, "tool_use"),
+            (FinishReason::MaxTokens, "max_tokens"),
+        ] {
+            assert_eq!(
+                normalize_stop_reason(&fr).as_deref(),
+                Some(want),
+                "known reason must keep its mapping"
+            );
+        }
+    }
+
+    /// 超长未知串：仍须拒绝（留痕走截断，依 `ERR-002` ≤200 口径）。
+    #[test]
+    fn h3_over_long_unknown_reason_is_still_refused() {
+        let long = "x".repeat(5000);
+        assert!(
+            normalize_stop_reason(&FinishReason::Other(long)).is_none(),
+            "over-long unknown reason must still be refused"
+        );
     }
 
     #[test]
@@ -1881,6 +1988,66 @@ mod tests {
         assert!(
             msg.contains("reasoning") || msg.contains("thinking"),
             "thinking key must be rejected with a reasoning-specific 400 message, got: {json}"
+        );
+    }
+
+    /// **`H-3` 端到端（最强断言）**：上游给未知终结原因时，
+    /// ① `stop_reason` 必须是 `null`；② **原始串不得出现在响应体的任何位置**。
+    ///
+    /// 修复前该串会被原样回显进 `stop_reason`（实测含路径形状串），故本测试同时是回归防线。
+    #[tokio::test]
+    async fn h3_unknown_upstream_reason_never_reaches_the_wire() {
+        const RAW: &str = "FINISH_REASON_UNSPECIFIED";
+
+        struct UnknownReasonProvider;
+        #[async_trait::async_trait]
+        impl crate::providers::Provider for UnknownReasonProvider {
+            async fn chat(&self, _req: &ChatRequest) -> crate::Result<ChatResponse> {
+                Ok(ChatResponse {
+                    content: "hi".to_string(),
+                    model: "mock-model".to_string(),
+                    finish_reason: Some(FinishReason::Other(RAW.to_string())),
+                    usage: Some(Usage::default()),
+                    ..Default::default()
+                })
+            }
+            async fn stream(
+                &self,
+                _req: &ChatRequest,
+            ) -> crate::Result<futures::stream::BoxStream<'static, crate::Result<StreamChunk>>>
+            {
+                Ok(Box::pin(futures::stream::empty()))
+            }
+        }
+
+        let llm = std::sync::Arc::new(crate::LmrsClient::new());
+        llm.set_custom("mock", std::sync::Arc::new(UnknownReasonProvider))
+            .await;
+        let state = AppState { llm };
+
+        let body = serde_json::json!({
+            "model": "mock/m",
+            "max_tokens": 64,
+            "messages": [{"role": "user", "content": "hi"}],
+        })
+        .to_string();
+
+        let resp = handle_messages(axum::extract::State(state), body).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let text = String::from_utf8_lossy(&bytes).to_string();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+
+        assert!(
+            json["stop_reason"].is_null(),
+            "H-3: an unknown upstream reason must yield `stop_reason: null`, got {}",
+            json["stop_reason"]
+        );
+        assert!(
+            !text.contains(RAW),
+            "H-3: the raw upstream string must NOT appear anywhere in the response body, got: {text}"
         );
     }
 }

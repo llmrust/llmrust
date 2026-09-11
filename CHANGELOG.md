@@ -319,6 +319,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   （`connect_timeout` / `timeout` / `pool_max_idle_per_host` / `tcp_keepalive` / `no_proxy` / 自定义头），
   并按卡片要求附上**"降级而非传播错误"的书面理由**（签名连锁代价 + 降级后客户端仍可用）。
 
+### Fixed
+
+- **Anthropic 代理：未知的上游终结原因不再原样回显进 `stop_reason`（`H-3`）**：
+  此前 `normalize_stop_reason` 对未列入映射的分支走 `other => other.as_str().to_string()`，
+  于是**上游/调用方可控的任意字符串被原样写进 Anthropic 的 `stop_reason`**：
+  Gemini 的 `FINISH_REASON_UNSPECIFIED`（`ERR-003` 起改走 `Other(..)`）会原样泄出，
+  实测 `Other("../../../etc/passwd")` 同样泄出；而 Anthropic 的 `stop_reason` 是**枚举**
+  （`end_turn`/`max_tokens`/`stop_sequence`/`tool_use`/`pause_turn`/`refusal`），回显任意串**违反下游 schema**。
+  **现在**：未知 ⇒ **`stop_reason: null`**（Anthropic wire 上的合法表达），并**留 `tracing::warn` 痕迹**
+  （原始串**截断**记录，依 `ERR-002` 的 ≤200 口径，**不留无界内容**）。
+  **为什么不挑一个值**：把"未知"写成 `end_turn` 等于**编造"正常结束"**——与 `ERR-003` 同类错误。
+  **顺带修正**：`ContentFilter` 此前回显为 `"content_filter"`（**非** Anthropic 取值），现为 **`refusal`**。
+  **行为变更（wire 面）**：① 未知终结原因的 `stop_reason` 由"任意串"变为 **`null`**；
+  ② 内容过滤由 `"content_filter"` 变为 **`"refusal"`**。已列映射的 5 类**行为不变**。
+  流式路径同步修正：`finish_reason` **缺失**时仍按既有 `has_tools` 合成（行为不变），
+  而 `finish_reason = Some(未知)` 时**不再回退到合成值**（否则即上面那条"编造"）。
+
 ### Changed
 
 - **Proxy 认证：校验与存储对 trim 现在一致（`ERR-005` / `F-D2`）**：此前 `router_with_auth` **校验**用

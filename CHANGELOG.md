@@ -321,6 +321,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Gemini `FINISH_REASON_UNSPECIFIED` 不再当成"正常结束"（`ERR-003`）**：该值此前被映射为
+  `FinishReason::Stop`——把**缺失信息**当成了"模型正常结束"的**断言**，调用方会据此以为生成完整。
+  现在它走 `FinishReason::Other("FINISH_REASON_UNSPECIFIED")` **逃生口**，语义原样保留；
+  流终止判定（`done`）**行为不变**（`Other(..)` 仍是 `Some(..)`）；
+  **`FinishReason` 变体集合未变**（新增变体对下游是 breaking，§5.3 禁止）。
+  **同族缺口（本版未修、已记录）**：`ollama.rs` 在上游缺 `done_reason` 时用
+  `.unwrap_or(FinishReason::Stop)`——同一类"缺失即视为正常结束"，经**字段缺失**而非显式
+  `UNSPECIFIED` 抵达；因本卡禁止改动其他 Provider 的映射，故仅登记为后续发现。
 - **错误分类保真与错误体上界（`ERR-002`）**：`Router` 的 failover 日志不再把 `error_kind`
   **硬编码为 `api_error`**，改为反映真实分类（`authentication_error` / `rate_limit_error` /
   `invalid_request_error` / `api_error` / `connection_error` / `stream_error` / `parse_error` /

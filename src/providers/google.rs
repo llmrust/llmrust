@@ -681,6 +681,16 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
 
 /// Convert a Gemini `finishReason` string (uppercase, e.g. `"STOP"`,
 /// `"MAX_TOKENS"`, `"SAFETY"`) to a [`FinishReason`].
+///
+/// **`ERR-003`（`F-B1`）：`"FINISH_REASON_UNSPECIFIED"` 不再映射为 [`FinishReason::Stop`]。**
+///
+/// "未指定"是一个**缺失信息**的信号，而 `Stop` 是"模型正常结束"的**断言**——
+/// 把前者当后者，等于**凭空造出一个语义**（调用方会据此认为生成完整）。
+/// 现在它走 [`FinishReason::Other`] **逃生口**：**语义保留原样**（调用方看得见
+/// "上游没说为什么结束"），同时 `Option` 仍是 `Some(..)`，故流终止判定（`done`）**行为不变**。
+///
+/// 注意：本卡**禁止**新增 `FinishReason` 变体（那对下游是 breaking，§5.3），
+/// 故必须复用既有逃生口，而不是加 `FinishReason::Unspecified`。
 fn to_finish_reason(s: String) -> FinishReason {
     match s.as_str() {
         "STOP" => FinishReason::Stop,
@@ -691,7 +701,7 @@ fn to_finish_reason(s: String) -> FinishReason {
         | "PROHIBITED_CONTENT"
         | "SPII"
         | "MALFORMED_FUNCTION_CALL" => FinishReason::ContentFilter,
-        "FINISH_REASON_UNSPECIFIED" => FinishReason::Stop,
+        "FINISH_REASON_UNSPECIFIED" => FinishReason::Other(s),
         _ => FinishReason::from(s),
     }
 }
@@ -1543,5 +1553,62 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(usage.reasoning_tokens, Some(20));
+    }
+
+    // ── ERR-003：`FINISH_REASON_UNSPECIFIED` 不得被当成"正常结束" ──────
+
+    /// **负例（本卡的正题）**：`FINISH_REASON_UNSPECIFIED` **不得**产出
+    /// [`FinishReason::Stop`]；必须走 `Other(..)` 逃生口**原样保留语义**。
+    #[test]
+    fn unspecified_finish_reason_is_not_reported_as_stop() {
+        let got = to_finish_reason("FINISH_REASON_UNSPECIFIED".to_string());
+        assert_ne!(
+            got,
+            FinishReason::Stop,
+            "ERR-003: 'unspecified' must not be asserted as a normal completion"
+        );
+        assert_eq!(
+            got,
+            FinishReason::Other("FINISH_REASON_UNSPECIFIED".to_string()),
+            "the unspecified reason must survive verbatim through the escape hatch"
+        );
+    }
+
+    /// **回退防线**：若有人把映射改回 `Stop`，上面的断言立刻红——本测试把该性质
+    /// 再钉一次（明确写出"我们**故意不**把 UNSPECIFIED 当 STOP"）。
+    #[test]
+    fn unspecified_is_distinguishable_from_a_real_stop() {
+        let real_stop = to_finish_reason("STOP".to_string());
+        let unspecified = to_finish_reason("FINISH_REASON_UNSPECIFIED".to_string());
+        assert_eq!(
+            real_stop,
+            FinishReason::Stop,
+            "a real STOP still maps to Stop"
+        );
+        assert_ne!(
+            real_stop, unspecified,
+            "a real STOP and an unspecified reason must not collapse into one value"
+        );
+    }
+
+    /// **`done` 语义不变**（行为契约）：两者都是 `Some(..)`，故流终止判定不受影响。
+    #[test]
+    fn unspecified_still_terminates_the_stream() {
+        for wire in ["STOP", "FINISH_REASON_UNSPECIFIED"] {
+            let mapped: Option<FinishReason> = Some(to_finish_reason(wire.to_string()));
+            assert!(
+                mapped.is_some(),
+                "{wire} must still terminate the stream (ERR-003 keeps `done` semantics)"
+            );
+        }
+    }
+
+    /// 逃生口对**未知**串同样生效（既有行为，钉住不回归）。
+    #[test]
+    fn unknown_finish_reason_round_trips_through_other() {
+        assert_eq!(
+            to_finish_reason("SOMETHING_NEW".to_string()),
+            FinishReason::Other("SOMETHING_NEW".to_string())
+        );
     }
 }

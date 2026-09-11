@@ -69,7 +69,7 @@ impl Provider for OpenRouterProvider {
             tool_calling_stream: Capability::model_dependent(),
             image_input: Capability::model_dependent(),
             embeddings: Capability::implemented(),
-            reasoning: Capability::model_dependent(),
+            reasoning: Capability::unsupported(),
             prompt_cache: Capability::model_dependent(),
         }
     }

@@ -60,7 +60,7 @@ impl Provider for DeepSeekProvider {
             tool_calling_stream: Capability::implemented(),
             image_input: Capability::unsupported(),
             embeddings: Capability::implemented(),
-            reasoning: Capability::model_dependent(),
+            reasoning: Capability::unsupported(),
             prompt_cache: Capability::model_dependent(),
         }
     }

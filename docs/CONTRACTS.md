@@ -31,6 +31,21 @@ Every implementation of `Provider` must satisfy:
 5. **No silent drops**: Never silently skip malformed data. Never emit `Ok(chunk)` with empty delta and `done: false` as a workaround for parse failures.
 6. **Tool call reconstruction** (if supported): Accumulate streamed tool call fragments and emit the complete `tool_calls` on the terminal chunk.
 7. **Reasoning deltas**: Providers that map reasoning on the streaming path must surface increments via `StreamChunk.thinking` (additive, appended per chunk) and mark the end with `StreamChunk.thinking_done = Some(true)` at most once on the terminal chunk. Reasoning must never be mixed into `StreamChunk.delta` (REA-001 §1.3). Providers without a lossless wire mapping must reject `Enabled` reasoning before any network call (REA-002/003/004G/004O).
+8. **Finish-reason semantics — never invent a reason** (`ERR-003`, `F-B1`):
+   - An upstream value meaning **"no reason given"** must **not** be asserted as [`FinishReason::Stop`]
+     ("the model finished normally"). `Stop` is a *claim*; an unspecified reason is *missing information*.
+   - Such values must travel through the **escape hatch** `FinishReason::Other(<verbatim wire value>)`
+     so the caller can see that the upstream did not say why generation ended.
+   - This does **not** change stream termination: `Other(..)` is still `Some(..)`, so `done` stays `true`.
+     The `FinishReason` **variant set is unchanged** — adding a variant would be a breaking change (§5.3).
+   - Concrete case (`Gemini`): `"FINISH_REASON_UNSPECIFIED"` maps to `Other("FINISH_REASON_UNSPECIFIED")`,
+     not to `Stop`.
+   - **Known same-family gap, deliberately NOT fixed here**: `ollama.rs` uses
+     `.unwrap_or(FinishReason::Stop)` when the upstream `done_reason` is absent — the same
+     "absence treated as a normal completion" collapse, reached through a *missing* field rather
+     than an explicit `UNSPECIFIED`. `ERR-003`'s card forbids touching other providers' mappings,
+     so it is **recorded as a follow-up finding** rather than silently changed.
+   - Sibling: the `unknown → Other(..)` escape hatch is pinned by `tests/response_freeze.rs`.
 
 ## Proxy contract
 

@@ -442,7 +442,33 @@ pub fn router_with_auth(llm: Arc<LmrsClient>, expected_token: String) -> Router 
         panic!("PRX-002: auth token must not be empty or whitespace-only");
     }
     let state = AppState { llm };
-    let token = expected_token;
+    // ERR-005 (`F-D2`) — **validation and storage must agree on trimming.**
+    //
+    // The defect: validation reasoned about `expected_token.trim()` while storage kept
+    // the RAW string, and the request side compares `provided.trim()` (see `check_bearer`)
+    // against the stored value. So a token configured as `"  secret  "` could never
+    // authenticate — not with `Bearer secret`, not even with `Bearer   secret  ` — and the
+    // operator sees a correct-looking token that always 401s (the FIX-001/Moonshot shape).
+    //
+    // Decision: **normalize (trim), not reject.** Written rationale (card requires choosing):
+    //   1. the comparison side TRIMS the client value, so "compare trimmed forms" is the
+    //      code's existing intent — trimming storage is what makes the two sides consistent,
+    //      which is exactly this card's target;
+    //   2. rejecting would leave every currently-padded deployment locked out and turn it
+    //      into a startup panic — a bigger break than normalizing;
+    //   3. it does NOT weaken authentication (forbidden here): no token that was previously
+    //      rejected becomes accepted except the trimmed form of the configured secret itself,
+    //      and RFC 6750's `b64token` cannot contain spaces — whitespace is malformed config,
+    //      not a legitimate secret;
+    //   4. the constant-time comparison is untouched (forbidden here).
+    let token = expected_token.trim().to_string();
+    if token != expected_token {
+        tracing::warn!(
+            "PRX-002/ERR-005: the configured auth token had leading/trailing whitespace; \
+             it has been trimmed. Set the token without surrounding whitespace to silence \
+             this warning. (The token value itself is never logged.)"
+        );
+    }
     let mut router = Router::new()
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/messages", post(anthropic_proxy::handle_messages))
@@ -1982,6 +2008,120 @@ mod tests {
             .await
             .expect("request failed");
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    // ── ERR-005 / F-D2：校验与存储对 trim 的处理必须一致 ──────────────────
+    //
+    // 四类输入（DoD 点名）：① 纯空白 → 拒绝（构造期 panic）；② 前导空白；③ 尾随空白；
+    // ④ 正常 token。②③ 的处置是**规范化（trim）**，理由见 `router_with_auth` 的注释。
+
+    /// ① 纯空白（含制表符/换行）→ **构造期拒绝**（PRX-002 既有行为，本卡不放松）。
+    #[test]
+    fn whitespace_only_token_is_refused_at_construction() {
+        for ws in ["   ", "\t", "\n", " \t\n "] {
+            let llm = Arc::new(LmrsClient::new());
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                router_with_auth(llm, ws.to_string())
+            }));
+            assert!(result.is_err(), "`{ws:?}` must be refused at construction");
+        }
+    }
+
+    /// ②③ 前导/尾随空白 → **规范化**：配置 `"  tok  "` 与配置 `"tok"` **等价**。
+    ///
+    /// 这是本卡修复的核心：修复前，配置带空白的 token 会让**任何**客户端都 401
+    /// （比对侧 trim 过、存储侧没有），端点实质被锁死。
+    #[tokio::test]
+    async fn padded_configured_token_authenticates_like_the_trimmed_one() {
+        for padded in [
+            "  secret-token-123",
+            "secret-token-123  ",
+            "  secret-token-123  ",
+        ] {
+            let llm = Arc::new(LmrsClient::new());
+            llm.set_custom("mock", Arc::new(MockProvider)).await;
+            let app = router_with_auth(llm, padded.to_string());
+
+            let body = serde_json::json!({
+                "model": "mock/test",
+                "messages": [{"role": "user", "content": "hi"}],
+            })
+            .to_string();
+
+            let response = app
+                .oneshot(build_request_with_auth(
+                    &body,
+                    Some("Bearer secret-token-123"),
+                ))
+                .await
+                .expect("request failed");
+            assert_eq!(
+                response.status(),
+                StatusCode::OK,
+                "configured `{padded:?}` must authenticate the same as the trimmed token"
+            );
+        }
+    }
+
+    /// ④ 正常 token：行为不变（钉住不回归）。
+    #[tokio::test]
+    async fn unpadded_token_behaviour_is_unchanged() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router_with_auth(llm, "secret-token-123".to_string());
+
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": "hi"}],
+        })
+        .to_string();
+
+        let ok = app
+            .clone()
+            .oneshot(build_request_with_auth(
+                &body,
+                Some("Bearer secret-token-123"),
+            ))
+            .await
+            .expect("request failed");
+        assert_eq!(ok.status(), StatusCode::OK);
+
+        // 错 token 仍 401（认证强度未降）。
+        let bad = app
+            .oneshot(build_request_with_auth(&body, Some("Bearer wrong-token")))
+            .await
+            .expect("request failed");
+        assert_eq!(bad.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    /// **认证强度未降**：规范化**不会**让"不同的 token"通过（含前后空白变体之外的差异）。
+    #[tokio::test]
+    async fn trimming_does_not_accept_a_different_token() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router_with_auth(llm, "  secret-token-123  ".to_string());
+
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": "hi"}],
+        })
+        .to_string();
+
+        for wrong in ["secret-token-124", "secret", "secret-token-1234"] {
+            let response = app
+                .clone()
+                .oneshot(build_request_with_auth(
+                    &body,
+                    Some(&format!("Bearer {wrong}")),
+                ))
+                .await
+                .expect("request failed");
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "`{wrong}` must still be rejected"
+            );
+        }
     }
 
     #[tokio::test]

@@ -62,6 +62,7 @@
 //! ```
 
 pub mod cache_control;
+pub mod catalog;
 pub mod pricing;
 pub mod providers;
 #[cfg(feature = "proxy")]
@@ -78,7 +79,10 @@ use futures::StreamExt;
 use tokio::sync::RwLock;
 
 pub use cache_control::{CachePolicy, CacheRetention};
-pub use pricing::ModelPricing;
+pub use catalog::{
+    access_path, model, AccessPath, Channel, Lifecycle, ModelSpec, Protocol, Region,
+};
+pub use pricing::{CachePricing, ModelPricing};
 pub use providers::retry::RetryProvider;
 pub use providers::{LlmError, Provider, ProviderConfig, Result};
 pub use router::{Router, RoutingStrategy};

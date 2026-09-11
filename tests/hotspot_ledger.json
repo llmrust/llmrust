@@ -2,14 +2,14 @@
   "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task or an architect-written exception explicitly authorizes a transition. Do not inflate a number to turn a guard green. PROCESS LESSON (CI-003 PR #95): after any `cargo fmt` auto-fix, the architecture guards MUST be re-run locally before pushing; a fmt-driven reflow once silently broke the hotspot baseline. THRESHOLD (2026-09-11, #209): raised to the Owner rule — every `src/**/*.rs` file must stay under 500 lines; the threshold is a single source of truth here and must match SPCC §4.4. Coverage is now BIDIRECTIONAL: a file at or above `threshold` that has no key under `baseline_lines` is a violation (previously only listed files were checked, so an unlisted oversized file could grow or shrink silently — e.g. ollama.rs at 805).",
   "threshold": 500,
   "baseline_lines": {
-    "src/proxy/mod.rs": 3330,
+    "src/proxy/mod.rs": 3418,
     "src/proxy/anthropic_proxy.rs": 1886,
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1485,
     "src/providers/google.rs": 1547,
     "src/types.rs": 1136,
     "src/providers/anthropic.rs": 1539,
-    "src/router.rs": 1080,
+    "src/router.rs": 1220,
     "src/providers/ollama.rs": 830,
     "src/lib.rs": 839,
     "src/providers/retry.rs": 521,
@@ -319,6 +319,22 @@
       "new": 1886,
       "reason": "ERR-001 (N2): same replacement in the proxy response conversion (+2 wc -l measured). Here the silent `{}` was rewriting a tool call the UPSTREAM had returned — the caller could not tell its arguments had been altered; now it is traced.",
       "authorized_by": "ERR-001 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/router.rs",
+      "old": 1080,
+      "new": 1220,
+      "reason": "ERR-002 (N2): added `error_kind_of(&LlmError) -> &'static str` (the real classification mapping, replacing the hardcoded `error_kind = \"api_error\"` at the two failover log sites) plus its two unit tests — the mapping table, its per-case assertions and the anti-collapse regression guard (+140 wc -l measured). The mapping lives in router.rs because that is where the mislabelling happened and where the log field is emitted; tests live in-file per this crate's convention.",
+      "authorized_by": "ERR-002 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/proxy/mod.rs",
+      "old": 3330,
+      "new": 3418,
+      "reason": "ERR-002 (N2) / FND-R3: `MAX_ERROR_MESSAGE_CHARS` + `truncate_message` were extracted to module level and the truncation was MOVED OUT OF the match, so every error arm — including the previously untruncated `UnknownProvider` and `Unsupported` — now passes through the same single bound (+88 wc -l measured, mostly the five boundary tests: exactly-200, 201, 10000, multibyte and empty). Making the bound structural is the point: a future arm cannot forget it.",
+      "authorized_by": "ERR-002 card (N2) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     }
   ]

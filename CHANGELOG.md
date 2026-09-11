@@ -321,6 +321,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **错误分类保真与错误体上界（`ERR-002`）**：`Router` 的 failover 日志不再把 `error_kind`
+  **硬编码为 `api_error`**，改为反映真实分类（`authentication_error` / `rate_limit_error` /
+  `invalid_request_error` / `api_error` / `connection_error` / `stream_error` / `parse_error` /
+  `unknown_provider` / `unsupported`）——0.1.3 期"限流 / 连接失败 / 上游 5xx / provider 未注册"
+  在日志里**全是一个样**，排障无从区分。
+- **代理错误体的 ≤200 字符上界现在对全部路径生效**（`FND-R3`）：此前 `UnknownProvider`
+  （载荷是**调用方可控**的 `provider/model` 串）与 `Unsupported` 两条分支**未截断**，
+  属无界反射、且与注释宣称的"唯一机械规则"不符。截断改为**结构性**（移出 `match`，只做一次），
+  新增分支**无法遗漏**。（注释与实现不符时的处置选择：**改实现**，理由已写入代码注释。）
 - **能力检查上移到统一入口（`CAP-003`）**：`LmrsClient` 在派发前做一次**能力裁决**，
   依据 `Provider::capabilities()` 的声明决定 **放行 / 告警 / 拒绝**。
   公开行为变更（**唯一一处**）：

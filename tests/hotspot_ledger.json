@@ -12,7 +12,7 @@
     "src/router.rs": 1231,
     "src/providers/ollama.rs": 830,
     "src/lib.rs": 839,
-    "src/providers/retry.rs": 783,
+    "src/providers/retry.rs": 865,
     "src/providers/capabilities.rs": 712
   },
   "adjustments": [
@@ -375,6 +375,14 @@
       "new": 3558,
       "reason": "ERR-005 (N2) / F-D2: `router_with_auth` now trims the configured token before storing it, so validation and the request-side comparison agree (+140 wc -l measured, overwhelmingly tests: the whitespace-only refusal, the padded-config authentication matrix over three padding shapes, the unchanged-behaviour pin, and the strength-not-weakened check, plus the written decision rationale in the function body). The one-line behaviour change is `let token = expected_token;` → `expected_token.trim().to_string()`; the bulk is the proof that it is safe.",
       "authorized_by": "ERR-005 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/retry.rs",
+      "old": 783,
+      "new": 865,
+      "reason": "H-2 (external audit, pre-REL-004 fix): `http_date_to_unix` parsed the year as `i64` with NO range check (day/hour/minute/second all had one). With an absurd year the `era * 146_097` term in `days_from_civil` overflowed i64 — reproduced in-repo: `year = i64::MAX` → panic `attempt to multiply with overflow` at retry.rs:172 (debug), wrap-around in release. Fix: a 4-digit year bound (`1000..=9999`, per RFC 9110's `year = 4DIGIT`) returning `None`, plus saturating arithmetic as defence-in-depth. The bounded range is deliberate: silently degrading a malformed date to 0 would assert `retry immediately` — the same class of fabricated semantics as ERR-003. +82 wc -l measured, almost entirely the three tests (absurd years → None without panic, valid 4-digit years unaffected, saturating arithmetic) and the rationale comment.",
+      "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」(audit item H-2) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     }
   ]

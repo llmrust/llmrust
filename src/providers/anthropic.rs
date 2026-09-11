@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use crate::cache_control::{AnthropicCacheControl, AnthropicSystem};
 use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
@@ -46,7 +47,7 @@ struct AnthropicRequest<'a> {
     model: &'a str,
     messages: Vec<AnthropicMessage>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    system: Option<String>,
+    system: Option<AnthropicSystem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -106,9 +107,9 @@ fn thinking_enabled(cfg: &Option<ThinkingConfig>) -> bool {
 }
 
 #[derive(Serialize)]
-struct AnthropicMessage {
+pub(crate) struct AnthropicMessage {
     role: String,
-    content: AnthropicMessageContent,
+    pub(crate) content: AnthropicMessageContent,
 }
 
 /// A Claude message body is either a plain string (text-only, the common case)
@@ -116,28 +117,36 @@ struct AnthropicMessage {
 /// results).
 #[derive(Serialize)]
 #[serde(untagged)]
-enum AnthropicMessageContent {
+pub(crate) enum AnthropicMessageContent {
     Text(String),
     Blocks(Vec<AnthropicContentBlock>),
 }
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum AnthropicContentBlock {
+pub(crate) enum AnthropicContentBlock {
     Text {
         text: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<AnthropicCacheControl>,
     },
     Image {
         source: AnthropicImageSource,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<AnthropicCacheControl>,
     },
     ToolUse {
         id: String,
         name: String,
         input: serde_json::Value,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<AnthropicCacheControl>,
     },
     ToolResult {
         tool_use_id: String,
         content: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<AnthropicCacheControl>,
     },
 }
 
@@ -146,7 +155,7 @@ enum AnthropicContentBlock {
 /// URL is passed through as a `url` source.
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum AnthropicImageSource {
+pub(crate) enum AnthropicImageSource {
     Base64 { media_type: String, data: String },
     Url { url: String },
 }
@@ -154,11 +163,14 @@ enum AnthropicImageSource {
 /// An Anthropic tool definition. Claude uses `input_schema` (JSON Schema)
 /// where the OpenAI wire format uses `function.parameters`.
 #[derive(Serialize)]
-struct AnthropicTool {
+pub(crate) struct AnthropicTool {
     name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
     input_schema: serde_json::Value,
+    /// 缓存断点（`CNT-001` / `CAP-005`）：库内约定打在**最后一个工具定义**上。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) cache_control: Option<AnthropicCacheControl>,
 }
 
 /// Claude's `tool_choice` object. `auto` / `any` / `none` are bare modes;
@@ -180,6 +192,7 @@ fn to_anthropic_tools(tools: &[Tool]) -> Vec<AnthropicTool> {
             name: t.function.name.clone(),
             description: t.function.description.clone(),
             input_schema: t.function.parameters.clone(),
+            cache_control: None,
         })
         .collect()
 }
@@ -209,11 +222,17 @@ fn to_anthropic_content(content: &Content) -> AnthropicMessageContent {
             for part in parts {
                 match part {
                     ContentPart::Text { text } => {
-                        blocks.push(AnthropicContentBlock::Text { text: text.clone() });
+                        blocks.push(AnthropicContentBlock::Text {
+                            text: text.clone(),
+                            cache_control: None,
+                        });
                     }
                     ContentPart::ImageUrl { image_url } => {
                         let source = anthropic_image_source(&image_url.url);
-                        blocks.push(AnthropicContentBlock::Image { source });
+                        blocks.push(AnthropicContentBlock::Image {
+                            source,
+                            cache_control: None,
+                        });
                     }
                 }
             }
@@ -292,6 +311,7 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
                 pending_tool_results.push(AnthropicContentBlock::ToolResult {
                     tool_use_id: msg.tool_call_id.clone().unwrap_or_default(),
                     content: msg.content.as_text(),
+                    cache_control: None,
                 });
             }
             crate::types::Role::User => {
@@ -308,7 +328,10 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
                         let mut blocks = Vec::new();
                         let text = msg.content.as_text();
                         if !text.is_empty() {
-                            blocks.push(AnthropicContentBlock::Text { text });
+                            blocks.push(AnthropicContentBlock::Text {
+                                text,
+                                cache_control: None,
+                            });
                         }
                         for call in tool_calls {
                             let input: serde_json::Value =
@@ -318,6 +341,7 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
                                 id: call.id.clone(),
                                 name: call.function.name.clone(),
                                 input,
+                                cache_control: None,
                             });
                         }
                         messages.push(AnthropicMessage {
@@ -344,12 +368,21 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
 /// `frequency_penalty`, `logprobs`/`top_logprobs` and structured
 /// `response_format` have no Claude equivalent, so they are intentionally not
 /// forwarded.
+/// 仅供测试与守卫使用的请求体 JSON 快照（不改变任何生产行为）。
+#[cfg(test)]
+pub(crate) fn build_body_json(req: &ChatRequest) -> String {
+    serde_json::to_string(&build_body(req, false).expect("body must build"))
+        .expect("body must serialize")
+}
 fn build_body(req: &ChatRequest, stream: bool) -> Result<AnthropicRequest<'_>> {
-    let (system, messages) = split_messages(req);
+    let (system, mut messages) = split_messages(req);
     let thinking = match &req.thinking {
         Some(cfg) => thinking_to_anthropic(cfg)?,
         None => None,
     };
+    let mut tools = req.tools.as_deref().map(to_anthropic_tools);
+    let system =
+        crate::cache_control::apply_cache_policy(req, system, &mut messages, tools.as_mut());
     Ok(AnthropicRequest {
         model: &req.model,
         messages,
@@ -358,13 +391,12 @@ fn build_body(req: &ChatRequest, stream: bool) -> Result<AnthropicRequest<'_>> {
         max_tokens: req.max_tokens.or(Some(4096)), // Anthropic requires max_tokens
         top_p: req.top_p,
         stop_sequences: req.stop.clone(),
-        tools: req.tools.as_deref().map(to_anthropic_tools),
+        tools,
         tool_choice: req.tool_choice.as_ref().map(to_anthropic_tool_choice),
         thinking,
         stream,
     })
 }
-
 #[derive(Deserialize)]
 struct AnthropicResponse {
     content: Vec<AnthropicContent>,

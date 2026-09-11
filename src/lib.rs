@@ -61,6 +61,7 @@
 //!     .init();
 //! ```
 
+pub mod cache_control;
 pub mod pricing;
 pub mod providers;
 #[cfg(feature = "proxy")]
@@ -76,6 +77,7 @@ use std::sync::Arc;
 use futures::StreamExt;
 use tokio::sync::RwLock;
 
+pub use cache_control::{CachePolicy, CacheRetention};
 pub use pricing::ModelPricing;
 pub use providers::retry::RetryProvider;
 pub use providers::{LlmError, Provider, ProviderConfig, Result};

@@ -31,15 +31,16 @@ If you are an AI coding agent working on behalf of a human user and you find a b
 
 Rust already has several good multi-provider LLM crates (e.g. [`genai`](https://github.com/jeremychone/rust-genai), [`rig`](https://rig.rs/), [`llm`/`rllm`](https://github.com/graniet/llm)). Some are broader than us — `genai` supports many more providers, `rig` is a full agent framework. llmrust deliberately stays focused and wins on three things they don't all do:
 
-### 1. Built-in dual-protocol proxy (OpenAI **and** Anthropic)
+### 1. Built-in multi-protocol proxy (OpenAI **and** Anthropic, plus Responses)
 
-With `features = ["proxy"]`, llmrust runs as a translating API gateway that speaks **both** wire protocols at the same time:
+With `features = ["proxy"]`, llmrust runs as a translating API gateway that speaks **three** wire protocols at the same time:
 
 - `POST /v1/chat/completions` — OpenAI Chat Completions protocol
+- `POST /v1/responses` — OpenAI Responses API protocol (Codex CLI, Responses-native SDKs)
 - `POST /v1/messages` — Anthropic Messages protocol
 - `POST /v1/embeddings` — OpenAI Embeddings protocol
 
-Any client SDK — one that only speaks OpenAI *or* one that only speaks Anthropic (e.g. tools built for Claude) — can point at llmrust and reach **any** registered backend (OpenAI, Anthropic, Gemini, DeepSeek, Moonshot, OpenRouter, Ollama) through automatic format conversion. Bearer-token auth, CORS, health checks, and graceful shutdown are included. Most competing crates are client libraries only; the few that ship a server usually expose the OpenAI format alone.
+Any client SDK — one that only speaks OpenAI, one that only speaks Anthropic (e.g. tools built for Claude), or one that targets the Responses API (e.g. Codex CLI) — can point at llmrust and reach **any** registered backend (OpenAI, Anthropic, Gemini, DeepSeek, Moonshot, OpenRouter, Ollama) through automatic format conversion. Bearer-token auth, CORS, health checks, and graceful shutdown are included. Most competing crates are client libraries only; the few that ship a server usually expose the OpenAI format alone.
 
 ### 2. Cross-provider logprobs, normalized
 
@@ -83,7 +84,7 @@ cargo add llmrust
 | Feature | Default | Description |
 |---|---|---|
 | *(none)* | ✅ | LLM client — all providers + streaming + embeddings; tool calling on OpenAI-compatible, Anthropic, and Gemini providers (chat + streaming); JSON mode on OpenAI-compatible and Gemini providers |
-| `proxy` | ❌ | Built-in HTTP proxy — exposes any backend over OpenAI (`/v1/chat/completions`, `/v1/embeddings`) and Anthropic (`/v1/messages`) APIs (adds `axum`) |
+| `proxy` | ❌ | Built-in HTTP proxy — exposes any backend over OpenAI (`/v1/chat/completions`, `/v1/responses`, `/v1/embeddings`) and Anthropic (`/v1/messages`) APIs (adds `axum`) |
 
 Enable the proxy server:
 
@@ -328,6 +329,21 @@ curl http://localhost:3000/v1/messages \
     "max_tokens": 256
   }'
 ```
+
+And the **OpenAI Responses API**, so Responses-native clients (such as Codex CLI) reach any backend through automatic `input`/`instructions`/`tools` conversion:
+
+```bash
+curl http://localhost:3000/v1/responses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer some-shared-secret" \
+  -d '{
+    "model": "openai/gpt-4o",
+    "input": [{"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Hello!"}]}],
+    "stream": true
+  }'
+```
+
+The Responses endpoint supports non-streaming (a `{object: "response", output: [...]}` body) and streaming (SSE events: `response.created` → `response.output_item.added` → `response.content_part.added` → `response.output_text.delta`* → `response.output_item.done` → `response.completed` → `[DONE]`), including tool calls surfaced as `function_call` output items and `response.function_call_arguments.delta` events.
 
 > **Security note:** Without `LLMRUST_PROXY_KEY` set, the proxy has no authentication and binds only to the loopback interface by default. Run it on localhost or behind a reverse proxy. With `LLMRUST_PROXY_KEY` set, every request must include an `Authorization: Bearer <key>` header; the token is compared in constant time (via the reviewed `subtle` crate). A set-but-empty or whitespace-only `LLMRUST_PROXY_KEY` refuses to start (SPCC §7.1). `GET /health` requires no authentication and returns only a fixed liveness payload (SPCC §7.2).
 >

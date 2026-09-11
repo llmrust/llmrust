@@ -102,6 +102,27 @@ The proxy maps `LlmError` to HTTP status codes and OpenAI-style error bodies:
 | Other `Api` / `Http` | 502 | `api_error` |
 | `Stream` error | 502 | `api_error` |
 
+### Responses API proxy endpoint
+
+The proxy exposes `POST /v1/responses` (OpenAI Responses API wire protocol) in addition to
+`/v1/chat/completions` and `/v1/messages`. Responses-native clients (e.g. Codex CLI) can reach any
+registered backend through automatic conversion:
+
+- **Request conversion**: `input` (string or array of items) and `instructions` map onto llmrust
+  messages (`instructions` → leading system message); `input_text` / `input_image` content parts map
+  onto text/image content; Responses-shaped tools (flat `name`/`description`/`parameters`) are
+  normalized to llmrust's nested tool shape; `tool_choice` and `reasoning.effort` are mapped.
+- **Non-streaming response**: a Responses object (`{object: "response", status, model, output,
+  usage}`) with message and `function_call` output items.
+- **Streaming response**: SSE event sequence `response.created` → `response.output_item.added` →
+  `response.content_part.added` → `response.output_text.delta`* →
+  `response.output_item.done` → `response.completed` → `data: [DONE]`. Tool calls surface as
+  `function_call` output items plus `response.function_call_arguments.delta` events. Delta payloads
+  carry `item_id` / `output_index` / `content_index` for client-side assembly.
+- **Auth / body limits**: same bearer-token auth and 2 MiB body limit as the other proxy endpoints.
+- **Errors**: upstream failures map to a `{type: "error", error: {message, type}}` body (400 for
+  invalid requests / unknown providers, upstream HTTP status for API errors, 502 otherwise).
+
 ## Streaming behavior
 
 For all providers, streaming follows these rules:

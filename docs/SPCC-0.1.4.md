@@ -360,7 +360,7 @@
 | Milestone | 编号 | 目标 | 完成/总数 | 进度 | 当前状态 | 下一任务 | 退出判据 |
 |---|---|---:|---:|---:|---|---|---|
 | `0.1.4 / N0 Guard Integrity` | `#8` | 让门禁自身可信 | 0/4 | 0% | `PLANNED` | `GRD-001` | 四项 DONE；所有 guard 有 negative test 且双向 |
-| `0.1.4 / N1 Capability Truth` | `#9` | 能力声明进入代码并被门禁保护 | 0/6 | 0% | `PLANNED` | —（待 N0） | 三处一致门禁上线且负例可红；**且 `CAP-007`（能力表机读化 + `CAPABILITIES.md` 由表生成）完成** |
+| `0.1.4 / N1 Capability Truth` | `#9` | 能力声明进入代码并被门禁保护 | **3/6** | 50% | `PLANNED` | —（待 N0） | 三处一致门禁上线且负例可红；**且 `CAP-007`（能力表机读化 + `CAPABILITIES.md` 由表生成）完成** —— `CAP-007` 已完成 ✅，余 `CAP-002/003/004` |
 | `0.1.4 / N2 Silent Failure` | `#10` | 消除已知静默失败面 | 0/5 | 0% | `PLANNED` | —（待 N1） | 五项 DONE；§6.3 表格全部清空 |
 | `0.1.4 / N3 Evidence Depth` | `#11` | 验证从自证推进到他证 | 0/3 | 0% | `PLANNED` | —（待 N0） | 能力矩阵 `verified` 格子有 live-endpoint 证据 |
 | `0.1.4 / N4 Governance Scale` | `#12` | 治理载体不依赖记忆 | 0/3 | 0% | `PLANNED` | —（可与 N1 并行） | 状态区拆分完成且一致性 CI 化 |
@@ -398,9 +398,9 @@ flowchart TD
 | `CAP-002` | N1 | `PLANNED` | N0 DONE | — | — | — | — |
 | `CAP-003` | N1 | `PLANNED` | `CAP-002` | — | — | — | — |
 | `CAP-004` | N1 | `PLANNED` | `CAP-003` | — | — | — | — |
-| `CAP-005` | N1 | `PLANNED` | N0 DONE | #211 | — | — | — |
-| `CAP-006` | N1 | `PLANNED` | `CAP-005` | #212 | — | — | — |
-| `CAP-007` | N1 | `PLANNED` | `CAP-006` | #213 | — | — | — |
+| `CAP-005` | N1 | `DONE` | N0 DONE | #211 | #216 | `73c72b5` | 本 PR |
+| `CAP-006` | N1 | `DONE` | `CAP-005` | #212 | #217 | `b767ce5` | 本 PR |
+| `CAP-007` | N1 | `DONE` | `CAP-006` | #213 | #218 | `60d7c0f` | 本 PR |
 | `ERR-001` | N2 | `PLANNED` | N1 DONE | — | — | — | — |
 | `ERR-002` | N2 | `PLANNED` | `ERR-001` | — | — | — | — |
 | `ERR-003` | N2 | `PLANNED` | N1 DONE | — | — | — | — |
@@ -425,6 +425,9 @@ flowchart TD
 | 任务 | Issue | 实现 PR / 外部动作 | CI run | Merge SHA / 动作时间 | 状态 PR | Milestone 进度 | 架构师裁定 |
 |---|---|---|---|---|---|---|---|
 | `SPEC-010` | #201 | #206（规格入库 + 0.1.3 转只读档案） | Security Gates `34563594670` / CI `34563594613`（均 SUCCESS，main 推送） | `ce1de1f` @ 2026-09-11T04:48:41Z | 本 PR | 不计数（治理任务） | 待架构师核验 |
+| `CAP-005` | #211 | #216（缓存断点发送能力） | Security Gates `34573029216` / CI `34573029263`（均 SUCCESS，main 推送） | `73c72b5` | 本 PR | N1 `3/6` | 待架构师核验 |
+| `CAP-006` | #212 | #217（缓存价列 + 官方服务商目录） | Security Gates `34574645558` / CI `34574645451`（均 SUCCESS，main 推送） | `b767ce5` | 本 PR | N1 `3/6` | 待架构师核验 |
+| `CAP-007` | #213 | #218（能力表机读化 + `CAPABILITIES.md` 由表生成） | Security Gates `34576010010` / CI `34576009966`（均 SUCCESS，main 推送） | `60d7c0f` | 本 PR | N1 `3/6` | 待架构师核验 |
 
 > **SPEC-010 回证（逐条，机器产出）**：
 > ① 主干存在 `docs/SPCC-0.1.4.md`（+858）；② `docs/SPCC-0.1.3.md` 仅头部 +4/−0（只读声明），**正文一字未改**；

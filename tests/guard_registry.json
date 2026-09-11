@@ -1,0 +1,61 @@
+{
+  "description": "Guard registry (GRD-003 item ④). ADMISSION RULE: every test file that acts as a guard MUST be listed under `guards`, and MUST declare at least one negative test (a test that fails when the guard itself is weakened). The admission guard (tests/guard_admission.rs) fails when: (a) a guard-shaped file under tests/ is NOT registered here, or (b) a registered guard declares negative tests that do not exist as `fn` in that file. `debt` lists guards that do not yet have negative tests — explicit, not silent; each entry needs an anchor (the card/task that will clear it). Lowering this list is an authorized action; never delete an entry to make CI green.",
+  "guard_file_suffix": "_guard.rs",
+  "guards": [
+    {
+      "file": "architecture_guard.rs",
+      "purpose": "forbidden dependency edges + hotspot ledger drift + full coverage",
+      "negative_tests": [
+        "hotspot_coverage_detects_unlisted_oversized_file"
+      ]
+    },
+    {
+      "file": "capability_table_guard.rs",
+      "purpose": "per-model capability table self-consistency + CAPABILITIES.md generated-block equality",
+      "negative_tests": [
+        "negative_cache_price_without_cache_mode_is_reported",
+        "negative_price_is_reported",
+        "negative_max_output_above_window_is_reported",
+        "negative_doc_drift_is_detected",
+        "negative_missing_sentinels_do_not_pass_silently"
+      ]
+    },
+    {
+      "file": "spcc_guard.rs",
+      "purpose": "governance-document line-count floor (silent truncation)",
+      "negative_tests": [
+        "negative_shrunk_doc_is_reported",
+        "negative_missing_doc_is_reported"
+      ]
+    },
+    {
+      "file": "package_guard.rs",
+      "purpose": "cargo package artifact allowlist (fail-closed on command failure)",
+      "negative_tests": [
+        "negative_forbidden_entries_are_reported"
+      ]
+    }
+  ],
+  "debt": [
+    {
+      "file": "agent_docs_validation.rs",
+      "reason": "22 tests validate generated docs/agent-facing files, but none is a negative test: weakening a check would not turn any test red.",
+      "anchor": "GRD-003 ② residual (requires a follow-up card; recorded here so it is not silent)"
+    },
+    {
+      "file": "api_freeze.rs",
+      "reason": "public-API freeze comparison has no negative test.",
+      "anchor": "GRD-003 ② residual"
+    },
+    {
+      "file": "response_freeze.rs",
+      "reason": "response-shape freeze comparison has no negative test.",
+      "anchor": "GRD-003 ② residual"
+    },
+    {
+      "file": "provider_contract_freeze.rs",
+      "reason": "provider contract freeze has no negative test.",
+      "anchor": "GRD-003 ② residual"
+    }
+  ]
+}

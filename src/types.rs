@@ -650,6 +650,10 @@ pub struct ChatRequest {
     /// M2-16：additive，缺省为 `None`（关闭）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thinking: Option<ThinkingConfig>,
+    /// Prompt-cache 断点策略（`CNT-001`/`CAP-005`）：additive，缺省 `None` = 不发任何标记。
+    /// 档位与打点约定见 [`crate::cache_control`]（**新能力落在新模块**，避免热点文件增长）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache: Option<crate::cache_control::CachePolicy>,
 }
 
 impl ChatRequest {

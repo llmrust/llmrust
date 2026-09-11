@@ -7,11 +7,11 @@
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1487,
     "src/providers/google.rs": 1524,
-    "src/types.rs": 1132,
-    "src/providers/anthropic.rs": 1483,
+    "src/types.rs": 1136,
+    "src/providers/anthropic.rs": 1515,
     "src/router.rs": 1080,
     "src/providers/ollama.rs": 805,
-    "src/lib.rs": 768,
+    "src/lib.rs": 770,
     "src/providers/retry.rs": 521
   },
   "adjustments": [
@@ -182,6 +182,30 @@
       "new": 521,
       "reason": "#209 coverage gap: retry provider at 521 wc -l, above the Owner 500 rule and previously unlisted. Registered with its ACTUAL count. Its split/relocation timing is deferred until after CAP-006 (architect ruling), which is why only registration happens here.",
       "authorized_by": "Owner rule (<500) + #209; split timing deferred to post-CAP-006 per architect ruling",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1483,
+      "new": 1515,
+      "reason": "CAP-005 (#211) prompt-cache breakpoint sending: the cache body (AnthropicCacheControl / AnthropicSystem / block impls / 6 unit tests) was split out into the new file src/cache_control.rs (measured 276 wc -l, below the 500 threshold, so not a ledger entry). Residual growth in THIS file is +32 wc -l (measured 1483 -> 1515): four content-block `cache_control` fields, AnthropicTool.cache_control, the crate::cache_control import, one apply_cache_policy call site, and the None initialisers — the fields live here, so their initialisers must too. Split first, then record; not moved to pass a gate. REMOVAL ANCHOR = CAP-006 (official provider catalog + two-dimension model): once the cache spec is data-driven, this file's wiring should collapse to a thin adapter.",
+      "authorized_by": "CAP-005 card (#211, N1) — ledger adjustment per §11.1.4; NOTE: the draft this was recovered from carried an 'Owner 守溥 2026-09-11 signature' claim that the execution side could NOT verify, so it is NOT asserted here — flagged for Owner confirmation in the CAP-005 PR",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/types.rs",
+      "old": 1132,
+      "new": 1136,
+      "reason": "CAP-005 (#211): ChatRequest gains the `cache` field (the request type is defined in this file, so the field physically cannot be relocated) plus two doc lines. +4 wc -l measured, field body and docs only, no redundancy. REMOVAL ANCHOR = CAP-006 (same as the anthropic.rs entry).",
+      "authorized_by": "CAP-005 card (#211, N1) — ledger adjustment per §11.1.4; Owner-signature claim from the recovered draft NOT asserted (unverifiable) — flagged in the CAP-005 PR",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/lib.rs",
+      "old": 768,
+      "new": 770,
+      "reason": "CAP-005 (#211): crate root declares `pub mod cache_control;` and re-exports `CachePolicy`/`CacheRetention` (+2 wc -l measured). Additive public surface only.",
+      "authorized_by": "CAP-005 card (#211, N1) — ledger adjustment per §11.1.4. (Not present in the recovered draft: lib.rs only entered the ledger on 2026-09-11 via #209, after the draft was written.)",
       "date": "2026-09-11"
     }
   ]

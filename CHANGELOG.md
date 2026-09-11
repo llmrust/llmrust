@@ -302,3 +302,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Stray `test.txt` from the repository root.
+
+## [0.1.4] - UNRELEASED (in progress)
+
+> **本段由各任务卡逐条追加，`REL-004` 定稿时补上日期并上移为首段。**
+> 置于文件末尾是**故意的**：`tests/agent_docs_validation.rs` 要求第一个 `## [` 标题
+> 必须是 `## [0.1.3] - 2026-08-03`，且不得出现"未发布"段（方括号 Unreleased 形式）。
+
+### Changed
+
+- **能力检查上移到统一入口（`CAP-003`）**：`LmrsClient` 在派发前做一次**能力裁决**，
+  依据 `Provider::capabilities()` 的声明决定 **放行 / 告警 / 拒绝**。
+  公开行为变更（**唯一一处**）：
+  - 对**声明该能力为 `unsupported`** 的 Provider 发送相应诉求时，现在返回
+    `LlmError::Unsupported`，而**不再是静默丢弃**。当前受影响的具体情形：
+    **Ollama + `tools`**（非流式 → `feature = "tool_calling"`；流式 → `"tool_calling_stream"`）、
+    **Ollama + 图像输入**（`feature = "image_input"`）。
+  - **已支持路径行为零变化**：裁决表为空时不产生任何副作用；
+    `n > 1` 仍是"放行 + 一次性告警"（`CAP-003` 未改此语义）。
+- **告警去重口径**：由 `(provider, n)` 改为 `(provider, capability-face)`，
+  且只在入口判一次——`RetryProvider` 重入**不再重复告警**。
+
+### Added
+
+- **`Provider::capabilities()` 与能力声明载体（`CAP-002`）**：新增 `Capabilities`
+  （`#[non_exhaustive]`）、`Capability`、`CapabilityLevel`（SPCC §6.2 五级）、
+  `EvidenceKind`、`Verified`。`Provider::capabilities()` **带默认实现**，下游自定义
+  Provider 不实现亦不破坏；默认声明保守（全部视为 `unsupported`）并一次性告警。
+- **缓存断点发送能力（`CAP-005`）**：`CachePolicy` / `CacheRetention` 与
+  `ChatRequest.cache`；按库内约定在 `system` 末块、最后一个工具定义、最后一条消息末块
+  打断点；`MAX_CACHE_BREAKPOINTS = 4` 由**编译期断言**保证。
+- **缓存价列（`CAP-006`）**：`CachePricing`（读价 / 写价 5m / 写价 1h）与
+  `ModelPricing::estimate_cost_with_cache`；未配置档**回落 prompt 价，绝不静默免费**。
+- **官方服务商目录（`CAP-006`）**：`AccessPath` / `ModelSpec` 两维模型（8 模型 / 15 条官方路径）。
+- **每模型能力/价格表（`CAP-007`）**：`llmrust.models.json` 为唯一事实源，
+  `docs/CAPABILITIES.md` 中对应区块**由表生成**（人工改动即 CI 红）。
+

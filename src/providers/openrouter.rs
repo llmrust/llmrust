@@ -61,6 +61,7 @@ impl Provider for OpenRouterProvider {
     fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
         use crate::providers::capabilities::{Capabilities, Capability};
         Capabilities {
+            declared: true,
             protocol: "openai-compatible",
             chat: Capability::implemented(),
             stream: Capability::implemented(),

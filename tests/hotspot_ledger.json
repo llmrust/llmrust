@@ -5,14 +5,15 @@
     "src/proxy/mod.rs": 3330,
     "src/proxy/anthropic_proxy.rs": 1884,
     "src/proxy/responses_proxy.rs": 964,
-    "src/providers/compat.rs": 1487,
-    "src/providers/google.rs": 1546,
+    "src/providers/compat.rs": 1485,
+    "src/providers/google.rs": 1545,
     "src/types.rs": 1136,
-    "src/providers/anthropic.rs": 1539,
+    "src/providers/anthropic.rs": 1538,
     "src/router.rs": 1080,
-    "src/providers/ollama.rs": 829,
-    "src/lib.rs": 782,
-    "src/providers/retry.rs": 521
+    "src/providers/ollama.rs": 830,
+    "src/lib.rs": 839,
+    "src/providers/retry.rs": 521,
+    "src/providers/capabilities.rs": 712
   },
   "adjustments": [
     {

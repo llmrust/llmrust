@@ -397,6 +397,58 @@ impl LmrsClient {
         self.chat_with(model, ChatRequest::new("", prompt)).await
     }
 
+    /// `CAP-003`：统一入口的能力裁决。
+    ///
+    /// 把 [`ChatRequest`] 里的"能力诉求"翻译成纯数据 [`providers::capabilities::RequestDemands`]，
+    /// 再交给纯函数 [`providers::capabilities::adjudicate`]，最后**执行**裁决：
+    ///
+    /// - [`Verdict::Reject`] → `Err(LlmError::Unsupported)`（**响亮**，不静默丢弃）；
+    /// - [`Verdict::Warn`] → 一次性 `tracing::warn`（按 `(provider, feature)` 去重）；
+    /// - [`Verdict::Pass`] → 无副作用。
+    ///
+    /// **迁移说明**：0.1.3 期 `warn_if_unsupported_n` 由六个 Provider 内部手工调用；
+    /// 现在只在入口判一次，故 `RetryProvider` 重入不再重复告警（去重键含 provider 名）。
+    fn adjudicate(
+        provider: &dyn crate::providers::Provider,
+        req: &ChatRequest,
+        streaming: bool,
+    ) -> Result<()> {
+        use crate::providers::capabilities::{adjudicate, RequestDemands, Verdict};
+
+        let demands = RequestDemands {
+            tools: req.tools.as_ref().is_some_and(|t| !t.is_empty()) || req.tool_choice.is_some(),
+            streaming,
+            n: req.n,
+            images: req.messages.iter().any(|m| match &m.content {
+                crate::types::Content::Parts(parts) => parts
+                    .iter()
+                    .any(|p| matches!(p, crate::types::ContentPart::ImageUrl { .. })),
+                _ => false,
+            }),
+        };
+
+        let caps = provider.capabilities();
+        for verdict in adjudicate(&caps, &demands) {
+            match verdict {
+                Verdict::Pass => {}
+                Verdict::Warn { feature, message } => {
+                    crate::providers::capabilities::warn_once(
+                        provider.protocol_name(),
+                        feature,
+                        &message,
+                    );
+                }
+                Verdict::Reject { feature, message } => {
+                    return Err(LlmError::Unsupported {
+                        feature: feature.to_string(),
+                        message,
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Send a chat request with full control over parameters.
     pub async fn chat_with(&self, model: &str, req: ChatRequest) -> Result<ChatResponse> {
         let (provider_name, model_name) = Self::parse_model(model)?;
@@ -408,6 +460,9 @@ impl LmrsClient {
         let provider = self.get_provider(provider_name).await?;
         let mut req = req;
         req.model = model_name.to_string();
+        // CAP-003：能力裁决上移到**统一入口**（0.1.3 期散落在各 Provider 内的
+        // 六处手工调用点已迁移至此）。已支持路径的裁决表为空 → 行为零变化。
+        Self::adjudicate(provider.as_ref(), &req, false)?;
         let resp = provider.chat(&req).await?;
         tracing::debug!(
             provider = provider_name,
@@ -443,6 +498,8 @@ impl LmrsClient {
         let provider = self.get_provider(provider_name).await?;
         req.model = model_name.to_string();
         req.stream = true;
+        // CAP-003：流式路径查 `tool_calling_stream` 面（与 `tool_calling` 分别判定）。
+        Self::adjudicate(provider.as_ref(), &req, true)?;
         let stream = provider.stream(&req).await?;
         tracing::debug!(
             provider = provider_name,

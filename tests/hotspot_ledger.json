@@ -1,6 +1,6 @@
 {
-  "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task or an architect-written exception explicitly authorizes a transition. Do not inflate a number to turn a guard green. PROCESS LESSON (CI-003 PR #95): after any `cargo fmt` auto-fix, the architecture guards MUST be re-run locally before pushing; a fmt-driven reflow once silently broke the hotspot baseline.",
-  "threshold": 800,
+  "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task or an architect-written exception explicitly authorizes a transition. Do not inflate a number to turn a guard green. PROCESS LESSON (CI-003 PR #95): after any `cargo fmt` auto-fix, the architecture guards MUST be re-run locally before pushing; a fmt-driven reflow once silently broke the hotspot baseline. THRESHOLD (2026-09-11, #209): raised to the Owner rule — every `src/**/*.rs` file must stay under 500 lines; the threshold is a single source of truth here and must match SPCC §4.4. Coverage is now BIDIRECTIONAL: a file at or above `threshold` that has no key under `baseline_lines` is a violation (previously only listed files were checked, so an unlisted oversized file could grow or shrink silently — e.g. ollama.rs at 805).",
+  "threshold": 500,
   "baseline_lines": {
     "src/proxy/mod.rs": 3330,
     "src/proxy/anthropic_proxy.rs": 1884,
@@ -9,7 +9,10 @@
     "src/providers/google.rs": 1524,
     "src/types.rs": 1132,
     "src/providers/anthropic.rs": 1483,
-    "src/router.rs": 1080
+    "src/router.rs": 1080,
+    "src/providers/ollama.rs": 805,
+    "src/lib.rs": 768,
+    "src/providers/retry.rs": 521
   },
   "adjustments": [
     {
@@ -156,6 +159,30 @@
       "reason": "PR #204 (Responses API): new proxy handler file at 964 lines, above the 800-line §4.4 threshold — placed on the hotspot ledger per architect review ruling (new over-threshold files must be registered, not exempt). Baseline records the ACTUAL line count after cargo fmt (936 at audit + 28 added by the review-fix commit: tool_names_by_item tracking, position()-based output_index, incremental-stream regression test support).",
       "authorized_by": "architect (PR #204 review 2026-08-06: over-threshold new file must be registered on the hotspot ledger per §4.4 ruling)",
       "date": "2026-08-06"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 0,
+      "new": 805,
+      "reason": "#209 coverage gap: file was at 805 lines — ALREADY above the former 800 threshold and still unlisted, so it was bound by neither the grow nor the shrink check (the guard only iterated ledger keys). Registered here under the Owner <500 rule with its ACTUAL wc -l count; no code change to this file in this card.",
+      "authorized_by": "Owner rule (<500 lines per src/**/*.rs) + #209 (FIX-hotspot threshold 800->500 + bidirectional gate); count is measured, not headroom",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/lib.rs",
+      "old": 0,
+      "new": 768,
+      "reason": "#209 coverage gap: crate entry file at 768 wc -l, above the Owner 500 rule and previously unlisted. Registered with its ACTUAL count (wc -l = 768; note the #209 issue text quotes 770 — measured value is authoritative per E-101). Test-side slimming is a separate concern (CAP-005-adjacent ruling) and is NOT done in this card.",
+      "authorized_by": "Owner rule (<500) + #209; count measured via wc -l, not headroom",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/retry.rs",
+      "old": 0,
+      "new": 521,
+      "reason": "#209 coverage gap: retry provider at 521 wc -l, above the Owner 500 rule and previously unlisted. Registered with its ACTUAL count. Its split/relocation timing is deferred until after CAP-006 (architect ruling), which is why only registration happens here.",
+      "authorized_by": "Owner rule (<500) + #209; split timing deferred to post-CAP-006 per architect ruling",
+      "date": "2026-09-11"
     }
   ]
 }

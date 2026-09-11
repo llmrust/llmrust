@@ -6,7 +6,7 @@
     "src/proxy/anthropic_proxy.rs": 1886,
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1513,
-    "src/providers/google.rs": 1547,
+    "src/providers/google.rs": 1614,
     "src/types.rs": 1136,
     "src/providers/anthropic.rs": 1539,
     "src/router.rs": 1231,
@@ -359,6 +359,14 @@
       "new": 1231,
       "reason": "ERR-004 (N2): the failover log now records the decision fact `waits_for_upstream = false` plus the reason, with the division of labour documented in-line (failover switches deployment and deliberately does not sleep; same-deployment back-off honouring `Retry-After` is RetryProvider's job). The router holds an `LmrsClient` and cannot read the header itself — stated plainly rather than faked (+11 wc -l measured).",
       "authorized_by": "ERR-004 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1547,
+      "new": 1614,
+      "reason": "ERR-003 (N2): `to_finish_reason` no longer collapses `\"FINISH_REASON_UNSPECIFIED\"` into `FinishReason::Stop` — it now travels through the `FinishReason::Other(..)` escape hatch (+67 wc -l measured: the expanded doc comment explaining why 'unspecified' is not a completion claim, plus four tests — the negative test, the real-STOP-vs-unspecified separation, the `done`-semantics invariant, and the pre-existing escape-hatch pin).",
+      "authorized_by": "ERR-003 card (N2) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     }
   ]

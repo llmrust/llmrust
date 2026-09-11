@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "llmrust-models",
+  "version": "0.1.3",
+  "description": "Machine-readable PER-MODEL capability + price table (CAP-007 / CNT-001 R4). Complements llmrust.capabilities.json (per-provider) with per-model rows: window, output cap, lifecycle, prices (including cache tiers), cache spec and modality flags. Everything here is DATA: docs/CAPABILITIES.md contains a block generated from this table, and a guard test fails if the two drift. Prices are USD per 1,000 tokens. Vendor prices are public list prices at the stated verify date and are not a contract.",
+  "protocol_version": "1",
+  "price_unit": "USD_per_1k_tokens",
+  "models": [
+    {
+      "id": "claude-sonnet-4-6",
+      "provider": "anthropic",
+      "protocol": "anthropic",
+      "context_window": 200000,
+      "max_output": 64000,
+      "lifecycle": "active",
+      "pricing": {
+        "prompt_per_1k": 0.003,
+        "completion_per_1k": 0.015,
+        "cache_read_per_1k": 0.0003,
+        "cache_write_5m_per_1k": 0.00375,
+        "cache_write_1h_per_1k": 0.006
+      },
+      "cache": {
+        "mode": "both",
+        "min_cacheable_tokens": 1024,
+        "ttl": "fixed_5m_1h",
+        "eviction": "expiry",
+        "breakpoint_limit": 4
+      },
+      "reasoning": "implemented",
+      "tool_calling": true,
+      "verified_at": "2026-09-11",
+      "source": "official (anthropic prompt-caching docs)"
+    },
+    {
+      "id": "step-3.7-flash",
+      "provider": "stepfun",
+      "protocol": "openai",
+      "context_window": 262144,
+      "max_output": 256000,
+      "lifecycle": "active",
+      "pricing": {
+        "prompt_per_1k": 0.000189,
+        "completion_per_1k": 0.001134,
+        "cache_read_per_1k": 0.0000378
+      },
+      "cache": {
+        "mode": "auto",
+        "min_cacheable_tokens": 256,
+        "ttl": "none",
+        "eviction": "lru"
+      },
+      "reasoning": "implemented",
+      "tool_calling": true,
+      "verified_at": "2026-09-11",
+      "source": "official (stepfun prompt-cache + pricing pages; CNY 1.35/0.27/8.1 per M converted at 7.13)"
+    },
+    {
+      "id": "glm-5.1",
+      "provider": "zhipu",
+      "protocol": "openai",
+      "context_window": 202745,
+      "max_output": 131072,
+      "lifecycle": "active",
+      "pricing": {
+        "prompt_per_1k": 0.0014,
+        "completion_per_1k": 0.0044,
+        "cache_read_per_1k": 0.0007
+      },
+      "cache": {
+        "mode": "auto",
+        "min_cacheable_tokens": 0,
+        "ttl": "unknown",
+        "eviction": "unknown"
+      },
+      "reasoning": "implemented",
+      "tool_calling": true,
+      "verified_at": "2026-09-11",
+      "source": "official (zhipu context-cache doc: cache-hit billed at 50% of standard)"
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "protocol": "openai",
+      "context_window": 1000000,
+      "max_output": 384000,
+      "lifecycle": "active",
+      "pricing": {
+        "prompt_per_1k": 0.00066,
+        "completion_per_1k": 0.00198,
+        "cache_read_per_1k": 0.000022
+      },
+      "cache": {
+        "mode": "auto",
+        "min_cacheable_tokens": 0,
+        "ttl": "none",
+        "eviction": "disk_units"
+      },
+      "reasoning": "implemented",
+      "tool_calling": true,
+      "verified_at": "2026-09-11",
+      "source": "official (deepseek models & pricing; cache hit $0.022/M vs miss $0.66/M)"
+    },
+    {
+      "id": "mimo-v2.5-pro",
+      "provider": "xiaomi",
+      "protocol": "openai",
+      "context_window": 262144,
+      "max_output": 32768,
+      "lifecycle": "active",
+      "pricing": {
+        "prompt_per_1k": 0.000435,
+        "completion_per_1k": 0.00087,
+        "cache_read_per_1k": 0.0000036
+      },
+      "cache": {
+        "mode": "auto",
+        "min_cacheable_tokens": 0,
+        "ttl": "unknown",
+        "eviction": "unknown"
+      },
+      "reasoning": "implemented",
+      "tool_calling": true,
+      "verified_at": "2026-09-11",
+      "source": "official (mimo api pricing: cache hit $0.0036/M vs miss $0.435/M)"
+    },
+    {
+      "id": "grok-4.6",
+      "provider": "xai",
+      "protocol": "openai",
+      "context_window": 500000,
+      "max_output": 131072,
+      "lifecycle": "active",
+      "pricing": {
+        "prompt_per_1k": 0.002,
+        "completion_per_1k": 0.006,
+        "cache_read_per_1k": 0.0005
+      },
+      "cache": {
+        "mode": "auto",
+        "min_cacheable_tokens": 0,
+        "ttl": "unknown",
+        "eviction": "unknown"
+      },
+      "reasoning": "implemented",
+      "tool_calling": true,
+      "verified_at": "2026-09-11",
+      "source": "official (x.ai pricing: short-context cached $0.50/M vs input $2.00/M)"
+    },
+    {
+      "id": "gpt-5.6",
+      "provider": "openai",
+      "protocol": "openai",
+      "context_window": 400000,
+      "max_output": 128000,
+      "lifecycle": "active",
+      "pricing": {
+        "prompt_per_1k": 0.00125,
+        "completion_per_1k": 0.01,
+        "cache_read_per_1k": 0.000125,
+        "cache_write_5m_per_1k": 0.0015625
+      },
+      "cache": {
+        "mode": "auto",
+        "min_cacheable_tokens": 1024,
+        "ttl": "fixed_default_extended_24h",
+        "eviction": "expiry",
+        "breakpoint_limit": 4,
+        "breakpoints_from_version": "5.6"
+      },
+      "reasoning": "implemented",
+      "tool_calling": true,
+      "verified_at": "2026-09-11",
+      "source": "official (openai prompt-caching: cached input discount up to 90%; GPT-5.6+ cache writes cost 1.25x)"
+    },
+    {
+      "id": "qwen3.7-max",
+      "provider": "alibaba",
+      "protocol": "openai",
+      "context_window": 262144,
+      "max_output": 32768,
+      "lifecycle": "active",
+      "pricing": {
+        "prompt_per_1k": 0.0025,
+        "completion_per_1k": 0.0075,
+        "cache_read_per_1k": 0.0005,
+        "cache_write_5m_per_1k": 0.003125
+      },
+      "cache": {
+        "mode": "both",
+        "min_cacheable_tokens": 1024,
+        "ttl": "fixed_5m",
+        "eviction": "expiry"
+      },
+      "reasoning": "implemented",
+      "tool_calling": true,
+      "verified_at": "2026-09-11",
+      "source": "official (dashscope context-cache: explicit 125% write / 10% read, implicit 20% read)"
+    }
+  ]
+}

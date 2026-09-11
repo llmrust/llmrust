@@ -88,6 +88,22 @@ pub trait Provider: Send + Sync {
     fn protocol_name(&self) -> &'static str {
         "unknown"
     }
+
+    /// `ERR-004`：**最近一次上游响应**给出的等待窗口（来自 `Retry-After` 头），已解析。
+    ///
+    /// **为什么走 trait 方法，而不是往 `LlmError` 里加字段**：`LlmError` 及其 `Api` 变体
+    /// **都不是 `#[non_exhaustive]`**，故给它加字段、或给枚举加变体，对下游**都是破坏性**变更
+    /// （穷尽匹配失效 / 字面量构造失效）——而本卡明禁"破坏错误类型形状"。
+    /// **带默认实现的 trait 方法则是纯附加**（`CAP-002` 的 `capabilities()` 已由 semver 门实测通过）。
+    ///
+    /// 语义约定：
+    /// - `None` = 没有可用指示（无响应头 / 解析失败 / 尚未发生失败）→ 调用方走本地退避；
+    /// - `Some(d)` = 上游明示的等待窗口（**已按 `retry::MAX_RETRY_AFTER` 截顶**）。
+    ///
+    /// 默认返回 `None`，故**下游自定义 Provider 不实现也不受影响**。
+    fn last_retry_after(&self) -> Option<std::time::Duration> {
+        None
+    }
 }
 
 /// One-time `warn` per provider name for providers that never declared capabilities.

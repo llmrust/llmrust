@@ -162,3 +162,24 @@ This section exists to help AI agents avoid wasting time on impossible features.
 ### Gemini
 - Remote `http(s)` image URLs are skipped with a warning. Only `data:` URLs work.
 - No `seed`, `presence_penalty`, `frequency_penalty`, `parallel_tool_calls`, `service_tier`, `store`, `metadata`.
+
+## Per-model capability & price table (GENERATED)
+
+> **本区块由 `llmrust.models.json` 生成**（`CAP-007`）：人工改动会被 `tests/capability_table_guard.rs` 判红。
+> 价格单位 = USD / 1,000 tokens；`Read price` = 缓存命中价；`—` = 该档未公布或不适用。
+> `min n/a` = 官方未公布最小可缓存长度（**不是**「无下限」）。
+> 逐家缓存口径差异（模式 / 最小长度 / 淘汰 / 断点上限）以 `llmrust.models.json` 与各厂商官方文档为准。
+
+<!-- BEGIN GENERATED: model-capabilities (llmrust.models.json) -->
+| Model | Provider | Context | Max out | Cache | Read price | Write 5m | Write 1h | Reasoning | Tools | Lifecycle |
+|---|---|---:|---:|---|---:|---:|---:|---|---|---|
+| `qwen3.7-max` | alibaba | 262144 | 32768 | auto+explicit (min 1024) | 0.0005000 | 0.0031250 | — | implemented | yes | active |
+| `claude-sonnet-4-6` | anthropic | 200000 | 64000 | auto+explicit (min 1024) | 0.0003000 | 0.0037500 | 0.0060000 | implemented | yes | active |
+| `deepseek-v4-pro` | deepseek | 1000000 | 384000 | auto (min n/a) | 0.0000220 | — | — | implemented | yes | active |
+| `gpt-5.6` | openai | 400000 | 128000 | auto (min 1024) | 0.0001250 | 0.0015625 | — | implemented | yes | active |
+| `step-3.7-flash` | stepfun | 262144 | 256000 | auto (min 256) | 0.0000378 | — | — | implemented | yes | active |
+| `grok-4.6` | xai | 500000 | 131072 | auto (min n/a) | 0.0005000 | — | — | implemented | yes | active |
+| `mimo-v2.5-pro` | xiaomi | 262144 | 32768 | auto (min n/a) | 0.0000036 | — | — | implemented | yes | active |
+| `glm-5.1` | zhipu | 202745 | 131072 | auto (min n/a) | 0.0007000 | — | — | implemented | yes | active |
+<!-- END GENERATED: model-capabilities -->
+

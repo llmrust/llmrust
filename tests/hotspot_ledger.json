@@ -11,7 +11,7 @@
     "src/providers/anthropic.rs": 1515,
     "src/router.rs": 1080,
     "src/providers/ollama.rs": 805,
-    "src/lib.rs": 774,
+    "src/lib.rs": 779,
     "src/providers/retry.rs": 521
   },
   "adjustments": [
@@ -214,6 +214,14 @@
       "new": 774,
       "reason": "CAP-006 (#212): crate root declares `pub mod catalog;` and re-exports the catalog surface (`access_path`, `model`, `AccessPath`, `Channel`, `Lifecycle`, `ModelSpec`, `Protocol`, `Region`) (+4 wc -l measured). Additive public surface only; the catalog body itself lives in the new file src/catalog.rs (measured 407 wc -l, below the 500 threshold, so not a ledger entry), and the pricing change stays in src/pricing.rs (measured 392 wc -l, also below threshold).",
       "authorized_by": "CAP-006 card (#212, N1) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/lib.rs",
+      "old": 774,
+      "new": 779,
+      "reason": "CAP-007 (#213): crate root declares `pub mod capability_table;` and re-exports the table surface (`extract_generated_block`, `CacheMode`, `CacheSpec`, `ModelCapability`, `ModelCapabilityTable`, `PriceRow`, `TableError`, `GENERATED_BEGIN`, `GENERATED_END`) (+5 wc -l measured). Additive public surface only; the table body lives in the new file src/capability_table.rs (measured 359 wc -l, below the 500 threshold, so not a ledger entry), and the per-model data lives in the new data file llmrust.models.json (not Rust source, not a ledger entry).",
+      "authorized_by": "CAP-007 card (#213, N1) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     }
   ]

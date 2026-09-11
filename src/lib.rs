@@ -62,6 +62,7 @@
 //! ```
 
 pub mod cache_control;
+pub mod capability_table;
 pub mod catalog;
 pub mod pricing;
 pub mod providers;
@@ -79,6 +80,10 @@ use futures::StreamExt;
 use tokio::sync::RwLock;
 
 pub use cache_control::{CachePolicy, CacheRetention};
+pub use capability_table::{
+    extract_generated_block, CacheMode, CacheSpec, ModelCapability, ModelCapabilityTable, PriceRow,
+    TableError, GENERATED_BEGIN, GENERATED_END,
+};
 pub use catalog::{
     access_path, model, AccessPath, Channel, Lifecycle, ModelSpec, Protocol, Region,
 };

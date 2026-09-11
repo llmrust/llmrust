@@ -334,9 +334,10 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
                             });
                         }
                         for call in tool_calls {
-                            let input: serde_json::Value =
-                                serde_json::from_str(&call.function.arguments)
-                                    .unwrap_or_else(|_| serde_json::json!({}));
+                            let input: serde_json::Value = crate::providers::parse_tool_arguments(
+                                &call.function.name,
+                                &call.function.arguments,
+                            );
                             blocks.push(AnthropicContentBlock::ToolUse {
                                 id: call.id.clone(),
                                 name: call.function.name.clone(),

@@ -380,8 +380,10 @@ pub fn build_response(resp: ChatResponse, id: &str) -> AnthropicResponse {
 
     if let Some(tool_calls) = &resp.tool_calls {
         for tc in tool_calls {
-            let input: serde_json::Value = serde_json::from_str(&tc.function.arguments)
-                .unwrap_or_else(|_| serde_json::json!({}));
+            // ERR-001: 降级保留 + 留痕（0.1.3 期此处静默替换为 `{}`，
+            // 等于把上游返回的工具参数**悄悄改掉**且调用方无从察觉）。
+            let input: serde_json::Value =
+                crate::providers::parse_tool_arguments(&tc.function.name, &tc.function.arguments);
             content.push(AnthropicResponseBlock::ToolUse {
                 id: tc.id.clone(),
                 name: tc.function.name.clone(),

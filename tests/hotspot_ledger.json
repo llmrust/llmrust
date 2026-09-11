@@ -3,12 +3,12 @@
   "threshold": 500,
   "baseline_lines": {
     "src/proxy/mod.rs": 3330,
-    "src/proxy/anthropic_proxy.rs": 1884,
+    "src/proxy/anthropic_proxy.rs": 1886,
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1485,
-    "src/providers/google.rs": 1545,
+    "src/providers/google.rs": 1547,
     "src/types.rs": 1136,
-    "src/providers/anthropic.rs": 1538,
+    "src/providers/anthropic.rs": 1539,
     "src/router.rs": 1080,
     "src/providers/ollama.rs": 830,
     "src/lib.rs": 839,
@@ -255,6 +255,70 @@
       "new": 782,
       "reason": "CAP-002 (N1): crate root re-exports the capability surface (`Capabilities`, `Capability`, `CapabilityLevel`, `EvidenceKind`, `Verified`) (+3 wc -l measured — one `pub use` line, reflowed by `cargo fmt` into 3 lines). Additive public surface only.",
       "authorized_by": "CAP-002 card (N1) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/capabilities.rs",
+      "old": 0,
+      "new": 712,
+      "reason": "CAP-003 (N1): the unified-entry adjudication (`Verdict`, `RequestDemands`, `adjudicate`, `warn_once`) landed in the CAP-002 module, taking it to 712 wc -l — above the 500 threshold, so it is registered here per the #209 coverage gate. Not split further because the card's allowed scope names this file and the adjudication is the only consumer of the types defined in it. REMOVAL ANCHOR = CAP-004 follow-up / module doc-surface trim. NOTE: this entry was MISSING from the CAP-003 merge (the baseline number landed without a recorded reason); it is added here as a correction, disclosed in the ERR-001 PR.",
+      "authorized_by": "CAP-003 card (N1) — ledger registration per §11.1.4 + #209 coverage gate (backfilled)",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/lib.rs",
+      "old": 782,
+      "new": 839,
+      "reason": "CAP-003 (N1): `LmrsClient::adjudicate` (the entry-point adjudication executor) plus its two call sites in `chat_with`/`stream_with` (+57 wc -l measured). The executor belongs on the client — that is where a request is finally dispatched, which is the whole point of adjudicating ONCE at the entry. NOTE: backfilled (the CAP-003 merge changed the number without this record).",
+      "authorized_by": "CAP-003 card (N1) — ledger adjustment per §11.1.4 (backfilled)",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1539,
+      "new": 1538,
+      "reason": "CAP-003 (N1): two hand-written `warn_if_unsupported_n` call sites removed (-2 wc -l measured); adjudication moved to the unified entry point. NOTE: backfilled.",
+      "authorized_by": "CAP-003 card (N1) — ledger adjustment per §11.1.4 (backfilled)",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1546,
+      "new": 1545,
+      "reason": "CAP-003 (N1): two hand-written `warn_if_unsupported_n` call sites removed (-2 wc -l measured). NOTE: backfilled.",
+      "authorized_by": "CAP-003 card (N1) — ledger adjustment per §11.1.4 (backfilled)",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 1487,
+      "new": 1485,
+      "reason": "CAP-003 (N1): two hand-written `warn_if_unsupported_n` call sites removed (-2 wc -l measured). NOTE: backfilled.",
+      "authorized_by": "CAP-003 card (N1) — ledger adjustment per §11.1.4 (backfilled)",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1538,
+      "new": 1539,
+      "reason": "ERR-001 (N2): the silent `.unwrap_or_else(|_| json!({}))` tool-argument parse was replaced by `crate::providers::parse_tool_arguments(name, args)` (+1 wc -l measured), which still degrades to `{}` but leaves a `tracing::warn` trace instead of silently rewriting the tool call.",
+      "authorized_by": "ERR-001 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1545,
+      "new": 1547,
+      "reason": "ERR-001 (N2): same replacement at the Gemini tool-call build site (+2 wc -l measured; the call is wrapped by cargo fmt).",
+      "authorized_by": "ERR-001 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/proxy/anthropic_proxy.rs",
+      "old": 1884,
+      "new": 1886,
+      "reason": "ERR-001 (N2): same replacement in the proxy response conversion (+2 wc -l measured). Here the silent `{}` was rewriting a tool call the UPSTREAM had returned — the caller could not tell its arguments had been altered; now it is traced.",
+      "authorized_by": "ERR-001 card (N2) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     }
   ]

@@ -41,4 +41,25 @@ impl Provider for MoonshotProvider {
     async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
         self.0.embed(req).await
     }
+
+    fn protocol_name(&self) -> &'static str {
+        "moonshot"
+    }
+
+    /// `CAP-002` 声明：OpenAI 兼容族；与 `llmrust.capabilities.json` 的 moonshot 条目同口径
+    /// （无 reasoning 映射、无图像输入）。
+    fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
+        use crate::providers::capabilities::{Capabilities, Capability};
+        Capabilities {
+            protocol: "openai-compatible",
+            chat: Capability::implemented(),
+            stream: Capability::implemented(),
+            tool_calling: Capability::implemented(),
+            tool_calling_stream: Capability::implemented(),
+            image_input: Capability::unsupported(),
+            embeddings: Capability::implemented(),
+            reasoning: Capability::unsupported(),
+            prompt_cache: Capability::model_dependent(),
+        }
+    }
 }

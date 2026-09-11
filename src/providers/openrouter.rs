@@ -51,4 +51,25 @@ impl Provider for OpenRouterProvider {
     async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
         self.0.embed(req).await
     }
+
+    fn protocol_name(&self) -> &'static str {
+        "openrouter"
+    }
+
+    /// `CAP-002` 声明：OpenRouter 是**聚合网关**，图像输入与工具调用依上游模型而定，
+    /// 故相应项记 `model_dependent`（不宣称 `implemented`——避免把网关能力当保证）。
+    fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
+        use crate::providers::capabilities::{Capabilities, Capability};
+        Capabilities {
+            protocol: "openai-compatible",
+            chat: Capability::implemented(),
+            stream: Capability::implemented(),
+            tool_calling: Capability::model_dependent(),
+            tool_calling_stream: Capability::model_dependent(),
+            image_input: Capability::model_dependent(),
+            embeddings: Capability::implemented(),
+            reasoning: Capability::model_dependent(),
+            prompt_cache: Capability::model_dependent(),
+        }
+    }
 }

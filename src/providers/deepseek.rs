@@ -41,4 +41,26 @@ impl Provider for DeepSeekProvider {
     async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
         self.0.embed(req).await
     }
+
+    fn protocol_name(&self) -> &'static str {
+        "deepseek"
+    }
+
+    /// `CAP-002` 声明：OpenAI 兼容族；DeepSeek 侧**不映射** reasoning 的流式契约
+    /// （见 `docs/CAPABILITIES.md` 与 `llmrust.capabilities.json` 的既有记载），
+    /// 故 reasoning 记 `model_dependent` 而非 `verified`。
+    fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
+        use crate::providers::capabilities::{Capabilities, Capability};
+        Capabilities {
+            protocol: "openai-compatible",
+            chat: Capability::implemented(),
+            stream: Capability::implemented(),
+            tool_calling: Capability::implemented(),
+            tool_calling_stream: Capability::implemented(),
+            image_input: Capability::unsupported(),
+            embeddings: Capability::implemented(),
+            reasoning: Capability::model_dependent(),
+            prompt_cache: Capability::model_dependent(),
+        }
+    }
 }

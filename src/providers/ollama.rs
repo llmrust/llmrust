@@ -429,6 +429,30 @@ impl Provider for OllamaProvider {
         );
         Ok(result)
     }
+
+    fn protocol_name(&self) -> &'static str {
+        "ollama"
+    }
+
+    /// `CAP-002` 声明：Ollama 原生协议。
+    /// **`tool_calling` / `tool_calling_stream` = `unsupported`** —— 这是本卡要建立的
+    /// 机器可读事实：0.1.3 期 Ollama 传 `tools` 是**静默丢弃**（`docs/CAPABILITIES.md`
+    /// 记为 ➖），`CAP-003` 将据此在统一入口**响亮拒绝**而不是继续静默。
+    /// `embeddings` = `implemented`（走原生 `/api/embed`）。
+    fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
+        use crate::providers::capabilities::{Capabilities, Capability};
+        Capabilities {
+            protocol: "ollama",
+            chat: Capability::implemented(),
+            stream: Capability::implemented(),
+            tool_calling: Capability::unsupported(),
+            tool_calling_stream: Capability::unsupported(),
+            image_input: Capability::unsupported(),
+            embeddings: Capability::implemented(),
+            reasoning: Capability::unsupported(),
+            prompt_cache: Capability::unsupported(),
+        }
+    }
 }
 
 #[cfg(test)]

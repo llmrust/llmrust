@@ -1,0 +1,11 @@
+{
+  "description": "Line-count FLOOR ledger for governance documents (SPCC §4.4 analogue, GRD-001 item 4). A governance doc may GROW freely (we add rows), but it must never drop BELOW its recorded floor: silent truncation is exactly the REL-003 incident class. Counts are `wc -l` (newline count) per E-101. Lowering a floor is an authorized truth-correction action — record the reason here; do not lower it to turn a guard green.",
+  "unit": "wc -l (newline count)",
+  "floors": {
+    "docs/SPCC-0.1.3.md": 1427,
+    "docs/SPCC-0.1.4.md": 917,
+    "docs/CAPABILITIES.md": 185,
+    "llmrust.capabilities.json": 277,
+    "llmrust.models.json": 201
+  }
+}

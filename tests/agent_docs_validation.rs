@@ -480,3 +480,154 @@ fn changelog_has_013_release_header() {
         "CHANGELOG.md must not retain an [Unreleased] section after REL-002"
     );
 }
+
+// ── GRD-003 ②：门自身必须会红 ──────────────────────────────────────────
+//
+// 本文件 22 条测试里绝大多数是"读真文件 → 断言"，**没有一条能证明"把检查改松会红"**。
+// 下面把两条最要紧的检查抽成纯函数，用**合成坏输入**驱动（负例），再用**真文件**对账
+// （证明抽出的判据与线上是同一口径）。
+
+/// **纯函数**：文本中命中的"危险表述"（空 = 干净）。
+pub fn dangerous_phrase_hits(text: &str) -> Vec<String> {
+    let lower = text.to_lowercase();
+    DANGEROUS_PHRASES
+        .iter()
+        .filter(|(phrase, _)| lower.contains(&phrase.to_lowercase()))
+        .map(|(phrase, explanation)| format!("contains '{phrase}' — {explanation}"))
+        .collect()
+}
+
+/// **纯函数**：`examples/README.md` 列出的例子相对 Cargo.toml / 磁盘的问题。
+pub fn readme_example_problems(
+    listed: &HashSet<String>,
+    cargo_examples: &HashSet<String>,
+    rs_files: &HashSet<String>,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    if listed.is_empty() {
+        out.push("no examples found in examples/README.md table".to_string());
+    }
+    for ex in listed {
+        if !cargo_examples.contains(ex) {
+            out.push(format!(
+                "'{ex}' listed in examples/README.md but not in Cargo.toml [[example]]"
+            ));
+        }
+        if !rs_files.contains(ex) {
+            out.push(format!(
+                "'{ex}' listed in examples/README.md but examples/{ex}.rs does not exist"
+            ));
+        }
+    }
+    out
+}
+
+/// 负例一：**危险表述**必须被点名（逐条覆盖 `DANGEROUS_PHRASES`）。
+///
+/// 断言用 `>= 1` 而非 `== 1`：`DANGEROUS_PHRASES` 里存在**大小写重复项**
+/// （`"Reject n != 1 (or absent)"` 与其小写孪生各一条），而匹配是大小写无关的，
+/// 故一段文本可能同时命中两条。该重复由下方 [`dangerous_phrases_are_case_distinct`]
+/// 单独钉住——**不静默略过**。
+#[test]
+fn negative_dangerous_phrases_are_reported() {
+    for (phrase, _) in DANGEROUS_PHRASES {
+        let text = format!("This doc mentions {phrase} casually.");
+        let hits = dangerous_phrase_hits(&text);
+        assert!(
+            !hits.is_empty(),
+            "phrase `{phrase}` must be caught; got {hits:?}"
+        );
+    }
+}
+
+/// 观测并钉住：危险表述表里**存在大小写重复项**。
+///
+/// 这不是缺陷（命中判定大小写无关，重复项只是冗余），但它解释了"为何命中数可能 > 1"。
+/// 若该断言将来失败，说明表被改动了 —— 上面两条负例需重新复核。
+#[test]
+fn dangerous_phrases_are_case_distinct() {
+    let lowered: Vec<String> = DANGEROUS_PHRASES
+        .iter()
+        .map(|(p, _)| p.to_lowercase())
+        .collect();
+    let unique: HashSet<&String> = lowered.iter().collect();
+    assert!(
+        unique.len() < lowered.len(),
+        "expected at least one case-duplicate entry in DANGEROUS_PHRASES (documented observation)"
+    );
+}
+
+/// 负例二（大写变体）：**大小写不得成为绕过手段**。
+#[test]
+fn negative_dangerous_phrase_case_variants_are_reported() {
+    for (phrase, _) in DANGEROUS_PHRASES {
+        let upper = phrase.to_uppercase();
+        let hits = dangerous_phrase_hits(&format!("MENTIONS {upper} HERE"));
+        assert!(
+            !hits.is_empty(),
+            "UPPERCASE `{upper}` must be caught; got {hits:?}"
+        );
+    }
+}
+
+/// 反向对照（**假阳性**）：干净文本不得报。
+#[test]
+fn clean_text_has_no_dangerous_phrases() {
+    let hits = dangerous_phrase_hits("llmrust maps the field; provider count is not hardcoded.");
+    assert!(hits.is_empty(), "got {hits:?}");
+}
+
+/// 负例三：README 列了一个**未注册**的例子 → 必须报。
+#[test]
+fn negative_readme_phantom_example_is_reported() {
+    let listed: HashSet<String> = ["demo".to_string(), "ghost".to_string()]
+        .into_iter()
+        .collect();
+    let cargo: HashSet<String> = ["demo".to_string()].into_iter().collect();
+    let files: HashSet<String> = ["demo".to_string()].into_iter().collect();
+    let problems = readme_example_problems(&listed, &cargo, &files);
+    assert_eq!(problems.len(), 2, "got {problems:?}");
+    assert!(
+        problems.iter().any(|p| p.contains("not in Cargo.toml")),
+        "{problems:?}"
+    );
+    assert!(
+        problems.iter().any(|p| p.contains("does not exist")),
+        "{problems:?}"
+    );
+}
+
+/// 负例四：README 的例子表**为空** → 必须报（空表会让"逐条比对"变成空转）。
+#[test]
+fn negative_empty_readme_table_is_reported() {
+    let empty: HashSet<String> = HashSet::new();
+    let problems = readme_example_problems(&empty, &empty, &empty);
+    assert_eq!(problems.len(), 1, "got {problems:?}");
+    assert!(problems[0].contains("no examples found"), "{problems:?}");
+}
+
+/// **与真文件对账**：两条纯函数跑真仓库 → 必须零问题
+/// （证明抽出来的判据与线上门是同一口径，不是另写一套摆设）。
+#[test]
+fn extracted_checks_agree_with_the_real_repo() {
+    for fname in AGENT_FILES {
+        let path = repo_root().join(fname);
+        if !path.exists() {
+            continue;
+        }
+        let text = fs::read_to_string(&path).unwrap_or_default();
+        let hits = dangerous_phrase_hits(&text);
+        assert!(hits.is_empty(), "{fname}: {hits:?}");
+    }
+
+    let readme_text = fs::read_to_string(repo_root().join("examples").join("README.md"))
+        .expect("examples/README.md not found");
+    let cargo_toml =
+        fs::read_to_string(repo_root().join("Cargo.toml")).expect("Cargo.toml not found");
+    let problems = readme_example_problems(
+        &extract_example_names_from_md(&readme_text),
+        &extract_example_names_from_cargo_toml(&cargo_toml),
+        &example_rs_files(),
+    );
+    assert!(problems.is_empty(), "{problems:?}");
+}

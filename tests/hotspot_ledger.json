@@ -12,7 +12,7 @@
     "src/router.rs": 1231,
     "src/providers/ollama.rs": 830,
     "src/lib.rs": 839,
-    "src/providers/retry.rs": 783,
+    "src/providers/retry.rs": 887,
     "src/providers/capabilities.rs": 712
   },
   "adjustments": [
@@ -375,6 +375,14 @@
       "new": 3558,
       "reason": "ERR-005 (N2) / F-D2: `router_with_auth` now trims the configured token before storing it, so validation and the request-side comparison agree (+140 wc -l measured, overwhelmingly tests: the whitespace-only refusal, the padded-config authentication matrix over three padding shapes, the unchanged-behaviour pin, and the strength-not-weakened check, plus the written decision rationale in the function body). The one-line behaviour change is `let token = expected_token;` → `expected_token.trim().to_string()`; the bulk is the proof that it is safe.",
       "authorized_by": "ERR-005 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/retry.rs",
+      "old": 783,
+      "new": 887,
+      "reason": "H-1 (external audit, pre-REL-004 fix): `RetryProvider` is a `Provider` decorator, and `LmrsClient::with_retry()` wraps EVERY registered provider with it — but the decorator did not forward `capabilities()` / `protocol_name()` / `last_retry_after()`. Two consequences, both measured in-repo: (a) capability adjudication (CAP-003) received the DEFAULT declaration (`declared == false`), so a provider that explicitly declares a face `unsupported` was reclassified as `undeclared` and merely warned about instead of rejected — end-to-end, Ollama + `tools` returned `Unsupported` bare but was DISPATCHED TO THE NETWORK once `with_retry()` was on, i.e. the CAP-003 fix silently regressed; (b) `last_retry_after()` returned `None` through the decorator, breaking the ERR-004 hint chain for nested wrapping. Fix: forward all three. +104 wc -l measured (three forwarding methods with rationale comments, plus three unit tests — declaration/protocol-name/hint forwarding — and one end-to-end regression test asserting the CAP-003 rejection survives `with_retry()`).",
+      "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」(audit item H-1) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     }
   ]

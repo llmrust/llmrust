@@ -26,6 +26,30 @@ Which features each provider supports, and how they map across providers.
 
 > **Reasoning semantics**: ✅ for reasoning means llmrust maps the reasoning contract on the **streaming** path (request field + `StreamChunk.thinking` deltas + `thinking_done` + usage mapping), verified by local fixtures (2026-08-02). Non-stream `chat` and the `stream_collect*` aggregates **fail with `LlmError::Unsupported`** for these providers (reasoning cannot be carried losslessly in `ChatResponse` / aggregated text); `➖` providers reject reasoning before any network call. Real upstream E2E verification belongs to E2E-001 (SPCC §8.2, REA-001 §3).
 
+## Verification levels (SPCC §6.2)
+
+Every capability declaration carries one of **five levels** (modelled in code as
+`llmrust::CapabilityLevel`, carried by `Provider::capabilities()` — `CAP-002`):
+
+| Level | Meaning |
+|---|---|
+| `implemented` | llmrust maps the field or protocol. |
+| `verified` | implemented **and** backed by evidence, which **must** carry an evidence kind and a date. |
+| `model_dependent` | llmrust translates it; whether it takes effect depends on the upstream model. |
+| `unsupported` | llmrust does not support it. Requests that demand it are **refused loudly** at the client entry point (`LlmError::Unsupported`) instead of being silently dropped — see the capability adjudication contract in `docs/CONTRACTS.md` (`CAP-003`). |
+| `passthrough_only` | forwarded verbatim, with no semantic guarantee. |
+
+`verified` evidence kinds are **`local-fixture`** (recorded or synthesized payloads) and
+**`live-endpoint`** (a real endpoint with real credentials). A `local-fixture` verification
+carries **no** claim about upstream behaviour — which is exactly why the matrix above uses ✅
+without promising per-model behaviour, and why real-endpoint verification is tracked separately
+by `E2E-002` (`N3`).
+
+> **Three-way consistency (`CAP-004`)**: the matrix above, `llmrust.capabilities.json`, and
+> `Provider::capabilities()` are checked against each other by `tests/capability_freeze.rs`.
+> Any drift — a runtime change, a JSON edit, or a hand-edited documentation cell — fails CI.
+> When they disagree, fix the declaration; do not loosen the check.
+
 ## Sampling parameter support
 
 | Parameter | OpenAI-compat | Anthropic | Gemini | Ollama |

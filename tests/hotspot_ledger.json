@@ -213,7 +213,7 @@
       "file": "src/lib.rs",
       "old": 770,
       "new": 774,
-      "reason": "CAP-006 (#212): crate root declares `pub mod catalog;` and re-exports the catalog surface (`access_path`, `model`, `AccessPath`, `Channel`, `Lifecycle`, `ModelSpec`, `Protocol`, `Region`) (+4 wc -l measured). Additive public surface only; the catalog body itself lives in the new file src/catalog.rs (measured 407 wc -l, below the 500 threshold, so not a ledger entry), and the pricing change stays in src/pricing.rs (measured 392 wc -l, also below threshold).",
+      "reason": "CAP-006 (#212): crate root declares `pub mod catalog;` and re-exports the catalog surface (`access_path`, `model`, `AccessPath`, `Channel`, `Lifecycle`, `ModelSpec`, `Protocol`, `Region`) (+4 wc -l measured). Additive public surface only; the catalog body itself lives in the new file src/catalog.rs (measured 407 wc -l, below the 500 threshold, so not a ledger entry), and the pricing change stays in src/pricing.rs (measured 392 wc -l AT CAP-006 TIME; 2026-09-11 re-measure = 418, still below the 500 threshold).",
       "authorized_by": "CAP-006 card (#212, N1) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     },
@@ -229,7 +229,7 @@
       "file": "src/providers/anthropic.rs",
       "old": 1515,
       "new": 1539,
-      "reason": "CAP-002 (#211-family, N1): declares `capabilities()` + `protocol_name()` for AnthropicProvider (+24 wc -l measured). The declaration must live on the provider's own impl block (a trait method belongs where the type is), so it cannot be relocated to the new src/providers/capabilities.rs (270 wc -l, below threshold, not a ledger entry) — that file carries the TYPES, this file carries the VALUES.",
+      "reason": "CAP-002 (#211-family, N1): declares `capabilities()` + `protocol_name()` for AnthropicProvider (+24 wc -l measured). The declaration must live on the provider's own impl block (a trait method belongs where the type is), so it cannot be relocated to the new src/providers/capabilities.rs (270 wc -l AT CAP-002 TIME; 2026-09-11 re-measure = 712 — it has since grown past the 500 threshold and IS a ledger baseline entry, see baseline_lines) — that file carries the TYPES, this file carries the VALUES.",
       "authorized_by": "CAP-002 card (N1) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     },

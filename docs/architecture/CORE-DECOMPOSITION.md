@@ -3,7 +3,12 @@
 > **状态**：推演文档（M4 任务卡，纯设计，零生产代码改动）
 > **日期**：2026-08-03
 > **依据**：SPCC §11.7 ARC-002 卡（初始状态/目标/允许范围/禁止范围/执行步骤/DoD/回证）
-> **目标文件**：`src/providers/compat.rs`（1455 行）、`src/providers/google.rs`（1524 行）、`src/providers/anthropic.rs`（1483 行）、`src/types.rs`（1132 行）、`src/router.rs`（851 行）——合计 **6445 行**
+> **目标文件（2026-08-03 编制时快照）**：`src/providers/compat.rs`（1455 行）、`src/providers/google.rs`（1524 行）、`src/providers/anthropic.rs`（1483 行）、`src/types.rs`（1132 行）、`src/router.rs`（851 行）——合计 **6445 行**
+>
+> ⚠️ **行数已漂移（2026-09-11 复测，`wc -l` 口径）**：`compat.rs` = **1513**（+58）、
+> `google.rs` = **1614**（+90）、`anthropic.rs` = **1539**（+56）、`types.rs` = **1136**（+4）、
+> `router.rs` = **1231**（+380）——**合计 7033（+588）**。**下文全部行区间按 2026-08-03 快照编号，
+> 与当前文件不再对齐**（`router.rs` 偏差最大）。拆分开工（`0.2.0`）前必须**重测并重编号**。
 > **产出**：行区间映射、依赖图、目标模块树、API 路径影响表、迁移顺序、未来任务卡清单（≥5，含测试外迁方向）、风险清单
 > **格式先例**：`docs/architecture/PROXY-DECOMPOSITION.md`（ARC-001 交付物；步骤↔卡严格 1:1、目标模块三处一致）
 

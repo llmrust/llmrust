@@ -330,11 +330,22 @@ impl Router {
                     return Ok(resp);
                 }
                 Err(e) if should_failover(&e) => {
+                    // ERR-004：把上游 `Retry-After` 纳入决策的**可观测面**——但**本层不等待**。
+                    //
+                    // 语义（卡内禁止推翻既有设计）：failover 的处理方式是**换到另一个部署**，
+                    // 而"换部署"正是对限流/上游故障的正确响应（另一个部署未必被限流），
+                    // 所以这里**刻意不 sleep**；"同一部署重试 + 按 `Retry-After` 退避"是
+                    // `RetryProvider` 的职责（见 `providers/retry.rs`）。
+                    //
+                    // 本层**读不到**该头：`Router` 持有的是 `LmrsClient`，响应头在 Provider 层
+                    // 已随响应消费。故此处记录的是**决策事实**（不等待 + 原因），而非头值本身；
+                    // 头值由 `RetryProvider` 在其日志中以 `delay_source = "upstream"` 呈现。
                     tracing::warn!(
                         group,
                         model,
                         error_kind = error_kind_of(&e),
-                        "failing over to next deployment"
+                        waits_for_upstream = false,
+                        "failing over to next deployment (switch deployment, no wait by design)"
                     );
                     self.mark_cooldown(model);
                     last_error = Some(e);

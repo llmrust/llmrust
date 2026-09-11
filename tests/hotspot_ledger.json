@@ -5,14 +5,14 @@
     "src/proxy/mod.rs": 3418,
     "src/proxy/anthropic_proxy.rs": 1886,
     "src/proxy/responses_proxy.rs": 964,
-    "src/providers/compat.rs": 1485,
+    "src/providers/compat.rs": 1513,
     "src/providers/google.rs": 1547,
     "src/types.rs": 1136,
     "src/providers/anthropic.rs": 1539,
-    "src/router.rs": 1220,
+    "src/router.rs": 1231,
     "src/providers/ollama.rs": 830,
     "src/lib.rs": 839,
-    "src/providers/retry.rs": 521,
+    "src/providers/retry.rs": 783,
     "src/providers/capabilities.rs": 712
   },
   "adjustments": [
@@ -335,6 +335,30 @@
       "new": 3418,
       "reason": "ERR-002 (N2) / FND-R3: `MAX_ERROR_MESSAGE_CHARS` + `truncate_message` were extracted to module level and the truncation was MOVED OUT OF the match, so every error arm — including the previously untruncated `UnknownProvider` and `Unsupported` — now passes through the same single bound (+88 wc -l measured, mostly the five boundary tests: exactly-200, 201, 10000, multibyte and empty). Making the bound structural is the point: a future arm cannot forget it.",
       "authorized_by": "ERR-002 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/retry.rs",
+      "old": 521,
+      "new": 783,
+      "reason": "ERR-004 (N2): `Retry-After` consumption landed here — `MAX_RETRY_AFTER` (the mandated cap), `now_unix_secs`, the pure `parse_retry_after` (delay-seconds + IMF-fixdate, with its own date arithmetic to avoid a new dependency), `http_date_to_unix`/`days_from_civil`, `backoff_with_hint`, the two retry-loop call sites, and ten tests covering the five mandated input classes plus precedence/cap/busy-loop guards (+262 wc -l measured). Retry policy is this file's subject, so the parser lives beside the loop that consumes it.",
+      "authorized_by": "ERR-004 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 1485,
+      "new": 1513,
+      "reason": "ERR-004 (N2): the shared OpenAI-compatible path now captures `Retry-After` on a failed response — `parse_error` became `&self` and reads the header before consuming the body, storing the parsed hint in the new `last_retry_after` field; `impl Provider` gained the `last_retry_after()` override (+28 wc -l measured). Capturing here covers four providers (openai/deepseek/moonshot/openrouter) with one edit.",
+      "authorized_by": "ERR-004 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/router.rs",
+      "old": 1220,
+      "new": 1231,
+      "reason": "ERR-004 (N2): the failover log now records the decision fact `waits_for_upstream = false` plus the reason, with the division of labour documented in-line (failover switches deployment and deliberately does not sleep; same-deployment back-off honouring `Retry-After` is RetryProvider's job). The router holds an `LmrsClient` and cannot read the header itself — stated plainly rather than faked (+11 wc -l measured).",
+      "authorized_by": "ERR-004 card (N2) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     }
   ]

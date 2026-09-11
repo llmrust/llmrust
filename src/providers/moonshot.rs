@@ -42,6 +42,11 @@ impl Provider for MoonshotProvider {
         self.0.embed(req).await
     }
 
+    /// ERR-004：Retry-After 提示由内层兼容实现捕获，此处**委派**。
+    fn last_retry_after(&self) -> Option<std::time::Duration> {
+        self.0.last_retry_after()
+    }
+
     fn protocol_name(&self) -> &'static str {
         "moonshot"
     }

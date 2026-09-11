@@ -67,6 +67,129 @@ fn should_retry(e: &LlmError) -> bool {
     }
 }
 
+// ── ERR-004：消费上游 `Retry-After` ────────────────────────────────────────
+//
+// 0.1.3 期**从不读取**上游的 `Retry-After`（全仓 `retry.?after` 零命中）：
+// `backoff()` 是纯本地指数 + jitter。上游明说"等 30 秒再来"时，本地可能 500ms 就重试——
+// 既白撞墙（会被继续限流），也把服务端压力叠加回去。
+//
+// 处置：**有上游指示时优先采用**，但**必须设上限**（卡内禁止"无上限等待"）——
+// 恶意或错误的上游可以回一个夸张值（甚至 HTTP-date 在遥远的未来）来钉死客户端。
+
+/// 上游指示的等待窗口**上限**（防恶意/异常的超长值）。
+pub const MAX_RETRY_AFTER: Duration = Duration::from_secs(60);
+
+/// 当前 Unix 秒（HTTP-date 形态的 `Retry-After` 需要"现在"作基准）。
+///
+/// 抽出来是为了让 [`parse_retry_after`] 保持**纯函数**：基准由调用方传入，测试可复现。
+pub(crate) fn now_unix_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// `Retry-After` 的两种合法格式（RFC 9110 §10.2.3）：
+/// **delay-seconds**（非负整数秒）与 **HTTP-date**（IMF-fixdate）。
+///
+/// `now_unix_secs` 由调用方传入，使本函数**纯粹可测**。
+///
+/// 返回：
+/// - `None` —— 值缺失、为空、或**无法解析**（畸形）：调用方回落到本地退避；
+/// - `Some(d)` —— 解析出的等待窗口，**已按 [`MAX_RETRY_AFTER`] 截顶**；
+///   HTTP-date 已过去时返回 `Some(0)`（= 立刻可重试，而非负数）。
+pub fn parse_retry_after(value: &str, now_unix_secs: i64) -> Option<Duration> {
+    let v = value.trim();
+    if v.is_empty() {
+        return None;
+    }
+    // ① delay-seconds
+    if let Ok(secs) = v.parse::<u64>() {
+        return Some(Duration::from_secs(secs).min(MAX_RETRY_AFTER));
+    }
+    // ② HTTP-date（IMF-fixdate，如 `Wed, 21 Oct 2015 07:28:00 GMT`）
+    let target = http_date_to_unix(v)?;
+    let delta = target.saturating_sub(now_unix_secs);
+    if delta <= 0 {
+        return Some(Duration::ZERO);
+    }
+    Some(Duration::from_secs(delta as u64).min(MAX_RETRY_AFTER))
+}
+
+/// 解析 IMF-fixdate 为 Unix 秒（纯函数；不引入日期库依赖）。
+///
+/// 只接受 RFC 9110 要求的 **GMT** 形态；星期几不参与换算（仅作装饰，故不校验其正确性）。
+fn http_date_to_unix(s: &str) -> Option<i64> {
+    // "Wed, 21 Oct 2015 07:28:00 GMT" → ["Wed","21","Oct","2015","07:28:00","GMT"]
+    let cleaned = s.replace(',', " ");
+    let parts: Vec<&str> = cleaned.split_whitespace().collect();
+    if parts.len() != 6 || !parts[5].eq_ignore_ascii_case("GMT") {
+        return None;
+    }
+    let day: u32 = parts[1].parse().ok()?;
+    let month = match parts[2].to_ascii_lowercase().as_str() {
+        "jan" => 1,
+        "feb" => 2,
+        "mar" => 3,
+        "apr" => 4,
+        "may" => 5,
+        "jun" => 6,
+        "jul" => 7,
+        "aug" => 8,
+        "sep" => 9,
+        "oct" => 10,
+        "nov" => 11,
+        "dec" => 12,
+        _ => return None,
+    };
+    let year: i64 = parts[3].parse().ok()?;
+    let hms: Vec<&str> = parts[4].split(':').collect();
+    if hms.len() != 3 {
+        return None;
+    }
+    let h: i64 = hms[0].parse().ok()?;
+    let mi: i64 = hms[1].parse().ok()?;
+    let sec: i64 = hms[2].parse().ok()?;
+    if !(1..=31).contains(&day)
+        || !(0..24).contains(&h)
+        || !(0..60).contains(&mi)
+        || !(0..61).contains(&sec)
+    {
+        return None;
+    }
+    let days = days_from_civil(year, month, day);
+    Some(days * 86_400 + h * 3_600 + mi * 60 + sec)
+}
+
+/// Howard Hinnant 的 `days_from_civil`（公历 → 自 1970-01-01 起的天数）。
+fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = ((m + 9) % 12) as i64;
+    let doy = (153 * mp + 2) / 5 + d as i64 - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+/// 退避决策：**有上游指示时优先采用**，否则本地指数退避。
+///
+/// 返回 `(delay, source)`；`source` 供日志标注**等待窗口的来源**（DoD 要求"可观测"）。
+pub fn backoff_with_hint(
+    attempt: u32,
+    base_ms: u64,
+    max_ms: u64,
+    upstream_hint: Option<Duration>,
+) -> (Duration, &'static str) {
+    match upstream_hint {
+        Some(hint) => (
+            hint.min(MAX_RETRY_AFTER).max(Duration::from_millis(1)),
+            "upstream",
+        ),
+        None => (backoff(attempt, base_ms, max_ms), "local"),
+    }
+}
+
 // ── Exponential back-off with jitter ───────────────────────────────────────
 
 fn backoff(attempt: u32, base_ms: u64, max_ms: u64) -> Duration {
@@ -154,11 +277,18 @@ impl Provider for RetryProvider {
                     if !(should_retry(&e) && attempt < self.max_retries) {
                         return Err(e);
                     }
-                    let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
+                    // ERR-004：优先采用上游明示的等待窗口（`Retry-After`），否则本地退避。
+                    let (delay, delay_source) = backoff_with_hint(
+                        attempt,
+                        self.base_delay_ms,
+                        self.max_delay_ms,
+                        self.inner.last_retry_after(),
+                    );
                     tracing::warn!(
                         attempt = attempt + 1,
                         max_retries = self.max_retries,
                         delay_ms = delay.as_millis() as u64,
+                        delay_source, // "upstream" | "local" —— 等待窗口来源可观测（DoD）
                         error_kind = "transient",
                         "retrying transient failure"
                     );
@@ -184,11 +314,18 @@ impl Provider for RetryProvider {
                     if !(should_retry(&e) && attempt < self.max_retries) {
                         return Err(e);
                     }
-                    let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
+                    // ERR-004：同上（流式路径同样消费上游指示）。
+                    let (delay, delay_source) = backoff_with_hint(
+                        attempt,
+                        self.base_delay_ms,
+                        self.max_delay_ms,
+                        self.inner.last_retry_after(),
+                    );
                     tracing::warn!(
                         attempt = attempt + 1,
                         max_retries = self.max_retries,
                         delay_ms = delay.as_millis() as u64,
+                        delay_source,
                         error_kind = "transient",
                         "retrying transient failure (stream)"
                     );
@@ -234,6 +371,131 @@ mod tests {
     use async_trait::async_trait;
     use futures::stream;
     use futures::StreamExt;
+
+    // ── ERR-004：`Retry-After` 的五类输入（DoD 点名） ──────────────────────
+    //
+    // 五类：① 无头/空 → None；② delay-seconds；③ HTTP-date；④ 畸形 → None；
+    //       ⑤ 夸张值 → **截顶**（卡内禁止"无上限等待"）。
+
+    /// ① 缺失/空 → `None`（调用方回落到本地退避）。
+    #[test]
+    fn retry_after_absent_or_empty_yields_none() {
+        assert_eq!(parse_retry_after("", 0), None);
+        assert_eq!(parse_retry_after("   ", 0), None);
+    }
+
+    /// ② delay-seconds（RFC 9110 的第一种合法形态）。
+    #[test]
+    fn retry_after_delay_seconds_is_honored() {
+        assert_eq!(parse_retry_after("30", 0), Some(Duration::from_secs(30)));
+        assert_eq!(parse_retry_after(" 5 ", 0), Some(Duration::from_secs(5)));
+        // 0 秒是合法的（"立刻可重试"），不是"缺失"。
+        assert_eq!(parse_retry_after("0", 0), Some(Duration::ZERO));
+    }
+
+    /// ③ HTTP-date（第二种合法形态）：解析为**相对当前时刻**的窗口。
+    ///
+    /// 用固定基准时刻计算，保证可复现（不读系统时钟）。
+    #[test]
+    fn retry_after_http_date_is_honored_relative_to_now() {
+        // 2015-10-21T07:28:00Z = 1445412480
+        let base = 1_445_412_480i64;
+        let got = parse_retry_after("Wed, 21 Oct 2015 07:28:00 GMT", base);
+        assert_eq!(got, Some(Duration::ZERO), "same instant → 0, not negative");
+
+        let later = parse_retry_after("Wed, 21 Oct 2015 07:28:20 GMT", base);
+        assert_eq!(later, Some(Duration::from_secs(20)));
+    }
+
+    /// ③ 补：HTTP-date 已过期 → `Some(0)`（**不得**出现负数/下溢）。
+    #[test]
+    fn retry_after_past_http_date_clamps_to_zero() {
+        let base = 1_445_412_480i64; // 2015-10-21T07:28:00Z
+        let got = parse_retry_after("Wed, 21 Oct 2015 07:00:00 GMT", base);
+        assert_eq!(got, Some(Duration::ZERO));
+    }
+
+    /// ④ 畸形输入 → `None`（不 panic、不猜测）。
+    #[test]
+    fn retry_after_malformed_yields_none() {
+        for bad in [
+            "soon",
+            "-5",
+            "3.5",
+            "Wed, 21 FOO 2015 07:28:00 GMT",
+            "Wed, 21 Oct 2015 07:28:00 UTC", // 非 GMT
+            "21 Oct 2015 07:28:00",          // 缺 GMT
+            "Wed, 21 Oct 2015 25:28:00 GMT", // 小时越界
+            "Wed, 32 Oct 2015 07:28:00 GMT", // 日越界
+        ] {
+            assert_eq!(parse_retry_after(bad, 0), None, "`{bad}` must not parse");
+        }
+    }
+
+    /// ⑤ 夸张值 → **截顶**到 [`MAX_RETRY_AFTER`]（防恶意/异常上游钉死客户端）。
+    #[test]
+    fn retry_after_absurd_values_are_capped() {
+        // 一天
+        assert_eq!(
+            parse_retry_after("86400", 0),
+            Some(MAX_RETRY_AFTER),
+            "a huge delay-seconds must be capped"
+        );
+        // u64 上限附近的巨值也不得 panic / 不得穿透上限
+        assert_eq!(
+            parse_retry_after(&u64::MAX.to_string(), 0),
+            Some(MAX_RETRY_AFTER)
+        );
+        // 远未来的 HTTP-date 同样截顶
+        let base = 1_445_412_480i64; // 2015
+        assert_eq!(
+            parse_retry_after("Wed, 21 Oct 2115 07:28:00 GMT", base),
+            Some(MAX_RETRY_AFTER),
+            "an HTTP-date far in the future must be capped"
+        );
+    }
+
+    /// **优先级**：有上游指示时采用上游值，且来源标注为 `upstream`；无则本地退避。
+    #[test]
+    fn upstream_hint_takes_precedence_over_local_backoff() {
+        let hint = Some(Duration::from_secs(7));
+        let (delay, source) = backoff_with_hint(0, 500, 30_000, hint);
+        assert_eq!(delay, Duration::from_secs(7));
+        assert_eq!(source, "upstream");
+
+        let (delay, source) = backoff_with_hint(0, 500, 30_000, None);
+        assert_eq!(source, "local");
+        assert!(
+            delay <= Duration::from_millis(500),
+            "local backoff stays in its own envelope: {delay:?}"
+        );
+    }
+
+    /// 上游值即便**绕过**解析器的截顶（直接传入）也不得穿透上限。
+    #[test]
+    fn hint_is_capped_even_if_passed_directly() {
+        let (delay, source) = backoff_with_hint(0, 500, 30_000, Some(Duration::from_secs(9999)));
+        assert_eq!(source, "upstream");
+        assert_eq!(delay, MAX_RETRY_AFTER);
+    }
+
+    /// 上游指示为 0 时**不得**退化成 0 延迟忙等（下限 1ms）。
+    #[test]
+    fn zero_hint_does_not_become_a_busy_loop() {
+        let (delay, _) = backoff_with_hint(0, 500, 30_000, Some(Duration::ZERO));
+        assert!(delay >= Duration::from_millis(1), "got {delay:?}");
+    }
+
+    /// 本地退避的既有性质未被削弱（本卡只**加**优先路径，不推翻原设计）。
+    #[test]
+    fn local_backoff_still_doubles_and_is_capped() {
+        let d0 = backoff(0, 100, 10_000);
+        let d3 = backoff(3, 100, 10_000);
+        assert!(d0 <= Duration::from_millis(100));
+        assert!(d3 <= Duration::from_millis(800) && d3 >= Duration::from_millis(600));
+        let d_huge = backoff(30, 100, 10_000);
+        assert!(d_huge <= Duration::from_millis(10_000), "capped at max_ms");
+    }
 
     // ── Mock provider that fails N times then succeeds ──
 

@@ -138,7 +138,7 @@
       "old": 1455,
       "new": 1487,
       "reason": "FIX-R2 (#198) growth: OpenAI streaming path now marks `StreamChunk.thinking_done = Some(true)` on the terminal chunk that surfaced a thinking increment (Contract §7 / CONTRACTS.md L33 compliance, FND-R2) + one regression test (failure-first: `stream_reasoning_terminal_chunk_marks_thinking_done` red → green). Growth is real implementation + test, not inflated; ledger records the ACTUAL wc -l line count (E-101: wc -l is the single source of truth, never headroom). Ledger adjustment is normally the architect-only action per §11.1.4 — executed under Owner's 2026-08-04 directive to proceed independently while the architect's quota is exhausted, recorded for architect review on quota restore. Baseline 1455 = main wc -l (git numstat +34/−2 = +32 net).",
-      "authorized_by": "Owner 2026-08-04 independent-continuation directive (architect quota exhausted; ledger adjustment per §11.1.4 architect-only rule, deferred to architect review on restore)",
+      "authorized_by": "Owner 2026-08-04 independent-continuation directive (architect quota exhausted; ledger adjustment per §11.1.4 architect-only rule, deferred to architect review on restore). RATIFIED by Owner (守溥) 2026-09-11: accepts the R2-period compat.rs ledger adjustment 1455->1487 made under the 2026-08-04 independent-execution directive; the review obligation is carried into the N1 first card (CAP-005) and will be verified there.",
       "date": "2026-08-04"
     },
     {

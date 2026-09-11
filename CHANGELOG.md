@@ -319,6 +319,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   （`connect_timeout` / `timeout` / `pool_max_idle_per_host` / `tcp_keepalive` / `no_proxy` / 自定义头），
   并按卡片要求附上**"降级而非传播错误"的书面理由**（签名连锁代价 + 降级后客户端仍可用）。
 
+### Fixed
+
+- **代理不再静默丢弃 `cache`（`H-3`）**：`CAP-005` 给 `ChatRequest` 加了 `cache` 字段，但代理 DTO
+  `ProxyChatRequest` **没有**它，而该路径**未启用 `deny_unknown_fields`** ⇒ 客户端向代理发
+  `"cache": {"retention": …}` 会被 serde **静默忽略**：**响应 200 成功、断点一个没设**
+  （§6.3 禁止的"降级到调用方无从察觉"；对"省钱"目标尤其危险——看着生效、实则零收益）。
+  **现在：响亮拒绝**——代理在**派发前**检出该键并返回 **400**，错误体指明"用库内 API 设置
+  `ChatRequest.cache`"，**零上游派发**。
+  **为什么不直接让代理支持它**：给公开 DTO 加字段是 `constructible_struct_adds_field`，
+  CI 的 `API-002 semver 门`判为**破坏性变更**（实测 `field ProxyChatRequest.cache` ⇒
+  `semver requires new major version`）——**代理 DTO 并不豁免于该门**。
+  故本版采用与本文件 `reasoning` 键**完全一致**的既有做法（检出即 400）。
+  **行为变更（wire 面）**：此前发 `cache` 得 200（且无效），现在得 400（并说明去向）；
+  **不发的客户端行为不变**，其它未知键**仍照常容忍**（未引入 `deny_unknown_fields`）。
+
 ### Changed
 
 - **Proxy 认证：校验与存储对 trim 现在一致（`ERR-005` / `F-D2`）**：此前 `router_with_auth` **校验**用

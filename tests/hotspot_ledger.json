@@ -2,7 +2,7 @@
   "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task or an architect-written exception explicitly authorizes a transition. Do not inflate a number to turn a guard green. PROCESS LESSON (CI-003 PR #95): after any `cargo fmt` auto-fix, the architecture guards MUST be re-run locally before pushing; a fmt-driven reflow once silently broke the hotspot baseline. THRESHOLD (2026-09-11, #209): raised to the Owner rule — every `src/**/*.rs` file must stay under 500 lines; the threshold is a single source of truth here and must match SPCC §4.4. Coverage is now BIDIRECTIONAL: a file at or above `threshold` that has no key under `baseline_lines` is a violation (previously only listed files were checked, so an unlisted oversized file could grow or shrink silently — e.g. ollama.rs at 805).",
   "threshold": 500,
   "baseline_lines": {
-    "src/proxy/mod.rs": 3558,
+    "src/proxy/mod.rs": 3740,
     "src/proxy/anthropic_proxy.rs": 1886,
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1513,
@@ -375,6 +375,14 @@
       "new": 3558,
       "reason": "ERR-005 (N2) / F-D2: `router_with_auth` now trims the configured token before storing it, so validation and the request-side comparison agree (+140 wc -l measured, overwhelmingly tests: the whitespace-only refusal, the padded-config authentication matrix over three padding shapes, the unchanged-behaviour pin, and the strength-not-weakened check, plus the written decision rationale in the function body). The one-line behaviour change is `let token = expected_token;` → `expected_token.trim().to_string()`; the bulk is the proof that it is safe.",
       "authorized_by": "ERR-005 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/proxy/mod.rs",
+      "old": 3558,
+      "new": 3740,
+      "reason": "H-3 (external audit, pre-REL-004 fix): `ProxyChatRequest` gained a `cache: Option<CachePolicy>` field and `to_chat_request` now forwards it, so the proxy wire can actually set cache breakpoints — previously the field did not exist on the DTO and serde silently ignored it (`#[serde(default)]`, no `deny_unknown_fields`), so a client sending `cache` got a successful response with NO breakpoints set. +169 wc -l measured, overwhelmingly tests: a per-instance `CacheCapturingProvider` (the first version used a `static` slot, which made the tests interfere under parallelism — a test defect, fixed by per-instance capture) plus three tests (forwarding, absent → None, explicit `none` retention).",
+      "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」(audit item H-3) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     }
   ]

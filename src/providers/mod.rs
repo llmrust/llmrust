@@ -1,6 +1,7 @@
 //! Provider trait and unified LLM client.
 
 pub mod anthropic;
+pub mod capabilities;
 pub mod compat;
 pub mod deepseek;
 pub mod google;
@@ -64,6 +65,66 @@ pub trait Provider: Send + Sync {
             message: "provider does not implement embeddings".to_string(),
         })
     }
+
+    /// Machine-readable capability declaration (`CNT-001` / `CAP-002`).
+    ///
+    /// **Default implementation is deliberate**: it returns an all-`Unsupported`
+    /// declaration and logs a one-time `warn`, so a **downstream custom provider
+    /// that does not implement this method still compiles** (`CAP-002` §禁止范围:
+    /// adding this must not break downstream). The warning is capped per provider
+    /// so a hot loop cannot flood the log.
+    ///
+    /// Providers in this crate override it with their real declaration; the
+    /// values are pinned against `llmrust.capabilities.json` and
+    /// `docs/CAPABILITIES.md` by `CAP-004`'s three-way consistency gate.
+    fn capabilities(&self) -> capabilities::Capabilities {
+        warn_missing_capabilities_once(self.protocol_name());
+        capabilities::Capabilities::unknown(self.protocol_name())
+    }
+
+    /// Short protocol/provider identifier used by [`Provider::capabilities`].
+    ///
+    /// Defaults to `"unknown"` for downstream providers that do not override it.
+    fn protocol_name(&self) -> &'static str {
+        "unknown"
+    }
+}
+
+/// One-time `warn` per provider name for providers that never declared capabilities.
+///
+/// Kept in one place so `CAP-002`'s DoD ("默认实现的 warn 有测试覆盖") can drive it
+/// directly; the cap prevents log flooding when `capabilities()` is called in a loop.
+pub(crate) fn warn_missing_capabilities_once(name: &str) {
+    static SEEN: OnceLock<Mutex<HashSet<&'static str>>> = OnceLock::new();
+    let seen = SEEN.get_or_init(|| Mutex::new(HashSet::new()));
+    let first = match seen.lock() {
+        Ok(mut set) => set.insert(leak_name(name)),
+        Err(_) => false,
+    };
+    if first {
+        tracing::warn!(
+            provider = name,
+            "provider does not declare capabilities(); treating every capability as unsupported. \
+             Implement `Provider::capabilities()` to declare them (CAP-002)."
+        );
+    }
+}
+
+/// Intern a provider name for the once-set. Bounded by the number of provider
+/// names in the process, which is small and fixed at compile time in practice.
+fn leak_name(name: &str) -> &'static str {
+    static NAMES: OnceLock<Mutex<HashSet<&'static str>>> = OnceLock::new();
+    let names = NAMES.get_or_init(|| Mutex::new(HashSet::new()));
+    let mut set = match names.lock() {
+        Ok(s) => s,
+        Err(_) => return "unknown",
+    };
+    if let Some(existing) = set.get(name) {
+        return existing;
+    }
+    let leaked: &'static str = Box::leak(name.to_string().into_boxed_str());
+    set.insert(leaked);
+    leaked
 }
 
 /// Configuration for a provider.

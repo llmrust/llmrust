@@ -999,6 +999,28 @@ impl Provider for GoogleProvider {
 
         Ok(stream.boxed())
     }
+
+    fn protocol_name(&self) -> &'static str {
+        "google"
+    }
+
+    /// `CAP-002` 声明：Gemini 原生协议；**无 embeddings**（`docs/CAPABILITIES.md` 既有记载）；
+    /// `prompt_cache` = `model_dependent`（Gemini 侧缓存语义尚未在本库建模，
+    /// 该缺口在 `CAP-003` 的裁决点与 §14 发现表中处理）。
+    fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
+        use crate::providers::capabilities::{Capabilities, Capability, EvidenceKind};
+        Capabilities {
+            protocol: "google",
+            chat: Capability::implemented(),
+            stream: Capability::implemented(),
+            tool_calling: Capability::implemented(),
+            tool_calling_stream: Capability::implemented(),
+            image_input: Capability::implemented(),
+            embeddings: Capability::unsupported(),
+            reasoning: Capability::verified(EvidenceKind::LocalFixture, "2026-08-02"),
+            prompt_cache: Capability::model_dependent(),
+        }
+    }
 }
 
 #[cfg(test)]

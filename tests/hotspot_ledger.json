@@ -6,12 +6,12 @@
     "src/proxy/anthropic_proxy.rs": 1884,
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1487,
-    "src/providers/google.rs": 1524,
+    "src/providers/google.rs": 1546,
     "src/types.rs": 1136,
-    "src/providers/anthropic.rs": 1515,
+    "src/providers/anthropic.rs": 1539,
     "src/router.rs": 1080,
-    "src/providers/ollama.rs": 805,
-    "src/lib.rs": 779,
+    "src/providers/ollama.rs": 829,
+    "src/lib.rs": 782,
     "src/providers/retry.rs": 521
   },
   "adjustments": [
@@ -222,6 +222,38 @@
       "new": 779,
       "reason": "CAP-007 (#213): crate root declares `pub mod capability_table;` and re-exports the table surface (`extract_generated_block`, `CacheMode`, `CacheSpec`, `ModelCapability`, `ModelCapabilityTable`, `PriceRow`, `TableError`, `GENERATED_BEGIN`, `GENERATED_END`) (+5 wc -l measured). Additive public surface only; the table body lives in the new file src/capability_table.rs (measured 359 wc -l, below the 500 threshold, so not a ledger entry), and the per-model data lives in the new data file llmrust.models.json (not Rust source, not a ledger entry).",
       "authorized_by": "CAP-007 card (#213, N1) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1515,
+      "new": 1539,
+      "reason": "CAP-002 (#211-family, N1): declares `capabilities()` + `protocol_name()` for AnthropicProvider (+24 wc -l measured). The declaration must live on the provider's own impl block (a trait method belongs where the type is), so it cannot be relocated to the new src/providers/capabilities.rs (270 wc -l, below threshold, not a ledger entry) — that file carries the TYPES, this file carries the VALUES.",
+      "authorized_by": "CAP-002 card (N1) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1524,
+      "new": 1546,
+      "reason": "CAP-002 (N1): declares `capabilities()` + `protocol_name()` for GoogleProvider (+22 wc -l measured). Same rationale as the anthropic.rs entry: a trait method must be implemented on the type's own impl block.",
+      "authorized_by": "CAP-002 card (N1) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 805,
+      "new": 829,
+      "reason": "CAP-002 (N1): declares `capabilities()` + `protocol_name()` for OllamaProvider (+24 wc -l measured), recording tool_calling/tool_calling_stream as `unsupported` — the machine-readable fact that lets CAP-003 refuse loudly instead of silently dropping `tools`.",
+      "authorized_by": "CAP-002 card (N1) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/lib.rs",
+      "old": 779,
+      "new": 782,
+      "reason": "CAP-002 (N1): crate root re-exports the capability surface (`Capabilities`, `Capability`, `CapabilityLevel`, `EvidenceKind`, `Verified`) (+3 wc -l measured — one `pub use` line, reflowed by `cargo fmt` into 3 lines). Additive public surface only.",
+      "authorized_by": "CAP-002 card (N1) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     }
   ]

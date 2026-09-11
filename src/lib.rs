@@ -88,6 +88,9 @@ pub use catalog::{
     access_path, model, AccessPath, Channel, Lifecycle, ModelSpec, Protocol, Region,
 };
 pub use pricing::{CachePricing, ModelPricing};
+pub use providers::capabilities::{
+    Capabilities, Capability, CapabilityLevel, EvidenceKind, Verified,
+};
 pub use providers::retry::RetryProvider;
 pub use providers::{LlmError, Provider, ProviderConfig, Result};
 pub use router::{Router, RoutingStrategy};

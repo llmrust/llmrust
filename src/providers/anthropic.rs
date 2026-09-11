@@ -978,6 +978,30 @@ impl Provider for AnthropicProvider {
 
         Ok(stream.boxed())
     }
+
+    fn protocol_name(&self) -> &'static str {
+        "anthropic"
+    }
+
+    /// `CAP-002` 声明（逐项依据见 PR 回证表）：
+    /// - `reasoning` = `verified(local-fixture, 2026-08-02)`：**仅流式路径**有契约
+    ///   （非流式 chat 在发网络请求前就返回 `Unsupported`，见本文件 chat 开头）；
+    /// - `prompt_cache` = `verified(local-fixture, 2026-09-11)`：`CAP-005` 已发得出断点，
+    ///   但**真端点证据尚未取得**（属 `N3`），故证据类型只能是本地夹具。
+    fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
+        use crate::providers::capabilities::{Capabilities, Capability, EvidenceKind};
+        Capabilities {
+            protocol: "anthropic",
+            chat: Capability::implemented(),
+            stream: Capability::implemented(),
+            tool_calling: Capability::implemented(),
+            tool_calling_stream: Capability::implemented(),
+            image_input: Capability::implemented(),
+            embeddings: Capability::unsupported(),
+            reasoning: Capability::verified(EvidenceKind::LocalFixture, "2026-08-02"),
+            prompt_cache: Capability::verified(EvidenceKind::LocalFixture, "2026-09-11"),
+        }
+    }
 }
 
 #[cfg(test)]

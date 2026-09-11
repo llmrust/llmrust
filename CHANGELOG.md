@@ -321,6 +321,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Proxy 认证：校验与存储对 trim 现在一致（`ERR-005` / `F-D2`）**：此前 `router_with_auth` **校验**用
+  `token.trim().is_empty()`，**存储**却保留原始串；而请求侧比对的是 `provided.trim()`。
+  于是**配置里带前后空白的 token 会让任何客户端都 401**（`Bearer secret` 与 `Bearer   secret  ` 同样失败），
+  排障时表现为"token 明明没错却连不上"——也正是 `FIX-001` 要求先行排除的干扰项。
+  处置选择 **规范化（trim）而非拒绝**，理由：① 比对侧本就在 trim，"比 trim 后的形态"是代码既有意图，
+  trim 存储正是让两侧一致（本卡目标）；② 拒绝会把现有带空白的部署从"能跑"变成**启动即 panic**，破坏更大；
+  ③ **未降低认证强度**——除配置密钥自身的 trim 形态外，没有任何原本被拒的 token 变成可用
+  （RFC 6750 的 `b64token` 本不允许空格，带空白属畸形配置而非合法密钥）；
+  ④ **常数时间比对未改动**。规范化实际发生时**留 `tracing::warn` 痕迹**（**不打印 token 值本身**）。
 - **Gemini `FINISH_REASON_UNSPECIFIED` 不再当成"正常结束"（`ERR-003`）**：该值此前被映射为
   `FinishReason::Stop`——把**缺失信息**当成了"模型正常结束"的**断言**，调用方会据此以为生成完整。
   现在它走 `FinishReason::Other("FINISH_REASON_UNSPECIFIED")` **逃生口**，语义原样保留；

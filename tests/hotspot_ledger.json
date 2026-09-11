@@ -2,7 +2,7 @@
   "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task or an architect-written exception explicitly authorizes a transition. Do not inflate a number to turn a guard green. PROCESS LESSON (CI-003 PR #95): after any `cargo fmt` auto-fix, the architecture guards MUST be re-run locally before pushing; a fmt-driven reflow once silently broke the hotspot baseline. THRESHOLD (2026-09-11, #209): raised to the Owner rule — every `src/**/*.rs` file must stay under 500 lines; the threshold is a single source of truth here and must match SPCC §4.4. Coverage is now BIDIRECTIONAL: a file at or above `threshold` that has no key under `baseline_lines` is a violation (previously only listed files were checked, so an unlisted oversized file could grow or shrink silently — e.g. ollama.rs at 805).",
   "threshold": 500,
   "baseline_lines": {
-    "src/proxy/mod.rs": 3418,
+    "src/proxy/mod.rs": 3558,
     "src/proxy/anthropic_proxy.rs": 1886,
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1485,
@@ -343,6 +343,14 @@
       "new": 1614,
       "reason": "ERR-003 (N2): `to_finish_reason` no longer collapses `\"FINISH_REASON_UNSPECIFIED\"` into `FinishReason::Stop` — it now travels through the `FinishReason::Other(..)` escape hatch (+67 wc -l measured: the expanded doc comment explaining why 'unspecified' is not a completion claim, plus four tests — the negative test, the real-STOP-vs-unspecified separation, the `done`-semantics invariant, and the pre-existing escape-hatch pin).",
       "authorized_by": "ERR-003 card (N2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/proxy/mod.rs",
+      "old": 3418,
+      "new": 3558,
+      "reason": "ERR-005 (N2) / F-D2: `router_with_auth` now trims the configured token before storing it, so validation and the request-side comparison agree (+140 wc -l measured, overwhelmingly tests: the whitespace-only refusal, the padded-config authentication matrix over three padding shapes, the unchanged-behaviour pin, and the strength-not-weakened check, plus the written decision rationale in the function body). The one-line behaviour change is `let token = expected_token;` → `expected_token.trim().to_string()`; the bulk is the proof that it is safe.",
+      "authorized_by": "ERR-005 card (N2) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     }
   ]

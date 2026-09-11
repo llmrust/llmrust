@@ -80,10 +80,15 @@ fn model_table_is_self_consistent() {
 /// **本门的核心**：`docs/CAPABILITIES.md` 的生成区块必须等于表的渲染结果。
 ///
 /// 人工改文档里那段表格（哪怕一个字符）→ 本测试红。
+///
+/// **换行归一化是必须的**：渲染器产 `\n`，而工作树里同一份文本可能是 `\r\n`
+/// （Windows 检出 / `core.autocrlf=true`；Linux CI 会把它转成 `\n`）。
+/// 不归一化就会"**Linux CI 绿、Windows 检出红**"——那是**门自身不可信**，
+/// 与 `GRD-001`"数值门禁必须可信"同一条病根。
 #[test]
 fn capabilities_md_generated_block_matches_table() {
     let table = load_table();
-    let expected = table.render_markdown();
+    let expected = normalize_newlines(&table.render_markdown());
 
     let doc_path = repo_root().join("docs").join("CAPABILITIES.md");
     let doc = fs::read_to_string(&doc_path).expect("docs/CAPABILITIES.md must exist");
@@ -96,11 +101,16 @@ fn capabilities_md_generated_block_matches_table() {
     });
 
     assert_eq!(
-        found.trim(),
+        normalize_newlines(found.trim()),
         expected.trim(),
         "docs/CAPABILITIES.md model-capabilities block drifted from llmrust.models.json.\n\
          The block is GENERATED — edit llmrust.models.json, not the doc."
     );
+}
+
+/// `\r\n` → `\n`（平台无关比较）。
+pub fn normalize_newlines(s: &str) -> String {
+    s.replace("\r\n", "\n")
 }
 
 /// 生成区块必须真的在文档里出现过一次（防"哨兵在但内容为空"）。
@@ -201,9 +211,9 @@ fn negative_max_output_above_window_is_reported() {
 #[test]
 fn negative_doc_drift_is_detected() {
     let table = load_table();
-    let expected = table.render_markdown();
+    let expected = normalize_newlines(&table.render_markdown());
     let doc = fs::read_to_string(repo_root().join("docs").join("CAPABILITIES.md")).unwrap();
-    let actual = extract_generated_block(&doc).expect("block must exist");
+    let actual = normalize_newlines(&extract_generated_block(&doc).expect("block must exist"));
     assert_eq!(actual.trim(), expected.trim());
 
     // 改一个字符（把表头里的 `Context` 改成 `ContextX`），必须能被检出。

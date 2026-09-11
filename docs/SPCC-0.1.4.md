@@ -359,7 +359,7 @@
 
 | Milestone | 编号 | 目标 | 完成/总数 | 进度 | 当前状态 | 下一任务 | 退出判据 |
 |---|---|---:|---:|---:|---|---|---|
-| `0.1.4 / N0 Guard Integrity` | `#8` | 让门禁自身可信 | 0/4 | 0% | `PLANNED` | `GRD-001` | 四项 DONE；所有 guard 有 negative test 且双向 |
+| `0.1.4 / N0 Guard Integrity` | `#8` | 让门禁自身可信 | **4/4** | 100% | `DONE` | `GRD-001` | 四项 DONE；所有 guard 有 negative test 且双向 |
 | `0.1.4 / N1 Capability Truth` | `#9` | 能力声明进入代码并被门禁保护 | **3/6** | 50% | `PLANNED` | —（待 N0） | 三处一致门禁上线且负例可红；**且 `CAP-007`（能力表机读化 + `CAPABILITIES.md` 由表生成）完成** —— `CAP-007` 已完成 ✅，余 `CAP-002/003/004` |
 | `0.1.4 / N2 Silent Failure` | `#10` | 消除已知静默失败面 | 0/5 | 0% | `PLANNED` | —（待 N1） | 五项 DONE；§6.3 表格全部清空 |
 | `0.1.4 / N3 Evidence Depth` | `#11` | 验证从自证推进到他证 | 0/3 | 0% | `PLANNED` | —（待 N0） | 能力矩阵 `verified` 格子有 live-endpoint 证据 |
@@ -391,10 +391,10 @@ flowchart TD
 | ID | Milestone | 状态 | 前置 | Issue | 实现 PR | Merge SHA | 状态 PR |
 |---|---|---|---|---|---|---|---|
 | `SPEC-010` | 治理（不计入任务数） | `DONE` | Owner 批准本规格（~~账号身份分离~~ **该准入条件经 Owner 2026-09-10 令作废**，不再作为阻塞） | #201 | #206 | `ce1de1f` | 本 PR |
-| `GRD-001` | N0 | `PLANNED` | `SPEC-010` | — | — | — | — |
-| `GRD-002` | N0 | `PLANNED` | `SPEC-010` | — | — | — | — |
-| `GRD-003` | N0 | `PLANNED` | `GRD-001`,`GRD-002` | — | — | — | — |
-| `GRD-004` | N0 | `PLANNED` | `GRD-003` | — | — | — | — |
+| `GRD-001` | N0 | `DONE` | `SPEC-010` | —（未开卡，见 §11.1.4 披露） | #203（双向化主体）+ #220（SPCC 行数地板守卫） | `87b7707` | 本 PR |
+| `GRD-002` | N0 | `DONE` | `SPEC-010` | —（未开卡） | #203（fail-closed + stderr 入错误信息） | `23b72e8` | 本 PR |
+| `GRD-003` | N0 | `DONE` | `GRD-001`,`GRD-002` | —（未开卡） | #221（准入门 ④）+ #223（② 四门补负例，debt 清零） | `b2239b8` | 本 PR |
+| `GRD-004` | N0 | `DONE` | `GRD-003` | —（未开卡） | #222（扫描器加固：坏 6 绕过形态 + 修 2 类假阳性） | `63b3089` | 本 PR |
 | `CAP-002` | N1 | `PLANNED` | N0 DONE | — | — | — | — |
 | `CAP-003` | N1 | `PLANNED` | `CAP-002` | — | — | — | — |
 | `CAP-004` | N1 | `PLANNED` | `CAP-003` | — | — | — | — |
@@ -428,6 +428,31 @@ flowchart TD
 | `CAP-005` | #211 | #216（缓存断点发送能力） | Security Gates `34573029216` / CI `34573029263`（均 SUCCESS，main 推送） | `73c72b5` | 本 PR | N1 `3/6` | 待架构师核验 |
 | `CAP-006` | #212 | #217（缓存价列 + 官方服务商目录） | Security Gates `34574645558` / CI `34574645451`（均 SUCCESS，main 推送） | `b767ce5` | 本 PR | N1 `3/6` | 待架构师核验 |
 | `CAP-007` | #213 | #218（能力表机读化 + `CAPABILITIES.md` 由表生成） | Security Gates `34576010010` / CI `34576009966`（均 SUCCESS，main 推送） | `60d7c0f` | 本 PR | N1 `3/6` | 待架构师核验 |
+| `GRD-001` | —（未开卡） | #203（`!=` 双向化）+ #220（SPCC 行数地板守卫 + CAP-007 门跨平台修正） | Security Gates `34579727174` / CI `34579727120`（均 SUCCESS，main 推送 @ `87b7707`） | `87b7707` | 本 PR | N0 `4/4` | 待架构师核验 |
+| `GRD-002` | —（未开卡） | #203（`cargo package --list` 失败即判红 + stderr 入失败信息） | Security Gates `34563929219` / CI `34563929194`（均 SUCCESS，main 推送 @ `23b72e8`） | `23b72e8` | 本 PR | N0 `4/4` | 待架构师核验 |
+| `GRD-003` | —（未开卡） | #221（准入门 ④：新 guard 无负例不得过）+ #223（② 四门补负例，`debt` 清零） | Security Gates `34584714814` / CI `34584714876`（均 SUCCESS，main 推送 @ `b2239b8`） | `b2239b8` | 本 PR | N0 `4/4` | 待架构师核验 |
+| `GRD-004` | —（未开卡） | #222（依赖边扫描器加固：坏 6 种绕过形态 + 修 2 类假阳性） | Security Gates `34581633365` / CI `34581633381`（均 SUCCESS，main 推送 @ `63b3089`） | `63b3089` | 本 PR | N0 `4/4` | 待架构师核验 |
+
+> **N0 回证（逐条，机器产出）**：
+> ① **`GRD-001`**：`tests/architecture_guard.rs` 热点判定为双向 `current != expected`（#203 主体）；
+> 另新增**治理文档行数地板守卫** `tests/spcc_guard.rs` + `tests/spcc_line_baseline.json`（`wc -l` 口径，依 `E-101`），
+> **注入验红**：删 `docs/SPCC-0.1.4.md` 末 20 行 → `governance_docs_do_not_fall_below_their_floors ... FAILED`（诊断含 truth correction 指引），还原即绿。
+> ② **`GRD-002`**：`tests/package_guard.rs` 断言 `output.status.success()` 并把 stderr 纳入失败信息（fail-closed），
+> 负例 `negative_forbidden_entries_are_reported` 钉住 `publish.log`/`.env`/`.git/`/`target/`/`*.secret` 必被判违规。
+> ③ **`GRD-003`**：准入门 `tests/guard_admission.rs` + `tests/guard_registry.json`——**新 `*_guard.rs` 不登记即红**、
+> **声明的负例必须真实存在**、**无负例必须显式登债**；**注入验红**：临时加未登记 `tmp_new_guard.rs` → `guard_admission_holds ... FAILED`。
+> `debt` 由 4 项**清零**（#223 逐门补负例 19 条），`guards` 8 项。
+> ④ **`GRD-004`**：扫描器改为按**语句**解析（先剥注释、跨行收 `use…;`，匹配去空白），
+> 坏掉 6 种绕过形态（`pub(crate) use` / 属性跨行 / 宏体内 / 跨行 / 花括号多行），并修掉 2 类假阳性（注释掉的 import、普通提及）；
+> **首轮被自己的负例抓出一处漏判**（跨行归一化插空格 → 改去空白匹配）。
+> ⑤ **N0 退出判据"所有 guard 有 negative test"**：由准入门机器核对，`debt` 为空。
+>
+> **两条须架构师裁的披露**：
+> ① **`GRD-001`..`GRD-004` 四张卡从未开过 Issue**，故本表 `Issue` 列记「未开卡」——
+> 工作是以 **#220/#221/#222/#223** 四个实现 PR 直接落地的。是否补开 Issue 以对齐八列口径，请裁定（**本 PR 不自行补开**）。
+> ② **`GRD-003` 的合并 `e8212af`（#221）其 CI run `34581589111` 状态为 `cancelled`**——
+> 系被紧随其后的 `63b3089` 推送**取代**（GitHub concurrency 行为），**非失败**；
+> 该行的覆盖证据取 **`63b3089`** 的绿 run（上表已按此填写），请核验时认账可否。
 
 > **SPEC-010 回证（逐条，机器产出）**：
 > ① 主干存在 `docs/SPCC-0.1.4.md`（+858）；② `docs/SPCC-0.1.3.md` 仅头部 +4/−0（只读声明），**正文一字未改**；

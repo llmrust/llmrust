@@ -644,8 +644,10 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
                     parts.push(GeminiPart::Text { text });
                 }
                 for call in msg.tool_calls.as_ref().unwrap() {
-                    let args: serde_json::Value = serde_json::from_str(&call.function.arguments)
-                        .unwrap_or_else(|_| serde_json::json!({}));
+                    let args: serde_json::Value = crate::providers::parse_tool_arguments(
+                        &call.function.name,
+                        &call.function.arguments,
+                    );
                     parts.push(GeminiPart::FunctionCall {
                         function_call: GeminiFunctionCallOut {
                             name: call.function.name.clone(),

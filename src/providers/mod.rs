@@ -176,6 +176,42 @@ pub(crate) fn n_is_unsupported(n: Option<u32>) -> bool {
     matches!(n, Some(k) if k > 1)
 }
 
+// ── ERR-001：解析失败不再静默 ────────────────────────────────────────────
+//
+// 0.1.3 期三处工具参数解析写成 `.unwrap_or_else(|_| json!({}))`：
+// 参数若不是合法 JSON，**静默**替换成空对象发出去——等于**偷偷改了工具调用**，
+// 而调用方无从察觉（§6.3 明禁："不可以被降级到调用方无从察觉"）。
+//
+// 处置：**降级保留（不发 panic、不改成功路径），但必须留痕**。
+// 留痕用 `tracing::warn`，且信息**只含工具名与错误种类**，不含参数原文（可能含凭证）、
+// 不含 prompt/response——这是 §6.3 对痕迹的脱敏要求。
+
+/// 构造**降级说明**（纯函数 → 可被测试直接断言其脱敏性质）。
+///
+/// 只含工具名与 `serde_json::Error` 的 Display（**位置信息，不含被解析的文本**）。
+pub(crate) fn tool_args_degradation_message(tool_name: &str, err: &serde_json::Error) -> String {
+    format!(
+        "tool `{tool_name}` arguments are not valid JSON ({err}); substituting {{}} so the \
+         request is not lost (ERR-001). The tool call's arguments were NOT sent as provided."
+    )
+}
+
+/// 解析工具调用参数，失败时**降级为空对象并留痕**（不 panic、不改成功路径）。
+pub(crate) fn parse_tool_arguments(tool_name: &str, raw: &str) -> serde_json::Value {
+    match serde_json::from_str(raw) {
+        Ok(value) => value,
+        Err(err) => {
+            tracing::warn!(
+                tool = tool_name,
+                error = %err,
+                "{}",
+                tool_args_degradation_message(tool_name, &err)
+            );
+            serde_json::json!({})
+        }
+    }
+}
+
 // 0.1.3 期此处另有 `warn_if_unsupported_n`，由六个 Provider 内部手工调用。
 // `CAP-003` 已把该裁决**上移到统一入口**（`LmrsClient::adjudicate` →
 // `providers::capabilities::adjudicate` + `warn_once`），故本函数删除：
@@ -269,5 +305,64 @@ mod tests {
         assert!(n_is_unsupported(Some(2)));
         assert!(n_is_unsupported(Some(5)));
         assert!(n_is_unsupported(Some(128)));
+    }
+
+    // ── ERR-001：解析失败的降级与脱敏 ───────────────────────────────────
+
+    /// 成功路径**零变化**：合法 JSON 原样解析（与 0.1.3 的 `from_str(..).unwrap()` 同结果）。
+    #[test]
+    fn valid_tool_arguments_parse_unchanged() {
+        let v = parse_tool_arguments("get_weather", r#"{"city":"Beijing","days":3}"#);
+        assert_eq!(v["city"], "Beijing");
+        assert_eq!(v["days"], 3);
+    }
+
+    /// 降级**保留**：非法 JSON 仍返回空对象（**不改成功路径之外的行为契约**），
+    /// 但**必须留痕**——痕迹由下面的脱敏测试钉住。
+    #[test]
+    fn invalid_tool_arguments_degrade_to_empty_object() {
+        let v = parse_tool_arguments("get_weather", "{not json");
+        assert!(v.is_object(), "degradation must stay an object");
+        assert_eq!(v.as_object().unwrap().len(), 0, "degraded value is `{{}}`");
+    }
+
+    /// **脱敏（§6.3 明文要求）**：降级说明必须**不含**被解析的原文——
+    /// 工具参数可能携带凭证；日志里不得出现它。
+    #[test]
+    fn degradation_message_does_not_contain_the_raw_arguments() {
+        const SECRET_LOOKING: &str = "super-secret-token-abc123";
+        let raw = format!("{{bad json {SECRET_LOOKING}");
+        let err = serde_json::from_str::<serde_json::Value>(&raw).unwrap_err();
+        let msg = tool_args_degradation_message("do_thing", &err);
+
+        assert!(
+            !msg.contains(SECRET_LOOKING),
+            "the degradation message must NOT echo the raw arguments: {msg}"
+        );
+        for banned in ["prompt", "response body", "Authorization", "Bearer"] {
+            assert!(
+                !msg.contains(banned),
+                "the degradation message must not contain `{banned}`: {msg}"
+            );
+        }
+        // 但仍**必须**含工具名与"参数未按原样发出"的明确告知——否则就是另一种静默。
+        assert!(msg.contains("do_thing"), "must name the tool: {msg}");
+        assert!(
+            msg.contains("NOT sent as provided"),
+            "must state the consequence explicitly: {msg}"
+        );
+    }
+
+    /// 降级说明对**合法**输入不适用（只在 Err 分支构造），此处顺带钉住
+    /// `serde_json::Error` 的 Display 是位置信息而非原文。
+    #[test]
+    fn serde_error_display_carries_position_not_payload() {
+        let err = serde_json::from_str::<serde_json::Value>("{\"a\": ").unwrap_err();
+        let shown = format!("{err}");
+        assert!(
+            shown.contains("line") || shown.contains("column") || shown.contains("EOF"),
+            "unexpected serde error display: {shown}"
+        );
+        assert!(!shown.contains("prompt"), "{shown}");
     }
 }

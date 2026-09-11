@@ -309,6 +309,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > 置于文件末尾是**故意的**：`tests/agent_docs_validation.rs` 要求第一个 `## [` 标题
 > 必须是 `## [0.1.3] - 2026-08-03`，且不得出现"未发布"段（方括号 Unreleased 形式）。
 
+### Fixed
+
+- **解析失败不再静默（`ERR-001`）**：工具调用参数若不是合法 JSON，llmrust 仍**降级为空对象发出**
+  （**成功路径行为零变化**），但**现在会留下 `tracing::warn` 痕迹**——只含工具名与错误位置，
+  **不含参数原文 / prompt / 凭证**。涉及 Anthropic 与 Gemini 的**请求构建**，以及 Anthropic
+  **代理的响应转换**（此处原先静默改写的是**上游返回**的工具参数，调用方无从察觉）。
+  另：HTTP 客户端构建失败时的回落**现在写明丢失了哪些配置**
+  （`connect_timeout` / `timeout` / `pool_max_idle_per_host` / `tcp_keepalive` / `no_proxy` / 自定义头），
+  并按卡片要求附上**"降级而非传播错误"的书面理由**（签名连锁代价 + 降级后客户端仍可用）。
+
 ### Changed
 
 - **能力检查上移到统一入口（`CAP-003`）**：`LmrsClient` 在派发前做一次**能力裁决**，

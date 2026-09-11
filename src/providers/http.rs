@@ -68,7 +68,27 @@ pub(crate) fn build_http_client(
         }
     }
     builder = builder.default_headers(default_headers);
-    builder.build().unwrap_or_else(|_| Client::new())
+    // ERR-001：本条**选择"降级 + 留痕"，而非向上传播错误**。书面理由（卡片要求）：
+    //
+    // 1. **签名的连锁代价**：本函数返回 `Client`（非 `Result`），且被**每个** Provider 构造函数调用；
+    //    改成 `Result` 会波及 7 个 Provider 的公开构造函数与其全部调用点——那是**破坏性 API 变更**，
+    //    超出 `ERR-001` 的范围（该卡明禁"改变成功路径行为"）。
+    // 2. **降级仍然可用**：`Client::new()` 是一个**能工作**的客户端；把"配置构建失败"升级为
+    //    "整个构造失败"，等于把一次可降级事件变成一次**服务中断**（outage）。
+    // 3. **因此**：保留降级，但**必须让调用方看得见代价**——warn 里逐项写明**丢了什么**，
+    //    这正是 §6.3"不可以被降级到调用方无从察觉"的落法。
+    //
+    // 注意：告警**不含**任何凭证/请求体；`custom_headers` 只以**字段名**形式在更上方单独告警。
+    builder.build().unwrap_or_else(|err| {
+        tracing::warn!(
+            error = %err,
+            "failed to build the configured HTTP client; falling back to `Client::new()`. \
+             LOST: connect_timeout, request timeout, pool_max_idle_per_host, tcp_keepalive, \
+             no_proxy setting, and all custom headers. Requests will still work but without \
+             these settings (ERR-001)."
+        );
+        Client::new()
+    })
 }
 
 #[cfg(test)]

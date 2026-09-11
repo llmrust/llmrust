@@ -1138,18 +1138,42 @@ pub(crate) fn split_model(model: &str) -> Result<(&str, &str), &'static str> {
     Ok((provider, model))
 }
 
+/// Error-message bound for proxy error bodies (`PRX-005`, `ERR-002`/`FND-R3`).
+///
+/// **Why a hard cap at all**: error bodies are reflected to HTTP clients, so an
+/// unbounded upstream/`provider` string is both a wire-contract inconsistency and
+/// a reflection vector (`UnknownProvider` carries the **caller-supplied**
+/// `provider/model` string). The cap is the *only* mechanical rule applied — no
+/// fragile key/URL stripping heuristics.
+pub(crate) const MAX_ERROR_MESSAGE_CHARS: usize = 200;
+
+/// Truncate an error message to [`MAX_ERROR_MESSAGE_CHARS`] **characters**
+/// (not bytes — a multi-byte boundary must never split a character).
+pub(crate) fn truncate_message(s: &str) -> String {
+    s.chars().take(MAX_ERROR_MESSAGE_CHARS).collect()
+}
+
 /// Convert an `LlmError` into an HTTP error response.
 fn proxy_error_from_llm_error(e: LlmError) -> Response {
-    // PRX-005 (SPCC §11.6): normalize upstream errors to protocol-shaped
-    // bodies. Message rule: truncate to ≤200 chars as the ONLY mechanical
-    // rule (no fragile key/URL stripping heuristics); never echo request body
-    // content. Parse is an upstream fault → 502 api_error (architect ruling).
-    const MAX_MSG: usize = 200;
-    let truncate = |s: &str| -> String { s.chars().take(MAX_MSG).collect() };
-    let (status, message, error_type) = match &e {
+    // PRX-005 (SPCC §11.6) + ERR-002 (SPCC §6.3): normalize upstream errors to
+    // protocol-shaped bodies.
+    //
+    // ERR-002 decision — **the implementation was fixed, not the comment.**
+    // The previous comment claimed "truncate to ≤200 chars as the ONLY mechanical
+    // rule", but two arms (`UnknownProvider`, `Unsupported`) returned `e.to_string()`
+    // **untruncated**, so the claim was false and the bound was not actually uniform.
+    // Rationale for fixing the implementation instead of rewriting the comment:
+    //   1. the comment's *intent* (one uniform mechanical bound) is correct;
+    //   2. `UnknownProvider` reflects a **caller-controlled** string, so the
+    //      unbounded path was a genuine defect, not just stale prose;
+    //   3. rewriting the comment would have written that hole into the contract.
+    // The bound is now **structural**: the match below only produces the RAW
+    // message, and truncation happens exactly once, after it — a new arm cannot
+    // forget it.
+    let (status, raw_message, error_type) = match &e {
         LlmError::Api { status, message } => {
             let code = StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_GATEWAY);
-            (code, truncate(message), api_error_type(code))
+            (code, message.clone(), api_error_type(code))
         }
         LlmError::Parse(_) => (
             StatusCode::BAD_GATEWAY,
@@ -1171,8 +1195,10 @@ fn proxy_error_from_llm_error(e: LlmError) -> Response {
             e.to_string(),
             "invalid_request_error",
         ),
-        LlmError::Stream(msg) => (StatusCode::BAD_GATEWAY, truncate(msg), "api_error"),
+        LlmError::Stream(msg) => (StatusCode::BAD_GATEWAY, msg.clone(), "api_error"),
     };
+    // ERR-002 / FND-R3: 截断在**所有**路径生效——只在这一处，故"漏掉某条分支"不再可能。
+    let message = truncate_message(&raw_message);
     error_response_with_type(status, &message, error_type)
 }
 
@@ -1258,6 +1284,68 @@ mod tests {
     use axum::http::Request;
     use std::sync::Mutex;
     use tower::ServiceExt;
+
+    // ── ERR-002 / FND-R3：错误消息截断的边界（恰 200 / 201 / 多字节） ──────
+    //
+    // 0.1.3 期的注释声称"截断是唯一机械规则"，但 `UnknownProvider` / `Unsupported`
+    // 两条分支走 `e.to_string()` **未截断**。修法是把截断**移出 match**（只做一次），
+    // 于是覆盖面成为结构性保证；下面钉住边界本身。
+
+    /// 恰好 `MAX` 个字符 → **不截断**（边界含端点）。
+    #[test]
+    fn message_exactly_at_the_limit_is_untouched() {
+        let s: String = "a".repeat(MAX_ERROR_MESSAGE_CHARS);
+        let out = truncate_message(&s);
+        assert_eq!(out.chars().count(), MAX_ERROR_MESSAGE_CHARS);
+        assert_eq!(
+            out, s,
+            "a message exactly at the cap must pass through unchanged"
+        );
+    }
+
+    /// 超出 1 个字符（201）→ **截到 200**，不报错、不 panic。
+    #[test]
+    fn message_one_over_the_limit_is_truncated_to_the_cap() {
+        let s: String = "a".repeat(MAX_ERROR_MESSAGE_CHARS + 1);
+        let out = truncate_message(&s);
+        assert_eq!(out.chars().count(), MAX_ERROR_MESSAGE_CHARS);
+        assert_eq!(out, "a".repeat(MAX_ERROR_MESSAGE_CHARS));
+    }
+
+    /// 远超上限（1 万字符，模拟**调用方可控的长 provider 名**）→ 仍然只有 200。
+    #[test]
+    fn very_long_message_is_capped() {
+        let s: String = "x".repeat(10_000);
+        assert_eq!(
+            truncate_message(&s).chars().count(),
+            MAX_ERROR_MESSAGE_CHARS
+        );
+    }
+
+    /// **多字节**：截断按**字符**而非字节——不得切裂 UTF-8（否则会 panic 或产生乱码）。
+    #[test]
+    fn multibyte_message_is_truncated_on_a_char_boundary() {
+        // 每个汉字 3 字节；201 个汉字 = 603 字节。
+        let s: String = "错".repeat(MAX_ERROR_MESSAGE_CHARS + 1);
+        let out = truncate_message(&s);
+        assert_eq!(out.chars().count(), MAX_ERROR_MESSAGE_CHARS);
+        assert_eq!(out, "错".repeat(MAX_ERROR_MESSAGE_CHARS));
+        // 混排（ASCII + 汉字 + emoji）也不得 panic。
+        let mixed: String = "a错🙂".repeat(200);
+        let out = truncate_message(&mixed);
+        assert_eq!(out.chars().count(), MAX_ERROR_MESSAGE_CHARS);
+    }
+
+    /// 空串与恰好在多字节边界的情形（防 off-by-one / 切片越界）。
+    #[test]
+    fn empty_and_boundary_strings_are_safe() {
+        assert_eq!(truncate_message(""), "");
+        let s: String = format!("{}界", "a".repeat(MAX_ERROR_MESSAGE_CHARS - 1));
+        assert_eq!(
+            truncate_message(&s).chars().count(),
+            MAX_ERROR_MESSAGE_CHARS
+        );
+    }
 
     /// Mock provider that returns a fixed response, for proxy tests.
     struct MockProvider;

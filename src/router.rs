@@ -107,6 +107,41 @@ fn no_deployments(group: &str) -> LlmError {
     LlmError::UnknownProvider(format!("no deployments configured for group '{}'", group))
 }
 
+/// `ERR-002`：错误分类映射表——把 [`LlmError`] 映到**日志用的** `error_kind`。
+///
+/// 0.1.3 期两处 failover 日志把 `error_kind` **硬编码为 `"api_error"`**，
+/// 于是"连接失败 / 429 限流 / 上游 5xx / provider 未注册"在日志里**全都是一个样**，
+/// 真实分类被丢掉（`F-A2`）——排障时无从区分。
+///
+/// | 变体 | `error_kind` | 依据 |
+/// |---|---|---|
+/// | `Api{401,403}` | `authentication_error` | 凭证问题，与限流/故障**不同处置** |
+/// | `Api{429}` | `rate_limit_error` | 限流，通常应当退避 |
+/// | `Api{400}` | `invalid_request_error` | 请求侧问题，重试无用 |
+/// | `Api{5xx}` / 其他 | `api_error` | 上游故障 |
+/// | `Http` | `connection_error` | 连接层失败（DNS/超时/TLS） |
+/// | `Stream` | `stream_error` | 流中途失败 |
+/// | `Parse` | `parse_error` | 上游响应不可解析 |
+/// | `UnknownProvider` | `unknown_provider` | 路由/配置问题 |
+/// | `Unsupported` | `unsupported` | 能力缺失（`CAP-003` 裁决的产物） |
+///
+/// 措辞与代理错误体的 `error_type` 保持同一套词汇（便于跨日志/HTTP 对齐）。
+pub(crate) fn error_kind_of(e: &LlmError) -> &'static str {
+    match e {
+        LlmError::Api { status, .. } => match *status {
+            401 | 403 => "authentication_error",
+            429 => "rate_limit_error",
+            400 => "invalid_request_error",
+            _ => "api_error",
+        },
+        LlmError::Http(_) => "connection_error",
+        LlmError::Stream(_) => "stream_error",
+        LlmError::Parse(_) => "parse_error",
+        LlmError::UnknownProvider(_) => "unknown_provider",
+        LlmError::Unsupported { .. } => "unsupported",
+    }
+}
+
 /// A failover / load-balancing router layered over an [`LmrsClient`].
 ///
 /// **Streaming note:** like [`crate::RetryProvider`], `stream*` only fails over
@@ -298,7 +333,7 @@ impl Router {
                     tracing::warn!(
                         group,
                         model,
-                        error_kind = "api_error",
+                        error_kind = error_kind_of(&e),
                         "failing over to next deployment"
                     );
                     self.mark_cooldown(model);
@@ -339,7 +374,7 @@ impl Router {
                     tracing::warn!(
                         group,
                         model,
-                        error_kind = "api_error",
+                        error_kind = error_kind_of(&e),
                         "failing over to next deployment"
                     );
                     self.mark_cooldown(model);
@@ -359,6 +394,111 @@ mod tests {
     use futures::stream;
     use futures::StreamExt;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    // ── ERR-002：错误分类映射表（钉住真实分类，而非硬编码 "api_error"） ──
+
+    /// 映射表逐条钉住：状态码分流 + 各变体各自的类别。
+    #[test]
+    fn error_kind_mapping_reflects_the_real_classification() {
+        let cases: Vec<(LlmError, &str)> = vec![
+            (
+                LlmError::Api {
+                    status: 401,
+                    message: "x".into(),
+                },
+                "authentication_error",
+            ),
+            (
+                LlmError::Api {
+                    status: 403,
+                    message: "x".into(),
+                },
+                "authentication_error",
+            ),
+            (
+                LlmError::Api {
+                    status: 429,
+                    message: "x".into(),
+                },
+                "rate_limit_error",
+            ),
+            (
+                LlmError::Api {
+                    status: 400,
+                    message: "x".into(),
+                },
+                "invalid_request_error",
+            ),
+            (
+                LlmError::Api {
+                    status: 500,
+                    message: "x".into(),
+                },
+                "api_error",
+            ),
+            (
+                LlmError::Api {
+                    status: 503,
+                    message: "x".into(),
+                },
+                "api_error",
+            ),
+            (LlmError::Stream("s".into()), "stream_error"),
+            (LlmError::Parse("p".into()), "parse_error"),
+            (LlmError::UnknownProvider("nope".into()), "unknown_provider"),
+            (
+                LlmError::Unsupported {
+                    feature: "tool_calling".into(),
+                    message: "m".into(),
+                },
+                "unsupported",
+            ),
+        ];
+        for (err, expected) in cases {
+            assert_eq!(error_kind_of(&err), expected, "wrong kind for {err:?}");
+        }
+    }
+
+    /// **负例性质**：分类**不得**退化为"全部 api_error"（那正是 0.1.3 的缺陷）。
+    ///
+    /// 取一组**语义互不相同**的错误，断言它们**不共用一个** kind——
+    /// 若有人把实现改回硬编码，本断言立刻红。
+    #[test]
+    fn error_kinds_are_not_all_collapsed_to_one_value() {
+        let errs = [
+            LlmError::Api {
+                status: 429,
+                message: "rate".into(),
+            },
+            LlmError::Api {
+                status: 500,
+                message: "boom".into(),
+            },
+            LlmError::Stream("mid".into()),
+            LlmError::Parse("bad".into()),
+            LlmError::UnknownProvider("ghost".into()),
+            LlmError::Unsupported {
+                feature: "f".into(),
+                message: "m".into(),
+            },
+        ];
+        let kinds: std::collections::HashSet<&str> = errs.iter().map(error_kind_of).collect();
+        assert!(
+            kinds.len() >= 5,
+            "error kinds collapsed (hardcoding regression?): {kinds:?}"
+        );
+        // 429 与 500 必须可区分（限流 vs 上游故障，处置不同）。
+        assert_ne!(
+            error_kind_of(&LlmError::Api {
+                status: 429,
+                message: String::new()
+            }),
+            error_kind_of(&LlmError::Api {
+                status: 500,
+                message: String::new()
+            })
+        );
+    }
 
     struct FailingProvider {
         status: u16,

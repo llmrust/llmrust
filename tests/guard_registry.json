@@ -34,28 +34,49 @@
       "negative_tests": [
         "negative_forbidden_entries_are_reported"
       ]
-    }
-  ],
-  "debt": [
-    {
-      "file": "agent_docs_validation.rs",
-      "reason": "22 tests validate generated docs/agent-facing files, but none is a negative test: weakening a check would not turn any test red.",
-      "anchor": "GRD-003 ② residual (requires a follow-up card; recorded here so it is not silent)"
     },
     {
       "file": "api_freeze.rs",
-      "reason": "public-API freeze comparison has no negative test.",
-      "anchor": "GRD-003 ② residual"
+      "purpose": "API-002 classification freeze vs docs/api-inventory.json (loosening a classification must red)",
+      "negative_tests": [
+        "negative_loosened_classification_is_reported",
+        "negative_missing_frozen_symbol_is_reported",
+        "negative_stable_additive_without_non_exhaustive_is_reported",
+        "negative_non_exhaustive_on_frozen_symbol_is_reported"
+      ]
     },
     {
       "file": "response_freeze.rs",
-      "reason": "response-shape freeze comparison has no negative test.",
-      "anchor": "GRD-003 ② residual"
+      "purpose": "consumer-facing JSON wire shapes (rename/remove/add field must red)",
+      "negative_tests": [
+        "negative_removed_field_is_detected",
+        "negative_added_field_is_detected",
+        "negative_renamed_key_is_detected",
+        "negative_changed_value_is_detected",
+        "negative_nested_removal_is_detected_with_path",
+        "negative_array_length_change_is_detected"
+      ]
     },
     {
       "file": "provider_contract_freeze.rs",
-      "reason": "provider contract freeze has no negative test.",
-      "anchor": "GRD-003 ② residual"
+      "purpose": "Provider/LlmError/RetryProvider behaviour freeze (4xx/429 must not be retried)",
+      "negative_tests": [
+        "negative_retried_4xx_is_reported",
+        "negative_retried_429_is_reported",
+        "negative_5xx_over_retry_budget_is_reported",
+        "negative_zero_attempts_is_reported"
+      ]
+    },
+    {
+      "file": "agent_docs_validation.rs",
+      "purpose": "agent-facing docs/JSON validity, dangerous phrases, examples README ↔ Cargo.toml",
+      "negative_tests": [
+        "negative_dangerous_phrases_are_reported",
+        "negative_dangerous_phrase_case_variants_are_reported",
+        "negative_readme_phantom_example_is_reported",
+        "negative_empty_readme_table_is_reported"
+      ]
     }
-  ]
+  ],
+  "debt": []
 }

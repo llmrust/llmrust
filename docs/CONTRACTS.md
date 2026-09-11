@@ -47,6 +47,37 @@ Every implementation of `Provider` must satisfy:
      so it is **recorded as a follow-up finding** rather than silently changed.
    - Sibling: the `unknown → Other(..)` escape hatch is pinned by `tests/response_freeze.rs`.
 
+## Retry / back-off contract (`ERR-004`)
+
+1. **Upstream `Retry-After` is honoured when present.** `RetryProvider` asks the wrapped provider for
+   the window via `Provider::last_retry_after() -> Option<Duration>`; when it is `Some(..)`, that value
+   is used **instead of** the local exponential back-off, and the retry log records
+   `delay_source = "upstream"` (vs `"local"`). The source is therefore observable (DoD requirement).
+2. **Both RFC 9110 forms are accepted**: `delay-seconds` (non-negative integer) and `HTTP-date`
+   (IMF-fixdate, `Wed, 21 Oct 2015 07:28:00 GMT`), the latter resolved relative to "now" and clamped
+   at `0` when the date has already passed.
+3. **The wait is capped at `MAX_RETRY_AFTER` (60 s).** A malicious or broken upstream must not pin a
+   client with an absurd value (a day-long `delay-seconds`, or an HTTP-date far in the future).
+   Unbounded waiting is forbidden.
+4. **Malformed or absent values degrade to the local back-off** (`None`) — never a guess, never a panic.
+   A `0`-second hint is honoured but floored at 1 ms so it cannot become a busy loop.
+5. **Carriage is additive, not a change to the error type.** The window travels through the
+   **defaulted trait method** `Provider::last_retry_after()`, *not* a new field or variant on
+   `LlmError`: `LlmError` (and its `Api` variant) are not `#[non_exhaustive]`, so any addition there
+   would break downstream construction and exhaustive matching. A defaulted trait method is purely
+   additive; downstream providers that do not implement it are unaffected.
+6. **`should_retry`'s existing 429 design is preserved.** `RetryProvider` still does **not** retry 429
+   on the same deployment (retrying a throttled deployment only worsens it); the window is consumed by
+   the retry path that does run (transient 5xx / transport failures).
+7. **Failover deliberately does not wait.** `Router` answers a failoverable error by switching to a
+   **different** deployment, which may not be throttled — so it does not sleep. Its log records the
+   decision fact (`waits_for_upstream = false`) with the reason. The router holds an `LmrsClient`, not
+   a provider, so it cannot read the header itself; the header value surfaces in `RetryProvider`'s log.
+8. **Coverage note.** Capture is wired in the **shared OpenAI-compatible path**, so it applies to
+   `openai`, `deepseek`, `moonshot` and `openrouter`. Anthropic, Gemini and Ollama build their errors
+   on separate paths and do **not** yet supply a hint — they behave exactly as before (local back-off).
+   A recorded gap, not a silent one.
+
 ## Proxy contract
 
 ### OpenAI `/v1/chat/completions`

@@ -321,6 +321,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **消费上游 `Retry-After`（`ERR-004`）**：`RetryProvider` 现在**优先采用上游明示的等待窗口**
+  （0.1.3 期从不读取该头，全仓 `retry.?after` 零命中），退避日志新增 `delay_source`
+  （`"upstream"` / `"local"`）使**窗口来源可观测**。支持 RFC 9110 的**两种格式**
+  （`delay-seconds` 与 `HTTP-date`）；**等待窗口上限 60 秒**（防恶意/异常超长值钉死客户端）；
+  畸形/缺失值回落本地退避（不猜、不 panic）；`0` 秒提示尊重但下限 1ms（不忙等）。
+  **承载方式为纯附加**：走**带默认实现的 trait 方法** `Provider::last_retry_after()`，
+  **不改 `LlmError`**（该枚举与其 `Api` 变体都不是 `#[non_exhaustive]`，加字段/加变体对下游
+  都是破坏性变更，卡内明禁"破坏错误类型形状"）。
+  **`should_retry` 对 429 的既有设计未被推翻**（同一部署不重试限流目标）；**failover 仍不等待**
+  （换到另一个未被限流的部署才是正确响应），其日志记录 `waits_for_upstream = false` 与理由。
+  **覆盖面（已记录，非静默）**：捕获接在**共享的 OpenAI 兼容路径**上，覆盖
+  `openai` / `deepseek` / `moonshot` / `openrouter`；Anthropic / Gemini / Ollama 的错误构造路径
+  独立，**尚未提供**提示，行为与 0.1.3 完全一致。
 - **Gemini `FINISH_REASON_UNSPECIFIED` 不再当成"正常结束"（`ERR-003`）**：该值此前被映射为
   `FinishReason::Stop`——把**缺失信息**当成了"模型正常结束"的**断言**，调用方会据此以为生成完整。
   现在它走 `FinishReason::Other("FINISH_REASON_UNSPECIFIED")` **逃生口**，语义原样保留；

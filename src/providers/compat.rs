@@ -431,6 +431,11 @@ pub struct OpenAiCompatibleProvider {
     /// REA-003: only the verified OpenAI endpoint may send reasoning fields.
     /// Third-party OpenAI-compatible wrappers must NOT inherit this capability.
     reasoning_supported: bool,
+    /// `ERR-004`：最近一次失败响应里上游给出的 `Retry-After` 窗口（已解析、已截顶）。
+    ///
+    /// 用 `Mutex` 是因为 `Provider` 的方法取 `&self`；写入点是 [`Self::parse_error`]，
+    /// 读取点是 [`crate::RetryProvider`]（经 `Provider::last_retry_after`）。
+    last_retry_after: std::sync::Mutex<Option<std::time::Duration>>,
 }
 
 impl OpenAiCompatibleProvider {
@@ -451,6 +456,7 @@ impl OpenAiCompatibleProvider {
             base_url,
             extra_headers: extra_headers.into_iter().collect(),
             reasoning_supported: false,
+            last_retry_after: std::sync::Mutex::new(None),
         }
     }
 
@@ -562,8 +568,25 @@ impl OpenAiCompatibleProvider {
     }
 
     /// Common HTTP error -> LlmError conversion.
-    async fn parse_error(resp: reqwest::Response) -> LlmError {
+    ///
+    /// `ERR-004`：顺带**捕获上游的 `Retry-After`**（在 `resp.text()` 消费 body 之前读头），
+    /// 解析后存入 [`Self::last_retry_after`]，供 `RetryProvider` 决定等待窗口。
+    /// 解析失败/无头 → `None`（调用方回落本地退避），**不猜**。
+    async fn parse_error(&self, resp: reqwest::Response) -> LlmError {
         let status = resp.status().as_u16();
+        let hint = resp
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| {
+                crate::providers::retry::parse_retry_after(
+                    v,
+                    crate::providers::retry::now_unix_secs(),
+                )
+            });
+        if let Ok(mut slot) = self.last_retry_after.lock() {
+            *slot = hint;
+        }
         let text = resp.text().await.unwrap_or_default();
         let msg = serde_json::from_str::<CompErrorBody>(&text)
             .map(|e| e.error.message)
@@ -639,7 +662,7 @@ impl Provider for OpenAiCompatibleProvider {
 
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
-            let err = Self::parse_error(resp).await;
+            let err = self.parse_error(resp).await;
             tracing::error!(
                 provider = "openai-compatible",
                 status,
@@ -675,7 +698,7 @@ impl Provider for OpenAiCompatibleProvider {
 
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
-            let err = Self::parse_error(resp).await;
+            let err = self.parse_error(resp).await;
             tracing::error!(
                 provider = "openai-compatible",
                 status,
@@ -722,7 +745,7 @@ impl Provider for OpenAiCompatibleProvider {
 
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
-            let err = Self::parse_error(resp).await;
+            let err = self.parse_error(resp).await;
             tracing::error!(
                 provider = "openai-compatible",
                 status,
@@ -762,6 +785,11 @@ impl Provider for OpenAiCompatibleProvider {
             "embedding response received"
         );
         Ok(result)
+    }
+
+    /// `ERR-004`：把最近一次失败响应里捕获的 `Retry-After` 交给 `RetryProvider`。
+    fn last_retry_after(&self) -> Option<std::time::Duration> {
+        self.last_retry_after.lock().ok().and_then(|slot| *slot)
     }
 }
 

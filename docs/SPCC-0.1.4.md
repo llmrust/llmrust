@@ -364,7 +364,7 @@
 | `0.1.4 / N2 Silent Failure` | `#10` | 消除已知静默失败面 | **5/5** | 100% | `DONE` | —（N1 DONE） | 五项 DONE；§6.3 表格全部清空 |
 | `0.1.4 / N3 Evidence Depth` | `#11` | 验证从自证推进到他证 | 0/3 | 0% | `DEFERRED`（→ **0.1.5**） | — | 能力矩阵 `verified` 格子有 live-endpoint 证据 —— **经 Owner 决定移出 0.1.4 范围（见 §11.1.2 决策记录）** |
 | `0.1.4 / N4 Governance Scale` | `#12` | 治理载体不依赖记忆 | 0/3 | 0% | `DEFERRED`（→ **0.1.5**） | — | 状态区拆分完成且一致性 CI 化 —— **经 Owner 决定移出 0.1.4 范围（见 §11.1.2 决策记录）** |
-| `0.1.4 / N5 Release` | `#13` | 审计并发布 0.1.4 | 0/3 | 0% | `PLANNED` | —（**待 N0–N2 DONE**，随 `N3`/`N4` 移出而变更） | crates.io / docs.rs / GitHub tag 三方一致 |
+| `0.1.4 / N5 Release` | `#13` | 审计并发布 0.1.4 | **2/3** | **67%** | `IN_PROGRESS` | —（**待 N0–N2 DONE**，随 `N3`/`N4` 移出而变更） | crates.io / docs.rs / GitHub tag 三方一致 |
 
 > **决策记录：`0.1.4` 范围收缩（Owner 2026-09-11 决定，读法 B）**
 >
@@ -432,9 +432,9 @@ flowchart TD
 | `GOV-001` | N4 | `DEFERRED`（→ 0.1.5） | `SPEC-010` | — | — | — | 本 PR（随范围收缩） |
 | `GOV-002` | N4 | `DEFERRED`（→ 0.1.5） | `GOV-001` | — | — | — | 本 PR（随范围收缩） |
 | `GOV-003` | N4 | `DEFERRED`（→ 0.1.5） | `SPEC-010` | — | — | — | 本 PR（随范围收缩） |
-| `RC-002` | N5 | `PLANNED` | **N0–N2 DONE**（原为 N0–N4 DONE，随范围收缩变更） | — | — | — | — |
-| `REL-004` | N5 | `PLANNED` | `RC-002` GO + Owner 授权 | — | — | — | — |
-| `REL-005` | N5 | `PLANNED` | `REL-004` | — | — | — | — |
+| `RC-002` | N5 | `DONE` | **N0–N2 DONE**（原为 N0–N4 DONE，随范围收缩变更） | —（未开卡） | #234 | `47c0502` | #241（回证） |
+| `REL-004` | N5 | `DONE` | `RC-002` GO + Owner 授权 | —（未开卡） | #243（+ #244 文档更正、#245 README） | `7ca3bc3` | 本 PR |
+| `REL-005` | N5 | `PLANNED` | `REL-004` DONE + **Owner 授权** | — | — | — | — |
 
 #### 11.1.4 合并后状态回证账本
 
@@ -460,6 +460,8 @@ flowchart TD
 | `ERR-003` | —（未开卡） | #230（Gemini `FINISH_REASON_UNSPECIFIED` 改走 `Other(..)` 逃生口） | Security Gates `34603728703` / CI `34603728632`（均 SUCCESS，main 推送） | `09bd9c3` | 本 PR | N2 `5/5` | 待架构师核验 |
 | `ERR-004` | —（未开卡） | #231（消费上游 `Retry-After`：trait 默认方法承载、上限 60s、四家生效） | Security Gates `34605966948` / CI `34605966930`（均 SUCCESS，main 推送） | `d905a55` | 本 PR | N2 `5/5` | 待架构师核验 |
 | `ERR-005` | —（未开卡） | #232（代理认证校验与存储对 trim 一致，含与 `FIX-001` 干扰关系的排除说明） | Security Gates `34607112507` / CI `34607112513`（均 SUCCESS，main 推送） | `498c1e2` | 本 PR | N2 `5/5` | 待架构师核验 |
+| `RC-002` | —（未开卡） | #234（发布候选独立审计；结论 `NO-GO`，阻断项 = §1.5 三问覆盖率 12%） | CI `34610614497` / Security Gates `34610614515`（均 SUCCESS） | `47c0502` | #241 | N5 `2/3` | 架构师已核验（`GO`） |
+| `REL-004` | —（未开卡） | #243（版本与元数据：版本四处一致 + CHANGELOG 定稿 + `COMPATIBILITY-0.1.4.md` + 校验器改版本通用）/ #244（发版安全文档更正）/ #245（README 指向 0.1.4） | CI `34668563077` 等（均 SUCCESS） | `7ca3bc3` | 本 PR | N5 `2/3` | 待架构师核验 |
 
 > **N1/N2 回证（逐条，机器产出）**：
 > ① **`N1` 6/6**：`CAP-002`（能力载体，含「下游不实现 `capabilities()` 仍可编译」的机器证明）、
@@ -813,7 +815,7 @@ flowchart TD
 ### 11.8 Milestone N5 — 审计与发布
 
 **入口**：**N0–N2 全部 DONE**，无开放 P0/P1。（原为「N0–N4 全部 DONE」；`N3`/`N4` 经 Owner 2026-09-11 决定移出本版 → 0.1.5，见 §11.1.2 决策记录。**本节与 §11.1.2 `N5` 行、§11.1.3 `RC-002` 行保持一致**。）
-**出口**：0.1.4 由受保护 tag 流水线发布；crate、docs.rs、GitHub tag、版本元数据与 hash 一致。  
+**出口**：0.1.4 由 tag 流水线发布 —— **"受保护"的实现 = `release` 环境的 `required_reviewers` 闸**（`2026-09-12` 实测仓库**无** tag ruleset：`rulesets` 为空、legacy `tags/protection` 端点 404；tag 为 annotated 但未签名）。；crate、docs.rs、GitHub tag、版本元数据与 hash 一致。  
 **发布原则**：沿用 0.1.3 —— 发布动作不是"试试看"；`REL-005` 开始前所有判断必须完成。
 
 #### `RC-002` — 0.1.4 发布候选独立审计
@@ -835,13 +837,13 @@ flowchart TD
 - **执行步骤**：① 版本号四处一致（Cargo.toml / CHANGELOG / capabilities.json / 文档）；② CHANGELOG 完整记录本版全部行为变更，**特别标注 `CAP-003` 引入的能力裁决属公开行为变更**；③ 新增兼容性说明，明确"0.1.4 不要求源码迁移"；④ 预检脚本全绿。
 - **DoD**：四处版本一致由门禁校验；CHANGELOG 覆盖全部行为变更；兼容性说明存在；semver 相对 0.1.3 零破坏。
 
-#### `REL-005` — 受保护 tag 发布与发布后验证
+#### `REL-005` — tag 发布（保护 = `release` 环境闸）与发布后验证
 
 - **初始状态/依赖/分支**：`PLANNED`；`REL-004`；`task/REL-005-publish-014`。
-- **任务目标**：从受保护 tag 发布 0.1.4 并完成三方一致性验证。
+- **任务目标**：从 tag 发布 0.1.4 并完成三方一致性验证。**"受保护"= `release` 环境闸**（`required_reviewers`），**不是** tag ruleset（仓库无该配置，2026-09-12 实测）。
 - **允许范围**：tag 创建、release workflow 触发、发布后核验记录。
 - **禁止范围**：命令行 `--token`；`--allow-dirty`；手工兜底发布；跳过任何 gate。
-- **执行步骤**：① 创建受保护 tag；② 流水线发布（Trusted Publishing）；③ **发布后可见性轮询按 `GRD-003` 结转项 C 改为 60×10s**；④ 核验 crates.io / docs.rs / GitHub tag 三方一致；⑤ 记录 crate hash 与 provenance。
+- **执行步骤**：① 创建 tag `v0.1.4`（**推 tag 前先复核 `release` 环境的保护规则仍在位**：`gh api repos/llmrust/llmrust/environments/release --jq .protection_rules`）；② 流水线发布（Trusted Publishing）；③ **发布后可见性轮询按 `GRD-003` 结转项 C 改为 60×10s**；④ 核验 crates.io / docs.rs / GitHub tag 三方一致；⑤ 记录 crate hash 与 provenance。
 - **DoD**：三方一致；`yanked=false`；`trustpub_only=true`；docs.rs 构建成功；crate hash 已记录；无手工旁路。
 - **回证**：run URL、crate hash、三方核验输出、tag object SHA。
 

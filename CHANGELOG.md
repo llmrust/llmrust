@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.4] - 2026-09-12
 
-> **本段由各任务卡逐条追加，`REL-004` 定稿时补上日期并上移为首段。**
-> 置于文件末尾是**故意的**：`tests/agent_docs_validation.rs` 要求第一个 `## [` 标题
-> 必须是 `## [0.1.3] - 2026-08-03`，且不得出现"未发布"段（方括号 Unreleased 形式）。
+> **本段由各任务卡逐条追加；`REL-004` 定稿时补上日期并**上移为首段**。**
+> （历史说明：定稿前本段位于文件末尾，因为当时的门 `changelog_has_013_release_header`
+> 硬编码要求首个 `## [` 标题必须是 `0.1.3`。该门已在 `REL-004` 改为**以 `Cargo.toml` 版本为 SSOT**，
+> 故本段现位于首位、日期为真实发布日期。）
 
 ### Fixed
 

@@ -76,6 +76,18 @@
         "negative_readme_phantom_example_is_reported",
         "negative_empty_readme_table_is_reported"
       ]
+    },
+    {
+      "file": "test_hygiene_guard.rs",
+      "purpose": "H-4: gate hygiene — a test's verdict must come from LOGIC, not from the clock or process-global state (no unlocked `env::set_var`/`remove_var`; short-timeout latency verdicts are refused)",
+      "negative_tests": [
+        "negative_env_mutation_without_lock_is_reported",
+        "negative_short_timeout_is_reported",
+        "negative_negative_already_holding_lock_is_not_reported",
+        "negative_generous_timeout_is_not_reported",
+        "negative_exemption_is_only_this_file",
+        "negative_real_repo_is_clean_today"
+      ]
     }
   ],
   "debt": []

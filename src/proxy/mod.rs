@@ -611,6 +611,15 @@ fn is_loopback_addr(addr: &str) -> bool {
 
 /// Bind to `addr` and serve the proxy with graceful shutdown.
 ///
+/// Is a configured proxy key acceptable? (`PRX-002`, SPCC §7.1)
+///
+/// **Pure on purpose.** `H-4`(审计第 4 项)：此前的门用「2 秒墙钟内是否返回」来判定
+/// `serve()` 是否拒绝空白 key —— 那让**红/绿取决于机器负载**（实测在负载下误红）。
+/// 把判定抽成纯函数后，测试可以**确定性地**断言逻辑，而集成断言只留"不 hang"的安全网。
+fn key_is_acceptable(key: &str) -> bool {
+    !key.trim().is_empty()
+}
+
 /// Authentication policy (M2-20 — secure by default):
 /// - If `LLMRUST_PROXY_KEY` is set and non-empty, bearer-token auth is required.
 /// - If no token is set, the proxy is only served when `addr` is a **loopback**
@@ -622,7 +631,7 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
         // PRX-002 (SPCC §7.1): a set-but-empty/whitespace key must fail at
         // startup — never silently downgrade to unauthenticated, never treat
         // whitespace as a valid secret.
-        Ok(s) if s.trim().is_empty() => {
+        Ok(s) if !key_is_acceptable(&s) => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
                 "LLMRUST_PROXY_KEY is set but empty or whitespace-only; \
@@ -693,6 +702,26 @@ async fn handle_chat_completions(State(state): State<AppState>, body: String) ->
                 StatusCode::BAD_REQUEST,
                 "reasoning is unsupported on the OpenAI-compatible proxy in 0.1.3; \
                  call the provider directly to use reasoning",
+            );
+        }
+        // H-3（外部审计）：**代理不支持 `cache`，且必须响亮说明，不许静默丢弃。**
+        //
+        // `CAP-005` 给 `ChatRequest` 加了 `cache` 字段，但代理 DTO `ProxyChatRequest` 没有它，
+        // 而本路径**未启用 `deny_unknown_fields`** ⇒ 客户端发 `"cache": {…}` 会被 serde
+        // **静默忽略**：响应 200 成功、而**断点一个都没设**。调用方以为设了缓存策略，
+        // 实际零效果——对 AC-16 这类**省钱**目标尤其危险。
+        //
+        // **为什么不直接给 DTO 加字段**：那样是 `constructible_struct_adds_field`，
+        // CI 的 `API-002 semver 门`判为**破坏性变更**（实测：`field ProxyChatRequest.cache`
+        // → `semver requires new major version`）。代理 DTO **并不豁免**于该门。
+        // 故本版采用与本文件 `reasoning_*` 完全一致的做法：**在原始 Value 上检出并 400 拒绝**，
+        // 并**在 CHANGELOG 明确披露**该能力不经代理（库内 `LmrsClient`/`Provider` 路径可用）。
+        if obj.contains_key("cache") {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "prompt-cache breakpoints are not accepted on the proxy wire; \
+                 set `ChatRequest.cache` through the library API (LmrsClient / Provider) instead. \
+                 This is refused rather than silently ignored (H-3)",
             );
         }
     }
@@ -1148,6 +1177,7 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         store: req.store,
         metadata: req.metadata.clone(),
         user: req.user.clone(),
+
         extra: HashMap::new(),
         ..Default::default()
     })
@@ -1374,7 +1404,66 @@ mod tests {
     }
 
     /// Mock provider that returns a fixed response, for proxy tests.
+    /// **进程环境变量是全局状态**：`std::env::set_var` / `remove_var` 会影响**同一进程内
+    /// 并发运行的所有测试**（`H-4`：这是与"共享 `static` 捕获槽"同类的并行隐患）。
+    /// 凡改动进程环境变量的测试**必须**持有此锁。
+    static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
     struct MockProvider;
+
+    /// `H-3`：记录收到的 `ChatRequest.cache`，用于证明代理**真的转发了**缓存策略。
+    ///
+    /// 修复前该值恒为 `None`（客户端发 `cache` 会被静默丢弃），故本替身是那条负例的观测点。
+    ///
+    /// **捕获槽是每实例持有的 `Arc<Mutex<..>>`，不是全局 `static`**——首版用了 `static`，
+    /// 测试**并行**时互相覆盖：单独跑通过、批量跑失败。那是**测试自身的缺陷**（共享可变状态），
+    /// 不是产品缺陷，故改为每实例捕获。
+    #[derive(Clone)]
+    struct CacheCapturingProvider {
+        seen: std::sync::Arc<Mutex<Option<Option<crate::cache_control::CacheRetention>>>>,
+    }
+
+    impl CacheCapturingProvider {
+        #[allow(clippy::type_complexity)]
+        fn new() -> (
+            Self,
+            std::sync::Arc<Mutex<Option<Option<crate::cache_control::CacheRetention>>>>,
+        ) {
+            let slot = std::sync::Arc::new(Mutex::new(None));
+            (
+                Self {
+                    seen: std::sync::Arc::clone(&slot),
+                },
+                slot,
+            )
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Provider for CacheCapturingProvider {
+        async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
+            if let Ok(mut slot) = self.seen.lock() {
+                *slot = Some(req.cache.as_ref().map(|p| p.retention));
+            }
+            Ok(ChatResponse {
+                content: "captured".to_string(),
+                model: "mock-model".to_string(),
+                ..Default::default()
+            })
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            let chunks: Vec<Result<StreamChunk>> = vec![Ok(StreamChunk {
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            })];
+            Ok(Box::pin(futures::stream::iter(chunks)))
+        }
+    }
 
     #[async_trait::async_trait]
     impl Provider for MockProvider {
@@ -2124,6 +2213,113 @@ mod tests {
         }
     }
 
+    // ── H-3：代理 wire 上的 `cache` **不许静默丢弃** ──────────────────────
+    //
+    // 结论（见 `handle_chat_completions` 内注释）：本版**不给 DTO 加字段**——那会触发
+    // `constructible_struct_adds_field`（CI semver 门实测判为破坏性）。
+    // 故采用与本文件 `reasoning_*` 一致的既有做法：**原始 Value 上检出 → 400 响亮拒绝**，
+    // 并在 CHANGELOG 明确披露"该能力不经代理"。
+
+    /// **H-3 负例（本卡正题）**：客户端发 `"cache"` → **必须 400**，且**绝不派发到 provider**。
+    ///
+    /// 修复前：`ProxyChatRequest` 无 `cache` 字段且无 `deny_unknown_fields`
+    /// ⇒ serde **静默忽略** ⇒ 200 成功、断点一个没设（§6.3 禁止的"无从察觉"）。
+    #[tokio::test]
+    async fn proxy_rejects_cache_instead_of_silently_dropping_it() {
+        let (provider, seen) = CacheCapturingProvider::new();
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(provider)).await;
+        let app = router_with_auth(llm, TEST_TOKEN.to_string());
+
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": "hi"}],
+            "cache": {"retention": "short"}
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request_with_auth(
+                &body,
+                Some("Bearer secret-token-123"),
+            ))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "H-3: a `cache` key must be REFUSED loudly, not silently ignored"
+        );
+
+        // 且**零上游派发**（拒绝发生在 provider 之前）。
+        let captured = seen.lock().ok().and_then(|s| *s);
+        assert_eq!(
+            captured, None,
+            "the request must be refused BEFORE dispatch (provider saw {captured:?})"
+        );
+
+        // 错误体须把"怎么办"说清楚（引导到库内 API）。
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(
+            text.contains("library API"),
+            "the error must point the caller at the library API, got: {text}"
+        );
+    }
+
+    /// **反向对照**：不带 `cache` 的请求**必须照常 200**（不得误伤）。
+    #[tokio::test]
+    async fn proxy_without_cache_still_succeeds() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router_with_auth(llm, TEST_TOKEN.to_string());
+
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": "hi"}]
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request_with_auth(
+                &body,
+                Some("Bearer secret-token-123"),
+            ))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    /// 未被代理支持的**其它**未知字段仍按原样容忍（不得因为这条检查而变成 deny_unknown_fields）。
+    #[tokio::test]
+    async fn proxy_still_tolerates_other_unknown_keys() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router_with_auth(llm, TEST_TOKEN.to_string());
+
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": "hi"}],
+            "some_future_field": {"x": 1}
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request_with_auth(
+                &body,
+                Some("Bearer secret-token-123"),
+            ))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "unknown keys must stay tolerated (no deny_unknown_fields)"
+        );
+    }
+
     #[tokio::test]
     async fn auth_valid_token_passes_through() {
         let llm = Arc::new(LmrsClient::new());
@@ -2243,6 +2439,9 @@ mod tests {
     #[tokio::test]
     async fn serve_refuses_unauthenticated_on_public_addr() {
         // Guarantee no token is present for this test.
+        // H-4：**改动进程环境变量 ⇒ 必须持锁**（否则与其它改 env 的测试互相干扰；
+        // 本处由 `tests/gate_hygiene.rs` 的机器门抓出——grep 只看到调用点、没归到所属测试）。
+        let _guard = ENV_LOCK.lock().await;
         std::env::remove_var("LLMRUST_PROXY_KEY");
         let llm = Arc::new(LmrsClient::new());
         // `0.0.0.0` binds every interface (public) — must be refused without a token.
@@ -3105,37 +3304,46 @@ mod tests {
     }
 
     /// `serve()` must refuse to start when `LLMRUST_PROXY_KEY` is set but
-    /// empty or whitespace-only (SPCC §7.1). Currently `.filter(!is_empty)`
-    /// treats a whitespace token as valid and an empty one as unauthenticated
-    /// — so serve() starts (and blocks on the listener) instead of failing
-    /// fast. RED until the guard returns an io error promptly.
+    /// empty or whitespace-only (SPCC §7.1).
+    ///
+    /// **H-4（审计第 4 项）改写**：原版用「2 秒墙钟内是否返回」判定——**红/绿取决于负载**
+    /// （实测在负载下误红，见 PR）。现在**判定走纯函数**（确定性），集成断言只保留
+    /// 「不 hang」的安全网（**30 秒**，只防死锁、**不**作为延迟断言），并与其他改动
+    /// 进程环境变量的测试共用 `ENV_LOCK` 串行化。
     #[tokio::test]
     async fn serve_rejects_blank_or_empty_key() {
+        // ① 判定面：纯函数，与 `serve()` 用的是**同一逻辑**（确定性、无时钟、无环境）。
+        for key in ["", " ", "   ", "\t", "\n", " \t\n "] {
+            assert!(
+                !key_is_acceptable(key),
+                "{key:?} must be rejected by the same predicate `serve()` uses"
+            );
+        }
+        assert!(key_is_acceptable("secret-token-123"));
+
+        // ② 集成面：`serve()` 必须**返回 Err**（不绑定端口）。超时仅作**死锁安全网**。
+        // `ENV_LOCK` 是 **tokio 的 Mutex**（本测试要跨 `await` 持有它，std 的会被 clippy
+        // 判 `await_holding_lock`——那是真隐患，不靠 `#[allow]` 糊）。
+        let _guard = ENV_LOCK.lock().await;
         for key in ["", "   "] {
             std::env::set_var("LLMRUST_PROXY_KEY", key);
             let llm = Arc::new(LmrsClient::new());
-            // A correct implementation returns Err promptly without binding.
-            // The current code instead starts serving and blocks, so the
-            // timeout fires → the test fails (RED) with the "must refuse"
-            // assertion message.
-            let outcome =
-                tokio::time::timeout(std::time::Duration::from_secs(2), serve(llm, "127.0.0.1:0"))
-                    .await;
+            let outcome = tokio::time::timeout(
+                std::time::Duration::from_secs(30),
+                serve(llm, "127.0.0.1:0"),
+            )
+            .await;
+            std::env::remove_var("LLMRUST_PROXY_KEY");
             match outcome {
+                Ok(Err(_)) => { /* correct: refused to start */ }
                 Ok(Ok(_)) => {
-                    std::env::remove_var("LLMRUST_PROXY_KEY");
                     panic!("serve started successfully with set-but-empty/whitespace key ({key:?})")
                 }
-                Ok(Err(_)) => { /* correct: refused to start */ }
-                Err(_) => {
-                    std::env::remove_var("LLMRUST_PROXY_KEY");
-                    panic!(
-                        "serve blocked (started serving) instead of refusing \
-                         set-but-empty/whitespace key ({key:?})"
-                    )
-                }
+                Err(_) => panic!(
+                    "serve BLOCKED for 30s instead of refusing ({key:?}) — \
+                     this is a hang, not a latency measurement"
+                ),
             }
-            std::env::remove_var("LLMRUST_PROXY_KEY");
         }
     }
 
@@ -3515,6 +3723,10 @@ mod tests {
     /// 413 shape is covered by the oversized-body tests at the default 2 MiB.
     #[test]
     fn env_configured_body_limit_is_read() {
+        // H-4：改动**进程**环境变量 ⇒ 必须与其它同类测试串行（`ENV_LOCK`）。
+        // 原先注释说"window is one function call"——但**并行**下另一个测试可能在你
+        // 读之前改掉同一个变量，那不是"窗口窄"能防住的。故上锁。
+        let _guard = ENV_LOCK.blocking_lock();
         std::env::set_var("LLMRUST_PROXY_MAX_BODY_BYTES", "1024");
         // Read immediately after set (window is one function call).
         assert_eq!(proxy_max_body_bytes(), 1024);

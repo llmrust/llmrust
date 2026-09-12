@@ -3,7 +3,7 @@
   "threshold": 500,
   "baseline_lines": {
     "src/proxy/mod.rs": 3770,
-    "src/proxy/anthropic_proxy.rs": 1886,
+    "src/proxy/anthropic_proxy.rs": 2053,
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1513,
     "src/providers/google.rs": 1614,
@@ -407,6 +407,14 @@
       "new": 3770,
       "reason": "Audit item 4 / H-4-family (pre-REL-004 gate-hygiene fix, second step of a chain on this file): the blank-key gate's verdict was TIMING-based (`tokio::time::timeout(2s, serve(..))`) — measured to red spuriously under load — and three tests mutated process-global env without serialization. Fix: the decision moved into a pure predicate `key_is_acceptable` (shared by `serve()` and the test, so the test drives the real logic), the integration assertion keeps a 30s deadlock safety net instead of a latency budget, and the env-mutating tests (blank key, body limit, public-addr refusal — the third one FOUND BY the new gate in this same PR, not by hand) all hold `ENV_LOCK`. +30 wc -l measured ON THE POST-MERGE TREE (standalone measured +30 as well; recorded against the merged baseline because the cache fix landed first).",
       "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」(audit item 4: 门禁负例补真) — ledger adjustment per §11.1.4",
+      "date": "2026-09-12"
+    },
+    {
+      "file": "src/proxy/anthropic_proxy.rs",
+      "old": 1886,
+      "new": 2053,
+      "reason": "H-3 body (external audit — the ORIGINAL H-3; `normalize_stop_reason` echoing unknown upstream strings): the function now returns Option<String> so an unknown/attacker-influenced upstream finish reason becomes `null` on the Anthropic wire instead of being echoed verbatim. Measured before the fix: Other(\"FINISH_REASON_UNSPECIFIED\") and even Other(\"../../../etc/passwd\") were emitted as `stop_reason`; Anthropic's field is an ENUM, so any echo violates the downstream schema. Also corrected ContentFilter -> refusal (it previously emitted the non-Anthropic value `content_filter`). Unknown => None plus a truncated tracing::warn trace (<=200 chars, per ERR-002) rather than picking a value, because writing `end_turn` for an unknown reason would fabricate a completion claim (the ERR-003 error class). The streaming site distinguishes 'no reason given' (keeps the pre-existing has_tools synthesis) from 'reason given but unknown' (null, no fallback). +167 wc -l measured, overwhelmingly tests: the 3-way unit matrix and an end-to-end test asserting stop_reason is null AND the raw string appears nowhere in the response body.",
+      "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」+ 审核官 2026-09-11 回执（H-3 本体 file:line 与期望行为）— ledger adjustment per §11.1.4",
       "date": "2026-09-12"
     }
   ]

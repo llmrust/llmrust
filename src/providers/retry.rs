@@ -157,8 +157,25 @@ fn http_date_to_unix(s: &str) -> Option<i64> {
     {
         return None;
     }
+    // H-2：**年份必须有界**。IMF-fixdate 定的是 4 位年（RFC 9110 §5.6.7 `year = 4DIGIT`），
+    // 此前只解析不校验，于是巨年份会让 `days_from_civil` 里的 `era * 146_097` **i64 溢出**——
+    // debug 下直接 panic（实测：`year = i64::MAX` → `attempt to multiply with overflow`），
+    // release 下回绕出垃圾值。
+    //
+    // 为什么是 `None` 而不是"钳到某个日期"：一个**畸形**日期并不表达"立刻重试"，
+    // 把它降级成 `0`（= 马上重发）等于**凭空造出一个语义**——与 `ERR-003` 同类错误。
+    // 故：年份不在 4 位范围内 ⇒ 视为**不可解析**，交由调用方回落本地退避。
+    if !(1000..=9999).contains(&year) {
+        return None;
+    }
+    // 兜底：即便上面的范围断言将来被放宽，也不允许回绕（用饱和算术而非裸乘加）。
     let days = days_from_civil(year, month, day);
-    Some(days * 86_400 + h * 3_600 + mi * 60 + sec)
+    let secs = days
+        .saturating_mul(86_400)
+        .saturating_add(h.saturating_mul(3_600))
+        .saturating_add(mi.saturating_mul(60))
+        .saturating_add(sec);
+    Some(secs)
 }
 
 /// Howard Hinnant 的 `days_from_civil`（公历 → 自 1970-01-01 起的天数）。
@@ -377,7 +394,72 @@ mod tests {
     // 五类：① 无头/空 → None；② delay-seconds；③ HTTP-date；④ 畸形 → None；
     //       ⑤ 夸张值 → **截顶**（卡内禁止"无上限等待"）。
 
-    /// ① 缺失/空 → `None`（调用方回落到本地退避）。
+    // ── H-2：HTTP-date 年份溢出（外部审计发现；本条为**负例**） ─────────────
+    //
+    // 实测过的缺陷：`year` 只解析不校验 ⇒ 巨年份让 `days_from_civil` 的 `era * 146_097`
+    // **i64 溢出**（debug 直接 panic：`attempt to multiply with overflow`；release 回绕）。
+
+    /// **负例**：巨年份 / i64 上界 / 负年份 → **不 panic**，且**返回 `None`**（不猜、不造语义）。
+    #[test]
+    fn h2_absurd_years_return_none_without_panicking() {
+        for y in [
+            "99999999999",          // 11 位
+            "9223372036854775807",  // i64::MAX
+            "-9223372036854775808", // i64::MIN
+            "-99999999999",         // 大负年份
+            "0",                    // 0 年（非 4 位有效年）
+            "999",                  // 3 位
+            "10000",                // 5 位
+        ] {
+            let s = format!("Wed, 21 Oct {y} 07:28:00 GMT");
+            let got = parse_retry_after(&s, 0);
+            assert_eq!(
+                got, None,
+                "year `{y}` must be treated as MALFORMED (got {got:?}); \
+                 silently degrading it to 0 would fabricate a `retry immediately` semantic"
+            );
+        }
+    }
+
+    /// 正向对照：**合法 4 位年**仍须照常解析（不得因加锁而误伤）。
+    #[test]
+    fn h2_valid_four_digit_years_still_parse() {
+        let base = 1_445_412_480i64; // 2015-10-21T07:28:00Z
+        assert_eq!(
+            parse_retry_after("Wed, 21 Oct 2015 07:28:00 GMT", base),
+            Some(Duration::ZERO)
+        );
+        assert_eq!(
+            parse_retry_after("Wed, 21 Oct 2015 07:28:20 GMT", base),
+            Some(Duration::from_secs(20))
+        );
+        // 边界年：1000 与 9999 都属合法 4 位年（不得被新锁误杀）。
+        for y in ["1000", "9999"] {
+            let s = format!("Wed, 21 Oct {y} 07:28:00 GMT");
+            assert!(
+                parse_retry_after(&s, base).is_some(),
+                "year `{y}` is a valid 4-digit IMF-fixdate year"
+            );
+        }
+    }
+
+    /// 溢出兜底：即便将来放宽年份断言，也必须**饱和**而非回绕。
+    #[test]
+    fn h2_arithmetic_is_saturating_not_wrapping() {
+        // 直接驱动内部换算，确认饱和语义（不 panic、不出现负值）。
+        let days = days_from_civil(9999, 12, 31);
+        let secs = days
+            .saturating_mul(86_400)
+            .saturating_add(23_i64.saturating_mul(3_600));
+        assert!(secs > 0, "far-future date must stay positive, got {secs}");
+        let d = parse_retry_after("Fri, 31 Dec 9999 23:59:59 GMT", 0);
+        assert_eq!(
+            d,
+            Some(MAX_RETRY_AFTER),
+            "a far-future valid date must be CAPPED, not overflowed"
+        );
+    }
+
     #[test]
     fn retry_after_absent_or_empty_yields_none() {
         assert_eq!(parse_retry_after("", 0), None);

@@ -321,7 +321,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **代理不再静默丢弃 `cache`（`H-3`）**：`CAP-005` 给 `ChatRequest` 加了 `cache` 字段，但代理 DTO
+- **`Retry-After` 的 HTTP-date 形态：年份越界不再 panic（`H-2`）**：`year` 此前只解析不校验，
+  巨年份（如 `i64::MAX`）会让 `days_from_civil` 的 `era * 146_097` **i64 溢出**——debug 直接 panic
+  （实测 `attempt to multiply with overflow`），release 回绕。现加 **4 位年边界**（`1000..=9999`，
+  依 RFC 9110 `year = 4DIGIT`）⇒ 越界返回"不可解析"（回落本地退避），**不把畸形日期降级成"立刻重试"**；
+  另以**饱和算术**兜底。合法 4 位年行为不变。
+- **代理不再静默丢弃 `cache`（`H-3` 编号待改，见 PR）**：`CAP-005` 给 `ChatRequest` 加了 `cache` 字段，但代理 DTO
   `ProxyChatRequest` **没有**它，而该路径**未启用 `deny_unknown_fields`** ⇒ 客户端向代理发
   `"cache": {"retention": …}` 会被 serde **静默忽略**：**响应 200 成功、断点一个没设**
   （§6.3 禁止的"降级到调用方无从察觉"；对"省钱"目标尤其危险——看着生效、实则零收益）。

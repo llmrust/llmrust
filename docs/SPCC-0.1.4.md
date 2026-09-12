@@ -434,7 +434,7 @@ flowchart TD
 | `GOV-003` | N4 | `DEFERRED`（→ 0.1.5） | `SPEC-010` | — | — | — | 本 PR（随范围收缩） |
 | `RC-002` | N5 | `DONE` | **N0–N2 DONE**（原为 N0–N4 DONE，随范围收缩变更） | —（未开卡） | #234 | `47c0502` | #241（回证） |
 | `REL-004` | N5 | `DONE` | `RC-002` GO + Owner 授权 | —（未开卡） | #243（+ #244 文档更正、#245 README） | `7ca3bc3` | 本 PR |
-| `REL-005` | N5 | `DONE` | `REL-004` DONE + Owner 授权（2026-09-12） | —（未开卡） | tag `v0.1.4` → `4ee2b67`；核验步修复随 `INC-003` | `—`（tag 动作） | 本 PR |
+| `REL-005` | N5 | `DONE` | `REL-004` DONE + Owner 授权（2026-09-12） | —（未开卡） | tag `v0.1.4` → `4ee2b67`；crate 已发布；**GitHub Release 已建并置 Latest**（2026-09-12T10:42:21Z） | `—`（tag 动作） | 本 PR |
 
 #### 11.1.4 合并后状态回证账本
 
@@ -462,7 +462,7 @@ flowchart TD
 | `ERR-005` | —（未开卡） | #232（代理认证校验与存储对 trim 一致，含与 `FIX-001` 干扰关系的排除说明） | Security Gates `34607112507` / CI `34607112513`（均 SUCCESS，main 推送） | `498c1e2` | 本 PR | N2 `5/5` | 待架构师核验 |
 | `RC-002` | —（未开卡） | #234（发布候选独立审计；结论 `NO-GO`，阻断项 = §1.5 三问覆盖率 12%） | CI `34610614497` / Security Gates `34610614515`（均 SUCCESS） | `47c0502` | #241 | N5 `2/3` | 架构师已核验（`GO`） |
 | `REL-004` | —（未开卡） | #243（版本与元数据：版本四处一致 + CHANGELOG 定稿 + `COMPATIBILITY-0.1.4.md` + 校验器改版本通用）/ #244（发版安全文档更正）/ #245（README 指向 0.1.4） | CI `34668563077` 等（均 SUCCESS） | `7ca3bc3` | 本 PR | N5 `2/3` | 待架构师核验 |
-| `REL-005` | —（未开卡） | tag `v0.1.4`（annotated）→ `4ee2b67`；`cargo publish` 由 Trusted Publishing（OIDC）执行，**上传成功** | release run `34687710549`（`cargo publish` 成功；**核验步误报失败** → `INC-003`） | `4ee2b67` | 本 PR | N5 `3/3` | 见 `INC-003` |
+| `REL-005` | —（未开卡） | tag `v0.1.4`（annotated）→ `4ee2b67`；`cargo publish` 由 Trusted Publishing（OIDC）执行，**上传成功**；**GitHub Release `v0.1.4` 已建（Latest）** | release run `34687710549`（`cargo publish` 成功；仅**核验步误报** → `INC-003`） | `4ee2b67` | 本 PR | N5 `3/3` | 见 `INC-003` |
 
 > **N1/N2 回证（逐条，机器产出）**：
 > ① **`N1` 6/6**：`CAP-002`（能力载体，含「下游不实现 `capabilities()` 仍可编译」的机器证明）、

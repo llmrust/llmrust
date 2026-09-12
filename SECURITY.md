@@ -62,9 +62,11 @@ The release path is a **protected, tag-only, dry-run-only** pipeline
   with a short-lived **OIDC** token from `rust-lang/crates-io-auth-action` —
   never a stored long-lived API token (the 0.1.2 lesson). No `--token`, no
   `--allow-dirty` anywhere.
-- **Manual environment approval gates the upload.** The **`publish` job** runs on the
-  `release` environment, which **must** carry a **required reviewers** protection
-  rule; without it a tag push uploads immediately with no human gate.
+- **Manual environment approval gates BOTH jobs.** The `dry-run` job AND the **`publish` job** run on the
+  `release` environment, which **must** carry a **required reviewers** protection rule;
+  without it a tag push uploads immediately with no human gate. **Expect two approval
+  prompts**: the first releases the dry-run (no upload), the **second is the
+  irreversible upload** — do not approve the second until the dry-run output looks right.
   **Measured 2026-09-12: the rule was EMPTY (`protection_rules: []`)** — the
   documentation above had claimed reviewers were configured since 2026-08-03, which
   was false. It has since been configured (`required_reviewers` → `bishuan`, the

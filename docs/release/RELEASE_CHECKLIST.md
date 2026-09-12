@@ -1,14 +1,34 @@
-# 0.1.3 Release Checklist
+# Release Checklist
 
-Operator checklist for the 0.1.3 release (REL-003). Created by REL-002
-(`docs/release/RELEASE_CHECKLIST.md`, 2026-08-03) as the release-commit companion.
-Publishing channel enabled by REL-003A (`docs/release/RELEASE_CHECKLIST.md` update,
-2026-08-03).
+Operator checklists, newest first. Each release's checklist is the companion to **its own release commit**
+and is **kept verbatim as history** after execution (不得回改已执行过的清单)。
 
 > **预期 crate hash 见实现 PR body 与状态回证账本（§11.1.4）** —— 本清单不内嵌 hash 值
 > （写入即改变包内容，hash 立即失效，防自引用悖论；MUST-1(c)）。
 
-## REL-003 execution checklist
+---
+
+## `REL-005` execution checklist（**0.1.4**，待 Owner 授权后执行）
+
+- [ ] **Owner 授权**：`REL-005` 的前置为「`REL-004` DONE **+ Owner 授权**」——**无授权不打 tag**；
+- [ ] **版本四处一致**：`Cargo.toml` `0.1.4` / `llmrust.capabilities.json` `0.1.4` /
+      `llmrust.models.json` `0.1.4` / `CHANGELOG.md` `## [0.1.4] - 2026-09-12` / `docs/COMPATIBILITY-0.1.4.md` 版本与日期；
+- [ ] **三证一致**：`git rev-parse main` == `REL-004` 的 merge SHA == 待打 tag 指向的 commit；
+- [ ] **CI 全绿**：主干 head 的七项 check runs 全 `success`（semver / Arch guards / MSRV / Test / cargo-deny / gitleaks / RustSec）；
+- [ ] **tag 形态**：`v0.1.4`（**打 tag 是唯一触发 `release.yml` 的动作**；该 workflow 无 `workflow_dispatch`）；
+- [ ] **publish job 观察**：`rust-lang/crates-io-auth-action`（OIDC 短期身份）交换 → `cargo publish`（**无 `--token`**）；
+      **`environment: release` 的必需审阅人必须在位**（`publish` job 只有它拦得住）——
+      **2026-09-12 实测该保护规则为空**（`protection_rules: []` ⇒ 推 tag 会**直接上传**），
+      现已配置为 `required_reviewers` → `bishuan`；**执行前用 `gh api repos/llmrust/llmrust/environments/release --jq .protection_rules` 复核**；
+- [ ] **三方验证**：crates.io 页面 / docs.rs / GitHub Release 与仓库版本元数据一致；`yanked=false`；
+- [ ] **crate hash 对账**：crates.io 上传产物的 `sha256` == §11.1.4 账本记录的预期值；
+- [ ] **发布说明核对**：`docs/COMPATIBILITY-0.1.4.md` §3 的四条披露**必须**出现在 GitHub Release 说明中
+      （无 `live-endpoint` 证据 / `CAP-005` 省钱未实测 / 9 项门禁顺延 0.1.5 / 执行侧自身的假门）；
+- [ ] **异常即停**：任何一步失败 → 立即停手，开 Incident（**不得继续、不得手工补发**）。
+
+---
+
+## REL-003 execution checklist（**0.1.3**，已执行 · 保留为历史）
 
 - [ ] **三证确认**：`git rev-parse main`、实现 merge SHA（`$MERGESHA`）、待打 tag 三者一致；
 - [ ] **版本四方一致**：Cargo.toml `0.1.3` / capabilities.json `0.1.3` / CHANGELOG `[0.1.3] - 2026-08-03` / COMPATIBILITY 版本+日期；

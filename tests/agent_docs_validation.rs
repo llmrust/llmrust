@@ -454,30 +454,112 @@ fn capabilities_md_ollama_lists_reasoning_unsupported() {
     );
 }
 
+/// `REL-004`：CHANGELOG 的首个版本标题必须与 `Cargo.toml` 的版本**一致**（版本通用，不再写死版本号）。
+///
+/// **为什么改**：原门（`REL-002`）硬编码"首个 `## [` 标题必须是 `0.1.3`"。0.1.4 发布时
+/// 首个标题**必须变成** `0.1.4` ⇒ **原门会在发布动作上打红**——即"门把正确的发布判为违规"。
+/// 改为**以 `Cargo.toml` 为 SSOT**：两者不一致才红（这才是"版本/日期漂移"的真判据）。
+///
+/// 同时保留历史断言：已发布版本的标题**必须仍在**（不许发布时把历史抹掉）。
+pub fn changelog_version_problems(text: &str, cargo_version: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Some(h) = text.lines().find(|l| l.starts_with("## [")) {
+        let want_prefix = format!("## [{cargo_version}] - ");
+        if !h.starts_with(&want_prefix) {
+            out.push(format!(
+                "first CHANGELOG heading `{h}` does not match Cargo.toml version \
+                 (expected `{want_prefix}<date>`)"
+            ));
+        } else {
+            // 标题形如 `## [x.y.z] - YYYY-MM-DD`：日期不得缺失，也不得仍是占位符。
+            let date = h.trim_start_matches(&want_prefix);
+            if date.len() != 10 || !date.chars().all(|c| c.is_ascii_digit() || c == '-') {
+                out.push(format!(
+                    "first CHANGELOG heading `{h}` must carry a real `YYYY-MM-DD` date, got `{date}`"
+                ));
+            }
+        }
+    } else {
+        out.push("CHANGELOG.md has no `## [version] - date` heading".to_string());
+    }
+    // 历史版本标题必须保留（发布不得抹掉过去）。
+    for historical in [
+        "## [0.1.3] - 2026-08-03",
+        "## [0.1.1] - 2026-06-16",
+        "## [0.1.0] - 2026-06-11",
+    ] {
+        if !text.contains(historical) {
+            out.push(format!("historical release header missing: {historical}"));
+        }
+    }
+    // 占位符一律不许留（`UNRELEASED` / `[Unreleased]`）。
+    if text.contains("## [Unreleased]") {
+        out.push("CHANGELOG.md must not retain an [Unreleased] section".to_string());
+    }
+    if text.contains("UNRELEASED") {
+        out.push("CHANGELOG.md must not retain an UNRELEASED placeholder".to_string());
+    }
+    out
+}
+
+pub fn cargo_version() -> String {
+    let text = fs::read_to_string(repo_root().join("Cargo.toml")).unwrap();
+    text.lines()
+        .find_map(|l| {
+            let t = l.trim();
+            t.strip_prefix("version = \"")
+                .and_then(|r| r.strip_suffix('"'))
+                .map(|s| s.to_string())
+        })
+        .expect("Cargo.toml must declare a top-level version")
+}
+
 #[test]
-fn changelog_has_013_release_header() {
-    // REL-002: the release-commit changelog must pin the exact 0.1.3 version
-    // header with the release date (2026-08-03). Guards against version/date
-    // drift between Cargo.toml, capabilities.json, and the published changelog
-    // (DoD "版本断言一致").
+fn changelog_first_heading_matches_cargo_version() {
+    // REL-004：首标题与 Cargo.toml 版本一致；历史标题仍在；无占位符。
     let text = fs::read_to_string(repo_root().join("CHANGELOG.md")).unwrap();
+    let problems = changelog_version_problems(&text, &cargo_version());
     assert!(
-        text.contains("## [0.1.3] - 2026-08-03"),
-        "CHANGELOG.md must contain '## [0.1.3] - 2026-08-03' (REL-002 release header)"
+        problems.is_empty(),
+        "CHANGELOG/Cargo.toml drift: {problems:?}"
     );
-    // The first `## [x.y.z] - date` heading must be the 0.1.3 one (no Unreleased
-    // section remaining, no stale earlier version appearing first).
-    let first_heading = text
-        .lines()
-        .find(|l| l.starts_with("## ["))
-        .expect("CHANGELOG.md must have at least one '## [version] - date' heading");
-    assert_eq!(
-        first_heading, "## [0.1.3] - 2026-08-03",
-        "first CHANGELOG heading must be the 0.1.3 release header, got: {first_heading}"
-    );
+}
+
+// ── 负例：本门的判据必须能被"改坏"驱动（GRD-003 ③ 纪律） ────────────────
+
+#[test]
+fn negative_changelog_version_mismatch_is_reported() {
+    let text = "# Changelog\n\n## [9.9.9] - 2026-01-01\n\n## [0.1.3] - 2026-08-03\n\
+                ## [0.1.1] - 2026-06-16\n## [0.1.0] - 2026-06-11\n";
+    let p = changelog_version_problems(text, "0.1.4");
     assert!(
-        !text.contains("## [Unreleased]"),
-        "CHANGELOG.md must not retain an [Unreleased] section after REL-002"
+        p.iter()
+            .any(|s| s.contains("does not match Cargo.toml version")),
+        "a mismatched first heading must be reported, got {p:?}"
+    );
+}
+
+#[test]
+fn negative_changelog_unreleased_placeholder_is_reported() {
+    let text = "# Changelog\n\n## [0.1.4] - UNRELEASED (in progress)\n\n## [0.1.3] - 2026-08-03\n\
+                ## [0.1.1] - 2026-06-16\n## [0.1.0] - 2026-06-11\n";
+    let p = changelog_version_problems(text, "0.1.4");
+    assert!(
+        p.iter().any(|s| s.contains("real `YYYY-MM-DD` date")),
+        "a placeholder date must be reported, got {p:?}"
+    );
+}
+
+#[test]
+fn negative_missing_historical_headers_are_reported() {
+    let text = "# Changelog\n\n## [0.1.4] - 2026-09-12\n";
+    let p = changelog_version_problems(text, "0.1.4");
+    assert!(
+        p.iter()
+            .filter(|s| s.contains("historical release header missing"))
+            .count()
+            >= 3,
+        "dropping history must be reported, got {p:?}"
     );
 }
 

@@ -56,16 +56,27 @@ The release path is a **protected, tag-only, dry-run-only** pipeline
 
 - **Tag-only trigger.** The pipeline runs solely on a `vX.Y.Z` tag push.
   There is no `workflow_dispatch` manual entry — no emergency bypass.
-- **No upload, ever, in CI.** Only `cargo publish --dry-run` is performed
-  (no `--token`, no `--allow-dirty`). The artifact is never uploaded from CI.
-- **Manual environment approval.** The `dry-run` job is gated behind the
-  `release` environment (required reviewers configured in repo settings).
+- **Two jobs; the second one REALLY uploads.** `dry-run` performs
+  `cargo publish --dry-run` (no upload). The separate **`publish` job performs the
+  real `cargo publish`** to crates.io (added by REL-003A, Issue #191), authenticating
+  with a short-lived **OIDC** token from `rust-lang/crates-io-auth-action` —
+  never a stored long-lived API token (the 0.1.2 lesson). No `--token`, no
+  `--allow-dirty` anywhere.
+- **Manual environment approval gates the upload.** The **`publish` job** runs on the
+  `release` environment, which **must** carry a **required reviewers** protection
+  rule; without it a tag push uploads immediately with no human gate.
+  **Measured 2026-09-12: the rule was EMPTY (`protection_rules: []`)** — the
+  documentation above had claimed reviewers were configured since 2026-08-03, which
+  was false. It has since been configured (`required_reviewers` → `bishuan`, the
+  Owner). Re-check before any release:
+  `gh api repos/llmrust/llmrust/environments/release --jq .protection_rules`.
 - **Secret scanning, twice.** gitleaks scans the working tree and again the
   extracted `.crate` bytes (the exact payload that would be published).
 - **Version consistency.** A pre-flight script (`.github/scripts/release-validate.sh`)
   refuses any release where the tag, `Cargo.toml`, `llmrust.capabilities.json`,
   and `CHANGELOG.md` versions disagree, or where the tree is dirty.
-- **Publish freeze is not lifted by this pipeline.** Even after REL-001 is
-  `DONE`, an actual `cargo publish` to crates.io requires the Owner's
-  explicit approval (SPCC §3.3). The 0.1.2 accident (dirty, tag-less,
-  version-drifted publish) is structurally prevented by these gates.
+- **The upload is irreversible.** Once `cargo publish` succeeds the version cannot be
+  withdrawn (a `yank` only hides it; downloaded artifacts remain). Therefore the
+  Owner's explicit approval (SPCC §3.3) plus the environment gate are both required —
+  there is no rollback. The 0.1.2 accident (dirty, tag-less, version-drifted publish)
+  is structurally prevented by the tag-only trigger plus the version pre-flight.

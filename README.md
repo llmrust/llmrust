@@ -99,14 +99,28 @@ Or:
 cargo add llmrust --features proxy
 ```
 
-## Compatibility & Upgrade (0.1.3)
+## Compatibility & Upgrade (0.1.4)
 
-`0.1.2` was yanked from crates.io. `0.1.3` will become the latest non-yanked release once
-published, carrying the 0.1.x API freeze plus incident remediation. **No code migration is
-required** when upgrading from 0.1.1/0.1.2 — see
+**Current release `0.1.4`: no code migration is required when upgrading from `0.1.3`**
+(`cargo-semver-checks` against the 0.1.2 baseline reports zero breaking changes). See
+[Compatibility & Upgrade Notes (0.1.4)](docs/COMPATIBILITY-0.1.4.md) for the **five wire-visible
+behavior changes** (the proxy now refuses `cache`, an unknown upstream finish reason becomes `null`
+instead of being echoed, content filtering reports `refusal`, capability adjudication works again
+under `with_retry()`, and configured auth tokens are trimmed consistently), the new public
+capabilities, upgrade guidance, and — stated plainly in §3 — **what this release does *not*
+include** (no live-endpoint evidence, the `CAP-005` cache saving is unmeasured, nine gate-quality
+items are deferred to 0.1.5, and one decoy test on the execution side has been corrected).
+
+<details>
+<summary><strong>Previous release (0.1.3)</strong></summary>
+
+`0.1.2` was yanked from crates.io. `0.1.3` carries the 0.1.x API freeze plus incident
+remediation. **No code migration is required** when upgrading from 0.1.1/0.1.2 — see
 [Compatibility & Upgrade Notes (0.1.3)](docs/COMPATIBILITY-0.1.3.md) for yank semantics, the API
 freeze baseline, and the two narrow behavior fixes (E-002 log de-duplication, 429 retry-policy
 documentation correction).
+
+</details>
 
 ## Quick Start
 

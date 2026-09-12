@@ -98,9 +98,16 @@ llmrust = { version = "0.1", features = ["proxy"] }
 cargo add llmrust --features proxy
 ```
 
-## 兼容性与升级（0.1.3）
+## 兼容性与升级（0.1.4）
 
-`0.1.2` 已从 crates.io **yank（撤回）**。`0.1.3` 发布后将成为最新的非 yank 版本，承载 0.1.x API 冻结与事故善后。从 0.1.1/0.1.2 升级**无需任何代码改动**——详见[兼容性与升级说明（0.1.3）](docs/COMPATIBILITY-0.1.3.md)：含 yank 语义、API 冻结基线，以及两项窄口径行为修正（E-002 日志去重、429 重试策略文档纠偏）。
+**当前版本 `0.1.4`：从 `0.1.3` 升级无需任何代码改动**（已相对 0.1.2 基线跑过 `cargo-semver-checks`，零破坏性变更）。详见[兼容性与升级说明（0.1.4）](docs/COMPATIBILITY-0.1.4.md)：含 **5 条 wire 行为变更**（代理拒收 `cache`、Anthropic `stop_reason` 的未知原因改为 `null`、内容过滤改为 `refusal`、`with_retry()` 下能力裁决恢复拒绝、代理认证 trim 规范化）、新增公开能力清单、升级指引，以及**第 3 节「本版未包含什么」——如实披露**（本版无真端点（`live-endpoint`）证据、`CAP-005` 的"省钱"未被实测、9 项门禁问题顺延 0.1.5、执行侧自身一处假门已更正）。
+
+<details>
+<summary><strong>历史版本（0.1.3）</strong></summary>
+
+`0.1.2` 已从 crates.io **yank（撤回）**。`0.1.3` 承载 0.1.x API 冻结与事故善后。从 0.1.1/0.1.2 升级**无需任何代码改动**——详见[兼容性与升级说明（0.1.3）](docs/COMPATIBILITY-0.1.3.md)：含 yank 语义、API 冻结基线，以及两项窄口径行为修正（E-002 日志去重、429 重试策略文档纠偏）。
+
+</details>
 
 ## 快速开始
 

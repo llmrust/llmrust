@@ -17,7 +17,9 @@ and is **kept verbatim as history** after execution (不得回改已执行过的
 - [ ] **CI 全绿**：主干 head 的七项 check runs 全 `success`（semver / Arch guards / MSRV / Test / cargo-deny / gitleaks / RustSec）；
 - [ ] **tag 形态**：`v0.1.4`（**打 tag 是唯一触发 `release.yml` 的动作**；该 workflow 无 `workflow_dispatch`）；
 - [ ] **publish job 观察**：`rust-lang/crates-io-auth-action`（OIDC 短期身份）交换 → `cargo publish`（**无 `--token`**）；
-      **`environment: release` 需 Owner 在 GitHub 上批准**；
+      **`environment: release` 的必需审阅人必须在位**（`publish` job 只有它拦得住）——
+      **2026-09-12 实测该保护规则为空**（`protection_rules: []` ⇒ 推 tag 会**直接上传**），
+      现已配置为 `required_reviewers` → `bishuan`；**执行前用 `gh api repos/llmrust/llmrust/environments/release --jq .protection_rules` 复核**；
 - [ ] **三方验证**：crates.io 页面 / docs.rs / GitHub Release 与仓库版本元数据一致；`yanked=false`；
 - [ ] **crate hash 对账**：crates.io 上传产物的 `sha256` == §11.1.4 账本记录的预期值；
 - [ ] **发布说明核对**：`docs/COMPATIBILITY-0.1.4.md` §3 的四条披露**必须**出现在 GitHub Release 说明中

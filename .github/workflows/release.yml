@@ -1,15 +1,24 @@
-name: Release (tag-only, dry-run)
+name: Release (tag: validate; publish via Trusted Publishing)
 
-# REL-001 (Issue #97): tag-only, no-upload release pipeline.
+# REL-001 (Issue #97) / REL-003A (Issue #191): tag-triggered release pipeline.
 #
 # Design constraints (fail-closed):
 #   * Triggers ONLY on a semver tag push. There is NO `workflow_dispatch`
 #     entry — by design there is no manual bypass path ("无旁路条款").
-#   * Actual `cargo publish` (network upload) is NEVER performed. Only
-#     `cargo publish --dry-run` is allowed. The 0.1.2 accident (dirty,
-#     tag-less, version-drifted publish) is structurally impossible here.
-#   * Permissions are read-only. The `release` environment (configured in
-#     repo settings with required reviewers) gates the dry-run job.
+#   * **This workflow DOES perform a real upload.** Two jobs: `dry-run`
+#     (`cargo publish --dry-run`, no upload) and `publish` (the REAL
+#     `cargo publish`, via Trusted Publishing / OIDC). The real-upload job was
+#     added by REL-003A; the earlier "no-upload only" header was stale.
+#   * Permissions are read-only by default. The `release` environment gates the
+#     **`publish` job** (the one that really uploads) with **required reviewers**.
+#     **Do not remove that protection rule**: measured on 2026-09-12 it was
+#     EMPTY (`protection_rules: []`), i.e. a tag push would have uploaded
+#     immediately with no human gate; it has since been configured
+#     (`required_reviewers`, `bishuan`). Verify with:
+#     `gh api repos/llmrust/llmrust/environments/release --jq .protection_rules`.
+#   * The 0.1.2 accident (dirty, tag-less, version-drifted publish) is
+#     structurally impossible here: the trigger is a semver tag and the workflow
+#     asserts the tag against `Cargo.toml`'s version.
 #   * No proxy-related env keys (NO_PROXY/no_proxy) — they would make the
 #     workflow validator reject the whole file.
 
@@ -164,7 +173,7 @@ jobs:
           "$RUNNER_TEMP/gitleaks" detect --source extract --no-git --redact --config .gitleaks.toml
 
       - name: Publish-freeze reminder
-        run: echo "::notice::This is a DRY RUN. No artifact was uploaded. Actual publish requires Owner approval (SPCC §3.3)."
+        run: echo "::notice::DRY RUN only — no artifact uploaded. The real upload is the separate `publish` job, which waits for approval from the `release` environment reviewers. Actual publish requires Owner approval (SPCC §3.3)."
 
   guards-fmt-clippy:
     name: fmt / clippy gate (re-run after auto-fix, per CI-003 MUST-1)

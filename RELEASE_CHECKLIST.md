@@ -66,7 +66,7 @@ superseded by this pipeline.
       no-proxy-dep) passes.
 - [ ] `validate` job: CI-003 guards `architecture_guard` + `package_guard` pass.
 - [ ] `validate` job: gitleaks primary scan (working tree) passes.
-- [ ] `dry-run` job (behind `release` environment approval): `cargo publish --dry-run`
+- [ ] `dry-run` job: `cargo publish --dry-run` (no upload); the **`publish` job** does the real upload and is gated by the `release` environment's **required reviewers** (2026-09-12: that rule was EMPTY until configured)
       succeeds — **zero network upload**.
 - [ ] `dry-run` job: secondary gitleaks scan on the extracted `.crate` passes;
       sha256 + provenance sample emitted.

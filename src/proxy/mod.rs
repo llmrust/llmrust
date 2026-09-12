@@ -704,6 +704,26 @@ async fn handle_chat_completions(State(state): State<AppState>, body: String) ->
                  call the provider directly to use reasoning",
             );
         }
+        // H-3（外部审计）：**代理不支持 `cache`，且必须响亮说明，不许静默丢弃。**
+        //
+        // `CAP-005` 给 `ChatRequest` 加了 `cache` 字段，但代理 DTO `ProxyChatRequest` 没有它，
+        // 而本路径**未启用 `deny_unknown_fields`** ⇒ 客户端发 `"cache": {…}` 会被 serde
+        // **静默忽略**：响应 200 成功、而**断点一个都没设**。调用方以为设了缓存策略，
+        // 实际零效果——对 AC-16 这类**省钱**目标尤其危险。
+        //
+        // **为什么不直接给 DTO 加字段**：那样是 `constructible_struct_adds_field`，
+        // CI 的 `API-002 semver 门`判为**破坏性变更**（实测：`field ProxyChatRequest.cache`
+        // → `semver requires new major version`）。代理 DTO **并不豁免**于该门。
+        // 故本版采用与本文件 `reasoning_*` 完全一致的做法：**在原始 Value 上检出并 400 拒绝**，
+        // 并**在 CHANGELOG 明确披露**该能力不经代理（库内 `LmrsClient`/`Provider` 路径可用）。
+        if obj.contains_key("cache") {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "prompt-cache breakpoints are not accepted on the proxy wire; \
+                 set `ChatRequest.cache` through the library API (LmrsClient / Provider) instead. \
+                 This is refused rather than silently ignored (H-3)",
+            );
+        }
     }
     let req: ProxyChatRequest = match serde_json::from_value(raw) {
         Ok(req) => req,
@@ -1157,6 +1177,7 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
         store: req.store,
         metadata: req.metadata.clone(),
         user: req.user.clone(),
+
         extra: HashMap::new(),
         ..Default::default()
     })
@@ -1389,6 +1410,60 @@ mod tests {
     static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
     struct MockProvider;
+
+    /// `H-3`：记录收到的 `ChatRequest.cache`，用于证明代理**真的转发了**缓存策略。
+    ///
+    /// 修复前该值恒为 `None`（客户端发 `cache` 会被静默丢弃），故本替身是那条负例的观测点。
+    ///
+    /// **捕获槽是每实例持有的 `Arc<Mutex<..>>`，不是全局 `static`**——首版用了 `static`，
+    /// 测试**并行**时互相覆盖：单独跑通过、批量跑失败。那是**测试自身的缺陷**（共享可变状态），
+    /// 不是产品缺陷，故改为每实例捕获。
+    #[derive(Clone)]
+    struct CacheCapturingProvider {
+        seen: std::sync::Arc<Mutex<Option<Option<crate::cache_control::CacheRetention>>>>,
+    }
+
+    impl CacheCapturingProvider {
+        #[allow(clippy::type_complexity)]
+        fn new() -> (
+            Self,
+            std::sync::Arc<Mutex<Option<Option<crate::cache_control::CacheRetention>>>>,
+        ) {
+            let slot = std::sync::Arc::new(Mutex::new(None));
+            (
+                Self {
+                    seen: std::sync::Arc::clone(&slot),
+                },
+                slot,
+            )
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Provider for CacheCapturingProvider {
+        async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
+            if let Ok(mut slot) = self.seen.lock() {
+                *slot = Some(req.cache.as_ref().map(|p| p.retention));
+            }
+            Ok(ChatResponse {
+                content: "captured".to_string(),
+                model: "mock-model".to_string(),
+                ..Default::default()
+            })
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            let chunks: Vec<Result<StreamChunk>> = vec![Ok(StreamChunk {
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            })];
+            Ok(Box::pin(futures::stream::iter(chunks)))
+        }
+    }
 
     #[async_trait::async_trait]
     impl Provider for MockProvider {
@@ -2136,6 +2211,113 @@ mod tests {
                 "`{wrong}` must still be rejected"
             );
         }
+    }
+
+    // ── H-3：代理 wire 上的 `cache` **不许静默丢弃** ──────────────────────
+    //
+    // 结论（见 `handle_chat_completions` 内注释）：本版**不给 DTO 加字段**——那会触发
+    // `constructible_struct_adds_field`（CI semver 门实测判为破坏性）。
+    // 故采用与本文件 `reasoning_*` 一致的既有做法：**原始 Value 上检出 → 400 响亮拒绝**，
+    // 并在 CHANGELOG 明确披露"该能力不经代理"。
+
+    /// **H-3 负例（本卡正题）**：客户端发 `"cache"` → **必须 400**，且**绝不派发到 provider**。
+    ///
+    /// 修复前：`ProxyChatRequest` 无 `cache` 字段且无 `deny_unknown_fields`
+    /// ⇒ serde **静默忽略** ⇒ 200 成功、断点一个没设（§6.3 禁止的"无从察觉"）。
+    #[tokio::test]
+    async fn proxy_rejects_cache_instead_of_silently_dropping_it() {
+        let (provider, seen) = CacheCapturingProvider::new();
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(provider)).await;
+        let app = router_with_auth(llm, TEST_TOKEN.to_string());
+
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": "hi"}],
+            "cache": {"retention": "short"}
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request_with_auth(
+                &body,
+                Some("Bearer secret-token-123"),
+            ))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "H-3: a `cache` key must be REFUSED loudly, not silently ignored"
+        );
+
+        // 且**零上游派发**（拒绝发生在 provider 之前）。
+        let captured = seen.lock().ok().and_then(|s| *s);
+        assert_eq!(
+            captured, None,
+            "the request must be refused BEFORE dispatch (provider saw {captured:?})"
+        );
+
+        // 错误体须把"怎么办"说清楚（引导到库内 API）。
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(
+            text.contains("library API"),
+            "the error must point the caller at the library API, got: {text}"
+        );
+    }
+
+    /// **反向对照**：不带 `cache` 的请求**必须照常 200**（不得误伤）。
+    #[tokio::test]
+    async fn proxy_without_cache_still_succeeds() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router_with_auth(llm, TEST_TOKEN.to_string());
+
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": "hi"}]
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request_with_auth(
+                &body,
+                Some("Bearer secret-token-123"),
+            ))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    /// 未被代理支持的**其它**未知字段仍按原样容忍（不得因为这条检查而变成 deny_unknown_fields）。
+    #[tokio::test]
+    async fn proxy_still_tolerates_other_unknown_keys() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("mock", Arc::new(MockProvider)).await;
+        let app = router_with_auth(llm, TEST_TOKEN.to_string());
+
+        let body = serde_json::json!({
+            "model": "mock/test",
+            "messages": [{"role": "user", "content": "hi"}],
+            "some_future_field": {"x": 1}
+        })
+        .to_string();
+
+        let response = app
+            .oneshot(build_request_with_auth(
+                &body,
+                Some("Bearer secret-token-123"),
+            ))
+            .await
+            .expect("request failed");
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "unknown keys must stay tolerated (no deny_unknown_fields)"
+        );
     }
 
     #[tokio::test]

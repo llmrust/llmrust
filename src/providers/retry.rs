@@ -157,8 +157,25 @@ fn http_date_to_unix(s: &str) -> Option<i64> {
     {
         return None;
     }
+    // H-2：**年份必须有界**。IMF-fixdate 定的是 4 位年（RFC 9110 §5.6.7 `year = 4DIGIT`），
+    // 此前只解析不校验，于是巨年份会让 `days_from_civil` 里的 `era * 146_097` **i64 溢出**——
+    // debug 下直接 panic（实测：`year = i64::MAX` → `attempt to multiply with overflow`），
+    // release 下回绕出垃圾值。
+    //
+    // 为什么是 `None` 而不是"钳到某个日期"：一个**畸形**日期并不表达"立刻重试"，
+    // 把它降级成 `0`（= 马上重发）等于**凭空造出一个语义**——与 `ERR-003` 同类错误。
+    // 故：年份不在 4 位范围内 ⇒ 视为**不可解析**，交由调用方回落本地退避。
+    if !(1000..=9999).contains(&year) {
+        return None;
+    }
+    // 兜底：即便上面的范围断言将来被放宽，也不允许回绕（用饱和算术而非裸乘加）。
     let days = days_from_civil(year, month, day);
-    Some(days * 86_400 + h * 3_600 + mi * 60 + sec)
+    let secs = days
+        .saturating_mul(86_400)
+        .saturating_add(h.saturating_mul(3_600))
+        .saturating_add(mi.saturating_mul(60))
+        .saturating_add(sec);
+    Some(secs)
 }
 
 /// Howard Hinnant 的 `days_from_civil`（公历 → 自 1970-01-01 起的天数）。
@@ -363,6 +380,30 @@ impl Provider for RetryProvider {
         }
         unreachable!("retry loop always returns on the final attempt")
     }
+
+    /// `H-1`：**装饰器必须转发被包 provider 的能力声明**。
+    ///
+    /// 不转发时，`LmrsClient::adjudicate`（`CAP-003`）拿到的是**默认实现**——
+    /// `declared == false` ⇒ 裁决判为"未声明能力"⇒ **只 warn、不 Reject**
+    /// ⇒ **开着 `with_retry()` 的客户端里，CAP-003 的保护静默失效**
+    /// （实测：Ollama + `tools` 在裸 provider 下返回 `Unsupported`，包上 retry 后**变成发往网络**）。
+    fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
+        self.inner.capabilities()
+    }
+
+    /// `H-1`：同上，转发协议名（日志与 `Capabilities::unknown` 都用它）。
+    fn protocol_name(&self) -> &'static str {
+        self.inner.protocol_name()
+    }
+
+    /// `H-1`：转发上游 `Retry-After` 提示。
+    ///
+    /// `RetryProvider` 自己的重试循环读的是 `self.inner.last_retry_after()`（见上），
+    /// 但**嵌套包装**（retry 套 retry）或**外层还要读它**时，本方法必须把内层的值透出去，
+    /// 否则链断在装饰器这一层。
+    fn last_retry_after(&self) -> Option<std::time::Duration> {
+        self.inner.last_retry_after()
+    }
 }
 
 #[cfg(test)]
@@ -376,6 +417,152 @@ mod tests {
     //
     // 五类：① 无头/空 → None；② delay-seconds；③ HTTP-date；④ 畸形 → None；
     //       ⑤ 夸张值 → **截顶**（卡内禁止"无上限等待"）。
+
+    // ── H-1：装饰器必须转发能力声明（否则 CAP-003 的保护静默失效） ─────────
+
+    /// 一个最小 provider，用来验证装饰器**转发**被包对象的能力声明。
+    struct DeclaringProvider;
+
+    #[async_trait]
+    impl Provider for DeclaringProvider {
+        async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+            Ok(ChatResponse::default())
+        }
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            Ok(Box::pin(stream::iter(vec![])))
+        }
+        fn protocol_name(&self) -> &'static str {
+            "declaring"
+        }
+        fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
+            let mut c = crate::providers::capabilities::Capabilities::unknown("declaring");
+            c.declared = true;
+            c.tool_calling = crate::providers::capabilities::Capability::unsupported();
+            c
+        }
+    }
+
+    /// `H-1`：包了 retry 之后，**能力声明必须与内层逐位相同**（尤其 `declared`）。
+    ///
+    /// 修复前：`RetryProvider` 不实现 `capabilities()` ⇒ 落到默认实现 ⇒ `declared == false`
+    /// ⇒ `CAP-003` 裁决把"已明确声明 unsupported"误判为"未声明" ⇒ **只 warn、不 Reject**。
+    #[test]
+    fn h1_decorator_forwards_capability_declaration() {
+        let inner = DeclaringProvider;
+        let wrapped = RetryProvider::new(Arc::new(DeclaringProvider), 2);
+        assert_eq!(
+            wrapped.capabilities(),
+            inner.capabilities(),
+            "H-1: the decorator must forward `capabilities()` verbatim"
+        );
+        assert!(
+            wrapped.capabilities().declared,
+            "`declared` must survive decoration"
+        );
+    }
+
+    /// `H-1`：协议名同样必须转发（日志与 `Capabilities::unknown` 都用它）。
+    #[test]
+    fn h1_decorator_forwards_protocol_name() {
+        let wrapped = RetryProvider::new(Arc::new(DeclaringProvider), 2);
+        assert_eq!(wrapped.protocol_name(), "declaring");
+    }
+
+    /// `H-1`：`last_retry_after()` 也必须透出去（**嵌套包装**时否则断链）。
+    #[test]
+    fn h1_decorator_forwards_retry_after_hint() {
+        struct HintProvider;
+        #[async_trait]
+        impl Provider for HintProvider {
+            async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+                Ok(ChatResponse::default())
+            }
+            async fn stream(
+                &self,
+                _req: &ChatRequest,
+            ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+                Ok(Box::pin(stream::iter(vec![])))
+            }
+            fn last_retry_after(&self) -> Option<Duration> {
+                Some(Duration::from_secs(7))
+            }
+        }
+        let wrapped = RetryProvider::new(Arc::new(HintProvider), 2);
+        assert_eq!(
+            wrapped.last_retry_after(),
+            Some(Duration::from_secs(7)),
+            "H-1: the retry hint must survive decoration (nested wrapping)"
+        );
+    }
+
+    // ── H-2：HTTP-date 年份溢出（外部审计发现；本条为**负例**） ─────────────
+    //
+    // 实测过的缺陷：`year` 只解析不校验 ⇒ 巨年份让 `days_from_civil` 的 `era * 146_097`
+    // **i64 溢出**（debug 直接 panic：`attempt to multiply with overflow`；release 回绕）。
+
+    /// **负例**：巨年份 / i64 上界 / 负年份 → **不 panic**，且**返回 `None`**（不猜、不造语义）。
+    #[test]
+    fn h2_absurd_years_return_none_without_panicking() {
+        for y in [
+            "99999999999",          // 11 位
+            "9223372036854775807",  // i64::MAX
+            "-9223372036854775808", // i64::MIN
+            "-99999999999",         // 大负年份
+            "0",                    // 0 年（非 4 位有效年）
+            "999",                  // 3 位
+            "10000",                // 5 位
+        ] {
+            let s = format!("Wed, 21 Oct {y} 07:28:00 GMT");
+            let got = parse_retry_after(&s, 0);
+            assert_eq!(
+                got, None,
+                "year `{y}` must be treated as MALFORMED (got {got:?}); \
+                 silently degrading it to 0 would fabricate a `retry immediately` semantic"
+            );
+        }
+    }
+
+    /// 正向对照：**合法 4 位年**仍须照常解析（不得因加锁而误伤）。
+    #[test]
+    fn h2_valid_four_digit_years_still_parse() {
+        let base = 1_445_412_480i64; // 2015-10-21T07:28:00Z
+        assert_eq!(
+            parse_retry_after("Wed, 21 Oct 2015 07:28:00 GMT", base),
+            Some(Duration::ZERO)
+        );
+        assert_eq!(
+            parse_retry_after("Wed, 21 Oct 2015 07:28:20 GMT", base),
+            Some(Duration::from_secs(20))
+        );
+        // 边界年：1000 与 9999 都属合法 4 位年（不得被新锁误杀）。
+        for y in ["1000", "9999"] {
+            let s = format!("Wed, 21 Oct {y} 07:28:00 GMT");
+            assert!(
+                parse_retry_after(&s, base).is_some(),
+                "year `{y}` is a valid 4-digit IMF-fixdate year"
+            );
+        }
+    }
+
+    /// 溢出兜底：即便将来放宽年份断言，也必须**饱和**而非回绕。
+    #[test]
+    fn h2_arithmetic_is_saturating_not_wrapping() {
+        // 直接驱动内部换算，确认饱和语义（不 panic、不出现负值）。
+        let days = days_from_civil(9999, 12, 31);
+        let secs = days
+            .saturating_mul(86_400)
+            .saturating_add(23_i64.saturating_mul(3_600));
+        assert!(secs > 0, "far-future date must stay positive, got {secs}");
+        let d = parse_retry_after("Fri, 31 Dec 9999 23:59:59 GMT", 0);
+        assert_eq!(
+            d,
+            Some(MAX_RETRY_AFTER),
+            "a far-future valid date must be CAPPED, not overflowed"
+        );
+    }
 
     /// ① 缺失/空 → `None`（调用方回落到本地退避）。
     #[test]

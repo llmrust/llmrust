@@ -32,7 +32,7 @@
 - 守溥问：**"你说的这些里面也包含 llmrust 的能力不足的问题吗？"**
   → 实测：llmrust **有电表、没开关**——能读到 `cache_read_input_tokens` / `cache_creation_input_tokens`（计量），
   但 `ChatRequest` 无缓存字段、`ContentPart` 只有 Text/ImageUrl、Anthropic `build_body` 不引用 `extra`，
-  **发不出 `cache_control`**（`E:\llmrust\llmrust-0.1.3`，pin `=0.1.3`）。
+  **发不出 `cache_control`**（`本地 llmrust 检出（0.1.3）`，pin `=0.1.3`）。
 - 守溥更正：**"llmrust 是我们自己的开源项目不是别人的，他也是为了做这个项目我独立出来的"**
   → 因此这不是"求上游"，而是**我们自己的一个工作项**（另一个仓、自己的发版）。
 
@@ -440,7 +440,7 @@ Claude · GPT · Qwen（通义）· 智谱 GLM · DeepSeek · **MiMo（小米）
 
 ## 十四、各家缓存能力的**官方口径**汇总（2026-09-10 逐家抓官方文档实测）
 
-> 抓取方式：Node `fetch`（走 OpenSSL，绕开沙箱 schannel 限制）；落地文本存 `D:\mimo\tmp/*.txt` 可复核。
+> 抓取方式：Node `fetch`（走 OpenSSL，绕开沙箱 schannel 限制）；落地文本存 `本地临时目录/*.txt` 可复核。
 > **本节是表的取值依据**；凡与本节冲突的第三方数据（LiteLLM 等），**以本节为准**。
 
 | 厂商 | 缓存**模式** | **读价倍率** | **写价倍率** | **最小可缓存** | **有效期/淘汰** | 匹配规则 | 数据来源 |
@@ -522,8 +522,8 @@ OpenCode Zen（官方网关）：
 
 | 参考系 | 字段 | 位置 |
 |---|---|---|
-| **pi**（TS，`E:\pi-a\pi-main`） | `cost { input, output, cacheRead, cacheWrite, cacheWrite1h? }`；注释明写 "**Only Anthropic reports this split**" | `packages/ai/src/types.ts:370-387` |
-| **maka**（TS，`D:\yanjiua\maka`） | `PricingConfig { modelKey, inputUsdPer1M, outputUsdPer1M, **cacheReadUsdPer1M**, **cacheWriteUsdPer1M** }` | `packages/core/src/usage-stats/types.ts`（表在 `runtime/src/telemetry/builtin-pricing.ts`） |
+| **pi**（TS，`本地 pi 参考克隆`） | `cost { input, output, cacheRead, cacheWrite, cacheWrite1h? }`；注释明写 "**Only Anthropic reports this split**" | `packages/ai/src/types.ts:370-387` |
+| **maka**（TS，`本地 maka 参考克隆`） | `PricingConfig { modelKey, inputUsdPer1M, outputUsdPer1M, **cacheReadUsdPer1M**, **cacheWriteUsdPer1M** }` | `packages/core/src/usage-stats/types.ts`（表在 `runtime/src/telemetry/builtin-pricing.ts`） |
 | **LiteLLM**（Python） | `input_cost_per_token / output_cost_per_token / **cache_read_input_token_cost** / **cache_creation_input_token_cost**` | `model_prices_and_context_window.json` |
 
 ⇒ 我们表里的 `prompt_price / completion_price / cache_read_price / cache_write_price_5m / cache_write_price_1h(Option)` **与三家同构**；
@@ -580,7 +580,7 @@ compat.supportsCacheControlOnTools ? cacheControl : undefined
 
 ---
 
-## 十六、LiteLLM 实读（已克隆至 `D:\anjiullm\litellm`，2026-09-10）
+## 十六、LiteLLM 实读（已克隆至 `本地 LiteLLM 参考克隆`，2026-09-10）
 
 ### 16-1 缓存注入的**生产级硬约束**（比厂商文档更硬，直接可抄）
 
@@ -886,45 +886,45 @@ pub const ACCESS_PATHS: &[AccessPath] = &[ /* zai-global, glm-cn, dashscope-cn, 
 > **取数方式说明**：本执行环境里 `curl` / PowerShell 抓 HTTPS 会因 **Windows 证书库不可达**失败
 > （实测 `curl: (35) schannel: AcquireCredentialsHandle failed: SEC_E_NO_CREDENTIALS`）；
 > 且 DNS 常被本机代理接管（`platform.stepfun.com → 198.18.0.71`，Clash 类 fake-IP 段）。
-> **破法**：改用 **Node 自带 TLS**（`node fetch`）抓取 → 落地为文本文件（存 `D:\mimo\tmp\` 与 `D:\mimo\tmp\off\`）。
-> 抓取脚本：`D:\mimo\tmp\grab.js`（单页 + 关键词抽取）与 `D:\mimo\tmp\fetchmany.js`（批量）。
+> **破法**：改用 **Node 自带 TLS**（`node fetch`）抓取 → 落地为文本文件（存 `本地临时目录\` 与 `本地抓取产物目录（不入库）\`）。
+> 抓取脚本：`（本地单页抓取脚本）`（单页 + 关键词抽取）与 `（本地批量抓取脚本）`（批量）。
 
 | # | 数据点 | 值 | 来源（URL） | 落地文件 | 取数方式 |
 |---|---|---|---|---|---|
-| 1 | 阶跃**缓存是自动的**、最小 256、读价 **20%**、LRU、官方建议"保持前缀稳定" | 见 §十四 | `https://platform.stepfun.com/docs/zh/guides/developer/prompt-cache` | `D:\mimo\tmp\stepfun-cache.txt` | `node grab.js <url> stepfun-cache 缓存,命中,…` |
-| 2 | 阶跃 **step-3.7-flash 定价**：输入 1.35 元 / **命中 0.27 元** / 输出 8.1 元（每 M） | 0.2× | `https://platform.stepfun.com/docs/zh/guides/pricing/details` | `D:\mimo\tmp\off\stepfun-price.txt` | `node fetchmany.js` |
-| 3 | Anthropic：显式**+自动**、读 0.1×（Fable/Mythos 0.025×）、写 1.25×(5m)/2×(1h)、命中免费续期、4 断点 | 见 §十四 | `https://platform.claude.com/docs/en/build-with-claude/prompt-caching` | `D:\mimo\tmp\off\anthropic-cache.txt`（62k 字符） | Node fetch |
-| 4 | OpenAI：自动、**最高省 90%**、**GPT-5.6 起写 1.25×**、`prompt_cache_key`、延长保留 **≤24h** | 见 §十四 | `https://developers.openai.com/api/docs/guides/prompt-caching` | `D:\mimo\tmp\off\openai-cache.txt`（53k） | Node fetch |
-| 5 | DeepSeek：**缓存前缀单元**整块匹配、按固定间隔落盘、双 base URL（OpenAI/Anthropic） | 见 §十四 | `https://api-docs.deepseek.com/guides/kv_cache`、`/quick_start/pricing` | `D:\mimo\tmp\deepseek-cache.txt`、`off\deepseek-price.txt` | Node fetch |
+| 1 | 阶跃**缓存是自动的**、最小 256、读价 **20%**、LRU、官方建议"保持前缀稳定" | 见 §十四 | `https://platform.stepfun.com/docs/zh/guides/developer/prompt-cache` | `本地临时目录\stepfun-cache.txt` | `node grab.js <url> stepfun-cache 缓存,命中,…` |
+| 2 | 阶跃 **step-3.7-flash 定价**：输入 1.35 元 / **命中 0.27 元** / 输出 8.1 元（每 M） | 0.2× | `https://platform.stepfun.com/docs/zh/guides/pricing/details` | `本地抓取产物目录（不入库）\stepfun-price.txt` | `node fetchmany.js` |
+| 3 | Anthropic：显式**+自动**、读 0.1×（Fable/Mythos 0.025×）、写 1.25×(5m)/2×(1h)、命中免费续期、4 断点 | 见 §十四 | `https://platform.claude.com/docs/en/build-with-claude/prompt-caching` | `本地抓取产物目录（不入库）\anthropic-cache.txt`（62k 字符） | Node fetch |
+| 4 | OpenAI：自动、**最高省 90%**、**GPT-5.6 起写 1.25×**、`prompt_cache_key`、延长保留 **≤24h** | 见 §十四 | `https://developers.openai.com/api/docs/guides/prompt-caching` | `本地抓取产物目录（不入库）\openai-cache.txt`（53k） | Node fetch |
+| 5 | DeepSeek：**缓存前缀单元**整块匹配、按固定间隔落盘、双 base URL（OpenAI/Anthropic） | 见 §十四 | `https://api-docs.deepseek.com/guides/kv_cache`、`/quick_start/pricing` | `本地临时目录\deepseek-cache.txt`、`off\deepseek-price.txt` | Node fetch |
 | 6 | DeepSeek 价格：flash 命中 **$0.003** / 未命中 $0.15 / 输出 $0.6（per 1M）；context **1M**、max output **384K** | ≈0.02× | 同上 `quick_start/pricing` | 同上 | Node fetch |
-| 7 | 通义：**隐式自动（20%）+ 显式（125% 写 / 10% 读 / 5 分钟）**、最小 **1024**、三种协议都支持、`prompt_tokens_details.cached_tokens` | 见 §十四 | `https://help.aliyun.com/zh/model-studio/context-cache` | `D:\mimo\tmp\qwen-cache.txt`（36k） | Node fetch |
-| 8 | 智谱：**隐式自动**、命中 **"通常为标准价格的 50%"**、差异化计费（新内容标准价） | 0.5× | `https://docs.bigmodel.cn/cn/guide/capabilities/cache` | `D:\mimo\tmp\zhipu-cache.txt` | Node fetch |
-| 9 | xAI：**自动**、要求"**match exactly**"、缓存按折扣计费；grok-4.6 定价 输入 $2.00 / **缓存 $0.50** / 输出 $6.00（≥200k 翻倍） | 0.25× | `https://docs.x.ai/developers/advanced-api-usage/prompt-caching`、`https://docs.x.ai/developers/pricing` | `D:\mimo\tmp\off\xai-cache2.txt`、`off\xai-price.txt` | Node fetch |
+| 7 | 通义：**隐式自动（20%）+ 显式（125% 写 / 10% 读 / 5 分钟）**、最小 **1024**、三种协议都支持、`prompt_tokens_details.cached_tokens` | 见 §十四 | `https://help.aliyun.com/zh/model-studio/context-cache` | `本地临时目录\qwen-cache.txt`（36k） | Node fetch |
+| 8 | 智谱：**隐式自动**、命中 **"通常为标准价格的 50%"**、差异化计费（新内容标准价） | 0.5× | `https://docs.bigmodel.cn/cn/guide/capabilities/cache` | `本地临时目录\zhipu-cache.txt` | Node fetch |
+| 9 | xAI：**自动**、要求"**match exactly**"、缓存按折扣计费；grok-4.6 定价 输入 $2.00 / **缓存 $0.50** / 输出 $6.00（≥200k 翻倍） | 0.25× | `https://docs.x.ai/developers/advanced-api-usage/prompt-caching`、`https://docs.x.ai/developers/pricing` | `本地抓取产物目录（不入库）\xai-cache2.txt`、`off\xai-price.txt` | Node fetch |
 | 10 | MiMo：`mimo-v2.5-pro` 国内 ¥3.00 → **命中 ¥0.025** / 输出 ¥6.00；海外 $0.435 → **$0.0036** / $0.87 | ≈0.0083× | `https://mimo.mi.com/docs/price/pay-as-you-go` | 搜索返回正文（该页为 SPA，Node 直抓只得 16 字符） | `web_search` 返回的正文 |
-| 11 | CommandCode：Provider 档端点三枚、"bill at the underlying API rates"、覆盖 Claude/GPT/Gemini/开源、套餐 Go/GOAT/Pro/**Provider $15**/Max | 见 §十四附 | `https://commandcode.ai/docs/provider`、`/docs/resources/pricing-limits` | `D:\mimo\tmp\off\cmdcode-provider.txt`、`off\cmdcode-price.txt` | Node fetch |
-| 12 | OpenCode Zen：官方自述 "**an AI gateway**"、"zero markups"、端点 `opencode.ai/zen/v1` | 见 §十四附 | `https://opencode.ai/docs/zen/` | `D:\mimo\tmp\off\opencode-zen.txt` | Node fetch |
+| 11 | CommandCode：Provider 档端点三枚、"bill at the underlying API rates"、覆盖 Claude/GPT/Gemini/开源、套餐 Go/GOAT/Pro/**Provider $15**/Max | 见 §十四附 | `https://commandcode.ai/docs/provider`、`/docs/resources/pricing-limits` | `本地抓取产物目录（不入库）\cmdcode-provider.txt`、`off\cmdcode-price.txt` | Node fetch |
+| 12 | OpenCode Zen：官方自述 "**an AI gateway**"、"zero markups"、端点 `opencode.ai/zen/v1` | 见 §十四附 | `https://opencode.ai/docs/zen/` | `本地抓取产物目录（不入库）\opencode-zen.txt` | Node fetch |
 
 ### 19-2 第三方成品（C 级）——来源、以及**用它做了什么/没做什么**
 
 | 来源 | 位置 | 我用它得到了什么 | **明确不做**的 |
 |---|---|---|---|
-| **LiteLLM 价格/能力总表** | `gh api repos/BerriAI/litellm/contents/model_prices_and_context_window.json -H 'Accept: application/vnd.github.raw'` → `D:\mimo\tmp\litellm-prices.json`（**2.25 MB / 3886 条**，PS 需 `ConvertFrom-Json -AsHashtable`，否则"大小写重名键"报错） | 交叉校对：xAI 0.16×(grok-3)、StepFun 0.2×(转售行)、GLM/通义的价格量级；**证明"读价逐家不同"** | **不用它做定值**（其行多为第三方转售/托管，见 §18-1） |
-| **LiteLLM 源码（已克隆）** | `D:\anjiullm\litellm`（`git clone --depth 1`，**10,697 文件**，约 120 家 provider 目录） | 缓存注入**硬约束**：`litellm/integrations/anthropic_cache_control_hook.py`（`MAX_CACHE_CONTROL_BLOCKS = 4` 及上游报错原文、`OPENAI_PROMPT_CACHE_BREAKPOINT_MIN_GPT_VERSION=(5,6)`、`CACHE_BREAKPOINT_KEYS`、块类型白名单）；provider 目录覆盖清单（§16-3） | 不照抄它的 Python 形态（守溥令：要用 Rust 红利） |
-| **LiteLLM 的 Rust 版** | `D:\anjiullm\litellm\litellm-rust\`（`ADDING_A_PROVIDER.md`、`crates/{core,ai-gateway,config,python-bridge,python-interop}`） | 加厂商**流程**（路由/契约/厂商 `const` 配置/prepare+handler）与**编码标准原文**（§16-2） | 同左 |
-| **pi** | `E:\pi-a\pi-main`（真身；`D:\mimo\reference\pi` 是**空壳**，只有 23 个文件，`packages/agent` 无 `src`） | 计费字段 `cost{input,output,cacheRead,cacheWrite,cacheWrite1h?}`（`packages/ai/src/types.ts:370-387`）；缓存三档 `CacheRetention`（`:102`）与打点约定（`packages/ai/src/api/anthropic-messages.ts` `getCacheControl`）；**~40 家 provider 各一对文件**（`providers/<v>.models.ts` + `<v>.ts`）；数据由 `scripts/generate-models.ts` 从 **models.dev** 生成 | 不照抄 TS 的运行时表达 |
-| **maka** | `D:\yanjiua\maka`（真身） | 定价表**两级结构**（生成 + 人工补充 + 用户覆盖）：`packages/runtime/src/telemetry/builtin-pricing.ts`；能力元数据字段：`packages/core/src/model-metadata.ts`（`lifecycle/contextWindow/maxOutputTokens/knowledgeCutoff/isFree/capabilities/thinkingOptions`）；**路径别名归一** `GENERATED_METADATA_PROVIDER_ALIASES` | 同左 |
-| **另一个开源 agent（Reasonix）的预设表** | `gh api repos/esengine/DeepSeek-Reasonix/contents/internal/config/provider_presets.go -H 'Accept: application/vnd.github.raw'` → `D:\mimo\tmp\reasonix-presets.go`（40.6 KB，**46 个预设**） | **协议 × 渠道 × 区域**的分解证据：`mimo-api`/`mimo-anthropic`、`glm-cn`/`zai-global`、`qwen-cn`/`qwen-global`、`opencode-zen-anthropic`；各家 base_url 与 key_env（§12-2） | 不作定值来源 |
+| **LiteLLM 价格/能力总表** | `gh api repos/BerriAI/litellm/contents/model_prices_and_context_window.json -H 'Accept: application/vnd.github.raw'` → `本地临时目录\litellm-prices.json`（**2.25 MB / 3886 条**，PS 需 `ConvertFrom-Json -AsHashtable`，否则"大小写重名键"报错） | 交叉校对：xAI 0.16×(grok-3)、StepFun 0.2×(转售行)、GLM/通义的价格量级；**证明"读价逐家不同"** | **不用它做定值**（其行多为第三方转售/托管，见 §18-1） |
+| **LiteLLM 源码（已克隆）** | `本地 LiteLLM 参考克隆`（`git clone --depth 1`，**10,697 文件**，约 120 家 provider 目录） | 缓存注入**硬约束**：`litellm/integrations/anthropic_cache_control_hook.py`（`MAX_CACHE_CONTROL_BLOCKS = 4` 及上游报错原文、`OPENAI_PROMPT_CACHE_BREAKPOINT_MIN_GPT_VERSION=(5,6)`、`CACHE_BREAKPOINT_KEYS`、块类型白名单）；provider 目录覆盖清单（§16-3） | 不照抄它的 Python 形态（守溥令：要用 Rust 红利） |
+| **LiteLLM 的 Rust 版** | `本地 LiteLLM 参考克隆\litellm-rust\`（`ADDING_A_PROVIDER.md`、`crates/{core,ai-gateway,config,python-bridge,python-interop}`） | 加厂商**流程**（路由/契约/厂商 `const` 配置/prepare+handler）与**编码标准原文**（§16-2） | 同左 |
+| **pi** | `本地 pi 参考克隆`（真身；`本地 reference/pi 副本` 是**空壳**，只有 23 个文件，`packages/agent` 无 `src`） | 计费字段 `cost{input,output,cacheRead,cacheWrite,cacheWrite1h?}`（`packages/ai/src/types.ts:370-387`）；缓存三档 `CacheRetention`（`:102`）与打点约定（`packages/ai/src/api/anthropic-messages.ts` `getCacheControl`）；**~40 家 provider 各一对文件**（`providers/<v>.models.ts` + `<v>.ts`）；数据由 `scripts/generate-models.ts` 从 **models.dev** 生成 | 不照抄 TS 的运行时表达 |
+| **maka** | `本地 maka 参考克隆`（真身） | 定价表**两级结构**（生成 + 人工补充 + 用户覆盖）：`packages/runtime/src/telemetry/builtin-pricing.ts`；能力元数据字段：`packages/core/src/model-metadata.ts`（`lifecycle/contextWindow/maxOutputTokens/knowledgeCutoff/isFree/capabilities/thinkingOptions`）；**路径别名归一** `GENERATED_METADATA_PROVIDER_ALIASES` | 同左 |
+| **另一个开源 agent（Reasonix）的预设表** | `gh api repos/esengine/DeepSeek-Reasonix/contents/internal/config/provider_presets.go -H 'Accept: application/vnd.github.raw'` → `本地临时目录\reasonix-presets.go`（40.6 KB，**46 个预设**） | **协议 × 渠道 × 区域**的分解证据：`mimo-api`/`mimo-anthropic`、`glm-cn`/`zai-global`、`qwen-cn`/`qwen-global`、`opencode-zen-anthropic`；各家 base_url 与 key_env（§12-2） | 不作定值来源 |
 
 ### 19-3 我方实测（B 级）——本项目树上的证据
 
 | 结论 | 命令（可复跑） | 位置 |
 |---|---|---|
-| llmrust **有电表、没开关** | `git grep -c cache_control/cache_read/cache_creation` 于 `E:\llmrust\llmrust-0.1.3` | `src/providers/anthropic.rs:403-443`、`compat.rs:150-160,395-403` |
+| llmrust **有电表、没开关** | `git grep -c cache_control/cache_read/cache_creation` 于 `本地 llmrust 检出（0.1.3）` | `src/providers/anthropic.rs:403-443`、`compat.rs:150-160,395-403` |
 | Anthropic 请求体**无缓存字段**、`extra` 被忽略 | 读 `fn build_body` | `src/providers/anthropic.rs` `AnthropicRequest` 字段表（§二 表） |
 | 内容块**只有 Text/ImageUrl** | 读 `pub enum ContentPart` | `src/types.rs:127` |
 | `system` **只能是字符串** | 读结构体 | `src/providers/anthropic.rs:45` |
 | 上游**主干也没有**发送侧 | `gh api repos/llmrust/llmrust/contents/src/providers/anthropic.rs`（base64 解码）→ `cache_control`=0、`ephemeral`=0 | 主干 `96bc1be` |
-| 本地 llmrust 与远端**完全对齐** | `git fetch` 后 `git rev-list --left-right --count origin/main...main` = `0 0` | `E:\llmrust\llmrust-0.1.3` |
+| 本地 llmrust 与远端**完全对齐** | `git fetch` 后 `git rev-list --left-right --count origin/main...main` = `0 0` | `本地 llmrust 检出（0.1.3）` |
 | 主项目**默认模型** = `stepfun/step-3.7-flash` | 读 `config/settings.json` | `yesagent/config/settings.json` |
 | 我方代码已引 `openrouter` **26 处**（按"只支持官方"属待清账） | `Select-String -Path crates,config -Pattern openrouter` | `coding-agent/src/model/{mod.rs,tests_thinking_formats.rs}`、`yesagent-ai/src/model_registry/compat.rs` |
 | 我方前缀稳定性 5✅2⚠️ | 见前次审计（`active: Vec` 而非 HashMap 遍历等） | `crates/agent-core/src/tool/registry.rs:11-13,36-46,65-100` |
@@ -961,7 +961,7 @@ pub const ACCESS_PATHS: &[AccessPath] = &[ /* zai-global, glm-cn, dashscope-cn, 
 | **`eviction`** | **LRU**（高峰期更易被逐出；官方建议"尽可能保持 Prompt 前缀稳定"） | 同上 |
 | 命中判据 | `usage.cached_tokens` | 同上 |
 | 官方实测效果 | 591 输入 → 命中 512 → 计费 79（**降 88%**） | 同上 |
-| 抓取日 | **2026-09-10**（Node fetch；落地 `D:\mimo\tmp\stepfun-cache.txt`、`off\stepfun-price.txt`） | §十九 |
+| 抓取日 | **2026-09-10**（Node fetch；落地 `本地临时目录\stepfun-cache.txt`、`off\stepfun-price.txt`） | §十九 |
 
 ⇒ **结论：支持（Auto / 0.2× / 256 min / LRU）**。**AC-16 在默认模型上不会白干**；
 且因为是**自动缓存**，主项目在默认配置下**只需保前缀稳定**，**连断点都不用打**。

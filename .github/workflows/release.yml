@@ -1,4 +1,4 @@
-name: Release (tag: validate; publish via Trusted Publishing)
+name: Release — tag-triggered, validates the tag and publishes via Trusted Publishing
 
 # REL-001 (Issue #97) / REL-003A (Issue #191): tag-triggered release pipeline.
 #

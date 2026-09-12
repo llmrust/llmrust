@@ -62,7 +62,10 @@
 
 1. 上游现在"能力"是靠**运行时字符串**表达的——`LlmError::Unsupported { feature: String, message: String }`，
    provider 默认实现返回它。**TypeScript/Python 只能这么干，Rust 不该这么干。**
-2. 上游**没有机读的能力/定价表**：`docs/CAPABILITIES.md` 是 164 行散文；全仓没有
+2. 上游**没有机读的能力/定价表**：`docs/CAPABILITIES.md` 当时是 **164 行**散文
+   （**本稿写作时快照**；**2026-09-11 复测 = 209 行**）。**该缺口已被 `CAP-006`/`CAP-007` 部分关闭**：
+   现文件的能力矩阵**由 `llmrust.models.json` 生成并受门禁保护**（人工改一字即红），
+   另新增"验证层级（SPCC §6.2）"一节。**逐段归属未测量，故不声称各行来自哪张卡**。全仓没有
    `context_window` / `max_output` 一类结构化表（仅 3 处零散命中）。
 3. 上游**定价只有两个价**：`ModelPricing { prompt_per_1k, completion_per_1k }`，
    且**它自己的注释写着**"不覆盖 provider-specific discounts、cached-token rates、rounding"。

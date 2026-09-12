@@ -226,11 +226,22 @@ jobs:
       - name: Verify crate visible on crates.io (bounded poll)
         run: |
           VER="${GITHUB_REF#refs/tags/v}"
-          for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          # INC-003 (2026-09-12): the 0.1.4 release UPLOADED SUCCESSFULLY but this step
+          # reported failure. Two defects fixed here:
+          #   1. `curl` sent no User-Agent. crates.io's API requires one and answers
+          #      non-200 without it, so the poll could NEVER succeed. (REL-005 step ③ had
+          #      this item booked from 0.1.3 as "发布可见性轮询 300s"; it was not fixed
+          #      before the tag, so it fired on the very first real release.)
+          #   2. The budget was 30x10s = 300s; now 60x10s = 600s, per REL-005 step ③.
+          # Also: the last status code is now REPORTED on failure, so a future failure is
+          # diagnosable instead of just "not visible".
+          UA="llmrust-release-verify/1.0 (+https://github.com/llmrust/llmrust)"
+          STATUS=""
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -A "$UA" \
               "https://crates.io/api/v1/crates/llmrust/${VER}" || true)
             [ "$STATUS" = "200" ] && { echo "::notice::crate ${VER} visible on crates.io (poll ${i})"; exit 0; }
             sleep 10
           done
-          echo "::error::crate ${VER} not visible on crates.io after 300s"
+          echo "::error::crate ${VER} not visible on crates.io after 600s (last HTTP status: ${STATUS:-none}; a non-200 with a valid User-Agent is the diagnostic to check first)"
           exit 1

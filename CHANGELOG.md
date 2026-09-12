@@ -346,6 +346,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   现在 `RetryProvider` **转发** `capabilities()` / `protocol_name()` / `last_retry_after()`
   （后者修复**嵌套包装**时的提示断链）。**行为变更**：开了 `with_retry()` 的客户端，
   对"已声明 unsupported"的能力重新**响亮拒绝**（与未开重试时一致）——这是**恢复**既有承诺，不是新增限制。
+- **门禁卫生：负例的判定改由逻辑给出，而非时钟或进程全局状态（编号待改，见 PR）**：外部审计第 4 项
+  （"门禁负例补真"）。实测到两类缺陷并已修：
+  ① **计时型判定**——`serve_rejects_blank_or_empty_key` 原先用「**2 秒**内是否返回」判定
+  `serve()` 是否拒绝空白 key，**红/绿取决于机器负载**（实测在负载下误红）；现在判定走
+  **纯函数** `key_is_acceptable`（确定性、无时钟），集成断言只保留 **30 秒死锁安全网**。
+  ② **进程全局状态**——`std::env::set_var`/`remove_var` 影响**同进程内并发运行的所有测试**；
+  三处改 env 的测试（空白 key、body 上限、公网地址拒绝）现统一持 `ENV_LOCK` **串行化**
+  （其中第三处**是新增的门抓出来的**：手工 grep 只看到调用点、没归到所属测试）。
+  **新增机器门** `tests/test_hygiene_guard.rs`（已按约定登记进 `guard_registry.json`）：
+  ① 任何改动进程环境变量的函数必须持 `ENV_LOCK`；② 测试里的 `timeout(...)` 低于 **30 秒**
+  即判红（短超时=延迟断言）。**修机制而非修实例**：将来再写这类测试会**当场变红**。
+  两条判据均**注入验红**通过；门自身排除自己（夹具是"坏代码作为数据"），
+  且**排除名单被钉死为恰好一个文件**，防悄悄扩大。
 
 ### Changed
 

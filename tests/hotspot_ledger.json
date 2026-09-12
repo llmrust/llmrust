@@ -2,7 +2,7 @@
   "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task or an architect-written exception explicitly authorizes a transition. Do not inflate a number to turn a guard green. PROCESS LESSON (CI-003 PR #95): after any `cargo fmt` auto-fix, the architecture guards MUST be re-run locally before pushing; a fmt-driven reflow once silently broke the hotspot baseline. THRESHOLD (2026-09-11, #209): raised to the Owner rule — every `src/**/*.rs` file must stay under 500 lines; the threshold is a single source of truth here and must match SPCC §4.4. Coverage is now BIDIRECTIONAL: a file at or above `threshold` that has no key under `baseline_lines` is a violation (previously only listed files were checked, so an unlisted oversized file could grow or shrink silently — e.g. ollama.rs at 805).",
   "threshold": 500,
   "baseline_lines": {
-    "src/proxy/mod.rs": 3740,
+    "src/proxy/mod.rs": 3770,
     "src/proxy/anthropic_proxy.rs": 1886,
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 1513,
@@ -399,6 +399,14 @@
       "new": 3740,
       "reason": "H-3-number-pending (external audit; the proxy DTO `cache` silent-drop defect, NOT the H-3 body — see PR): `ProxyChatRequest` had no `cache` field and the path has no `deny_unknown_fields`, so serde silently ignored a client-supplied `cache`, returning 200 with NO breakpoints set. Now the key is detected in the raw Value and REFUSED with 400 before dispatch (zero upstream), pointing the caller at the library API — the same pattern this file already uses for `reasoning_*`. Giving the DTO a real field was rejected because the semver gate flags `constructible_struct_adds_field` as breaking. +182 wc -l measured, overwhelmingly tests.",
       "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」(external audit item; number to be reassigned by Owner/Architect) — ledger adjustment per §11.1.4",
+      "date": "2026-09-12"
+    },
+    {
+      "file": "src/proxy/mod.rs",
+      "old": 3740,
+      "new": 3770,
+      "reason": "Audit item 4 / H-4-family (pre-REL-004 gate-hygiene fix, second step of a chain on this file): the blank-key gate's verdict was TIMING-based (`tokio::time::timeout(2s, serve(..))`) — measured to red spuriously under load — and three tests mutated process-global env without serialization. Fix: the decision moved into a pure predicate `key_is_acceptable` (shared by `serve()` and the test, so the test drives the real logic), the integration assertion keeps a 30s deadlock safety net instead of a latency budget, and the env-mutating tests (blank key, body limit, public-addr refusal — the third one FOUND BY the new gate in this same PR, not by hand) all hold `ENV_LOCK`. +30 wc -l measured ON THE POST-MERGE TREE (standalone measured +30 as well; recorded against the merged baseline because the cache fix landed first).",
+      "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」(audit item 4: 门禁负例补真) — ledger adjustment per §11.1.4",
       "date": "2026-09-12"
     }
   ]

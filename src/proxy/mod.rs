@@ -611,6 +611,15 @@ fn is_loopback_addr(addr: &str) -> bool {
 
 /// Bind to `addr` and serve the proxy with graceful shutdown.
 ///
+/// Is a configured proxy key acceptable? (`PRX-002`, SPCC §7.1)
+///
+/// **Pure on purpose.** `H-4`(审计第 4 项)：此前的门用「2 秒墙钟内是否返回」来判定
+/// `serve()` 是否拒绝空白 key —— 那让**红/绿取决于机器负载**（实测在负载下误红）。
+/// 把判定抽成纯函数后，测试可以**确定性地**断言逻辑，而集成断言只留"不 hang"的安全网。
+fn key_is_acceptable(key: &str) -> bool {
+    !key.trim().is_empty()
+}
+
 /// Authentication policy (M2-20 — secure by default):
 /// - If `LLMRUST_PROXY_KEY` is set and non-empty, bearer-token auth is required.
 /// - If no token is set, the proxy is only served when `addr` is a **loopback**
@@ -622,7 +631,7 @@ pub async fn serve(llm: Arc<LmrsClient>, addr: &str) -> std::io::Result<()> {
         // PRX-002 (SPCC §7.1): a set-but-empty/whitespace key must fail at
         // startup — never silently downgrade to unauthenticated, never treat
         // whitespace as a valid secret.
-        Ok(s) if s.trim().is_empty() => {
+        Ok(s) if !key_is_acceptable(&s) => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
                 "LLMRUST_PROXY_KEY is set but empty or whitespace-only; \
@@ -1395,6 +1404,11 @@ mod tests {
     }
 
     /// Mock provider that returns a fixed response, for proxy tests.
+    /// **进程环境变量是全局状态**：`std::env::set_var` / `remove_var` 会影响**同一进程内
+    /// 并发运行的所有测试**（`H-4`：这是与"共享 `static` 捕获槽"同类的并行隐患）。
+    /// 凡改动进程环境变量的测试**必须**持有此锁。
+    static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
     struct MockProvider;
 
     /// `H-3`：记录收到的 `ChatRequest.cache`，用于证明代理**真的转发了**缓存策略。
@@ -2425,6 +2439,9 @@ mod tests {
     #[tokio::test]
     async fn serve_refuses_unauthenticated_on_public_addr() {
         // Guarantee no token is present for this test.
+        // H-4：**改动进程环境变量 ⇒ 必须持锁**（否则与其它改 env 的测试互相干扰；
+        // 本处由 `tests/gate_hygiene.rs` 的机器门抓出——grep 只看到调用点、没归到所属测试）。
+        let _guard = ENV_LOCK.lock().await;
         std::env::remove_var("LLMRUST_PROXY_KEY");
         let llm = Arc::new(LmrsClient::new());
         // `0.0.0.0` binds every interface (public) — must be refused without a token.
@@ -3287,37 +3304,46 @@ mod tests {
     }
 
     /// `serve()` must refuse to start when `LLMRUST_PROXY_KEY` is set but
-    /// empty or whitespace-only (SPCC §7.1). Currently `.filter(!is_empty)`
-    /// treats a whitespace token as valid and an empty one as unauthenticated
-    /// — so serve() starts (and blocks on the listener) instead of failing
-    /// fast. RED until the guard returns an io error promptly.
+    /// empty or whitespace-only (SPCC §7.1).
+    ///
+    /// **H-4（审计第 4 项）改写**：原版用「2 秒墙钟内是否返回」判定——**红/绿取决于负载**
+    /// （实测在负载下误红，见 PR）。现在**判定走纯函数**（确定性），集成断言只保留
+    /// 「不 hang」的安全网（**30 秒**，只防死锁、**不**作为延迟断言），并与其他改动
+    /// 进程环境变量的测试共用 `ENV_LOCK` 串行化。
     #[tokio::test]
     async fn serve_rejects_blank_or_empty_key() {
+        // ① 判定面：纯函数，与 `serve()` 用的是**同一逻辑**（确定性、无时钟、无环境）。
+        for key in ["", " ", "   ", "\t", "\n", " \t\n "] {
+            assert!(
+                !key_is_acceptable(key),
+                "{key:?} must be rejected by the same predicate `serve()` uses"
+            );
+        }
+        assert!(key_is_acceptable("secret-token-123"));
+
+        // ② 集成面：`serve()` 必须**返回 Err**（不绑定端口）。超时仅作**死锁安全网**。
+        // `ENV_LOCK` 是 **tokio 的 Mutex**（本测试要跨 `await` 持有它，std 的会被 clippy
+        // 判 `await_holding_lock`——那是真隐患，不靠 `#[allow]` 糊）。
+        let _guard = ENV_LOCK.lock().await;
         for key in ["", "   "] {
             std::env::set_var("LLMRUST_PROXY_KEY", key);
             let llm = Arc::new(LmrsClient::new());
-            // A correct implementation returns Err promptly without binding.
-            // The current code instead starts serving and blocks, so the
-            // timeout fires → the test fails (RED) with the "must refuse"
-            // assertion message.
-            let outcome =
-                tokio::time::timeout(std::time::Duration::from_secs(2), serve(llm, "127.0.0.1:0"))
-                    .await;
+            let outcome = tokio::time::timeout(
+                std::time::Duration::from_secs(30),
+                serve(llm, "127.0.0.1:0"),
+            )
+            .await;
+            std::env::remove_var("LLMRUST_PROXY_KEY");
             match outcome {
+                Ok(Err(_)) => { /* correct: refused to start */ }
                 Ok(Ok(_)) => {
-                    std::env::remove_var("LLMRUST_PROXY_KEY");
                     panic!("serve started successfully with set-but-empty/whitespace key ({key:?})")
                 }
-                Ok(Err(_)) => { /* correct: refused to start */ }
-                Err(_) => {
-                    std::env::remove_var("LLMRUST_PROXY_KEY");
-                    panic!(
-                        "serve blocked (started serving) instead of refusing \
-                         set-but-empty/whitespace key ({key:?})"
-                    )
-                }
+                Err(_) => panic!(
+                    "serve BLOCKED for 30s instead of refusing ({key:?}) — \
+                     this is a hang, not a latency measurement"
+                ),
             }
-            std::env::remove_var("LLMRUST_PROXY_KEY");
         }
     }
 
@@ -3697,6 +3723,10 @@ mod tests {
     /// 413 shape is covered by the oversized-body tests at the default 2 MiB.
     #[test]
     fn env_configured_body_limit_is_read() {
+        // H-4：改动**进程**环境变量 ⇒ 必须与其它同类测试串行（`ENV_LOCK`）。
+        // 原先注释说"window is one function call"——但**并行**下另一个测试可能在你
+        // 读之前改掉同一个变量，那不是"窗口窄"能防住的。故上锁。
+        let _guard = ENV_LOCK.blocking_lock();
         std::env::set_var("LLMRUST_PROXY_MAX_BODY_BYTES", "1024");
         // Read immediately after set (window is one function call).
         assert_eq!(proxy_max_body_bytes(), 1024);

@@ -326,7 +326,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   （实测 `attempt to multiply with overflow`），release 回绕。现加 **4 位年边界**（`1000..=9999`，
   依 RFC 9110 `year = 4DIGIT`）⇒ 越界返回"不可解析"（回落本地退避），**不把畸形日期降级成"立刻重试"**；
   另以**饱和算术**兜底。合法 4 位年行为不变。
-- **代理不再静默丢弃 `cache`（`H-3` 编号待改，见 PR）**：`CAP-005` 给 `ChatRequest` 加了 `cache` 字段，但代理 DTO
+- **代理不再静默丢弃 `cache`（编号待改，见 PR）**：`CAP-005` 给 `ChatRequest` 加了 `cache` 字段，但代理 DTO
   `ProxyChatRequest` **没有**它，而该路径**未启用 `deny_unknown_fields`** ⇒ 客户端向代理发
   `"cache": {"retention": …}` 会被 serde **静默忽略**：**响应 200 成功、断点一个没设**
   （§6.3 禁止的"降级到调用方无从察觉"；对"省钱"目标尤其危险——看着生效、实则零收益）。
@@ -338,6 +338,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   故本版采用与本文件 `reasoning` 键**完全一致**的既有做法（检出即 400）。
   **行为变更（wire 面）**：此前发 `cache` 得 200（且无效），现在得 400（并说明去向）；
   **不发的客户端行为不变**，其它未知键**仍照常容忍**（未引入 `deny_unknown_fields`）。
+- **`with_retry()` 不再让能力裁决失效（`H-1`）**：`LmrsClient::with_retry()` 会把每个 provider 包进
+  `RetryProvider`，而该装饰器**没有转发 `capabilities()` / `protocol_name()`** ⇒ 裁决（`CAP-003`）
+  拿到的是**默认实现**（`declared == false`）⇒ 判为"未声明能力"⇒ **只 warn、不 Reject**。
+  后果是**真回归**：实测 Ollama + `tools` 在裸 provider 下返回 `Unsupported`，
+  而**包上 retry 后请求被发往网络**（生产中即 `tools` 又被静默丢弃）。
+  现在 `RetryProvider` **转发** `capabilities()` / `protocol_name()` / `last_retry_after()`
+  （后者修复**嵌套包装**时的提示断链）。**行为变更**：开了 `with_retry()` 的客户端，
+  对"已声明 unsupported"的能力重新**响亮拒绝**（与未开重试时一致）——这是**恢复**既有承诺，不是新增限制。
 
 ### Changed
 

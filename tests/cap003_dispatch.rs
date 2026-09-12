@@ -301,3 +301,48 @@ fn ollama_declaration_is_the_basis_for_the_rejections() {
     assert_ne!(caps.chat.level, CapabilityLevel::Unsupported);
     assert_ne!(caps.stream.level, CapabilityLevel::Unsupported);
 }
+
+// ── H-1：CAP-003 的保护必须**穿过装饰器**（`with_retry`） ─────────────────
+//
+// 实测过的回归：`LmrsClient::with_retry()` 会把每个 provider 包进 `RetryProvider`，
+// 而该装饰器**没有转发 `capabilities()`** ⇒ 裁决拿到默认实现（`declared == false`）
+// ⇒ 判为"未声明能力"⇒ **只 warn、不 Reject**：Ollama + `tools` **重新变成发往网络**
+// （生产中即"静默丢弃"回归）。本测试钉住"穿过装饰器后仍拒绝"。
+
+#[tokio::test]
+async fn ollama_tools_are_still_rejected_after_with_retry() {
+    let client = LmrsClient::new();
+    client
+        .set_ollama(Some("http://127.0.0.1:1".to_string()))
+        .await;
+
+    let mut req = ChatRequest::new("m", "hi");
+    req.tools = Some(vec![Tool {
+        tool_type: "function".to_string(),
+        function: llmrust::types::FunctionDef {
+            name: "f".to_string(),
+            description: None,
+            parameters: serde_json::json!({"type": "object"}),
+        },
+    }]);
+
+    // 基线：裸 provider 下必须拒绝（`CAP-003` 既有行为）。
+    let bare = client.chat_with("ollama/llama3", req.clone()).await;
+    assert!(
+        matches!(bare, Err(LlmError::Unsupported { .. })),
+        "baseline (no retry) must reject; got {bare:?}"
+    );
+
+    // 关键：包上 retry 之后**仍然**必须拒绝（H-1 回归点）。
+    client.with_retry(2).await;
+    let wrapped = client.chat_with("ollama/llama3", req).await;
+    match wrapped {
+        Err(LlmError::Unsupported { feature, .. }) => {
+            assert_eq!(feature, "tool_calling", "the capability face must be preserved");
+        }
+        other => panic!(
+            "H-1: `with_retry()` must NOT disable the CAP-003 rejection; got {other:?} \
+             (a network error here means the request was dispatched — i.e. tools silently dropped again)"
+        ),
+    }
+}

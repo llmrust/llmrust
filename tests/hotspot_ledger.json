@@ -12,7 +12,7 @@
     "src/router.rs": 1231,
     "src/providers/ollama.rs": 830,
     "src/lib.rs": 839,
-    "src/providers/retry.rs": 865,
+    "src/providers/retry.rs": 970,
     "src/providers/capabilities.rs": 712
   },
   "adjustments": [
@@ -381,15 +381,23 @@
       "file": "src/providers/retry.rs",
       "old": 783,
       "new": 865,
-      "reason": "H-2 (external audit, pre-REL-004 fix): `http_date_to_unix` parsed the year as `i64` with NO range check (day/hour/minute/second all had one). With an absurd year the `era * 146_097` term in `days_from_civil` overflowed i64 — reproduced in-repo: `year = i64::MAX` → panic `attempt to multiply with overflow` at retry.rs:172 (debug), wrap-around in release. Fix: a 4-digit year bound (`1000..=9999`, per RFC 9110's `year = 4DIGIT`) returning `None`, plus saturating arithmetic as defence-in-depth. The bounded range is deliberate: silently degrading a malformed date to 0 would assert `retry immediately` — the same class of fabricated semantics as ERR-003. +82 wc -l measured, almost entirely the three tests (absurd years → None without panic, valid 4-digit years unaffected, saturating arithmetic) and the rationale comment.",
+      "reason": "H-2 (external audit, pre-REL-004 fix): `http_date_to_unix` parsed the year as `i64` with NO range check (day/hour/minute/second all had one). With an absurd year the `era * 146_097` term in `days_from_civil` overflowed i64 — reproduced in-repo: `year = i64::MAX` → panic `attempt to multiply with overflow` at retry.rs:172 (debug), wrap-around in release. Fix: a 4-digit year bound (`1000..=9999`, per RFC 9110's `year = 4DIGIT`) returning `None`, plus saturating arithmetic as defence-in-depth. The bounded range is deliberate: silently degrading a malformed date to 0 would assert `retry immediately` — the same class of fabricated semantics as ERR-003. +82 wc -l measured standalone; this entry is the H-2 step of a two-step chain on this file (H-1 follows).",
       "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」(audit item H-2) — ledger adjustment per §11.1.4",
+      "date": "2026-09-11"
+    },
+    {
+      "file": "src/providers/retry.rs",
+      "old": 865,
+      "new": 970,
+      "reason": "H-1 (external audit, pre-REL-004 fix): `RetryProvider` is a `Provider` decorator, and `LmrsClient::with_retry()` wraps EVERY registered provider with it — but the decorator did not forward `capabilities()` / `protocol_name()` / `last_retry_after()`. Two measured consequences: (a) capability adjudication (CAP-003) received the DEFAULT declaration (`declared == false`), so a provider that explicitly declares a face `unsupported` was reclassified as `undeclared` and merely warned about instead of rejected — end-to-end, Ollama + `tools` returned `Unsupported` bare but was DISPATCHED TO THE NETWORK once `with_retry()` was on, i.e. the CAP-003 fix silently regressed; (b) `last_retry_after()` returned `None` through the decorator, breaking the ERR-004 hint chain for nested wrapping. Fix: forward all three. +105 wc -l measured ON THE POST-MERGE TREE (H-1 alone measured +104; the second step of the chain is recorded against the merged baseline).",
+      "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」(audit item H-1) — ledger adjustment per §11.1.4",
       "date": "2026-09-11"
     },
     {
       "file": "src/proxy/mod.rs",
       "old": 3558,
       "new": 3740,
-      "reason": "H-3-number-pending (external audit; the proxy DTO `cache` silent-drop defect, NOT the H-3 body — see PR): `ProxyChatRequest` had no `cache` field and the path has no `deny_unknown_fields`, so serde silently ignored a client-supplied `cache`, returning 200 with NO breakpoints set. Now the key is detected in the raw Value and REFUSED with 400 before dispatch (zero upstream), pointing the caller at the library API — the same pattern this file already uses for `reasoning_*`. Giving the DTO a real field was rejected because the semver gate flags `constructible_struct_adds_field` as breaking. +182 wc -l measured, overwhelmingly tests: a per-instance `CacheCapturingProvider` (the first version used a `static` slot, which made the tests interfere under parallelism — a test defect, fixed by per-instance capture) plus three tests (refused before dispatch, absent → 200, other unknown keys still tolerated).",
+      "reason": "H-3-number-pending (external audit; the proxy DTO `cache` silent-drop defect, NOT the H-3 body — see PR): `ProxyChatRequest` had no `cache` field and the path has no `deny_unknown_fields`, so serde silently ignored a client-supplied `cache`, returning 200 with NO breakpoints set. Now the key is detected in the raw Value and REFUSED with 400 before dispatch (zero upstream), pointing the caller at the library API — the same pattern this file already uses for `reasoning_*`. Giving the DTO a real field was rejected because the semver gate flags `constructible_struct_adds_field` as breaking. +182 wc -l measured, overwhelmingly tests.",
       "authorized_by": "Owner 2026-09-11 order「不留负债，走 A——先修完再发」(external audit item; number to be reassigned by Owner/Architect) — ledger adjustment per §11.1.4",
       "date": "2026-09-12"
     }

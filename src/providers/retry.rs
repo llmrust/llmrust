@@ -380,6 +380,30 @@ impl Provider for RetryProvider {
         }
         unreachable!("retry loop always returns on the final attempt")
     }
+
+    /// `H-1`：**装饰器必须转发被包 provider 的能力声明**。
+    ///
+    /// 不转发时，`LmrsClient::adjudicate`（`CAP-003`）拿到的是**默认实现**——
+    /// `declared == false` ⇒ 裁决判为"未声明能力"⇒ **只 warn、不 Reject**
+    /// ⇒ **开着 `with_retry()` 的客户端里，CAP-003 的保护静默失效**
+    /// （实测：Ollama + `tools` 在裸 provider 下返回 `Unsupported`，包上 retry 后**变成发往网络**）。
+    fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
+        self.inner.capabilities()
+    }
+
+    /// `H-1`：同上，转发协议名（日志与 `Capabilities::unknown` 都用它）。
+    fn protocol_name(&self) -> &'static str {
+        self.inner.protocol_name()
+    }
+
+    /// `H-1`：转发上游 `Retry-After` 提示。
+    ///
+    /// `RetryProvider` 自己的重试循环读的是 `self.inner.last_retry_after()`（见上），
+    /// 但**嵌套包装**（retry 套 retry）或**外层还要读它**时，本方法必须把内层的值透出去，
+    /// 否则链断在装饰器这一层。
+    fn last_retry_after(&self) -> Option<std::time::Duration> {
+        self.inner.last_retry_after()
+    }
 }
 
 #[cfg(test)]
@@ -393,6 +417,86 @@ mod tests {
     //
     // 五类：① 无头/空 → None；② delay-seconds；③ HTTP-date；④ 畸形 → None；
     //       ⑤ 夸张值 → **截顶**（卡内禁止"无上限等待"）。
+
+    // ── H-1：装饰器必须转发能力声明（否则 CAP-003 的保护静默失效） ─────────
+
+    /// 一个最小 provider，用来验证装饰器**转发**被包对象的能力声明。
+    struct DeclaringProvider;
+
+    #[async_trait]
+    impl Provider for DeclaringProvider {
+        async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+            Ok(ChatResponse::default())
+        }
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            Ok(Box::pin(stream::iter(vec![])))
+        }
+        fn protocol_name(&self) -> &'static str {
+            "declaring"
+        }
+        fn capabilities(&self) -> crate::providers::capabilities::Capabilities {
+            let mut c = crate::providers::capabilities::Capabilities::unknown("declaring");
+            c.declared = true;
+            c.tool_calling = crate::providers::capabilities::Capability::unsupported();
+            c
+        }
+    }
+
+    /// `H-1`：包了 retry 之后，**能力声明必须与内层逐位相同**（尤其 `declared`）。
+    ///
+    /// 修复前：`RetryProvider` 不实现 `capabilities()` ⇒ 落到默认实现 ⇒ `declared == false`
+    /// ⇒ `CAP-003` 裁决把"已明确声明 unsupported"误判为"未声明" ⇒ **只 warn、不 Reject**。
+    #[test]
+    fn h1_decorator_forwards_capability_declaration() {
+        let inner = DeclaringProvider;
+        let wrapped = RetryProvider::new(Arc::new(DeclaringProvider), 2);
+        assert_eq!(
+            wrapped.capabilities(),
+            inner.capabilities(),
+            "H-1: the decorator must forward `capabilities()` verbatim"
+        );
+        assert!(
+            wrapped.capabilities().declared,
+            "`declared` must survive decoration"
+        );
+    }
+
+    /// `H-1`：协议名同样必须转发（日志与 `Capabilities::unknown` 都用它）。
+    #[test]
+    fn h1_decorator_forwards_protocol_name() {
+        let wrapped = RetryProvider::new(Arc::new(DeclaringProvider), 2);
+        assert_eq!(wrapped.protocol_name(), "declaring");
+    }
+
+    /// `H-1`：`last_retry_after()` 也必须透出去（**嵌套包装**时否则断链）。
+    #[test]
+    fn h1_decorator_forwards_retry_after_hint() {
+        struct HintProvider;
+        #[async_trait]
+        impl Provider for HintProvider {
+            async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+                Ok(ChatResponse::default())
+            }
+            async fn stream(
+                &self,
+                _req: &ChatRequest,
+            ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+                Ok(Box::pin(stream::iter(vec![])))
+            }
+            fn last_retry_after(&self) -> Option<Duration> {
+                Some(Duration::from_secs(7))
+            }
+        }
+        let wrapped = RetryProvider::new(Arc::new(HintProvider), 2);
+        assert_eq!(
+            wrapped.last_retry_after(),
+            Some(Duration::from_secs(7)),
+            "H-1: the retry hint must survive decoration (nested wrapping)"
+        );
+    }
 
     // ── H-2：HTTP-date 年份溢出（外部审计发现；本条为**负例**） ─────────────
     //
@@ -460,6 +564,7 @@ mod tests {
         );
     }
 
+    /// ① 缺失/空 → `None`（调用方回落到本地退避）。
     #[test]
     fn retry_after_absent_or_empty_yields_none() {
         assert_eq!(parse_retry_after("", 0), None);

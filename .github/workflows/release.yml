@@ -9,8 +9,10 @@ name: Release — tag-triggered, validates the tag and publishes via Trusted Pub
 #     (`cargo publish --dry-run`, no upload) and `publish` (the REAL
 #     `cargo publish`, via Trusted Publishing / OIDC). The real-upload job was
 #     added by REL-003A; the earlier "no-upload only" header was stale.
-#   * Permissions are read-only by default. The `release` environment gates the
-#     **`publish` job** (the one that really uploads) with **required reviewers**.
+#   * Permissions are read-only by default. The `release` environment gates BOTH
+#     the `dry-run` job AND the **`publish` job** (the one that really uploads) with
+#     **required reviewers** — so an operator is prompted TWICE: the FIRST approval
+#     lets the dry-run proceed (no upload), the SECOND is the irreversible upload.
 #     **Do not remove that protection rule**: measured on 2026-09-12 it was
 #     EMPTY (`protection_rules: []`), i.e. a tag push would have uploaded
 #     immediately with no human gate; it has since been configured

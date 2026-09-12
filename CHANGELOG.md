@@ -5,6 +5,144 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-09-12
+
+> **本段由各任务卡逐条追加，`REL-004` 定稿时补上日期并上移为首段。**
+> 置于文件末尾是**故意的**：`tests/agent_docs_validation.rs` 要求第一个 `## [` 标题
+> 必须是 `## [0.1.3] - 2026-08-03`，且不得出现"未发布"段（方括号 Unreleased 形式）。
+
+### Fixed
+
+- **解析失败不再静默（`ERR-001`）**：工具调用参数若不是合法 JSON，llmrust 仍**降级为空对象发出**
+  （**成功路径行为零变化**），但**现在会留下 `tracing::warn` 痕迹**——只含工具名与错误位置，
+  **不含参数原文 / prompt / 凭证**。涉及 Anthropic 与 Gemini 的**请求构建**，以及 Anthropic
+  **代理的响应转换**（此处原先静默改写的是**上游返回**的工具参数，调用方无从察觉）。
+  另：HTTP 客户端构建失败时的回落**现在写明丢失了哪些配置**
+  （`connect_timeout` / `timeout` / `pool_max_idle_per_host` / `tcp_keepalive` / `no_proxy` / 自定义头），
+  并按卡片要求附上**"降级而非传播错误"的书面理由**（签名连锁代价 + 降级后客户端仍可用）。
+
+- **`Retry-After` 的 HTTP-date 形态：年份越界不再 panic（`H-2`）**：`year` 此前只解析不校验，
+  巨年份（如 `i64::MAX`）会让 `days_from_civil` 的 `era * 146_097` **i64 溢出**——debug 直接 panic
+  （实测 `attempt to multiply with overflow`），release 回绕。现加 **4 位年边界**（`1000..=9999`，
+  依 RFC 9110 `year = 4DIGIT`）⇒ 越界返回"不可解析"（回落本地退避），**不把畸形日期降级成"立刻重试"**；
+  另以**饱和算术**兜底。合法 4 位年行为不变。
+- **代理不再静默丢弃 `cache`（编号待改，见 PR）**：`CAP-005` 给 `ChatRequest` 加了 `cache` 字段，但代理 DTO
+  `ProxyChatRequest` **没有**它，而该路径**未启用 `deny_unknown_fields`** ⇒ 客户端向代理发
+  `"cache": {"retention": …}` 会被 serde **静默忽略**：**响应 200 成功、断点一个没设**
+  （§6.3 禁止的"降级到调用方无从察觉"；对"省钱"目标尤其危险——看着生效、实则零收益）。
+  **现在：响亮拒绝**——代理在**派发前**检出该键并返回 **400**，错误体指明"用库内 API 设置
+  `ChatRequest.cache`"，**零上游派发**。
+  **为什么不直接让代理支持它**：给公开 DTO 加字段是 `constructible_struct_adds_field`，
+  CI 的 `API-002 semver 门`判为**破坏性变更**（实测 `field ProxyChatRequest.cache` ⇒
+  `semver requires new major version`）——**代理 DTO 并不豁免于该门**。
+  故本版采用与本文件 `reasoning` 键**完全一致**的既有做法（检出即 400）。
+  **行为变更（wire 面）**：此前发 `cache` 得 200（且无效），现在得 400（并说明去向）；
+  **不发的客户端行为不变**，其它未知键**仍照常容忍**（未引入 `deny_unknown_fields`）。
+- **`with_retry()` 不再让能力裁决失效（`H-1`）**：`LmrsClient::with_retry()` 会把每个 provider 包进
+  `RetryProvider`，而该装饰器**没有转发 `capabilities()` / `protocol_name()`** ⇒ 裁决（`CAP-003`）
+  拿到的是**默认实现**（`declared == false`）⇒ 判为"未声明能力"⇒ **只 warn、不 Reject**。
+  后果是**真回归**：实测 Ollama + `tools` 在裸 provider 下返回 `Unsupported`，
+  而**包上 retry 后请求被发往网络**（生产中即 `tools` 又被静默丢弃）。
+  现在 `RetryProvider` **转发** `capabilities()` / `protocol_name()` / `last_retry_after()`
+  （后者修复**嵌套包装**时的提示断链）。**行为变更**：开了 `with_retry()` 的客户端，
+  对"已声明 unsupported"的能力重新**响亮拒绝**（与未开重试时一致）——这是**恢复**既有承诺，不是新增限制。
+- **门禁卫生：负例的判定改由逻辑给出，而非时钟或进程全局状态（编号待改，见 PR）**：外部审计第 4 项
+  （"门禁负例补真"）。实测到两类缺陷并已修：
+  ① **计时型判定**——`serve_rejects_blank_or_empty_key` 原先用「**2 秒**内是否返回」判定
+  `serve()` 是否拒绝空白 key，**红/绿取决于机器负载**（实测在负载下误红）；现在判定走
+  **纯函数** `key_is_acceptable`（确定性、无时钟），集成断言只保留 **30 秒死锁安全网**。
+  ② **进程全局状态**——`std::env::set_var`/`remove_var` 影响**同进程内并发运行的所有测试**；
+  三处改 env 的测试（空白 key、body 上限、公网地址拒绝）现统一持 `ENV_LOCK` **串行化**
+  （其中第三处**是新增的门抓出来的**：手工 grep 只看到调用点、没归到所属测试）。
+  **新增机器门** `tests/test_hygiene_guard.rs`（已按约定登记进 `guard_registry.json`）：
+  ① 任何改动进程环境变量的函数必须持 `ENV_LOCK`；② 测试里的 `timeout(...)` 低于 **30 秒**
+  即判红（短超时=延迟断言）。**修机制而非修实例**：将来再写这类测试会**当场变红**。
+  两条判据均**注入验红**通过；门自身排除自己（夹具是"坏代码作为数据"），
+  且**排除名单被钉死为恰好一个文件**，防悄悄扩大。
+- **Anthropic 代理：未知的上游终结原因不再原样回显进 `stop_reason`（`H-3` 本体）**：
+  此前 `normalize_stop_reason` 对未列入映射的分支走 `other => other.as_str().to_string()`，
+  于是**上游/调用方可控的任意字符串被原样写进 Anthropic 的 `stop_reason`**：
+  Gemini 的 `FINISH_REASON_UNSPECIFIED`（`ERR-003` 起改走 `Other(..)`）会原样泄出，
+  实测 `Other("../../../etc/passwd")` 同样泄出；而 Anthropic 的 `stop_reason` 是**枚举**
+  （`end_turn`/`max_tokens`/`stop_sequence`/`tool_use`/`pause_turn`/`refusal`），回显任意串**违反下游 schema**。
+  **现在**：未知 ⇒ **`stop_reason: null`**（Anthropic wire 上的合法表达），并**留 `tracing::warn` 痕迹**
+  （原始串**截断**记录，依 `ERR-002` 的 ≤200 口径，**不留无界内容**）。
+  **为什么不挑一个值**：把"未知"写成 `end_turn` 等于**编造"正常结束"**——与 `ERR-003` 同类错误。
+  **顺带修正**：`ContentFilter` 此前回显为 `"content_filter"`（**非** Anthropic 取值），现为 **`refusal`**。
+  **行为变更（wire 面）**：① 未知终结原因的 `stop_reason` 由"任意串"变为 **`null`**；
+  ② 内容过滤由 `"content_filter"` 变为 **`"refusal"`**。已列映射的 5 类**行为不变**。
+  流式路径同步修正：`finish_reason` **缺失**时仍按既有 `has_tools` 合成（行为不变），
+  而 `finish_reason = Some(未知)` 时**不再回退到合成值**（否则即上面那条"编造"）。
+
+### Changed
+
+- **Proxy 认证：校验与存储对 trim 现在一致（`ERR-005` / `F-D2`）**：此前 `router_with_auth` **校验**用
+  `token.trim().is_empty()`，**存储**却保留原始串；而请求侧比对的是 `provided.trim()`。
+  于是**配置里带前后空白的 token 会让任何客户端都 401**（`Bearer secret` 与 `Bearer   secret  ` 同样失败），
+  排障时表现为"token 明明没错却连不上"——也正是 `FIX-001` 要求先行排除的干扰项。
+  处置选择 **规范化（trim）而非拒绝**，理由：① 比对侧本就在 trim，"比 trim 后的形态"是代码既有意图，
+  trim 存储正是让两侧一致（本卡目标）；② 拒绝会把现有带空白的部署从"能跑"变成**启动即 panic**，破坏更大；
+  ③ **未降低认证强度**——除配置密钥自身的 trim 形态外，没有任何原本被拒的 token 变成可用
+  （RFC 6750 的 `b64token` 本不允许空格，带空白属畸形配置而非合法密钥）；
+  ④ **常数时间比对未改动**。规范化实际发生时**留 `tracing::warn` 痕迹**（**不打印 token 值本身**）。
+- **消费上游 `Retry-After`（`ERR-004`）**：`RetryProvider` 现在**优先采用上游明示的等待窗口**
+  （0.1.3 期从不读取该头，全仓 `retry.?after` 零命中），退避日志新增 `delay_source`
+  （`"upstream"` / `"local"`）使**窗口来源可观测**。支持 RFC 9110 的**两种格式**
+  （`delay-seconds` 与 `HTTP-date`）；**等待窗口上限 60 秒**（防恶意/异常超长值钉死客户端）；
+  畸形/缺失值回落本地退避（不猜、不 panic）；`0` 秒提示尊重但下限 1ms（不忙等）。
+  **承载方式为纯附加**：走**带默认实现的 trait 方法** `Provider::last_retry_after()`，
+  **不改 `LlmError`**（该枚举与其 `Api` 变体都不是 `#[non_exhaustive]`，加字段/加变体对下游
+  都是破坏性变更，卡内明禁"破坏错误类型形状"）。
+  **`should_retry` 对 429 的既有设计未被推翻**（同一部署不重试限流目标）；**failover 仍不等待**
+  （换到另一个未被限流的部署才是正确响应），其日志记录 `waits_for_upstream = false` 与理由。
+  **覆盖面（已记录，非静默）**：捕获接在**共享的 OpenAI 兼容路径**上，覆盖
+  `openai` / `deepseek` / `moonshot` / `openrouter`；Anthropic / Gemini / Ollama 的错误构造路径
+  独立，**尚未提供**提示，行为与 0.1.3 完全一致。
+- **Gemini `FINISH_REASON_UNSPECIFIED` 不再当成"正常结束"（`ERR-003`）**：该值此前被映射为
+  `FinishReason::Stop`——把**缺失信息**当成了"模型正常结束"的**断言**，调用方会据此以为生成完整。
+  现在它走 `FinishReason::Other("FINISH_REASON_UNSPECIFIED")` **逃生口**，语义原样保留；
+  流终止判定（`done`）**行为不变**（`Other(..)` 仍是 `Some(..)`）；
+  **`FinishReason` 变体集合未变**（新增变体对下游是 breaking，§5.3 禁止）。
+  **同族缺口（本版未修、已记录）**：`ollama.rs` 在上游缺 `done_reason` 时用
+  `.unwrap_or(FinishReason::Stop)`——同一类"缺失即视为正常结束"，经**字段缺失**而非显式
+  `UNSPECIFIED` 抵达；因本卡禁止改动其他 Provider 的映射，故仅登记为后续发现。
+- **错误分类保真与错误体上界（`ERR-002`）**：`Router` 的 failover 日志不再把 `error_kind`
+  **硬编码为 `api_error`**，改为反映真实分类（`authentication_error` / `rate_limit_error` /
+  `invalid_request_error` / `api_error` / `connection_error` / `stream_error` / `parse_error` /
+  `unknown_provider` / `unsupported`）——0.1.3 期"限流 / 连接失败 / 上游 5xx / provider 未注册"
+  在日志里**全是一个样**，排障无从区分。
+- **代理错误体的 ≤200 字符上界现在对全部路径生效**（`FND-R3`）：此前 `UnknownProvider`
+  （载荷是**调用方可控**的 `provider/model` 串）与 `Unsupported` 两条分支**未截断**，
+  属无界反射、且与注释宣称的"唯一机械规则"不符。截断改为**结构性**（移出 `match`，只做一次），
+  新增分支**无法遗漏**。（注释与实现不符时的处置选择：**改实现**，理由已写入代码注释。）
+- **能力检查上移到统一入口（`CAP-003`）**：`LmrsClient` 在派发前做一次**能力裁决**，
+  依据 `Provider::capabilities()` 的声明决定 **放行 / 告警 / 拒绝**。
+  公开行为变更（**唯一一处**）：
+  - 对**声明该能力为 `unsupported`** 的 Provider 发送相应诉求时，现在返回
+    `LlmError::Unsupported`，而**不再是静默丢弃**。当前受影响的具体情形：
+    **Ollama + `tools`**（非流式 → `feature = "tool_calling"`；流式 → `"tool_calling_stream"`）、
+    **Ollama + 图像输入**（`feature = "image_input"`）。
+  - **已支持路径行为零变化**：裁决表为空时不产生任何副作用；
+    `n > 1` 仍是"放行 + 一次性告警"（`CAP-003` 未改此语义）。
+- **告警去重口径**：由 `(provider, n)` 改为 `(provider, capability-face)`，
+  且只在入口判一次——`RetryProvider` 重入**不再重复告警**。
+
+### Added
+
+- **`Provider::capabilities()` 与能力声明载体（`CAP-002`）**：新增 `Capabilities`
+  （`#[non_exhaustive]`）、`Capability`、`CapabilityLevel`（SPCC §6.2 五级）、
+  `EvidenceKind`、`Verified`。`Provider::capabilities()` **带默认实现**，下游自定义
+  Provider 不实现亦不破坏；默认声明保守（全部视为 `unsupported`）并一次性告警。
+- **缓存断点发送能力（`CAP-005`）**：`CachePolicy` / `CacheRetention` 与
+  `ChatRequest.cache`；按库内约定在 `system` 末块、最后一个工具定义、最后一条消息末块
+  打断点；`MAX_CACHE_BREAKPOINTS = 4` 由**编译期断言**保证。
+- **缓存价列（`CAP-006`）**：`CachePricing`（读价 / 写价 5m / 写价 1h）与
+  `ModelPricing::estimate_cost_with_cache`；未配置档**回落 prompt 价，绝不静默免费**。
+- **官方服务商目录（`CAP-006`）**：`AccessPath` / `ModelSpec` 两维模型（8 模型 / 15 条官方路径）。
+- **每模型能力/价格表（`CAP-007`）**：`llmrust.models.json` 为唯一事实源，
+  `docs/CAPABILITIES.md` 中对应区块**由表生成**（人工改动即 CI 红）。
+
+
 ## [0.1.3] - 2026-08-03
 
 ### Added
@@ -302,143 +440,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Stray `test.txt` from the repository root.
-
-## [0.1.4] - UNRELEASED (in progress)
-
-> **本段由各任务卡逐条追加，`REL-004` 定稿时补上日期并上移为首段。**
-> 置于文件末尾是**故意的**：`tests/agent_docs_validation.rs` 要求第一个 `## [` 标题
-> 必须是 `## [0.1.3] - 2026-08-03`，且不得出现"未发布"段（方括号 Unreleased 形式）。
-
-### Fixed
-
-- **解析失败不再静默（`ERR-001`）**：工具调用参数若不是合法 JSON，llmrust 仍**降级为空对象发出**
-  （**成功路径行为零变化**），但**现在会留下 `tracing::warn` 痕迹**——只含工具名与错误位置，
-  **不含参数原文 / prompt / 凭证**。涉及 Anthropic 与 Gemini 的**请求构建**，以及 Anthropic
-  **代理的响应转换**（此处原先静默改写的是**上游返回**的工具参数，调用方无从察觉）。
-  另：HTTP 客户端构建失败时的回落**现在写明丢失了哪些配置**
-  （`connect_timeout` / `timeout` / `pool_max_idle_per_host` / `tcp_keepalive` / `no_proxy` / 自定义头），
-  并按卡片要求附上**"降级而非传播错误"的书面理由**（签名连锁代价 + 降级后客户端仍可用）。
-
-### Fixed
-
-- **`Retry-After` 的 HTTP-date 形态：年份越界不再 panic（`H-2`）**：`year` 此前只解析不校验，
-  巨年份（如 `i64::MAX`）会让 `days_from_civil` 的 `era * 146_097` **i64 溢出**——debug 直接 panic
-  （实测 `attempt to multiply with overflow`），release 回绕。现加 **4 位年边界**（`1000..=9999`，
-  依 RFC 9110 `year = 4DIGIT`）⇒ 越界返回"不可解析"（回落本地退避），**不把畸形日期降级成"立刻重试"**；
-  另以**饱和算术**兜底。合法 4 位年行为不变。
-- **代理不再静默丢弃 `cache`（编号待改，见 PR）**：`CAP-005` 给 `ChatRequest` 加了 `cache` 字段，但代理 DTO
-  `ProxyChatRequest` **没有**它，而该路径**未启用 `deny_unknown_fields`** ⇒ 客户端向代理发
-  `"cache": {"retention": …}` 会被 serde **静默忽略**：**响应 200 成功、断点一个没设**
-  （§6.3 禁止的"降级到调用方无从察觉"；对"省钱"目标尤其危险——看着生效、实则零收益）。
-  **现在：响亮拒绝**——代理在**派发前**检出该键并返回 **400**，错误体指明"用库内 API 设置
-  `ChatRequest.cache`"，**零上游派发**。
-  **为什么不直接让代理支持它**：给公开 DTO 加字段是 `constructible_struct_adds_field`，
-  CI 的 `API-002 semver 门`判为**破坏性变更**（实测 `field ProxyChatRequest.cache` ⇒
-  `semver requires new major version`）——**代理 DTO 并不豁免于该门**。
-  故本版采用与本文件 `reasoning` 键**完全一致**的既有做法（检出即 400）。
-  **行为变更（wire 面）**：此前发 `cache` 得 200（且无效），现在得 400（并说明去向）；
-  **不发的客户端行为不变**，其它未知键**仍照常容忍**（未引入 `deny_unknown_fields`）。
-- **`with_retry()` 不再让能力裁决失效（`H-1`）**：`LmrsClient::with_retry()` 会把每个 provider 包进
-  `RetryProvider`，而该装饰器**没有转发 `capabilities()` / `protocol_name()`** ⇒ 裁决（`CAP-003`）
-  拿到的是**默认实现**（`declared == false`）⇒ 判为"未声明能力"⇒ **只 warn、不 Reject**。
-  后果是**真回归**：实测 Ollama + `tools` 在裸 provider 下返回 `Unsupported`，
-  而**包上 retry 后请求被发往网络**（生产中即 `tools` 又被静默丢弃）。
-  现在 `RetryProvider` **转发** `capabilities()` / `protocol_name()` / `last_retry_after()`
-  （后者修复**嵌套包装**时的提示断链）。**行为变更**：开了 `with_retry()` 的客户端，
-  对"已声明 unsupported"的能力重新**响亮拒绝**（与未开重试时一致）——这是**恢复**既有承诺，不是新增限制。
-- **门禁卫生：负例的判定改由逻辑给出，而非时钟或进程全局状态（编号待改，见 PR）**：外部审计第 4 项
-  （"门禁负例补真"）。实测到两类缺陷并已修：
-  ① **计时型判定**——`serve_rejects_blank_or_empty_key` 原先用「**2 秒**内是否返回」判定
-  `serve()` 是否拒绝空白 key，**红/绿取决于机器负载**（实测在负载下误红）；现在判定走
-  **纯函数** `key_is_acceptable`（确定性、无时钟），集成断言只保留 **30 秒死锁安全网**。
-  ② **进程全局状态**——`std::env::set_var`/`remove_var` 影响**同进程内并发运行的所有测试**；
-  三处改 env 的测试（空白 key、body 上限、公网地址拒绝）现统一持 `ENV_LOCK` **串行化**
-  （其中第三处**是新增的门抓出来的**：手工 grep 只看到调用点、没归到所属测试）。
-  **新增机器门** `tests/test_hygiene_guard.rs`（已按约定登记进 `guard_registry.json`）：
-  ① 任何改动进程环境变量的函数必须持 `ENV_LOCK`；② 测试里的 `timeout(...)` 低于 **30 秒**
-  即判红（短超时=延迟断言）。**修机制而非修实例**：将来再写这类测试会**当场变红**。
-  两条判据均**注入验红**通过；门自身排除自己（夹具是"坏代码作为数据"），
-  且**排除名单被钉死为恰好一个文件**，防悄悄扩大。
-- **Anthropic 代理：未知的上游终结原因不再原样回显进 `stop_reason`（`H-3` 本体）**：
-  此前 `normalize_stop_reason` 对未列入映射的分支走 `other => other.as_str().to_string()`，
-  于是**上游/调用方可控的任意字符串被原样写进 Anthropic 的 `stop_reason`**：
-  Gemini 的 `FINISH_REASON_UNSPECIFIED`（`ERR-003` 起改走 `Other(..)`）会原样泄出，
-  实测 `Other("../../../etc/passwd")` 同样泄出；而 Anthropic 的 `stop_reason` 是**枚举**
-  （`end_turn`/`max_tokens`/`stop_sequence`/`tool_use`/`pause_turn`/`refusal`），回显任意串**违反下游 schema**。
-  **现在**：未知 ⇒ **`stop_reason: null`**（Anthropic wire 上的合法表达），并**留 `tracing::warn` 痕迹**
-  （原始串**截断**记录，依 `ERR-002` 的 ≤200 口径，**不留无界内容**）。
-  **为什么不挑一个值**：把"未知"写成 `end_turn` 等于**编造"正常结束"**——与 `ERR-003` 同类错误。
-  **顺带修正**：`ContentFilter` 此前回显为 `"content_filter"`（**非** Anthropic 取值），现为 **`refusal`**。
-  **行为变更（wire 面）**：① 未知终结原因的 `stop_reason` 由"任意串"变为 **`null`**；
-  ② 内容过滤由 `"content_filter"` 变为 **`"refusal"`**。已列映射的 5 类**行为不变**。
-  流式路径同步修正：`finish_reason` **缺失**时仍按既有 `has_tools` 合成（行为不变），
-  而 `finish_reason = Some(未知)` 时**不再回退到合成值**（否则即上面那条"编造"）。
-
-### Changed
-
-- **Proxy 认证：校验与存储对 trim 现在一致（`ERR-005` / `F-D2`）**：此前 `router_with_auth` **校验**用
-  `token.trim().is_empty()`，**存储**却保留原始串；而请求侧比对的是 `provided.trim()`。
-  于是**配置里带前后空白的 token 会让任何客户端都 401**（`Bearer secret` 与 `Bearer   secret  ` 同样失败），
-  排障时表现为"token 明明没错却连不上"——也正是 `FIX-001` 要求先行排除的干扰项。
-  处置选择 **规范化（trim）而非拒绝**，理由：① 比对侧本就在 trim，"比 trim 后的形态"是代码既有意图，
-  trim 存储正是让两侧一致（本卡目标）；② 拒绝会把现有带空白的部署从"能跑"变成**启动即 panic**，破坏更大；
-  ③ **未降低认证强度**——除配置密钥自身的 trim 形态外，没有任何原本被拒的 token 变成可用
-  （RFC 6750 的 `b64token` 本不允许空格，带空白属畸形配置而非合法密钥）；
-  ④ **常数时间比对未改动**。规范化实际发生时**留 `tracing::warn` 痕迹**（**不打印 token 值本身**）。
-- **消费上游 `Retry-After`（`ERR-004`）**：`RetryProvider` 现在**优先采用上游明示的等待窗口**
-  （0.1.3 期从不读取该头，全仓 `retry.?after` 零命中），退避日志新增 `delay_source`
-  （`"upstream"` / `"local"`）使**窗口来源可观测**。支持 RFC 9110 的**两种格式**
-  （`delay-seconds` 与 `HTTP-date`）；**等待窗口上限 60 秒**（防恶意/异常超长值钉死客户端）；
-  畸形/缺失值回落本地退避（不猜、不 panic）；`0` 秒提示尊重但下限 1ms（不忙等）。
-  **承载方式为纯附加**：走**带默认实现的 trait 方法** `Provider::last_retry_after()`，
-  **不改 `LlmError`**（该枚举与其 `Api` 变体都不是 `#[non_exhaustive]`，加字段/加变体对下游
-  都是破坏性变更，卡内明禁"破坏错误类型形状"）。
-  **`should_retry` 对 429 的既有设计未被推翻**（同一部署不重试限流目标）；**failover 仍不等待**
-  （换到另一个未被限流的部署才是正确响应），其日志记录 `waits_for_upstream = false` 与理由。
-  **覆盖面（已记录，非静默）**：捕获接在**共享的 OpenAI 兼容路径**上，覆盖
-  `openai` / `deepseek` / `moonshot` / `openrouter`；Anthropic / Gemini / Ollama 的错误构造路径
-  独立，**尚未提供**提示，行为与 0.1.3 完全一致。
-- **Gemini `FINISH_REASON_UNSPECIFIED` 不再当成"正常结束"（`ERR-003`）**：该值此前被映射为
-  `FinishReason::Stop`——把**缺失信息**当成了"模型正常结束"的**断言**，调用方会据此以为生成完整。
-  现在它走 `FinishReason::Other("FINISH_REASON_UNSPECIFIED")` **逃生口**，语义原样保留；
-  流终止判定（`done`）**行为不变**（`Other(..)` 仍是 `Some(..)`）；
-  **`FinishReason` 变体集合未变**（新增变体对下游是 breaking，§5.3 禁止）。
-  **同族缺口（本版未修、已记录）**：`ollama.rs` 在上游缺 `done_reason` 时用
-  `.unwrap_or(FinishReason::Stop)`——同一类"缺失即视为正常结束"，经**字段缺失**而非显式
-  `UNSPECIFIED` 抵达；因本卡禁止改动其他 Provider 的映射，故仅登记为后续发现。
-- **错误分类保真与错误体上界（`ERR-002`）**：`Router` 的 failover 日志不再把 `error_kind`
-  **硬编码为 `api_error`**，改为反映真实分类（`authentication_error` / `rate_limit_error` /
-  `invalid_request_error` / `api_error` / `connection_error` / `stream_error` / `parse_error` /
-  `unknown_provider` / `unsupported`）——0.1.3 期"限流 / 连接失败 / 上游 5xx / provider 未注册"
-  在日志里**全是一个样**，排障无从区分。
-- **代理错误体的 ≤200 字符上界现在对全部路径生效**（`FND-R3`）：此前 `UnknownProvider`
-  （载荷是**调用方可控**的 `provider/model` 串）与 `Unsupported` 两条分支**未截断**，
-  属无界反射、且与注释宣称的"唯一机械规则"不符。截断改为**结构性**（移出 `match`，只做一次），
-  新增分支**无法遗漏**。（注释与实现不符时的处置选择：**改实现**，理由已写入代码注释。）
-- **能力检查上移到统一入口（`CAP-003`）**：`LmrsClient` 在派发前做一次**能力裁决**，
-  依据 `Provider::capabilities()` 的声明决定 **放行 / 告警 / 拒绝**。
-  公开行为变更（**唯一一处**）：
-  - 对**声明该能力为 `unsupported`** 的 Provider 发送相应诉求时，现在返回
-    `LlmError::Unsupported`，而**不再是静默丢弃**。当前受影响的具体情形：
-    **Ollama + `tools`**（非流式 → `feature = "tool_calling"`；流式 → `"tool_calling_stream"`）、
-    **Ollama + 图像输入**（`feature = "image_input"`）。
-  - **已支持路径行为零变化**：裁决表为空时不产生任何副作用；
-    `n > 1` 仍是"放行 + 一次性告警"（`CAP-003` 未改此语义）。
-- **告警去重口径**：由 `(provider, n)` 改为 `(provider, capability-face)`，
-  且只在入口判一次——`RetryProvider` 重入**不再重复告警**。
-
-### Added
-
-- **`Provider::capabilities()` 与能力声明载体（`CAP-002`）**：新增 `Capabilities`
-  （`#[non_exhaustive]`）、`Capability`、`CapabilityLevel`（SPCC §6.2 五级）、
-  `EvidenceKind`、`Verified`。`Provider::capabilities()` **带默认实现**，下游自定义
-  Provider 不实现亦不破坏；默认声明保守（全部视为 `unsupported`）并一次性告警。
-- **缓存断点发送能力（`CAP-005`）**：`CachePolicy` / `CacheRetention` 与
-  `ChatRequest.cache`；按库内约定在 `system` 末块、最后一个工具定义、最后一条消息末块
-  打断点；`MAX_CACHE_BREAKPOINTS = 4` 由**编译期断言**保证。
-- **缓存价列（`CAP-006`）**：`CachePricing`（读价 / 写价 5m / 写价 1h）与
-  `ModelPricing::estimate_cost_with_cache`；未配置档**回落 prompt 价，绝不静默免费**。
-- **官方服务商目录（`CAP-006`）**：`AccessPath` / `ModelSpec` 两维模型（8 模型 / 15 条官方路径）。
-- **每模型能力/价格表（`CAP-007`）**：`llmrust.models.json` 为唯一事实源，
-  `docs/CAPABILITIES.md` 中对应区块**由表生成**（人工改动即 CI 红）。
 

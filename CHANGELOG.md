@@ -75,6 +75,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   流式路径同步修正：`finish_reason` **缺失**时仍按既有 `has_tools` 合成（行为不变），
   而 `finish_reason = Some(未知)` 时**不再回退到合成值**（否则即上面那条"编造"）。
 
+- **流式收口冲刷：上游不发 `finish_reason` 时，已累积的 tool_call 参数不再被吞在库内**
+  （0.1.4 发布后、main 上的修复——将随下个发布生效；本仓 CHANGELOG 无独立
+  Unreleased 段，门禁 `changelog_first_heading_matches_cargo_version` 以
+  `Cargo.toml` 版本为 SSOT，故按既有工作流记入当前首段，见该测试与
+  `tests/agent_docs_validation.rs`）：
+  `OpenAiCompatibleProvider`（`src/providers/compat.rs`）此前**只在带 `finish_reason`
+  的帧上冲刷** `ToolCallAccumulator`（`tools.take()`）。但真实上游存在不带
+  `finish_reason` 就干净结束的流式形态（实测 xunfei spark-x2.6：`[DONE]` 已到、
+  参数已完整累积在 accumulator 里，同一请求 `stream=false` 时
+  `finish_reason:"tool_calls"` 正常返回）——参数增量只进不出，**已收到的完整
+  tool_call 被吞在库内、从未成为 `ToolCall`**，下游无从挽救。**现在**：新增
+  `sse_chunk_stream` 组装层，两个干净收口点都冲刷——① `[DONE]` 帧到达（把累积的
+  调用挂到该 done chunk 上）；② 流正常 EOF（无任何终端帧时补一个携带调用的
+  done chunk）。语义约束：**不是**每个 chunk 都冲刷（那会破坏增量累积语义）；
+  冲刷的 done chunk **不伪造 `finish_reason`**（缺席的原因是缺失信息，依
+  `ERR-003` "never invent a reason"）；流上**出现过错误（传输/解析）则一律不冲刷**
+  ——半截参数是调用方的 salvage 职责，llmrust 保持"错误就是错误"。
+  **行为变更**：此前被静默吞掉的调用现在会作为 done chunk 的 `tool_calls` 产出；
+  规矩流（带 `finish_reason`）**行为零变化**。单测 7 条：`[DONE]` 冲刷、干净 EOF
+  冲刷、传输错误不冲刷、解析错误不冲刷、错误后 `[DONE]` 不冲刷、规矩流不变、
+  端到端 axum 流（无 `finish_reason` + `[DONE]` ⇒ 参数完整产出）。
+  `parse_sse_line` 与 `ToolCallAccumulator` 本体未动（纯内部组装层新增），
+  公共 API 无增删改。
+
 ### Changed
 
 - **Proxy 认证：校验与存储对 trim 现在一致（`ERR-005` / `F-D2`）**：此前 `router_with_auth` **校验**用

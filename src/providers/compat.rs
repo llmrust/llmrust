@@ -400,6 +400,115 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
     }
 }
 
+/// Assemble [`StreamChunk`]s from a stream of complete SSE lines (as produced
+/// by [`line_stream`]), threading a [`ToolCallAccumulator`] and closing the
+/// tool-call flush gap at stream end.
+///
+/// A well-behaved OpenAI-compatible stream drains the accumulator onto the
+/// chunk that carries `finish_reason` (inside [`parse_sse_line`]). Two
+/// real-world shapes end without that frame: an upstream that sends `[DONE]`
+/// while the arguments are already fully accumulated (observed on xunfei
+/// spark-x2.6 — the same request with `stream=false` returns
+/// `finish_reason:"tool_calls"` normally), and an upstream that simply closes
+/// the connection. In both cases the accumulated calls are flushed onto the
+/// stream's clean terminal point — the `[DONE]` chunk, or one final `done`
+/// chunk at end-of-stream — with `finish_reason` left absent: an absent reason
+/// is missing information, never invented as `Stop` (ERR-003 / CONTRACTS.md
+/// stream contract rule 8). Nothing drains per chunk, so incremental
+/// accumulation semantics are unchanged, and both flushes are no-ops for
+/// well-behaved streams whose accumulator is empty by then.
+///
+/// A stream that surfaced an error — transport or parse — ends without
+/// flushing: half-finished arguments are the caller's salvage problem, not a
+/// success terminal to fabricate. llmrust keeps "an error is an error"
+/// (CONTRACTS.md stream contract rules 4–5).
+fn sse_chunk_stream<S>(
+    lines: S,
+) -> impl futures::Stream<Item = Result<StreamChunk>> + Send + 'static
+where
+    S: futures::Stream<Item = Result<String>> + Send + 'static,
+{
+    futures::stream::unfold(
+        (lines.boxed(), ToolCallAccumulator::default(), false, false),
+        |(mut lines, mut tools, mut errored, ended)| async move {
+            // `ended` is set only on the error path (no flush afterwards) and
+            // after a terminal flush chunk (no second terminal).
+            if ended {
+                return None;
+            }
+            loop {
+                match lines.next().await {
+                    Some(Ok(line)) => {
+                        let mut chunks = parse_sse_line(&mut tools, &line);
+                        if chunks.iter().any(|c| c.is_err()) {
+                            errored = true;
+                        }
+                        // Flush point 1 — the clean `[DONE]` terminal: a done
+                        // chunk carrying neither `finish_reason` nor calls
+                        // (`parse_sse_line`'s finish_reason drain already
+                        // attached them otherwise). A no-op for well-behaved
+                        // streams, whose accumulator is empty by the time
+                        // `[DONE]` arrives.
+                        if !errored {
+                            for c in chunks.iter_mut().flatten() {
+                                let bare_done =
+                                    c.done && c.finish_reason.is_none() && c.tool_calls.is_none();
+                                if bare_done {
+                                    c.tool_calls = tools.take();
+                                }
+                            }
+                        }
+                        if chunks.is_empty() {
+                            continue;
+                        }
+                        return Some((
+                            futures::stream::iter(chunks),
+                            (lines, tools, errored, ended),
+                        ));
+                    }
+                    Some(Err(e)) => {
+                        // Forward the error, then stop. Deliberately no flush:
+                        // emitting half-finished tool arguments as a done
+                        // chunk would launder an interrupted stream into a
+                        // clean one.
+                        let error: Result<StreamChunk> = Err(e);
+                        return Some((
+                            futures::stream::iter(vec![error]),
+                            (lines, tools, errored, true),
+                        ));
+                    }
+                    None => {
+                        // Flush point 2 — clean end-of-stream with no terminal
+                        // frame at all (no finish_reason, no `[DONE]`): the
+                        // pending calls surface as one final done chunk; an
+                        // empty accumulator (well-behaved stream, or `[DONE]`
+                        // already drained it) ends the stream exactly as
+                        // before. After a surfaced error, never flush.
+                        if errored {
+                            return None;
+                        }
+                        match tools.take() {
+                            Some(calls) => {
+                                let chunk = StreamChunk {
+                                    done: true,
+                                    tool_calls: Some(calls),
+                                    ..Default::default()
+                                };
+                                return Some((
+                                    futures::stream::iter(vec![Ok(chunk)]),
+                                    (lines, tools, errored, true),
+                                ));
+                            }
+                            None => return None,
+                        }
+                    }
+                }
+            }
+        },
+    )
+    .flatten()
+}
+
 /// Translate OpenAI-compatible usage into the frozen `Usage` shape
 /// (REA-003, SPCC §6.4): `prompt_tokens_details.cached_tokens` →
 /// `cache_read_tokens`, `reasoning_tokens` → `reasoning_tokens`; missing
@@ -712,15 +821,7 @@ impl Provider for OpenAiCompatibleProvider {
             .bytes_stream()
             .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
 
-        let stream = line_stream(byte_stream)
-            .scan(ToolCallAccumulator::default(), |tools, line_result| {
-                let chunks = match line_result {
-                    Ok(line) => parse_sse_line(tools, &line),
-                    Err(e) => vec![Err(e)],
-                };
-                futures::future::ready(Some(futures::stream::iter(chunks)))
-            })
-            .flatten();
+        let stream = sse_chunk_stream(line_stream(byte_stream));
 
         Ok(stream.boxed())
     }
@@ -1144,6 +1245,185 @@ mod tests {
         assert!(chunk.done);
     }
 
+    #[tokio::test]
+    async fn stream_done_without_finish_reason_flushes_tool_calls() {
+        // Regression (stream-close flush): some OpenAI-compatible upstreams —
+        // observed on xunfei spark-x2.6 with large tool-call arguments — end
+        // the stream with `[DONE]` without ever sending a finish_reason
+        // frame. The arguments are already fully accumulated in the
+        // accumulator; the `[DONE]` done chunk must carry the completed
+        // calls instead of leaving them swallowed inside the library (the
+        // same request with stream=false returns finish_reason "tool_calls"
+        // normally). Before the fix the calls were silently dropped.
+        let lines = vec![
+            Ok(r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"get_weather","arguments":"{\"ci"}}]},"finish_reason":null}]}"#.to_string()),
+            Ok(r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"ty\":\"SF\"}"}}]},"finish_reason":null}]}"#.to_string()),
+            Ok("data: [DONE]".to_string()),
+        ];
+        let mut chunks: Vec<Result<StreamChunk>> = sse_chunk_stream(futures::stream::iter(lines))
+            .collect()
+            .await;
+        assert_eq!(
+            chunks.len(),
+            3,
+            "two delta chunks plus the [DONE] chunk, got {chunks:?}"
+        );
+        let done = chunks.pop().unwrap().expect("[DONE] chunk is Ok");
+        assert!(done.done);
+        assert!(
+            done.finish_reason.is_none(),
+            "an absent finish_reason must stay absent (ERR-003: never invent a reason)"
+        );
+        let calls = done.tool_calls.expect("tool calls flushed on [DONE]");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_1");
+        assert_eq!(calls[0].function.name, "get_weather");
+        assert_eq!(calls[0].function.arguments, "{\"city\":\"SF\"}");
+    }
+
+    #[tokio::test]
+    async fn sse_chunk_stream_flushes_pending_tool_calls_on_clean_eof() {
+        // Clean end-of-stream without any terminal frame: no finish_reason,
+        // no `[DONE]` — the line stream just ends. The pending calls must
+        // surface on a final done chunk (and only one), with the absent
+        // finish_reason left absent.
+        let lines = vec![
+            Ok(r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_2","function":{"name":"read","arguments":"{\""}}]},"finish_reason":null}]}"#.to_string()),
+            Ok(r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"path\":\"x\"}"}}]},"finish_reason":null}]}"#.to_string()),
+        ];
+        let mut chunks: Vec<Result<StreamChunk>> = sse_chunk_stream(futures::stream::iter(lines))
+            .collect()
+            .await;
+        assert_eq!(
+            chunks.len(),
+            3,
+            "two delta chunks plus exactly one flush chunk, got {chunks:?}"
+        );
+        let flushed = chunks.pop().unwrap().expect("flush chunk is Ok");
+        assert!(flushed.done);
+        assert!(flushed.finish_reason.is_none());
+        let calls = flushed.tool_calls.expect("pending calls flushed at EOF");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_2");
+        assert_eq!(calls[0].function.name, "read");
+        assert_eq!(calls[0].function.arguments, "{\"path\":\"x\"}");
+    }
+
+    #[tokio::test]
+    async fn sse_chunk_stream_error_line_does_not_flush() {
+        // A transport error mid-stream must terminate without flushing the
+        // half-accumulated arguments: an error stays an error, and salvage of
+        // partial tool calls is the caller's job, not a fabricated success
+        // terminal.
+        let lines = vec![
+            Ok(r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"write","arguments":"{\"pa"}}]},"finish_reason":null}]}"#.to_string()),
+            Err(LlmError::Stream("connection reset mid-stream".to_string())),
+        ];
+        let chunks: Vec<Result<StreamChunk>> = sse_chunk_stream(futures::stream::iter(lines))
+            .collect()
+            .await;
+        assert!(
+            chunks.iter().any(|c| c.is_err()),
+            "the transport error must be surfaced, got {chunks:?}"
+        );
+        assert!(
+            chunks
+                .iter()
+                .all(|c| c.is_err() || c.as_ref().unwrap().tool_calls.is_none()),
+            "no chunk may carry flushed tool calls after an error, got {chunks:?}"
+        );
+        assert!(
+            chunks
+                .iter()
+                .all(|c| c.is_err() || !c.as_ref().unwrap().done),
+            "no success done chunk may follow an error, got {chunks:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn sse_chunk_stream_parse_error_does_not_flush() {
+        // Same contract as the transport error, reached through a malformed
+        // JSON line: parse errors surface as Err(LlmError::Parse), the stream
+        // ends, and the half-accumulated arguments stay unflushed.
+        let lines = vec![
+            Ok(r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"write","arguments":"{\"pa"}}]},"finish_reason":null}]}"#.to_string()),
+            Ok("data: {not valid json}".to_string()),
+        ];
+        let chunks: Vec<Result<StreamChunk>> = sse_chunk_stream(futures::stream::iter(lines))
+            .collect()
+            .await;
+        assert!(
+            chunks.iter().any(|c| matches!(c, Err(LlmError::Parse(_)))),
+            "the parse error must be surfaced, got {chunks:?}"
+        );
+        assert!(
+            chunks
+                .iter()
+                .all(|c| c.is_err() || c.as_ref().unwrap().tool_calls.is_none()),
+            "no chunk may carry flushed tool calls after a parse error, got {chunks:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn sse_chunk_stream_parse_error_then_done_does_not_flush() {
+        // The distinctive error gate on flush point 1: a `[DONE]` that arrives
+        // after a surfaced error must stay bare — flushing there would
+        // launder half-accumulated arguments into a clean terminal.
+        let lines = vec![
+            Ok(r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"write","arguments":"{\"pa"}}]},"finish_reason":null}]}"#.to_string()),
+            Ok("data: {not valid json}".to_string()),
+            Ok("data: [DONE]".to_string()),
+        ];
+        let chunks: Vec<Result<StreamChunk>> = sse_chunk_stream(futures::stream::iter(lines))
+            .collect()
+            .await;
+        assert_eq!(
+            chunks.len(),
+            3,
+            "delta chunk, parse error, then bare [DONE], got {chunks:?}"
+        );
+        assert!(matches!(chunks[1], Err(LlmError::Parse(_))));
+        let done = chunks[2].as_ref().unwrap();
+        assert!(done.done);
+        assert!(
+            done.tool_calls.is_none(),
+            "[DONE] after a surfaced error must not flush partial arguments, got {done:?}"
+        );
+        assert!(
+            done.finish_reason.is_none(),
+            "the [DONE] chunk invents no finish_reason"
+        );
+    }
+
+    #[tokio::test]
+    async fn sse_chunk_stream_well_behaved_stream_unchanged() {
+        // A well-behaved stream (finish_reason present, then `[DONE]`) must
+        // behave exactly as before: one terminal chunk carrying the calls and
+        // the finish_reason, `[DONE]` draining nothing extra, and no
+        // end-of-stream flush chunk appended.
+        let lines = vec![
+            Ok(r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"get_weather","arguments":"{\"ci"}}]},"finish_reason":null}]}"#.to_string()),
+            Ok(r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"ty\":\"SF\"}"}}]},"finish_reason":null}]}"#.to_string()),
+            Ok(r#"data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}"#.to_string()),
+            Ok("data: [DONE]".to_string()),
+        ];
+        let chunks: Vec<Result<StreamChunk>> = sse_chunk_stream(futures::stream::iter(lines))
+            .collect()
+            .await;
+        assert_eq!(
+            chunks.len(),
+            4,
+            "two deltas + terminal chunk + [DONE] chunk, nothing extra, got {chunks:?}"
+        );
+        let terminal = chunks[2].as_ref().expect("terminal chunk is Ok");
+        assert!(terminal.done);
+        assert_eq!(terminal.finish_reason, Some(FinishReason::ToolCalls));
+        assert!(terminal.tool_calls.is_some());
+        let done = chunks[3].as_ref().expect("[DONE] chunk is Ok");
+        assert!(done.done);
+        assert!(done.tool_calls.is_none(), "[DONE] must drain nothing extra");
+    }
+
     // ── embedding contract tests ──────────────────────────────────
 
     use std::sync::{Arc, Mutex};
@@ -1339,6 +1619,56 @@ mod tests {
             matches!(&err, LlmError::Api { status: 400, message } if message.contains("bad input")),
             "expected Api 400, got: {err:?}"
         );
+    }
+
+    #[cfg(feature = "proxy")]
+    #[tokio::test]
+    async fn openai_compatible_stream_flushes_tool_calls_without_finish_reason() {
+        // Regression (stream-close flush), end-to-end through `stream()`:
+        // an upstream that sends tool-call argument deltas and then `[DONE]`
+        // — but never a finish_reason frame — must still surface the completed
+        // tool calls on the done chunk. Wire shape observed on xunfei
+        // spark-x2.6; before the fix the accumulated arguments (tens of
+        // kilobytes in practice) were swallowed inside the accumulator.
+        let sse = [
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"function\":{\"name\":\"write\",\"arguments\":\"{\\\"path\\\":\"}}]},\"finish_reason\":null}]}\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"a.rs\\\"}\"}}]},\"finish_reason\":null}]}\n",
+            "data: [DONE]\n",
+        ]
+        .concat();
+        let app = axum::Router::new().route(
+            "/chat/completions",
+            axum::routing::post(move || async move {
+                (
+                    [(axum::http::header::CONTENT_TYPE, "text/event-stream")],
+                    axum::body::Body::from(sse),
+                )
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let url = format!("http://{}", addr);
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let config = ProviderConfig::new("sk-test").with_base_url(&url);
+        let provider = OpenAiCompatibleProvider::new(config, []);
+        let req = ChatRequest::new("spark-x2.6", "hi");
+        let mut stream = provider.stream(&req).await.expect("stream established");
+        let mut done_chunk = None;
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.expect("stream items must be Ok in this fixture");
+            if chunk.done {
+                done_chunk = Some(chunk);
+            }
+        }
+        let done = done_chunk.expect("a done chunk must terminate the stream");
+        assert!(done.finish_reason.is_none());
+        let calls = done.tool_calls.expect("tool calls flushed on [DONE]");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_1");
+        assert_eq!(calls[0].function.name, "write");
+        assert_eq!(calls[0].function.arguments, "{\"path\":\"a.rs\"}");
     }
 
     #[cfg(feature = "proxy")]

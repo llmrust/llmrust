@@ -98,9 +98,16 @@ llmrust = { version = "0.1", features = ["proxy"] }
 cargo add llmrust --features proxy
 ```
 
-## 兼容性与升级（0.1.4）
+## 兼容性与升级（0.1.5）
 
-**当前版本 `0.1.4`：从 `0.1.3` 升级无需任何代码改动**（已相对 0.1.2 基线跑过 `cargo-semver-checks`，零破坏性变更）。详见[兼容性与升级说明（0.1.4）](docs/COMPATIBILITY-0.1.4.md)：含 **5 条 wire 行为变更**（代理拒收 `cache`、Anthropic `stop_reason` 的未知原因改为 `null`、内容过滤改为 `refusal`、`with_retry()` 下能力裁决恢复拒绝、代理认证 trim 规范化）、新增公开能力清单、升级指引，以及**第 3 节「本版未包含什么」——如实披露**（本版无真端点（`live-endpoint`）证据、`CAP-005` 的"省钱"未被实测、9 项门禁问题顺延 0.1.5、执行侧自身一处假门已更正）。
+**当前版本 `0.1.5`：从 `0.1.4` 升级无需任何代码改动**（公共 API 无增删改——相对 0.1.2 基线的 `cargo-semver-checks` 零破坏性变更）。本版为窄口径修复版，含 **1 条 wire 行为变更**：OpenAI 兼容流式在上游**不发 `finish_reason` 帧就干净结束**时（实测 xunfei spark-x2.6：`[DONE]` 已到、tool_call 参数已完整累积在库内），不再把已累积的 tool_call 吞在库内——现在作为终末 done chunk 的 `tool_calls` 产出；规矩流（带 `finish_reason`）行为零变化。另含锁文件内传递依赖安全升级（tokio 1.53.3、rustls 0.23.46、rustls-webpki 0.103.16，**未新增任何 `advisories.ignore` 条目**）。从 0.1.3 及更早版本升级的用户，[兼容性与升级说明（0.1.4）](docs/COMPATIBILITY-0.1.4.md)的全部内容（5 条 wire 行为变更与第 3 节如实披露）仍然适用。
+
+<details>
+<summary><strong>历史版本（0.1.4）</strong></summary>
+
+**`0.1.4`：从 `0.1.3` 升级无需任何代码改动**（已相对 0.1.2 基线跑过 `cargo-semver-checks`，零破坏性变更）。详见[兼容性与升级说明（0.1.4）](docs/COMPATIBILITY-0.1.4.md)：含 **5 条 wire 行为变更**（代理拒收 `cache`、Anthropic `stop_reason` 的未知原因改为 `null`、内容过滤改为 `refusal`、`with_retry()` 下能力裁决恢复拒绝、代理认证 trim 规范化）、新增公开能力清单、升级指引，以及**第 3 节「本版未包含什么」——如实披露**（本版无真端点（`live-endpoint`）证据、`CAP-005` 的"省钱"未被实测、9 项门禁问题顺延 0.1.5、执行侧自身一处假门已更正）。
+
+</details>
 
 <details>
 <summary><strong>历史版本（0.1.3）</strong></summary>

@@ -99,9 +99,25 @@ Or:
 cargo add llmrust --features proxy
 ```
 
-## Compatibility & Upgrade (0.1.4)
+## Compatibility & Upgrade (0.1.5)
 
-**Current release `0.1.4`: no code migration is required when upgrading from `0.1.3`**
+**Current release `0.1.5`: no code migration is required when upgrading from `0.1.4`**
+(the public API is unchanged — `cargo-semver-checks` against the 0.1.2 baseline reports zero
+breaking changes). This is a targeted fix release with **one wire-visible behavior change**:
+an OpenAI-compatible stream that ends **without a `finish_reason` frame** (as measured on
+xunfei spark-x2.6: `[DONE]` arrives with the tool-call arguments already fully accumulated) no
+longer swallows the accumulated tool calls — they now surface as `tool_calls` on the terminal
+done chunk; well-behaved streams (with `finish_reason`) are unchanged. The release also carries
+transitive dependency security upgrades in `Cargo.lock` (tokio 1.53.3, rustls 0.23.46,
+rustls-webpki 0.103.16) with **no new `advisories.ignore` entries**. The
+[Compatibility & Upgrade Notes (0.1.4)](docs/COMPATIBILITY-0.1.4.md) — the five 0.1.4
+wire-visible behavior changes and the §3 disclosures — still apply when upgrading from
+0.1.3 or earlier.
+
+<details>
+<summary><strong>Previous release (0.1.4)</strong></summary>
+
+**`0.1.4`: no code migration is required when upgrading from `0.1.3`**
 (`cargo-semver-checks` against the 0.1.2 baseline reports zero breaking changes). See
 [Compatibility & Upgrade Notes (0.1.4)](docs/COMPATIBILITY-0.1.4.md) for the **five wire-visible
 behavior changes** (the proxy now refuses `cache`, an unknown upstream finish reason becomes `null`
@@ -110,6 +126,8 @@ under `with_retry()`, and configured auth tokens are trimmed consistently), the 
 capabilities, upgrade guidance, and — stated plainly in §3 — **what this release does *not*
 include** (no live-endpoint evidence, the `CAP-005` cache saving is unmeasured, nine gate-quality
 items are deferred to 0.1.5, and one decoy test on the execution side has been corrected).
+
+</details>
 
 <details>
 <summary><strong>Previous release (0.1.3)</strong></summary>

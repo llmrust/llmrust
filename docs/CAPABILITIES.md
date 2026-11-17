@@ -152,7 +152,7 @@ registered backend through automatic conversion:
 For all providers, streaming follows these rules:
 
 1. Stream emits incremental `StreamChunk` items with `delta` text.
-2. The terminal chunk has `done: true` and carries `finish_reason`, `usage`, and `tool_calls` (if applicable).
+2. The terminal chunk has `done: true` and carries `finish_reason`, `usage`, and `tool_calls` (if applicable). If the upstream ends the stream without ever sending a terminal `finish_reason` frame (observed on xunfei spark-x2.6), accumulated `tool_calls` are still flushed on the clean terminal point (`[DONE]` chunk or end-of-stream); `finish_reason` stays absent. Error-interrupted streams flush nothing.
 3. Parse errors in the stream are surfaced as `Err(LlmError::Parse(...))` chunks — never silently dropped.
 4. Upstream API errors mid-stream are surfaced as `Err(LlmError::Api{...})` or `Err(LlmError::Stream(...))`.
 

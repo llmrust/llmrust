@@ -99,14 +99,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `parse_sse_line` 与 `ToolCallAccumulator` 本体未动（纯内部组装层新增），
   公共 API 无增删改。
 
-- **依赖安全升级（锁文件）：tokio 1.52.3 → 1.53.3（`RUSTSEC-2026-0386`）**：
-  CI 的 cargo-deny 安全门因 RustSec 新公告 `RUSTSEC-2026-0386`
-  （`tokio::io::unix::AsyncFd` 的 safe 构造器 `new`/`with_interest`/`try_new`/
-  `try_with_interest` 接受任意 `T: AsRawFd`，违反 I/O safety）转红——该公告
-  发布晚于 main 上一次安全门绿（2026-09-12），属**环境性红**（main 现跑同样红）。
-  按「修依赖而非加 ignore」处理：`Cargo.lock` 内 tokio 升至公告列明的修复版
-  1.53.3（semver 兼容、无 API 破坏；`deny.toml` 的 `advisories.ignore` 保持为空，
-  未新增任何 ignore 条目）。升级后 `cargo test`（default）全绿。
+- **依赖安全升级（锁文件）：tokio 1.52.3 → 1.53.3、rustls 0.23.40 → 0.23.46、
+  rustls-webpki 0.103.13 → 0.103.16（`RUSTSEC-2026-0386` / `RUSTSEC-2026-0348` /
+  `RUSTSEC-2026-0349` / `RUSTSEC-2026-0285` / `RUSTSEC-2026-0346` / `RUSTSEC-2026-0382`）**：
+  CI 的两个安全门（Supply-chain policy / cargo-deny 与 RustSec advisories / cargo-audit）
+  因 RustSec 新公告转红——公告发布均晚于 main 上一次安全门绿（2026-09-12），
+  属**环境性红**（main 现跑同样红，与本 PR 的源码改动无关）。按「修依赖而非加 ignore」
+  处理：`Cargo.lock` 内 tokio 升至 1.53.3（`AsyncFd` unsound 修复版）、rustls 升至
+  0.23.46（4 条 TLS 公告修复版）、rustls-webpki 升至 0.103.16（emSign 中间证书
+  拒收修复版，与 rustls 0.23.46 精确配套）——均 semver 兼容、无 API 破坏；
+  `deny.toml` 的 `advisories.ignore` 保持为空，未新增任何 ignore 条目。
+  升级后 `cargo test`（default / all-features）全绿（all-features 复跑两次确认确定性）。
 
 ### Changed
 

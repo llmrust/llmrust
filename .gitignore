@@ -27,4 +27,5 @@ Thumbs.db
 .workforce/loop-state.json
 .workforce/bootstrap-progress.md
 .workforce/tmp/
-.workforce/evidence/*.log
+.workforce/evidence/**/*.log
+.workforce/**/*.log

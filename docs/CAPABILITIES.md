@@ -83,7 +83,11 @@ Request-side reasoning is mapped per provider (REA-002 / REA-003 / REA-004G / RE
 - **OpenAI** (`implemented`): `Enabled{budget_tokens: None}` → `reasoning_effort: "medium"` on
   the streaming path; `budget_tokens: Some(_)` is rejected (no OpenAI equivalent). Streamed
   `reasoning` / `reasoning_content` map to `StreamChunk.thinking`; `reasoning_tokens` usage is
-  translated.
+  translated. This `implemented` claim belongs to the official endpoint registered by
+  `set_openai`; `set_openai_compatible` registers third-party OpenAI-compatible endpoints
+  (via `OpenAIProvider::new_compatible`, AUD#8), whose instances declare reasoning
+  `unsupported` — a third-party wrapper does not inherit the official endpoint's verified
+  reasoning fields (REA-003).
 - **Gemini** (`implemented`): `Enabled` → `thinkingConfig` on the wire (`thinkingBudget` is
   optional upstream and omitted losslessly; `includeThoughts` is always requested when enabled).
   Streamed `thought` parts surface via `StreamChunk.thinking`; `usageMetadata.thoughtsTokenCount`

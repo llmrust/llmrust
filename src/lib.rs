@@ -207,14 +207,22 @@ impl LmrsClient {
     /// Register the OpenAI provider with a custom base URL (for compatible APIs).
     ///
     /// **Note:** This registers under the same `"openai"` key as [`set_openai`](Self::set_openai).
-    /// Calling both will silently replace the earlier registration.
+    /// Calling both will silently replace the earlier registration. The
+    /// provider is built with [`OpenAIProvider::new_compatible`]: a
+    /// third-party OpenAI-compatible endpoint does **not** inherit the
+    /// official endpoint's verified reasoning support (REA-003 / AUD#8,
+    /// C-AUD-PROV) — its reasoning face is declared `Unsupported` and
+    /// thinking requests fail with `LlmError::Unsupported` before any
+    /// network call.
     pub async fn set_openai_compatible(
         &self,
         api_key: impl Into<String>,
         base_url: impl Into<String>,
     ) {
         let config = ProviderConfig::new(api_key).with_base_url(base_url);
-        let provider: Arc<dyn Provider> = Arc::new(OpenAIProvider::new(config));
+        // AUD#8 (C-AUD-PROV): a third-party compatible endpoint must not
+        // inherit the official endpoint's reasoning claim (REA-003).
+        let provider: Arc<dyn Provider> = Arc::new(OpenAIProvider::new_compatible(config));
         let prev = self
             .providers
             .write()

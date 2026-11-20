@@ -6,12 +6,12 @@
     "src/proxy/anthropic_proxy.rs": 2053,
     "src/proxy/responses_proxy.rs": 964,
     "src/providers/compat.rs": 2136,
-    "src/providers/google.rs": 1614,
+    "src/providers/google.rs": 1813,
     "src/types.rs": 1136,
-    "src/providers/anthropic.rs": 1539,
+    "src/providers/anthropic.rs": 1684,
     "src/router.rs": 1231,
-    "src/providers/ollama.rs": 830,
-    "src/lib.rs": 839,
+    "src/providers/ollama.rs": 855,
+    "src/lib.rs": 847,
     "src/providers/retry.rs": 970,
     "src/providers/capabilities.rs": 712
   },
@@ -438,6 +438,46 @@
       "old": 1899,
       "new": 2136,
       "reason": "C-AUD-COMPAT (B-AUD-1 审计清障) growth: AUD#1 sticky thinking_done —— 流状态载体 ToolCallAccumulator 新增 saw_thinking 标志，终帧 thinking_done 取「本流此前是否出现过 thinking 增量」（旧同帧判定对不含 reasoning 的裸终帧返回 Some(false)，严重级，#1）；AUD#3 流内错误帧暴露 —— CompStreamChunk 新增 error 字段，200-SSE 流中 data: {\"error\":{...},\"choices\":[]} 帧上抛为 LlmError::Api（数值 code 映射 status），不再落入空 choices 的 Vec::new() 静默丢弃（#3）；AUD#7 工具分片索引有界化 —— ToolCallAccumulator::ingest 在 resize 前以 MAX_TOOL_CALL_INDEX 拒收超额 index，敌意 index 不再直接驱动分配（panic/OOM，#7）。+237 行（1899→2136）全部为真实修复（约 90 行实现/文档）+ 5 条回归测试（约 147 行，含 K-04 语义超集不改既有断言、AUD#1 注入验红反证），非注水。本条为 dev 代写，待 architect-llmrust 在 spec-review 阶段追认。",
+      "authorized_by": "Boss 2026-11-20 决策 A",
+      "date": "2026-11-20"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 829,
+      "new": 830,
+      "reason": "appended 2026-11-21（B-AUD-2 台账写入窗口）。genesis chain-documentation backfill（truth correction）：台账于仓库根 bf7dee9 首次入库时 baseline_lines[ollama.rs] 已为 830 且文件实测 830 行，而 adjustments 链止于 829（0→805 #209、805→829 CAP-002，均 2026-09-11）；committed 历史从未存在 829 作为基线值，ollama.rs 自根以来零改动。缺口由 ledger-llmrust 于 B-AUD-1 台账核验（P1-OLLAMA-ADJUSTMENT-CHAIN-NON-CONVERGENCE）发现，architect-llmrust 2026-11-21 ruling 定性为 genesis 缺口并授权本补链。本条不承载后续任何行数变化（由各自条目记账）。",
+      "authorized_by": "architect-llmrust ruling 2026-11-21（SPCC §11.1.4 truth correction；授权链：Boss 2026-11-20 决策 A → architect-llmrust 2026-11-21）",
+      "date": "2026-11-21"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1614,
+      "new": 1813,
+      "reason": "appended 2026-11-21（B-AUD-2 台账写入窗口）。C-AUD-PROV（B-AUD-2 审计清障，AUD#4）：Gemini 流式 promptFeedback 携带 blockReason 的安全拦截帧——旧代码未反序列化该字段，帧落入空 candidates 的 keepalive 路径被静默丢弃（CONTRACTS.md §stream：no silent drops）——现在反序列化 promptFeedback/blockReason 并按 LlmError::Stream 上抛（shared unify_terminal 层随之无成功终态关流）；同时按 architect ruling 2026-11-20 裁定的移植范式，把 compat.rs 的 sse_chunk_stream 冲刷状态机移植到 google.rs stream() 装配层：净 EOF（无 finishReason 帧）冲刷已累积的 functionCall tool_calls 为单个 done 终态，finish_reason=None（ERR-003：缺失即缺信息，绝不合成 Stop）；错误后永不冲刷；无 blockReason 的空 candidates 帧维持既有 keepalive 语义。+199 行（1614→1813）全部为真实实现/文档与回归测试（stream_prompt_feedback_block_reason_surfaces_error、stream_clean_eof_flushes_accumulated_tool_calls_and_marks_done），既有用例断言零改动。本条为 dev 代写，待 architect-llmrust 在 spec-review 阶段追认。",
+      "authorized_by": "Boss 2026-11-20 决策 A",
+      "date": "2026-11-20"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1539,
+      "new": 1684,
+      "reason": "appended 2026-11-21（B-AUD-2 台账写入窗口）。C-AUD-PROV（B-AUD-2 审计清障，AUD#5）：Anthropic 流式无 message_delta/message_stop 的净 EOF——旧的 scan/flatten 装配在行流结束时直接结束，半重构的 tool_use 块（content_block_start + input_json_delta 片段）被吞、流无 done 终态（CONTRACTS.md §stream：no silent drops）——按 architect ruling 2026-11-20 裁定的移植范式，把 compat.rs 的 sse_chunk_stream 冲刷状态机移植到 anthropic.rs stream() 装配层：净 EOF 冲刷已累积的 tool_calls 为单个 done 终态，finish_reason=None（ERR-003：缺失即缺信息，绝不合成 Stop）；错误后永不冲刷；message_stop/ping 等未知事件的忽略语义与 message_delta 终态语义不变。+145 行（1539→1684）全部为真实实现/文档与回归测试（stream_clean_eof_flushes_accumulated_tool_calls_and_marks_done），既有用例断言零改动。本条为 dev 代写，待 architect-llmrust 在 spec-review 阶段追认。",
+      "authorized_by": "Boss 2026-11-20 决策 A",
+      "date": "2026-11-20"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 830,
+      "new": 855,
+      "reason": "appended 2026-11-21（B-AUD-2 台账写入窗口）。C-AUD-PROV（B-AUD-2 审计清障，AUD#6，ERR-003）：Ollama done 臂去掉 .unwrap_or(FinishReason::Stop) 伪造——done=true 而缺 done_reason 时 finish_reason=None（缺失即缺信息，不得断言为 Stop），done_reason 在场时照常走 From<String> 映射（未知串走 Other 逃生口，From 实现本身不动）。stream_done_finish_reason_reflects_done_reason_only 双臂钉死；注入验红：把 done 臂回退为 .unwrap_or(FinishReason::Stop) 伪造形态后该测试 FAILED（exit 101），恢复后 sha256 与注入前一致且转绿。+25 行（830→855）全部为真实修复与回归测试，既有用例断言零改动。本条为 dev 代写，待 architect-llmrust 在 spec-review 阶段追认。前一条 829→830 为 P1 ollama 链文档 genesis 补链（architect-llmrust ruling 2026-11-21 逐字规范），本条承载本卡造成的行数变化（R2 防吸收：与补链分立记账）。",
+      "authorized_by": "Boss 2026-11-20 决策 A",
+      "date": "2026-11-20"
+    },
+    {
+      "file": "src/lib.rs",
+      "old": 839,
+      "new": 847,
+      "reason": "appended 2026-11-21（B-AUD-2 台账写入窗口）。C-AUD-PROV（B-AUD-2 审计清障，AUD#8，CAP-003：能力裁决在大一统入口，provider 层声明必须真实）：set_openai_compatible 由 OpenAIProvider::new 改走本卡新增的 pub fn new_compatible 构造——第三方 OpenAI 兼容端点不再继承官方端点的 with_reasoning(true) 推理声明（openai.rs REA-003 注释自身即此义务），该构造的实例 capabilities().reasoning 声明 Unsupported、thinking 请求在任何网络调用前以 LlmError::Unsupported 拒绝；set_openai（官方端点）保持官方构造与 verified 声明不变（OpenAIProvider::new( 在 lib.rs 恰现一次）。+8 行（839→847）：构造函数切换一行 + 注释与文档说明。src/providers/openai.rs（160 行）低于 threshold=500，不为本卡入台账（卡面裁定）。三载体已同步：docs/CAPABILITIES.md 与 llmrust.capabilities.json 注明 set_openai_compatible 注册的第三方端点不继承 official-endpoint reasoning；capability_freeze 矩阵 openai 行不变（两构造器对 freeze 的官方观测面一致）。本条为 dev 代写，待 architect-llmrust 在 spec-review 阶段追认。",
       "authorized_by": "Boss 2026-11-20 决策 A",
       "date": "2026-11-20"
     }

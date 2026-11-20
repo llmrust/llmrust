@@ -357,6 +357,20 @@ struct GeminiStreamEvent {
     candidates: Vec<GeminiStreamCandidate>,
     #[serde(default, rename = "usageMetadata")]
     usage_metadata: Option<GeminiUsageMetadata>,
+    /// AUD#4 (C-AUD-PROV): request-level feedback arrives on the stream as
+    /// `promptFeedback`; the payload that matters is `blockReason` — a safety
+    /// block of the prompt. Such frames carry an empty (or absent)
+    /// `candidates` list, so before this field was deserialized the block was
+    /// indistinguishable from a keepalive and was silently dropped.
+    #[serde(default, rename = "promptFeedback")]
+    prompt_feedback: Option<GeminiPromptFeedback>,
+}
+
+/// The `promptFeedback` object on a Gemini stream frame (AUD#4).
+#[derive(Deserialize)]
+struct GeminiPromptFeedback {
+    #[serde(default, rename = "blockReason")]
+    block_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -749,6 +763,19 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
         ..Default::default()
     });
 
+    // AUD#4 (C-AUD-PROV): a frame whose `promptFeedback` carries a
+    // `blockReason` is a safety block of the prompt — an upstream refusal,
+    // not a keepalive. Surface it as an LlmError (the shared `unify_terminal`
+    // layer then closes the stream without a success terminal). Frames whose
+    // `promptFeedback` has no `blockReason`, and block-free frames with empty
+    // candidates, keep the existing keepalive semantics (see
+    // `stream_empty_candidates_without_usage_is_ignored`).
+    if let Some(reason) = event.prompt_feedback.and_then(|pf| pf.block_reason) {
+        return vec![Err(LlmError::Stream(format!(
+            "gemini stream: prompt blocked (promptFeedback.blockReason: {reason})"
+        )))];
+    }
+
     let Some(candidate) = event.candidates.into_iter().next() else {
         if usage.is_some() {
             return vec![Ok(StreamChunk {
@@ -815,6 +842,113 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
         }));
     }
     chunks
+}
+
+/// Assemble [`StreamChunk`]s from a stream of complete SSE lines (as produced
+/// by [`line_stream`]), threading a [`GeminiToolAccumulator`] and closing the
+/// stream-end tool-call flush gap (AUD#4, C-AUD-PROV).
+///
+/// Port of the `compat.rs` `sse_chunk_stream` flush state machine (architect
+/// ruling 2026-11-20). A Gemini stream normally terminates on its
+/// `finishReason` frame, which drains the accumulator inside
+/// [`parse_sse_line`]. A stream that ends cleanly WITHOUT that frame — the
+/// upstream just closes the connection — used to swallow accumulated
+/// `functionCall` parts inside the library and leave the stream with no
+/// terminal state at all. Now the pending calls surface as one final `done`
+/// chunk, with `finish_reason` left absent: an absent reason is missing
+/// information, never invented as `Stop` (ERR-003; CONTRACTS.md
+/// §Finish-reason). A stream that surfaced an error — transport, parse, or a
+/// `promptFeedback` block — never flushes: an interrupted stream is not a
+/// success terminal to fabricate. Well-behaved streams are unchanged (the
+/// accumulator is empty by the time `finishReason` arrives, so the EOF flush
+/// is a no-op).
+fn sse_chunk_stream<S>(
+    lines: S,
+) -> impl futures::Stream<Item = Result<StreamChunk>> + Send + 'static
+where
+    S: futures::Stream<Item = Result<String>> + Send + 'static,
+{
+    futures::stream::unfold(
+        (
+            lines.boxed(),
+            GeminiToolAccumulator::default(),
+            false,
+            false,
+        ),
+        |(mut lines, mut tools, mut errored, ended)| async move {
+            // `ended` is set only on the error path (no flush afterwards) and
+            // after a terminal flush chunk (no second terminal).
+            if ended {
+                return None;
+            }
+            loop {
+                match lines.next().await {
+                    Some(Ok(line)) => {
+                        let mut chunks = parse_sse_line(&mut tools, &line);
+                        if chunks.iter().any(|c| c.is_err()) {
+                            errored = true;
+                        }
+                        // Flush point 1 — a bare done chunk carrying neither
+                        // `finish_reason` nor calls. Forward-compatible port:
+                        // `parse_sse_line` only emits `done == true` together
+                        // with a `finish_reason` (which drains the accumulator
+                        // itself), so this is a no-op today.
+                        if !errored {
+                            for c in chunks.iter_mut().flatten() {
+                                let bare_done =
+                                    c.done && c.finish_reason.is_none() && c.tool_calls.is_none();
+                                if bare_done {
+                                    c.tool_calls = tools.take();
+                                }
+                            }
+                        }
+                        if chunks.is_empty() {
+                            continue;
+                        }
+                        return Some((
+                            futures::stream::iter(chunks),
+                            (lines, tools, errored, ended),
+                        ));
+                    }
+                    Some(Err(e)) => {
+                        // Forward the error, then stop. Deliberately no flush:
+                        // emitting half-accumulated tool calls as a done chunk
+                        // would launder an interrupted stream into a clean one.
+                        let error: Result<StreamChunk> = Err(e);
+                        return Some((
+                            futures::stream::iter(vec![error]),
+                            (lines, tools, errored, true),
+                        ));
+                    }
+                    None => {
+                        // Flush point 2 — clean end-of-stream with no terminal
+                        // frame at all (no `finishReason`): the pending calls
+                        // surface as one final done chunk; an empty accumulator
+                        // (well-behaved stream) ends the stream exactly as
+                        // before. After a surfaced error, never flush.
+                        if errored {
+                            return None;
+                        }
+                        match tools.take() {
+                            Some(calls) => {
+                                let chunk = StreamChunk {
+                                    done: true,
+                                    tool_calls: Some(calls),
+                                    ..Default::default()
+                                };
+                                return Some((
+                                    futures::stream::iter(vec![Ok(chunk)]),
+                                    (lines, tools, errored, true),
+                                ));
+                            }
+                            None => return None,
+                        }
+                    }
+                }
+            }
+        },
+    )
+    .flatten()
 }
 
 /// Build the Gemini request body shared by `chat` and `stream`.
@@ -997,15 +1131,10 @@ impl Provider for GoogleProvider {
             .bytes_stream()
             .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
 
-        let stream = line_stream(byte_stream)
-            .scan(GeminiToolAccumulator::default(), |tools, line_result| {
-                let chunks = match line_result {
-                    Ok(line) => parse_sse_line(tools, &line),
-                    Err(e) => vec![Err(e)],
-                };
-                futures::future::ready(Some(futures::stream::iter(chunks)))
-            })
-            .flatten();
+        // AUD#4 (C-AUD-PROV): the stream assembly carries the flush state
+        // machine (`sse_chunk_stream`); per-line semantics stay in
+        // `parse_sse_line`.
+        let stream = sse_chunk_stream(line_stream(byte_stream));
 
         Ok(stream.boxed())
     }
@@ -1413,6 +1542,76 @@ mod tests {
         }
         assert_eq!(chunks[0].delta, "hi");
         assert!(chunks.last().unwrap().done);
+    }
+
+    // --- AUD#4 (C-AUD-PROV): promptFeedback block + clean-EOF flush ---
+
+    #[test]
+    fn stream_prompt_feedback_block_reason_surfaces_error() {
+        // Gemini reports a safety-blocked prompt as a frame whose
+        // `promptFeedback` carries a `blockReason` and whose candidates list
+        // is empty. The field was not deserialized at all before this fix, so
+        // the block fell into the empty-candidates keepalive path and vanished
+        // — a silent drop of an upstream refusal (CONTRACTS.md §stream: no
+        // silent drops). It must surface as an LlmError instead.
+        let mut tools = GeminiToolAccumulator::default();
+        let line = r#"data: {"promptFeedback":{"blockReason":"SAFETY"}}"#;
+        let chunks: Vec<_> = parse_sse_line(&mut tools, line).into_iter().collect();
+        assert_eq!(
+            chunks.len(),
+            1,
+            "a blocked prompt must yield exactly one error, got {chunks:?}"
+        );
+        match &chunks[0] {
+            Err(LlmError::Stream(msg)) => assert!(
+                msg.contains("SAFETY"),
+                "the surfaced error must name the blockReason, got {msg}"
+            ),
+            other => {
+                panic!("expected LlmError::Stream from promptFeedback.blockReason, got {other:?}")
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn stream_clean_eof_flushes_accumulated_tool_calls_and_marks_done() {
+        // A stream that ends cleanly without a `finishReason` frame — the
+        // upstream just closes the connection — must not swallow the
+        // accumulated `functionCall` parts, and must not fabricate a
+        // completion reason either (ERR-003 / K-06): the flush chunk is
+        // `done == true`, `finish_reason == None`, carrying the completed
+        // call set.
+        let lines = vec![
+            Ok(r#"data: {"candidates":[{"content":{"parts":[{"functionCall":{"name":"get_weather","args":{"city":"SF"}}}]}}]}"#.to_string()),
+            Ok(r#"data: {"candidates":[{"content":{"parts":[{"functionCall":{"name":"read_file","args":{"path":"x"}}}]}}]}"#.to_string()),
+        ];
+        let chunks: Vec<Result<StreamChunk>> = sse_chunk_stream(futures::stream::iter(lines))
+            .collect()
+            .await;
+        assert_eq!(
+            chunks.len(),
+            1,
+            "the functionCall frames yield no chunks by themselves; exactly one \
+             EOF flush chunk, got {chunks:?}"
+        );
+        let flushed = chunks
+            .into_iter()
+            .next()
+            .unwrap()
+            .expect("the flush chunk is Ok");
+        assert!(flushed.done);
+        assert_eq!(
+            flushed.finish_reason, None,
+            "an absent finishReason is missing information, never invented as Stop (ERR-003)"
+        );
+        let calls = flushed
+            .tool_calls
+            .expect("accumulated tool calls must be flushed at clean EOF");
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].function.name, "get_weather");
+        assert_eq!(calls[0].function.arguments, "{\"city\":\"SF\"}");
+        assert_eq!(calls[1].function.name, "read_file");
+        assert_eq!(calls[1].function.arguments, "{\"path\":\"x\"}");
     }
 
     // --- REA-004G: Gemini reasoning ---

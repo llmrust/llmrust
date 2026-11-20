@@ -30,7 +30,7 @@
         "verified_at": "2026-08-02",
         "chat": "unsupported",
         "aggregate": "unsupported",
-        "notes": "Request: reasoning_effort mapping (budget None -> medium; Some rejected). Stream: reasoning/reasoning_content -> StreamChunk.thinking. Usage: reasoning_tokens -> Usage.reasoning_tokens. Non-stream chat and stream_collect* aggregate fail with LlmError::Unsupported (REA-001 §2.1/§3, REA-003). Fixture-level verification; real upstream E2E belongs to E2E-001."
+        "notes": "Request: reasoning_effort mapping (budget None -> medium; Some rejected). Stream: reasoning/reasoning_content -> StreamChunk.thinking. Usage: reasoning_tokens -> Usage.reasoning_tokens. Non-stream chat and stream_collect* aggregate fail with LlmError::Unsupported (REA-001 §2.1/§3, REA-003). Fixture-level verification; real upstream E2E belongs to E2E-001. Third-party endpoints registered via set_openai_compatible (OpenAIProvider::new_compatible, AUD#8) do NOT inherit this official-endpoint claim: their reasoning face is declared unsupported and thinking requests fail with LlmError::Unsupported before any network call (REA-003)."
       }
     },
     "deepseek": {

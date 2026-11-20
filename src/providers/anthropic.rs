@@ -815,6 +815,113 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
     }
 }
 
+/// Assemble [`StreamChunk`]s from a stream of complete SSE lines (as produced
+/// by [`line_stream`]), threading an [`AnthropicToolAccumulator`] and closing
+/// the stream-end tool-call flush gap (AUD#5, C-AUD-PROV).
+///
+/// Port of the `compat.rs` `sse_chunk_stream` flush state machine (architect
+/// ruling 2026-11-20). An Anthropic stream normally terminates on its
+/// `message_delta` event, which drains the accumulator inside
+/// [`parse_sse_line`]. A stream that ends cleanly WITHOUT that event — no
+/// `message_delta`, no `message_stop`, the upstream just closes the
+/// connection — used to swallow the half-reconstructed `tool_use` blocks and
+/// leave the stream with no terminal state at all. Now the pending calls
+/// surface as one final `done` chunk, with `finish_reason` left absent: an
+/// absent reason is missing information, never invented as `Stop` (ERR-003;
+/// CONTRACTS.md §Finish-reason). A stream that surfaced an error never
+/// flushes: an interrupted stream is not a success terminal to fabricate.
+/// Well-behaved streams are unchanged (the accumulator is empty by the time
+/// `message_delta` arrives, so the EOF flush is a no-op).
+fn sse_chunk_stream<S>(
+    lines: S,
+) -> impl futures::Stream<Item = Result<StreamChunk>> + Send + 'static
+where
+    S: futures::Stream<Item = Result<String>> + Send + 'static,
+{
+    futures::stream::unfold(
+        (
+            lines.boxed(),
+            AnthropicToolAccumulator::default(),
+            false,
+            false,
+        ),
+        |(mut lines, mut tools, mut errored, ended)| async move {
+            // `ended` is set only on the error path (no flush afterwards) and
+            // after a terminal flush chunk (no second terminal).
+            if ended {
+                return None;
+            }
+            loop {
+                match lines.next().await {
+                    Some(Ok(line)) => {
+                        let mut chunks = parse_sse_line(&mut tools, &line);
+                        if chunks.iter().any(|c| c.is_err()) {
+                            errored = true;
+                        }
+                        // Flush point 1 — a bare done chunk carrying neither
+                        // `finish_reason` nor calls. Forward-compatible port:
+                        // `parse_sse_line` only emits `done == true` together
+                        // with a `finish_reason` (which drains the accumulator
+                        // itself), so this is a no-op today.
+                        if !errored {
+                            for c in chunks.iter_mut().flatten() {
+                                let bare_done =
+                                    c.done && c.finish_reason.is_none() && c.tool_calls.is_none();
+                                if bare_done {
+                                    c.tool_calls = tools.take();
+                                }
+                            }
+                        }
+                        if chunks.is_empty() {
+                            continue;
+                        }
+                        return Some((
+                            futures::stream::iter(chunks),
+                            (lines, tools, errored, ended),
+                        ));
+                    }
+                    Some(Err(e)) => {
+                        // Forward the error, then stop. Deliberately no flush:
+                        // emitting half-accumulated tool calls as a done chunk
+                        // would launder an interrupted stream into a clean one.
+                        let error: Result<StreamChunk> = Err(e);
+                        return Some((
+                            futures::stream::iter(vec![error]),
+                            (lines, tools, errored, true),
+                        ));
+                    }
+                    None => {
+                        // Flush point 2 — clean end-of-stream with no terminal
+                        // event at all (no `message_delta` / `message_stop`):
+                        // the pending calls surface as one final done chunk;
+                        // an empty accumulator (well-behaved stream) ends the
+                        // stream exactly as before. After a surfaced error,
+                        // never flush.
+                        if errored {
+                            return None;
+                        }
+                        match tools.take() {
+                            Some(calls) => {
+                                let chunk = StreamChunk {
+                                    done: true,
+                                    tool_calls: Some(calls),
+                                    ..Default::default()
+                                };
+                                return Some((
+                                    futures::stream::iter(vec![Ok(chunk)]),
+                                    (lines, tools, errored, true),
+                                ));
+                            }
+                            None => return None,
+                        }
+                    }
+                }
+            }
+        },
+    )
+    .flatten()
+}
+
 #[async_trait]
 impl Provider for AnthropicProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
@@ -965,15 +1072,10 @@ impl Provider for AnthropicProvider {
             .bytes_stream()
             .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
 
-        let stream = line_stream(byte_stream)
-            .scan(AnthropicToolAccumulator::default(), |tools, line_result| {
-                let chunks = match line_result {
-                    Ok(line) => parse_sse_line(tools, &line),
-                    Err(e) => vec![Err(e)],
-                };
-                futures::future::ready(Some(futures::stream::iter(chunks)))
-            })
-            .flatten();
+        // AUD#5 (C-AUD-PROV): the stream assembly carries the flush state
+        // machine (`sse_chunk_stream`); per-line semantics stay in
+        // `parse_sse_line`.
+        let stream = sse_chunk_stream(line_stream(byte_stream));
 
         Ok(stream.boxed())
     }
@@ -1352,6 +1454,49 @@ mod tests {
         // Unknown / future event types must be ignored (forward-compat), never error.
         let future = parse_sse_line(&mut tools, r#"data: {"type":"some_future_event","foo":1}"#);
         assert!(future.is_empty(), "unknown event type must be ignored");
+    }
+
+    // --- AUD#5 (C-AUD-PROV): clean-EOF tool-call flush ---
+
+    #[tokio::test]
+    async fn stream_clean_eof_flushes_accumulated_tool_calls_and_marks_done() {
+        // A stream that ends cleanly without a `message_delta` /
+        // `message_stop` — the upstream just closes the connection — must not
+        // swallow the half-reconstructed `tool_use` blocks, and must not
+        // fabricate a completion reason either (ERR-003 / K-06): the flush
+        // chunk is `done == true`, `finish_reason == None`, carrying the
+        // completed call set.
+        let lines = vec![
+            Ok(r#"data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"get_weather"}}"#.to_string()),
+            Ok(r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"city\":"}}"#.to_string()),
+            Ok(r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"\"SF\"}"}}"#.to_string()),
+        ];
+        let chunks: Vec<Result<StreamChunk>> = sse_chunk_stream(futures::stream::iter(lines))
+            .collect()
+            .await;
+        assert_eq!(
+            chunks.len(),
+            1,
+            "the input_json_delta frames yield no chunks by themselves; exactly \
+             one EOF flush chunk, got {chunks:?}"
+        );
+        let flushed = chunks
+            .into_iter()
+            .next()
+            .unwrap()
+            .expect("the flush chunk is Ok");
+        assert!(flushed.done);
+        assert_eq!(
+            flushed.finish_reason, None,
+            "an absent stop_reason is missing information, never invented as Stop (ERR-003)"
+        );
+        let calls = flushed
+            .tool_calls
+            .expect("pending tool calls must be flushed at clean EOF");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "toolu_1");
+        assert_eq!(calls[0].function.name, "get_weather");
+        assert_eq!(calls[0].function.arguments, "{\"city\":\"SF\"}");
     }
 
     // --- REA-002: extended thinking request mapping ---

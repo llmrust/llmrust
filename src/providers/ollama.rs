@@ -181,12 +181,14 @@ fn parse_ndjson_line(line: &str) -> Vec<Result<StreamChunk>> {
     if parsed.done {
         vec![Ok(StreamChunk {
             done: true,
-            finish_reason: Some(
-                parsed
-                    .done_reason
-                    .map(FinishReason::from)
-                    .unwrap_or(FinishReason::Stop),
-            ),
+            // AUD#6 (C-AUD-PROV), ERR-003: `done_reason` is the ONLY source
+            // of a finish reason. A `done` frame without one is missing
+            // information — the previous code synthesized a completion claim
+            // the wire never made — so the finish_reason is `None`.
+            // A present `done_reason` keeps flowing through the existing
+            // `From<String>` mapping (unknown strings reach the `Other`
+            // escape hatch, unchanged).
+            finish_reason: parsed.done_reason.map(FinishReason::from),
             usage: Some(Usage {
                 prompt_tokens: parsed.prompt_eval_count,
                 completion_tokens: parsed.eval_count,
@@ -480,6 +482,29 @@ mod tests {
         let chunk = chunks.into_iter().next().unwrap().unwrap();
         assert_eq!(chunk.delta, "hello");
         assert!(!chunk.done);
+    }
+
+    // ── AUD#6 (C-AUD-PROV): done_reason is the only source of a finish reason ──
+
+    #[test]
+    fn stream_done_finish_reason_reflects_done_reason_only() {
+        // Arm 1: `done: true` with NO done_reason — the completion is real,
+        // the reason is missing information; it must NOT be fabricated as a
+        // Stop (ERR-003: 缺失即缺信息，不得断言为 Stop).
+        let chunks = parse_ndjson_line(r#"{"done":true}"#);
+        let chunk = chunks.into_iter().next().unwrap().unwrap();
+        assert!(chunk.done);
+        assert_eq!(
+            chunk.finish_reason, None,
+            "an absent done_reason must stay absent, never fabricated as a completion claim"
+        );
+
+        // Arm 2: done_reason present (e.g. "length") — the existing
+        // `From<String>` mapping applies as before.
+        let chunks = parse_ndjson_line(r#"{"done":true,"done_reason":"length"}"#);
+        let chunk = chunks.into_iter().next().unwrap().unwrap();
+        assert!(chunk.done);
+        assert_eq!(chunk.finish_reason, Some(FinishReason::Length));
     }
 
     // ── embedding fake server tests ───────────────────────────────

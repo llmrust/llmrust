@@ -21,3 +21,10 @@ Thumbs.db
 # Agent workforce loop runtime state (machine-written, never hand-edited)
 .workforce/loop-state.json
 
+
+# agent-workforce-loop：运行态与日志不得进包（package_guard 禁止 *.log）
+.workforce/*.log
+.workforce/loop-state.json
+.workforce/bootstrap-progress.md
+.workforce/tmp/
+.workforce/evidence/*.log

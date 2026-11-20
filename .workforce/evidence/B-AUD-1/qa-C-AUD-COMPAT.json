@@ -81,7 +81,7 @@
   "independent": true,
   "declared_by_lead": false,
   "notes": "独立复测，未读 dev 回执/notes/.workforce/evidence 下任何 dev 文件；工作区并行 dev 的其余脏文件未触碰。c1–c7 机判全绿。对抗层在 %TEMP% 全仓副本内附加私有探针模块执行（探测 parse_sse_line/sse_chunk_stream 私有 API，仓库逐字节未改、测试后副本已删除、回收前再验冻结 sha 不变）。另：行数口径复核——python splitlines 与 rust lines() 同值 2136。c3 注入窗口期间该测试红（exit 101），恢复后 h1==h0 逐字节一致——测试期间 dev 冻结未被破坏。cargo 锁竞争在本 QA 时段未发生（无需重试）。对抗层 6 探针全过：index==1024 接受（准确定位 1025 个 builder）/ index==1025 拒绝（Err(Parse)，无增长）/ usize::MAX 拒绝且零分配（无 panic/OOM）/ code 为字符串、999、缺失、布尔时 status=502、code=429 时 429、空 error 对象 {} 仍上抛 Api{502}（无静默丢弃）/ error 与 choices 同帧 error 优先上抛 Api{429,'quota exceeded'] / thinking 后 EOF 不伪造终帧（仅 1 个增量 chunk，done=false，thinking_done=None）/ thinking 后裸 [DONE] 终帧 thinking_done=None（非 Some(false)，不撒谎；thinking_done 全流至多出现 1 次，符合 CONTRACTS §7）。",
-  "handoff_id": "6825384678a26bb66eeaea09",
+  "handoff_id": "cd15ea9c8d16230abefa2cf4",
   "observations": [
     "对抗层-边界（AUD#7）：MAX_TOOL_CALL_INDEX=1024 的闭区间上界处理正确——index 恰为 1024 接受，1025 拒绝；usize::MAX 被拒且 builders 零分配，无 panic/OOM。符合卡契约。",
     "对抗层-error code（AUD#3）：code 非数值（字符串 'insufficient_quota'）、数值超错误区间（999）、缺失、布尔（true）一律落 status=502（上游侧错误、无可用 wire status 的保守默认），数值 429 保留为 429，message 原样保留；空对象 {'error':{}} 也不落回 keepalive 而是上抛 Api{502,''}——『无静默丢弃』方向正确。低风险提示：空 error 对象时 message 为空串，调用方只见 502 空文案（真实 wire 上未见此形态，登记备查）。",

@@ -1,0 +1,78 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ci",
+  "agent": "ci-llmrust",
+  "written_by": "ci-llmrust",
+  "card_id": null,
+  "batch_id": "B-DELTA-NULL",
+  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "provider": "github",
+  "repo": "llmrust/llmrust",
+  "pr": 251,
+  "pushed": {
+    "remote": "origin",
+    "branch": "main",
+    "head_sha": "3ed46b0f31b23d64d4c31a67054a887e9b7b9448"
+  },
+  "workflow_runs": [
+    {
+      "id": 44721042041,
+      "name": "CI",
+      "event": "push",
+      "head_sha": "3ed46b0f31b23d64d4c31a67054a887e9b7b9448",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/44721042041"
+    },
+    {
+      "id": 44721041908,
+      "name": "Security Gates",
+      "event": "push",
+      "head_sha": "3ed46b0f31b23d64d4c31a67054a887e9b7b9448",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/44721041908"
+    }
+  ],
+  "bypass_detected": false,
+  "verdict": "PASS",
+  "merged": {
+    "merge_commit": "916c66b8fc41546335e33193dfdb4d1254083127",
+    "merged_at": "2026-11-20T10:07:40Z"
+  },
+  "inputs_seen": [
+    "git rev-parse HEAD",
+    "git ls-remote --heads origin main",
+    "gh api repos/llmrust/llmrust/actions/runs?head_sha=3ed46b0f31b23d64d4c31a67054a887e9b7b9448",
+    "gh api repos/llmrust/llmrust/actions/runs/44721042041/jobs",
+    "gh api repos/llmrust/llmrust/actions/runs/44721041908/jobs",
+    "gh pr checks 251 --repo llmrust/llmrust",
+    "gh api repos/llmrust/llmrust/actions/runs?head_sha=6e54215537640c3dbada9e51e9b4f1208f28e83c",
+    "gh api repos/llmrust/llmrust/actions/runs?head_sha=5084e935c1b527de326657d3cb6328951dfbf8c4",
+    "gh api repos/llmrust/llmrust/pulls/251"
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/ci-gh-pr-checks.txt",
+      "sha256": "28abd173ad0fb839e63312ebc25dc7f898d1c3320ae642b2ac4c3da45c8b151f"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/ci-workflow-runs.txt",
+      "sha256": "c83cf27afd67749a2388ba2c2c6d990e82b9c9a1f1f1d6e4f771eda0893404ba"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/ci-job-conclusions.txt",
+      "sha256": "5b781bc64204d838f238542b25d29aeb2cee290ae8ab9ab38135835206392bd7"
+    }
+  ],
+  "command_exit_codes": [
+    { "cmd": "git rev-parse HEAD", "exit_code": 0 },
+    { "cmd": "git ls-remote --heads origin main", "exit_code": 0 },
+    { "cmd": "git push origin main", "exit_code": 0 },
+    { "cmd": "gh api \"repos/llmrust/llmrust/actions/runs?head_sha=3ed46b0f31b23d64d4c31a67054a887e9b7b9448\"", "exit_code": 0 },
+    { "cmd": "gh api \"repos/llmrust/llmrust/actions/runs/44721042041/jobs\"", "exit_code": 0 },
+    { "cmd": "gh api \"repos/llmrust/llmrust/actions/runs/44721041908/jobs\"", "exit_code": 0 }
+  ],
+  "mock_used": false,
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "【本回执已第三次重绑：当前 HEAD=3ed46b0f31b23d64d4c31a67054a887e9b7b9448，git ls-remote --heads origin main 同值】①该 HEAD 是 skill 加固提交（fix(skill): 检测 Windows CRLF 假漂移），非产品代码改动：只改 .agents/skills/agent-workforce-loop/{scripts/lib.mjs,scripts/loop.mjs,scripts/selftest.mjs,scripts/validate-skill.mjs,MANIFEST.json,references/generated/reason-codes.md}，src/ tests/ .github/ Cargo* 零改动。②event=push 而非 pull_request：两个 run 均由 main 分支 push 触发（CI #44721042041、Security Gates #44721041908），如实记录不伪装成 PR 通道；因 HEAD 已是 main 提交，其触发方式本就是 push。③PR#251 的产品改动早已在 916c66b8（squash 合并，main 上可见），其 PR 通道 CI 亦全绿：run 44715484550（CI）+ 44715484442（Security Gates），均 event=pull_request / conclusion=success / head_sha=5084e935c1b527de326657d3cb6328951dfbf8c4，逐 job 7/7 PASS。④本次 HEAD 逐 job 8/8 全 success：[CI #44721042041] MSRV (1.86)、Test (stable)、API-002 semver gate (vs 0.1.2 baseline)、Architecture & package guards (CI-003)；[Security Gates #44721041908] Supply-chain policy (cargo-deny)、RustSec advisories、Secret scan (gitleaks CLI)、Security audit。为何无绕过：(a) 本轮轮询至 18:40:47 两个 run 均 settled 才取结论，未用 queued/in_progress 充当通过；(b) 全部提交 message 无 skip-ci/ci-skip/no-ci 标记；(c) 回执由 ci 工种独立实测写入，declared_by_lead=false；(d) 未改 .github/ 下任何 workflow（skill 改动不含 workflow 文件）；(e) ci.json 按纪律不提交、不进 .gitignore，保持 untracked 以被 releaseDirtyFiles() 路径豁免，避免『提交即 HEAD 前移即回执自废』；(f) 未 force push（普通 push 6e54215..3ed46b0），未改全局 gh 配置（推送仅对单次调用注入 GH_TOKEN=bishuan，活动账号仍为 dongyanyuxuana）。【本轮已完成】release PASS（batch_status=released，head=6e54215，ci_runs=2）→ deliver PASS（state=ALL_DELIVERED，deliveredAt=2026-11-20T10:26:21.185Z）；随后完成 skill 固化并单独提交推送，故按 Lead 要求重绑本回执到新 HEAD。CONFIG_DRIFT 根因已定性并修复：Windows core.autocrlf=true 把 LF 的 config.json 物化成 CRLF，shaFile 按原始字节算导致与 LF 锁不一致（实测 1761-1704=57 字节 = 换行数，内容逐字相同，8 个提交里 blob sha 恒为 dc6e4fb5）；已 git config --local core.autocrlf false 并按 HEAD LF 原始字节重写，config.json sha 恢复为 dc6e4fb505c730fa7891ae835683815182246bdd79d86968b6aac284d716a879。"
+}

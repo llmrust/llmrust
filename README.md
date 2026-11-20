@@ -99,20 +99,45 @@ Or:
 cargo add llmrust --features proxy
 ```
 
-## Compatibility & Upgrade (0.1.5)
+## Compatibility & Upgrade (0.1.6)
 
-**Current release `0.1.5`: no code migration is required when upgrading from `0.1.4`**
+**Current release `0.1.6`: no code migration is required when upgrading from `0.1.5`**
+(the public API is unchanged — no public item was added, removed or altered). This is a
+targeted bug-fix release with **one wire-visible behavior change**: an OpenAI-compatible
+stream whose **terminal frame carries `"delta":null` or omits `delta` entirely** no longer
+fails the whole stream. That frame shape is official OpenAI semantics (the terminal frame
+only carries `finish_reason`) and is also emitted by llama.cpp, some vLLM builds and
+self-hosted proxies; previously serde rejected it (`missing field \`delta\``), `parse_sse_line`
+returned `LlmError::Parse` for the entire stream, the caller surfaced **"Invalid response"**,
+and **every streamed tool-calling turn failed at the real tool call**. `delta` is now
+`#[serde(default)] Option<CompDelta>` (covers both `null` and absent) and the three increment
+sites read through an empty placeholder, so real increments behave exactly as before.
+Well-formed streams are unchanged. The
+[Compatibility & Upgrade Notes (0.1.4)](docs/COMPATIBILITY-0.1.4.md) — the five 0.1.4
+wire-visible behavior changes and the §3 disclosures — still apply when upgrading from
+0.1.4 or earlier.
+
+> **Known issue (not fixed in 0.1.6):** `{"choices":null}` at the end of a stream is the
+> next defect in the same family — `choices`' `#[serde(default)]` covers a *missing* field,
+> not an explicit `null`, so it still fails the whole stream. Tracked for a follow-up release.
+
+<details>
+<summary><strong>Previous release (0.1.5)</strong></summary>
+
+**`0.1.5`: no code migration is required when upgrading from `0.1.4`**
 (the public API is unchanged — `cargo-semver-checks` against the 0.1.2 baseline reports zero
-breaking changes). This is a targeted fix release with **one wire-visible behavior change**:
+breaking changes). This was a targeted fix release with **one wire-visible behavior change**:
 an OpenAI-compatible stream that ends **without a `finish_reason` frame** (as measured on
 xunfei spark-x2.6: `[DONE]` arrives with the tool-call arguments already fully accumulated) no
 longer swallows the accumulated tool calls — they now surface as `tool_calls` on the terminal
-done chunk; well-behaved streams (with `finish_reason`) are unchanged. The release also carries
+done chunk; well-behaved streams (with `finish_reason`) are unchanged. The release also carried
 transitive dependency security upgrades in `Cargo.lock` (tokio 1.53.3, rustls 0.23.46,
 rustls-webpki 0.103.16) with **no new `advisories.ignore` entries**. The
 [Compatibility & Upgrade Notes (0.1.4)](docs/COMPATIBILITY-0.1.4.md) — the five 0.1.4
 wire-visible behavior changes and the §3 disclosures — still apply when upgrading from
 0.1.3 or earlier.
+
+</details>
 
 <details>
 <summary><strong>Previous release (0.1.4)</strong></summary>

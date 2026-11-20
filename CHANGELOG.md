@@ -5,6 +5,55 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-11-20
+
+### Fixed
+
+- **OpenAI 兼容流末帧 `{"delta":null}` / `delta` 字段缺失不再导致整条流解析失败**
+  （`#251`，2026-11-20 squash 合并 main）：
+  `OpenAiCompatibleProvider`（`src/providers/compat.rs`）的 `CompStreamChoice.delta` 原为
+  **非 Option** 的 `CompDelta`，于是末帧 `delta:null` 在 serde 处失败
+  （`missing field \`delta\``），`parse_sse_line` 对**整条流**返回
+  `LlmError::Parse("failed to parse OpenAI-compatible stream chunk: ...")`。
+
+  **后果链（这是本版要修的真实故障）**：解析错误 ⇒ 调用方拿到
+  **"Invalid response"** ⇒ **真调工具的那一步必然失败**——不是降级、不是少一段文本，
+  而是每一个带工具调用的流式回合在真实端点上都走不到工具执行。
+
+  **触发端点**：`delta:null` 是 **OpenAI 官方语义**（末帧只带 `finish_reason` 是规矩写法），
+  实测同类端点还包括 **llama.cpp**、**部分 vLLM 构建**、**自建代理**；另有上游**完全不发
+  `delta` 字段**。下游实测复现：beeli 纵切 S3，端点 `http://127.0.0.1:18778/v1`，
+  `nous/meituan/longcat-2.5:free` 与 `nous/upstage/solar-mini4:free` 均触发，末帧逐字为
+  `{"choices":[{"delta":null,"index":0,"finish_reason":"stop","message":{...},...}]}`。
+
+  **修复**：`CompStreamChoice.delta` 改为 `#[serde(default)] Option<CompDelta>`
+  （**同时覆盖** `delta:null` 与 **`delta` 字段完全缺失**两种形态），`CompDelta` 派生
+  `Default`；`parse_sse_line` 在 choices 分支顶部绑定一个 `empty_delta` 占位
+  （`let delta = choice.delta.as_ref().unwrap_or(&empty_delta);`），三处使用点
+  （tool_calls 累积、reasoning/reasoning_content、content）改读该绑定——真实增量路径逻辑
+  零变化，`None` 的语义被明确为"无增量、只有 `finish_reason`"。
+
+  **回归测试 3 条**（失败优先，注入验证：把字段改回 `delta: CompDelta` 时其中 2 条转红、
+  第 2 条保持绿，恢复后 3 条全绿且文件 sha256 逐字节一致）：
+  `stream_terminal_chunk_with_null_delta_parses`（`{"delta":null,"finish_reason":"stop"}` ⇒
+  `delta == ""`、`done == true`）、`stream_terminal_chunk_with_absent_delta_parses`
+  （`{"finish_reason":"stop"}` 无 `delta` 键亦解析，覆盖 `serde(default)`）、
+  `stream_delta_content_still_parses_with_option`（`{"delta":{"content":"hi"}}` 仍产出
+  `"hi"`，防回归）。公共 API 无增删改。
+
+- **热点台账同步（`tests/hotspot_ledger.json`）：`src/providers/compat.rs` 1843 → 1899 行**
+  （实测；含 `adjustments[]` 理由条目）。`hotspot_files_do_not_grow` 双向精确相等断言，
+  故任何对该文件的真实改动都必须同步台账（`SPCC` §11.1.4）；回退到 1843 亦经注入验证转红。
+
+### Known issues
+
+- **`choices:null` 是同一族的下一层缺陷，本版未修**（不在 `#251` 范围内，本版**未触碰**
+  `choices` 字段）：`CompStreamChunk.choices` 的 `#[serde(default)]` 只覆盖"字段缺失"，
+  **不覆盖显式 `null`**——上游若在末尾发 `{"choices":null}`，仍会在 serde 处失败并整条流
+  转 `LlmError::Parse`，症状与本次修复的 `delta:null` 同型。建议后续以独立任务卡处理
+  （判据：`choices: Option<Vec<..>>` 或自定义 deserializer，配失败优先回归测试）。
+  跟踪 issue 标题建议：`OpenAI 兼容流 choices:null 同样导致解析失败（delta:null 的下一层同类缺陷）`。
+
 ## [0.1.5] - 2026-11-17
 
 ### Fixed

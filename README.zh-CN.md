@@ -98,9 +98,18 @@ llmrust = { version = "0.1", features = ["proxy"] }
 cargo add llmrust --features proxy
 ```
 
-## 兼容性与升级（0.1.5）
+## 兼容性与升级（0.1.6）
 
-**当前版本 `0.1.5`：从 `0.1.4` 升级无需任何代码改动**（公共 API 无增删改——相对 0.1.2 基线的 `cargo-semver-checks` 零破坏性变更）。本版为窄口径修复版，含 **1 条 wire 行为变更**：OpenAI 兼容流式在上游**不发 `finish_reason` 帧就干净结束**时（实测 xunfei spark-x2.6：`[DONE]` 已到、tool_call 参数已完整累积在库内），不再把已累积的 tool_call 吞在库内——现在作为终末 done chunk 的 `tool_calls` 产出；规矩流（带 `finish_reason`）行为零变化。另含锁文件内传递依赖安全升级（tokio 1.53.3、rustls 0.23.46、rustls-webpki 0.103.16，**未新增任何 `advisories.ignore` 条目**）。从 0.1.3 及更早版本升级的用户，[兼容性与升级说明（0.1.4）](docs/COMPATIBILITY-0.1.4.md)的全部内容（5 条 wire 行为变更与第 3 节如实披露）仍然适用。
+**当前版本 `0.1.6`：从 `0.1.5` 升级无需任何代码改动**（公共 API 无增删改）。本版为窄口径缺陷修复版，含 **1 条 wire 行为变更**：OpenAI 兼容流式若**末帧带 `"delta":null` 或完全不带 `delta` 字段**，不再导致整条流解析失败。该末帧形态是 **OpenAI 官方语义**（末帧只带 `finish_reason`），llama.cpp、部分 vLLM 构建与自建代理同样如此；此前 serde 直接拒绝（`missing field \`delta\``），`parse_sse_line` 对**整条流**返回 `LlmError::Parse`，调用方看到 **"Invalid response"**，于是**每一个带工具调用的流式回合都在真调工具那一步失败**。现在 `delta` 为 `#[serde(default)] Option<CompDelta>`（**同时覆盖** `null` 与**字段缺失**），三处增量使用点改读空占位，真实增量路径行为零变化；规矩流不受影响。从 0.1.4 及更早版本升级的用户，[兼容性与升级说明（0.1.4）](docs/COMPATIBILITY-0.1.4.md)的全部内容（5 条 wire 行为变更与第 3 节如实披露）仍然适用。
+
+> **已知残留（0.1.6 未修）**：流末尾的 `{"choices":null}` 是同一族的下一层缺陷——`choices` 的 `#[serde(default)]` 只覆盖"字段缺失"、**不覆盖显式 `null`**，仍会打红整条流。已留痕，留待后续版本处理。
+
+<details>
+<summary><strong>历史版本（0.1.5）</strong></summary>
+
+**`0.1.5`：从 `0.1.4` 升级无需任何代码改动**（公共 API 无增删改——相对 0.1.2 基线的 `cargo-semver-checks` 零破坏性变更）。本版为窄口径修复版，含 **1 条 wire 行为变更**：OpenAI 兼容流式在上游**不发 `finish_reason` 帧就干净结束**时（实测 xunfei spark-x2.6：`[DONE]` 已到、tool_call 参数已完整累积在库内），不再把已累积的 tool_call 吞在库内——现在作为终末 done chunk 的 `tool_calls` 产出；规矩流（带 `finish_reason`）行为零变化。另含锁文件内传递依赖安全升级（tokio 1.53.3、rustls 0.23.46、rustls-webpki 0.103.16，**未新增任何 `advisories.ignore` 条目**）。从 0.1.3 及更早版本升级的用户，[兼容性与升级说明（0.1.4）](docs/COMPATIBILITY-0.1.4.md)的全部内容（5 条 wire 行为变更与第 3 节如实披露）仍然适用。
+
+</details>
 
 <details>
 <summary><strong>历史版本（0.1.4）</strong></summary>

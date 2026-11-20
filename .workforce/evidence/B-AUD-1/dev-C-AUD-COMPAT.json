@@ -1,0 +1,151 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "written_by": "dev-llmrust-cs",
+  "role": "dev",
+  "agent": "dev-llmrust-cs",
+  "card_id": "C-AUD-COMPAT",
+  "batch_id": "B-AUD-1",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "inputs_seen": [
+    ".workforce/cards/C-AUD-COMPAT.json",
+    "tests/hotspot_ledger.json",
+    "docs/CONTRACTS.md",
+    "AGENTS.md"
+  ],
+  "files_changed": [
+    "src/providers/compat.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "web_guidance": {
+    "queries": [],
+    "guide_ids": [],
+    "retrieved_artifact": "",
+    "none_applicable_reason": "write_scopes 均为后端 Rust 源码与测试资产，非前端卡，Modern Web Guidance 不适用"
+  },
+  "layers_covered": [],
+  "rule_ids": [],
+  "guidance_verified": [],
+  "mock_used": false,
+  "prototype_refs": [],
+  "artifacts": [
+    {
+      "path": "src/providers/compat.rs",
+      "sha256": "6ea3341312aa63a265b807eba2d6f66a45c149a7d15154f54e0009a33b081fb5"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "fc6243f9b7791a0679fe788c94da41fa3ac0ba302c411c1bed5c70b0c29df612"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "python -c \"import re;s=open('src/providers/compat.rs',encoding='utf-8').read();assert 'done.then_some(thinking.is_some())' not in s,'old same-frame expr still present'\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import re;s=open('src/providers/compat.rs',encoding='utf-8').read();assert len(re.findall(r'\\bsaw_thinking\\b',s))>=3,'sticky flag missing'\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import re;s=open('src/providers/compat.rs',encoding='utf-8').read();m=re.search(r'struct CompStreamChunk\\s*\\{(.*?)\\n\\}',s,re.S);assert m and re.search(r'#\\[serde\\(default\\)\\]\\s*\\n\\s*pub?\\s*error:\\s*Option<',m.group(1)),'CompStreamChunk lacks error field'\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import re;s=open('src/providers/compat.rs',encoding='utf-8').read();m=re.search(r'fn ingest\\s*\\([^)]*\\)\\s*\\{(.*?)\\n    \\}',s,re.S);blk=m.group(1) if m else '';assert bool(re.search(r'MAX_TOOL_(CALL_)?INDEX',s)) or bool(re.search(r'index\\s*[<>=]{1,2}\\s*\\d+',blk)) or bool(re.search(r'\\bif\\b[^\\n]*index[^\\n]*(too large|exceed|limit|bound)',blk)),'ingest unbounded'\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_terminal_after_thinking_marks_sticky_done (stdout: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 263 filtered out)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_no_thinking_terminal_done_is_false (stdout: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 263 filtered out)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_error_frame_surfaces_llm_error (stdout: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 263 filtered out)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_tool_call_delta_with_huge_index_is_rejected (stdout: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 263 filtered out)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_empty_choices_without_usage_stays_keepalive (stdout: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 263 filtered out)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace -- --list (五名各恰出现 1 次、无 ': ignored' 后缀)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import hashlib;print(hashlib.sha256(open('src/providers/compat.rs','rb').read()).hexdigest())\" (注入前 h0)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "注入回退（把 sticky 终态替换回旧同帧形式 done.then_some(thinking.is_some())）后：cargo test --lib providers::compat::tests::stream_terminal_after_thinking_marks_sticky_done",
+      "exit_code": 101
+    },
+    {
+      "cmd": "注入态下：cargo test --lib providers::compat::tests::stream_no_thinking_terminal_done_is_false (stdout: test result: ok. 1 passed; 0 failed; 0 ignored)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "恢复后：python -c \"import hashlib;print(hashlib.sha256(open('src/providers/compat.rs','rb').read()).hexdigest())\" (h1==h0==6ea3341312aa63a265b807eba2d6f66a45c149a7d15154f54e0009a33b081fb5)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "恢复后：cargo test --lib providers::compat::tests::stream_terminal_after_thinking_marks_sticky_done (stdout: test result: ok. 1 passed; 0 failed; 0 ignored)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace (台账更新后最终跑；18 个 unit/integration 二进制全 0 failed 0 ignored，Doc-tests: 6 passed; 2 ignored)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test architecture_guard (exit 0; stdout: test result: ok. 16 passed; 0 failed; 0 ignored；含 hotspot_files_do_not_grow ... ok / hotspot_ledger_is_consistent ... ok)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test package_guard (exit 0; stdout: test result: ok. 4 passed; 0 failed; 0 ignored)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python（c6 机判命令：baseline_lines['src/providers/compat.rs']==实测 2136；adjustments 末条六字段齐备 file/src/providers/compat.rs、old 1899、new 2136、reason 含 C-AUD-COMPAT、authorized_by 含 Boss 2026-11-20、date 2026-11-20；另判 baseline_lines 相对 HEAD 仅 compat.rs 一项变动，其余 11 文件未动）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python（c7①：git show b008185:src/providers/compat.rs 与工作版的 assert!/assert_eq!/assert_ne! 行集合差，基线集合−当前集合 = 空，基线 118 条断言全保留）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python（c7②：src/**/*.rs 与 tests/**/*.rs 全树 b008185 与当前 #[ignore]/#[should_panic] 命中位置集合双向差集均为空——基线 #[should_panic] 2 处 src/proxy/mod.rs、#[ignore] 0 处，当前一致）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python（c7③：cargo test --workspace 输出 18 个 unit/integration 二进制 test result 行 failed/ignored 计数全为 0；Doc-tests 行 ignored=2 ≤ 基线 2）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import hashlib;print(hashlib.sha256(open('tests/hotspot_ledger.json','rb').read()).hexdigest())\"",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "三处审计缺陷修复：AUD#1 严重级 sticky thinking_done —— ToolCallAccumulator 增 saw_thinking 流级标志（compat.rs:281 附近声明/置位/终态读取三处），终帧 thinking_done=done.then_some(tools.saw_thinking)（compat.rs:484），裸终帧（reasoning 流终帧不含 thinking 增量）不再误报 Some(false)，旧同帧表达式逐字节退出文件（含注释不得包含）；AUD#3 流内错误帧暴露 —— CompStreamChunk 增 #[serde(default)] pub error: Option<CompStreamError>（compat.rs:188），parse_sse_line 在 choices 分支前检查（compat.rs:420 起），data: {\"error\":{...},\"choices\":[]} 上抛 LlmError::Api{status（数值 code∈400..=599 时取之，否则 502）,message}，不再落入空 choices 静默 keepalive；AUD#7 工具索引有界化 —— MAX_TOOL_CALL_INDEX=1024（compat.rs:263 附近），ingest 在 resize_with 之前对 delta.index 判上限、超额返 LlmError::Parse（compat.rs:301 附近），ingest 签名改 Result<()> 后由 parse_sse_line 上抛。新增五条命名回归测试全部走既有 parse_sse_line 夹具（compat.rs tests 模块）；卡内'不得删改'清单既有用例与 118 条基线断言逐字未动（c7①集合差为空）。K-02：错误帧只透传 message/code，不记录 key/URL/prompt。日志无新增敏感字段。台账：本卡是 B-AUD-1 唯一台账写入卡，baseline 1899→2136（实测），adjustments 追加末条（authorized_by=Boss 2026-11-20 决策 A，date=2026-11-20，reason 含卡号与三项修复要点与'非注水'声明），其余 11 文件 baseline 未动；该代写调整按 ruling_refs 须 architect-llmrust 在 spec-review 阶段追认。事实记录（非 QA 结论）：c1 四条机判 exit 0；c2 五条测试各自 exit 0 且 'test result: ok. 1 passed; 0 failed; 0 ignored'，--list 五名各恰 1 次无 ignored 后缀；c3 注入验红（注入态 101 FAILED / 恢复态 0 / h1==h0==6ea33413…，注入态下无思考用例仍 ok）；c4 四条门禁 exit 0；c5 architecture_guard exit 0（16 passed 0 failed 0 ignored，hotspot 两用例 ok）与 package_guard exit 0（4 passed 0 failed 0 ignored）；c6 机判 exit 0；c7①②③机判 exit 0。过程事实：cargo test --workspace 首跑 exit 101 两次——第一次为本卡台账未更新（architecture_guard hotspot_files_do_not_grow 抓 2136≠1899，即 c5 守卫按设计红灯），第二次为并行 dev（C-AUD-DOCS，写 docs/CAPABILITIES.md 与 llmrust.capabilities.json 等）文档矩阵中间态（capability_freeze documentation_matrix_matches_the_json_inventory 漂移失败，与 compat 无关，未触碰其文件）；并行 dev 完成其更新后最终 cargo test --workspace exit 0。共享工作区里 tests/architecture_guard.rs、tests/cap002_contract.rs、docs/*、README*、llmrust.capabilities.json、tests/capability_freeze.rs、.gitleaks.toml 等脏文件属并行工种，本卡一律未动。QA/门禁机判（含复跑与归档 stdout 原文）归 qa-llmrust-cs / gate-llmrust。",
+  "handoff_id": ""
+}

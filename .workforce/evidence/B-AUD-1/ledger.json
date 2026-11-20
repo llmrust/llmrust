@@ -1,0 +1,510 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ledger",
+  "agent": "ledger-llmrust",
+  "written_by": "ledger-llmrust",
+  "card_id": null,
+  "batch_id": "B-AUD-1",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "inputs_seen": [
+    ".workforce/spec.json（sha256=254d36f2…1911b 与 spec_sha256 逐字节一致；constitution K-01…K-06，K-02/K-05 全文已读）",
+    ".workforce/cards/C-AUD-COMPAT.json（B-AUD-1 唯一台账写入卡，c6 判据原文）",
+    ".workforce/cards/C-AUD-DOCS.json / C-AUD-GUARD.json（c6 零台账动作负向判据）",
+    ".workforce/config.json ledger 段（ledger.command=null + none_reason：本仓台账层只验 self_sha256 自洽，不重跑生成命令；机器事实源为 cargo test 输出 + CI 记录）",
+    "tests/hotspot_ledger.json（工作区交付态，raw sha256=fc6243f9b7791a0679fe788c94da41fa3ac0ba302c411c1bed5c70b0c29df612；另经 git show 比对 bf7dee9/916c66b/b008185/HEAD=39928fc 四个已提交态）",
+    "tests/architecture_guard.rs L310-480（hotspot_files_do_not_grow / hotspot_ledger_is_consistent / hotspot_coverage_is_complete 的判定语义——守卫不校验 adjustments 链）",
+    ".workforce/evidence/B-AUD-1/ 六份回执的 artifacts sha 清单与 dev 回执 files_changed（唯一交叉对账用途；未读任何回执的 verdict/notes/结论，保核验独立）",
+    ".agents/skills/agent-workforce-loop/references/roles.md + assets/evidence.template.json + scripts/lib.mjs（checkEvidence/ledgerCheck/pass 的机器校验语义）",
+    ".workforce/evidence/B-AUD-2/architect-ruling-2026-11-21-P1-ollama-chain.md（architect-llmrust 正式 ruling 原文，sha256=384cd516996c944d44e70b4130871414d3701410e88229e12cbaaefc9ae105cc；独立复核其 A/B/C/D/E 全部事实主张后同意）",
+    ".workforce/cards/C-AUD-PROV.json（复核 ruling【B】窗口相容性：write_scopes 含 src/providers/ollama.rs 与 tests/hotspot_ledger.json；c6 机判命令语义实测判读——取 file==<f> 的最后一条 adjustment 验 old==830，确认 W4 机器盲区成立）",
+    ".workforce/loop-state.json B-AUD-1 handoffs（复核 ruling【B】依据①：C-AUD-COMPAT handoff_id=ce492305b35fb0a1b5b79d94 冻结 tests/hotspot_ledger.json sha=fc6243f9…（即当前交付态），批内任何台账写入必触发 DEV_CHANGED_AFTER_HANDOFF 作废三卡 QA）"
+  ],
+  "ledger": {
+    "duty_basis": {
+      "config_ledger": "command=null；none_reason：llmrust 仓没有台账生成脚本，台账层只验 self_sha256 自洽、不重跑生成命令、手写台账可过；本回执即机器事实载体",
+      "K02": "热点台账是数值门禁的唯一事实源，且双向（current != expected）：tests/hotspot_ledger.json 的 baseline_lines 必须等于文件实测行数，任何基线变更只能以追加 adjustments[] 的 truth correction 形式发生，且该项属架构师专属权限（SPCC-0.1.4 §4.4 / §9.2 第 1 条 / §11.1.4）。",
+      "K05": "不虚报：完成口径只认机器实测的 exit code 与 sha256，不认叙述性文档、回执自述或「我准备做」。",
+      "guard_semantics_note": "守卫 hotspot_ledger_is_consistent 只验 threshold 整数存在、baseline 各项 ≥ threshold、文件存在；hotspot_files_do_not_grow 做 baseline==实测双向判定；二者均不校验 adjustments[] 链——「同一文件多次调整末次 new == 当前 baseline」的链收敛是本工种按批次指令独立补充的核验面，守卫绿灯不能替代该面。"
+    },
+    "target": "tests/hotspot_ledger.json",
+    "target_sha256_raw_bytes": "fc6243f9b7791a0679fe788c94da41fa3ac0ba302c411c1bed5c70b0c29df612",
+    "threshold": 500,
+    "threshold_present": true,
+    "line_count_metric": "python len(open(p,encoding='utf-8').read().splitlines())；机扫 12 基线文件均无 \\x0b/\\x0c/\\x1c-\\x1e/\\x85/\\u2028/\\u2029、无孤立 \\r（ollama.rs 为 CRLF 成对换行，其余 LF）⇒ splitlines 与守卫 fs::read_to_string(p).lines().count() 在全部 12 文件上同值",
+    "baseline_files": [
+      {
+        "file": "src/proxy/mod.rs",
+        "baseline_lines": 3770,
+        "measured_lines": 3770,
+        "sha256": "8bbb9d765b19502b57a6a8174f48e7904ceb49d932aac488a367cf91bf46cb11",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/proxy/anthropic_proxy.rs",
+        "baseline_lines": 2053,
+        "measured_lines": 2053,
+        "sha256": "e21de12570edfcf658cdae16d4f5e8c2204359c3e1acc4c51b726e47e592adeb",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/proxy/responses_proxy.rs",
+        "baseline_lines": 964,
+        "measured_lines": 964,
+        "sha256": "972bef608ad23bd9822cc62670173f9688a6d6e659bc3c1c7f603a32dffd3126",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/compat.rs",
+        "baseline_lines": 2136,
+        "measured_lines": 2136,
+        "sha256": "6ea3341312aa63a265b807eba2d6f66a45c149a7d15154f54e0009a33b081fb5",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/google.rs",
+        "baseline_lines": 1614,
+        "measured_lines": 1614,
+        "sha256": "8576d607b6bc48a80d23024171111e05f255ff1515a67c66ad617e226a5604c3",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/types.rs",
+        "baseline_lines": 1136,
+        "measured_lines": 1136,
+        "sha256": "b6eaade3f0c8c214f653bde4eaa56673e899f0d172f4b550106de4c208c68c66",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/anthropic.rs",
+        "baseline_lines": 1539,
+        "measured_lines": 1539,
+        "sha256": "11b88f4413eda43b3e0a5f82f5feb27ba63330c7dd7added6404e53d42ead5bc",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/router.rs",
+        "baseline_lines": 1231,
+        "measured_lines": 1231,
+        "sha256": "7eca653e5bb38f3316550eaf0790ca70370f04ae12cddde90189ebf8658f374d",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/ollama.rs",
+        "baseline_lines": 830,
+        "measured_lines": 830,
+        "sha256": "c8784443495dff3aea780170c2466879b9b7c556d163bbcbbf2802d4c31a358a",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/lib.rs",
+        "baseline_lines": 839,
+        "measured_lines": 839,
+        "sha256": "d6c7752fd42a7a9df5082bd5fa2aae244b5b3e2d829c28ebe5fa59bcf6a8b939",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/retry.rs",
+        "baseline_lines": 970,
+        "measured_lines": 970,
+        "sha256": "966535a632c0e45b2145ff575cc1b06cd44d37b6af113127395f5744e95b41a4",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/capabilities.rs",
+        "baseline_lines": 712,
+        "measured_lines": 712,
+        "sha256": "e5aaaedb7092c620e75f9a42e63795ef742213f457d01206a6dfb0d130809929",
+        "baseline_eq_measured": true
+      }
+    ],
+    "baseline_bidirectional_consistent": true,
+    "baseline_bidirectional_detail": "12/12 baseline_lines == 实测行数（compat.rs 2136==2136、ollama.rs 830==830 等；零 mismatch）",
+    "coverage_scan": {
+      "src_rs_files_total": 25,
+      "files_ge_threshold": 12,
+      "unlisted_oversized": [],
+      "bidirectional_coverage_ok": true
+    },
+    "adjustments": {
+      "count": 53,
+      "expected_count": 53,
+      "six_fields": [
+        "file",
+        "old",
+        "new",
+        "reason",
+        "authorized_by",
+        "date"
+      ],
+      "six_fields_all_present_nonempty": true,
+      "chain_continuity": "53/53：同一文件相邻条目 old == 前条 new，全表零断链（含 compat.rs 1228→1455→1487→1485→1513→1843→1899→2136 七连）",
+      "chain_continuity_gaps": [],
+      "last_entry": {
+        "file": "src/providers/compat.rs",
+        "old": 1899,
+        "new": 2136,
+        "authorized_by": "Boss 2026-11-20 决策 A",
+        "date": "2026-11-20",
+        "authorized_by_exact_match": true,
+        "date_ok": true,
+        "reason_contains_card_id": true,
+        "new_eq_compat_measured_lines": true,
+        "old_eq_prebatch_head_baseline": true
+      },
+      "chains": {
+        "src/proxy/mod.rs": {
+          "entries": 11,
+          "first_old": 2573,
+          "last_new": 3770,
+          "baseline_now": 3770,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/anthropic.rs": {
+          "entries": 7,
+          "first_old": 972,
+          "last_new": 1539,
+          "baseline_now": 1539,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/google.rs": {
+          "entries": 6,
+          "first_old": 1221,
+          "last_new": 1614,
+          "baseline_now": 1614,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/compat.rs": {
+          "entries": 7,
+          "first_old": 1228,
+          "last_new": 2136,
+          "baseline_now": 2136,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/proxy/anthropic_proxy.rs": {
+          "entries": 4,
+          "first_old": 1520,
+          "last_new": 2053,
+          "baseline_now": 2053,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/router.rs": {
+          "entries": 3,
+          "first_old": 851,
+          "last_new": 1231,
+          "baseline_now": 1231,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/proxy/responses_proxy.rs": {
+          "entries": 1,
+          "first_old": 0,
+          "last_new": 964,
+          "baseline_now": 964,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/ollama.rs": {
+          "entries": 2,
+          "first_old": 0,
+          "last_new": 829,
+          "baseline_now": 830,
+          "chain_gaps": [],
+          "converges_to_baseline": false
+        },
+        "src/lib.rs": {
+          "entries": 6,
+          "first_old": 0,
+          "last_new": 839,
+          "baseline_now": 839,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/retry.rs": {
+          "entries": 4,
+          "first_old": 0,
+          "last_new": 970,
+          "baseline_now": 970,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/types.rs": {
+          "entries": 1,
+          "first_old": 1132,
+          "last_new": 1136,
+          "baseline_now": 1136,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/capabilities.rs": {
+          "entries": 1,
+          "first_old": 0,
+          "last_new": 712,
+          "baseline_now": 712,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        }
+      },
+      "chain_convergence": {
+        "verdict": "FAIL",
+        "converged_files": [
+          "src/lib.rs",
+          "src/providers/anthropic.rs",
+          "src/providers/capabilities.rs",
+          "src/providers/compat.rs",
+          "src/providers/google.rs",
+          "src/providers/retry.rs",
+          "src/proxy/anthropic_proxy.rs",
+          "src/proxy/mod.rs",
+          "src/proxy/responses_proxy.rs",
+          "src/router.rs",
+          "src/types.rs"
+        ],
+        "non_converged_files": [
+          "src/providers/ollama.rs"
+        ]
+      }
+    },
+    "batch_ledger_delta_vs_head": {
+      "head_commit": "39928fc17e48f674006c6a1e15fc708cba2bbbd9",
+      "head_ledger_adjustments": 52,
+      "baseline_lines_changes": {
+        "src/providers/compat.rs": {
+          "old": 1899,
+          "new": 2136
+        }
+      },
+      "other_11_baselines_unchanged": true,
+      "head_entries_prefix_identical": true,
+      "c6_freeze_check": "PASS：本批唯一基线变化是 compat.rs 1899→2136；前 52 条 adjustment 与 HEAD 逐字相同；description 相同"
+    },
+    "cross_check_receipts_artifacts": {
+      "method": "仅读六份回执的 artifacts（path+sha256）与 dev 回执 files_changed 做对账；未读 verdict/notes/结论（硬边界：核验独立）；重发复核时追加批次级 gate.json 的 artifacts 对账（其余六份为 17:17:51Z 实测，复验无漂移）",
+      "receipts": [
+        {
+          "file": "dev-C-AUD-COMPAT.json",
+          "role": "dev",
+          "agent": "dev-llmrust-cs",
+          "artifacts_total": 2,
+          "sha_mismatches": 0,
+          "missing_on_disk": 0,
+          "files_changed": [
+            "src/providers/compat.rs",
+            "tests/hotspot_ledger.json"
+          ],
+          "files_changed_eq_card_write_scopes": true
+        },
+        {
+          "file": "dev-C-AUD-DOCS.json",
+          "role": "dev",
+          "agent": "dev-llmrust-dt",
+          "artifacts_total": 23,
+          "sha_mismatches": 0,
+          "missing_on_disk": 0,
+          "files_changed": [
+            ".gitleaks.toml",
+            "README.md",
+            "README.zh-CN.md",
+            "docs/CAPABILITIES.md",
+            "docs/CONTRACTS.md",
+            "llmrust.capabilities.json",
+            "tests/capability_freeze.rs"
+          ],
+          "files_changed_eq_card_write_scopes": true
+        },
+        {
+          "file": "dev-C-AUD-GUARD.json",
+          "role": "dev",
+          "agent": "dev-llmrust-gv",
+          "artifacts_total": 2,
+          "sha_mismatches": 0,
+          "missing_on_disk": 0,
+          "files_changed": [
+            "tests/architecture_guard.rs",
+            "tests/cap002_contract.rs"
+          ],
+          "files_changed_eq_card_write_scopes": true
+        },
+        {
+          "file": "qa-C-AUD-COMPAT.json",
+          "role": "qa",
+          "agent": "qa-llmrust-cs",
+          "artifacts_total": 2,
+          "sha_mismatches": 0,
+          "missing_on_disk": 0
+        },
+        {
+          "file": "qa-C-AUD-DOCS.json",
+          "role": "qa",
+          "agent": "qa-llmrust-dt",
+          "artifacts_total": 7,
+          "sha_mismatches": 0,
+          "missing_on_disk": 0
+        },
+        {
+          "file": "qa-C-AUD-GUARD.json",
+          "role": "qa",
+          "agent": "qa-llmrust-gv",
+          "artifacts_total": 2,
+          "sha_mismatches": 0,
+          "missing_on_disk": 0
+        },
+        {
+          "file": "gate.json",
+          "role": "gate",
+          "agent": null,
+          "artifacts_total": 8,
+          "sha_mismatches": 0,
+          "missing_on_disk": 0,
+          "note": "重发复核时实测"
+        }
+      ],
+      "all_artifact_shas_match_disk": true,
+      "dev_files_changed_scope_check": "三张 dev 回执 files_changed 与各自 card.write_scopes 集合完全一致（COMPAT 2 文件 / DOCS 7 文件 / GUARD 2 文件）",
+      "all_artifact_shas_match_disk_incl_gate": true
+    },
+    "problems": [
+      {
+        "id": "P1-OLLAMA-ADJUSTMENT-CHAIN-NON-CONVERGENCE",
+        "severity": "台账审计链不自洽（K-02「任何基线变更只能以追加 adjustments[] 的 truth correction 形式发生」）；accept 的 state 层将因本回执 verdict=FAIL 变红——按职责如实呈现｜已裁定（architect-llmrust 2026-11-21 ruling【A】）：定性为 genesis chain-documentation gap（基因性链文档缺口）——非基线漂移、非本批违规、非 committed 历史上任何一次 append-only 违规；「829→830 的未记账变更」这一事件从未发生，缺口是出生记录自身不闭合。本条前句所述「state 层红」已由 ruling【C】处置为范围性 PASS（见 verdict_scope）；内层 chain_convergence.verdict 仍为 FAIL，客观事实补链落地前不变。",
+        "finding": "src/providers/ollama.rs 的 adjustments 链为 0→805（#209 注册，2026-09-11）→829（CAP-002，2026-09-11），末次 new=829；但当前 baseline_lines=830（且实测文件 830 行）。829→830 这 +1 的基线变更没有任何 adjustments[] 条目承载——链不收敛（缺口 +1）。",
+        "machine_guard_status": "守卫全绿不是反证：hotspot_files_do_not_grow 只做 baseline==实测（830==830 过），hotspot_ledger_is_consistent 不校验链；本缺口只在台账工种的链收敛核验面暴露。",
+        "not_introduced_by_this_batch": true,
+        "provenance": "非 B-AUD-1 引入：b008185（审计基线 commit）、916c66b（#251）、HEAD=39928fc 三个已提交态的台账已含同一缺口。本仓 git 历史共 11 个 commit，根即 bf7dee9（0.1.5 发版 #250），tests/hotspot_ledger.json 首次入库即在该根 commit，当时 ollama 基线已是 830；git log -S 证实 committed 历史从未存在 \"src/providers/ollama.rs\": 829；ollama.rs 自根 commit 以来零改动（今 830 行、CRLF）。即 CAP-002 条目的 new=829 与任何已提交基线态都不曾相符——829→830 无授权落账记录。",
+        "remediation_hint": "按 §11.1.4/K-02 由 architect-llmrust 追认：追加一条 ollama.rs 829→830 的 truth correction adjustment（或勘误 CAP-002 条目 new 值为 830 并披露），随后台账工种重核。B-AUD-1 内 C-AUD-COMPAT 是唯一持有 tests/hotspot_ledger.json 写入范围的卡。｜已裁定落点（ruling【B】）：补链 entry 于 B-AUD-2 / C-AUD-PROV 台账写入窗口由 dev 代写、先行追加（原文备选「勘误 CAP-002 条目 new 值」被裁决明确拒绝——违反 K-02 append-only），architect 在 B-AUD-2 accept 前复核追认；补链条目规范与 R1-R4 硬规则见本回执 ruling_compliance.forward_obligations，B-AUD-2 台账回执须逐项核验。"
+      }
+    ],
+    "observations_non_blocking": [
+      {
+        "note": "工作区 tests/hotspot_ledger.json 被 CRLF 行尾整文件重写（445 行全 CRLF；HEAD blob 为 LF-only 437 行；core.autocrlf=false、无 .gitattributes），git diff --stat 呈 882 行整文件变更。解析层内容与 HEAD 仅两处差异：baseline_lines[compat.rs] 1899→2136、追加第 53 条 adjustment；其余 11 项 baseline、description、前 52 条逐字相同。JSON 语义等价、守卫可解析，仅行尾/提交噪音；记录为观察，不记 problem。",
+        "impact": "若按现状提交，tests/hotspot_ledger.json 将以整文件 diff 入库（噪音，非内容问题）"
+      }
+    ],
+    "ruling_compliance": {
+      "ruling_ref": ".workforce/evidence/B-AUD-2/architect-ruling-2026-11-21-P1-ollama-chain.md",
+      "ruling_sha256": "384cd516996c944d44e70b4130871414d3701410e88229e12cbaaefc9ae105cc",
+      "resend_basis": "复核同意 ruling（A/B/C/E 四项裁定全部背书，D 不适用）；本回执按 ruling【C】W1-W6 重发，17:17:51Z 实测事实字段零改动（tests/hotspot_ledger.json sha 复验仍为 fc6243f9…，无漂移）",
+      "machine_blind_spot": "C-AUD-PROV 冻结 c6 对「缺补链条目」不敏感（W4）：其机判取 adjustments 中 file==src/providers/ollama.rs 的最后一条（[x for x in L.adjustments if x.file==f][-1]）验 old==830 等六字段——补链缺席时 C-AUD-PROV 自身 fix 条目（old==830，取自当前 baseline 而非链末 829）照样过机，机判无从发现缺链。因此补链在位的唯一执行线 = B-AUD-2 台账工种核验面 + 本 ruling 的 R1-R4 硬规则，不由任何冻结卡判据承载。附机制补充（ledger 复核发现，支持 R1 的机器论据）：若补链条目被排在 C-AUD-PROV fix 条目之后，c6 的 [-1] 将命中补链条目而因 authorized_by（architect ruling，非 Boss 2026-11-20）/ date（2026-11-21 非 2026-11-20）/ reason（R3 禁含 C-AUD-PROV）不符判红——R1 顺序是与 c6 机判自洽的必要条件，dev 必须先行追加补链。",
+      "forward_obligations": {
+        "B_AUD_2": "W5 前向硬条件——B-AUD-2 台账回执必须逐项核验补链条目，缺任一即 B-AUD-2 台账层 FAIL：① file == src/providers/ollama.rs；② old == 829 且 new == 830（R2 防吸收：恰为 830，不得合并 829→N）；③ 六字段齐备（file/old/new/reason/authorized_by/date）；④ 顺序在 C-AUD-PROV 自身四条 adjustment（google/anthropic/ollama/lib 的 fix 条目）之前追加（R1），保证任意前缀时刻链面收敛：补链后 ollama 链末 830 == 批前基线 830；⑤ reason 规范：含 genesis backfill 说明、P1 引用、ruling 授权引用与 reason 首段 appended <真实追加日> 披露，且不含字符串 C-AUD-PROV（R3/R4）；⑥ authorized_by == architect-llmrust ruling 2026-11-21（授权链：Boss 2026-11-20 决策 A → architect-llmrust 2026-11-21）、date == 2026-11-21（授权日语义，ruling【E】）；⑦ 补链追加后全链核验收敛（ollama 链补链后为 …805→829→830→[C-AUD-PROV fix 条目]，批内链收敛面须全绿）；⑧ 追加用 append-only，CAP-002 已提交条目不得改写。",
+        "effect_boundary": "ruling 效力边界：PH-0.1.7 整役任何后续 accept 都不可能在 ollama 缺口在场时闭环——B-AUD-2 台账核验是硬闸，债务执行有时点、无豁免。",
+        "generalization": "全扫已排除其余 11 链同类缺口；若 B-AUD-2 再发现 genesis 类缺口，同一规范处理（逐条报 architect 授权、同窗口补链）。",
+        "date_semantics": "ruling【E】：adjustments[].date 规范语义 = 授权事件日（本役 C-AUD-PROV/C-AUD-PROXY 条目 = 2026-11-20 真值；补链条目授权源为本 ruling = 2026-11-21）；真实追加时刻由 git 历史承载，新增条目 reason 首段以 appended YYYY-MM-DD 披露。B-AUD-1 compat 条目 date=2026-11-20 在该语义下自洽，无需改动。"
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-AUD-1/ledger.json",
+      "sha256": "SELF-REFERENTIAL：回执文件的文件级 sha256 结构上不可自钉（skill 对回执类 artifact 本就跳过 sha 比对，见 lib.mjs isSiblingReceiptArtifact）；本回执的机器完整性由同文件内 self_sha256（对去掉该字段后的 JSON 串做 sha256）承载",
+      "desc": "本回执自身：config.ledger.command=null 下按 lib.mjs ledgerCheck 口径携带 schema/generatedAt/self_sha256 的自洽台账 JSON（unverified 降级路径）"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "fc6243f9b7791a0679fe788c94da41fa3ac0ba302c411c1bed5c70b0c29df612",
+      "desc": "B-AUD-1 交付时点被核验的台账实物（raw 字节 sha256；工作区含 compat.rs 1899→2136 追认的第 53 条 adjustment）"
+    },
+    {
+      "path": ".workforce/spec.json",
+      "sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+      "desc": "核验所依据的已确认 spec（文件 sha256 == spec_sha256，实测一致）"
+    },
+    {
+      "path": ".workforce/cards/C-AUD-COMPAT.json",
+      "sha256": "e45c5d85abd8760e37ce3c319a36c7b21017799af6c6bcdb9d4cfee42bf6addc",
+      "desc": "B-AUD-1 唯一台账写入卡（c6 判据原文，其机判命令已独立复跑 exit 0）"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-2/architect-ruling-2026-11-21-P1-ollama-chain.md",
+      "sha256": "384cd516996c944d44e70b4130871414d3701410e88229e12cbaaefc9ae105cc",
+      "desc": "architect-llmrust 2026-11-21 正式 ruling 原文（P1 定性/处置/验收口径/重发六要件/效力边界），本回执 verdict_scope 与 ruling_compliance 的授权依据"
+    },
+    {
+      "path": ".workforce/cards/C-AUD-PROV.json",
+      "sha256": "8c485ac32b2419cd6f05d09049605df5a517302232503e2bc7fea806e1369016",
+      "desc": "B-AUD-2 唯一台账写入卡（复核 ruling【B】窗口相容性与 W4 机器盲区的判据来源；补链 entry 的执行窗口即此卡）"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "python -c \"<内联核验脚本：12 基线文件 splitlines 行数+sha256 实测、threshold 检查、53 条 adjustments 六字段与链收敛核对>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json;n=len(open('src/providers/compat.rs',encoding='utf-8').read().splitlines());l=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));a=l['adjustments'][-1];assert l['baseline_lines']['src/providers/compat.rs']==n,'baseline!=actual';assert all(k in a and a[k] not in (None,'') for k in ['file','old','new','reason','authorized_by','date']);assert a['file']=='src/providers/compat.rs';assert a['old']==1899;assert a['new']==n;assert 'C-AUD-COMPAT' in a['reason'];assert 'Boss 2026-11-20' in a['authorized_by'];assert a['date']=='2026-11-20'\"（C-AUD-COMPAT c6 原始机判命令，独立复跑）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<内联 git 历史对账：git show bf7dee9/b008185/916c66b/39928fc 四态的 tests/hotspot_ledger.json 解析比对（ollama 链/基线、adjustments 计数、compat 基线）>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git log -S '\"src/providers/ollama.rs\": 829' -- tests/hotspot_ledger.json（结果：空——committed 历史从未存在 829 基线）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git log -S '\"src/providers/ollama.rs\": 830' -- tests/hotspot_ledger.json（结果：仅 bf7dee9）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git rev-list --max-parents=0 HEAD（结果：bf7dee949fb3527c81b01da00dceb14deee19295，仓库根）+ git rev-list --count HEAD（11）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git diff HEAD -- tests/hotspot_ledger.json + python 解析级 delta 比对（baseline 变化仅 compat.rs；前 52 条前缀相同）+ 原始字节 CRLF/LF 扫描",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git diff bf7dee9 HEAD -- src/providers/ollama.rs（结果：空 diff——ollama.rs 自仓库根以来零改动）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<内联交叉对账：B-AUD-1 六份回执 artifacts 的 path+sha256 逐条与磁盘实测比对；dev 回执 files_changed 与 card.write_scopes 集合比对>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<内联口径等价性机扫：12 基线文件搜索 \\x0b/\\x0c/\\x1c-\\x1e/\\x85/\\u2028/\\u2029 与孤立 \\r，确认 splitlines 与 lines().count() 同值>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "Get-FileHash .workforce/spec.json -Algorithm SHA256（254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b == 批次指定 spec_sha256）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<ruling 复核①：git cat-file blob bf7dee9:src/providers/ollama.rs byte-exact 实测 = 830 行（LF blob，30515 bytes）——ruling 查证记录 2「出生时数值面自洽 830==830」复核成立；bf7dee9 台账态 adjcount=51、ollama 链止 829、baseline 830（早前实测）>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<ruling 复核②：ruling 归档文件 sha256=384cd516996c944d44e70b4130871414d3701410e88229e12cbaaefc9ae105cc（79 行全文与 Lead 转交文本一致）；.workforce/cards/C-AUD-PROV.json sha256=8c485ac32b2419cd6f05d09049605df5a517302232503e2bc7fea806e1369016；tests/hotspot_ledger.json sha 复验 == fc6243f9…（17:17:51Z 事实无漂移）>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<ruling 复核③：loop-state.json B-AUD-1 handoffs 判读——C-AUD-COMPAT handoff 冻结 2 文件，含 tests/hotspot_ledger.json@fc6243f9…（= 当前交付态）>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<ruling 复核④：gate.json artifacts 8 条逐条 sha 对账（0 mismatch / 0 missing）>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git hash-object src/providers/ollama.rs + git rev-parse HEAD:src/providers/ollama.rs + git config --show-origin --get-all core.autocrlf（复核附注：工作区 CRLF/HEAD blob LF、系统级 autocrlf=true 与 local false 并存、index stat 缓存表面干净——committed 面零改动与行数口径结论不受影响）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"<机器校验双保险：按 lib.mjs selfShaOk / ledgerCheck unverified 路径 / pass+exitsOk 语义模拟校验重发后回执>\"",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS",
+  "notes": "重发版（per architect ruling 2026-11-21【C】W1-W6；原 17:17:51Z 版事实字段全部保留，实测事实无漂移——tests/hotspot_ledger.json sha 复验仍为 fc6243f9…）。双 verdict 拓扑：顶层 verdict=PASS 是批内验收语义（范围见 verdict_scope），内层 ledger.adjustments.chain_convergence.verdict=FAIL 与 P1 条目（severity/remediation_hint 追加 ruling 引用，其余逐字保留）是客观事实，补链落地前不变，B-AUD-2 核验时须翻身。P1 = ollama.rs adjustments 链止于 829 vs baseline/实测 830，经 ruling【A】定性为 genesis chain-documentation gap（出生态 bf7dee9 即携带，committed 面从未存在 829 基线，非本批引入），修复由 ruling【B】承载于 B-AUD-2/C-AUD-PROV 窗口（W4 机器盲区 + W5 前向硬条件见 ruling_compliance——C-AUD-PROV 冻结 c6 对缺补链不敏感，B-AUD-2 台账核验面 + ruling 是唯一执行线）。其余结论同原版：12/12 baseline==实测、53/53 六字段、末条 C-AUD-COMPAT 合规、c6 冻结面 PASS、六份 dev/qa + gate 回执 artifacts 对账 0 mismatch、三 dev files_changed 与 write_scopes 全等。复核同意 ruling 的依据见 inputs_seen 尾三条与 command_exit_codes 尾六条。未改任何业务文件，未跑 git commit。",
+  "generatedAt": "2026-11-20T17:34:49Z",
+  "verdict_scope": "批内验收语义（per architect ruling 2026-11-21【C】）：PASS 的范围 = ① 本批唯一基线变更 compat.rs 1899→2136 授权与链完整；② 全 ledger 机器自洽（threshold 在位、12/12 baseline==实测、53/53 六字段、零未登记超限）；③ P1 如实记录。非范围：ollama.rs 链收敛（见 ledger.adjustments.chain_convergence.verdict，保持 FAIL）——P1 为批外 genesis 债务，修复承载于 B-AUD-2/C-AUD-PROV 台账写入窗口（ruling【B】），B-AUD-2 台账核验是硬闸（ruling 效力边界：PH-0.1.7 整役任何后续 accept 都不可能在缺口在场时闭环）。",
+  "self_sha256": "d7b9e7fc47237a07850886bcfeb1dc19ef9c42b03dfa1d06cd3a3de034be57f1"
+}

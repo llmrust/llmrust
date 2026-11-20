@@ -1,0 +1,15 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests\cap002_contract.rs (target\debug\deps\cap002_contract-a0df1cb707ae1250.exe)
+
+running 8 tests
+test downstream_provider_without_capabilities_still_compiles_and_is_conservative ... ok
+test capabilities_are_built_through_the_constructor_api ... ok
+test default_warn_is_idempotent ... ok
+test ollama_tool_calling_is_declared_unsupported ... ok
+test all_seven_providers_declare_coherent_capabilities ... ok
+test verified_levels_carry_a_date_and_evidence_kind ... ok
+test every_provider_claims_chat_and_stream ... ok
+test declared_providers_match_the_json_inventory_keys ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

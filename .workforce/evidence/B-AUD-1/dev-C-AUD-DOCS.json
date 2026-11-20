@@ -1,0 +1,484 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "written_by": "dev-llmrust-dt",
+  "role": "dev",
+  "agent": "dev-llmrust-dt",
+  "card_id": "C-AUD-DOCS",
+  "batch_id": "B-AUD-1",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "repo": "D:\\llmrust-0.1.5",
+  "date": "2026-11-21",
+  "round": "rework-1 (after QA FAIL: F-1/F-2)",
+  "inputs_seen": [
+    ".workforce/cards/C-AUD-DOCS.json",
+    ".workforce/spec.json",
+    ".workforce/evidence/B-AUD-1/qa-C-AUD-DOCS.json (FAIL verdict: F-1, F-2 — rework basis provided by Lead)",
+    "docs/CAPABILITIES.md",
+    "docs/CONTRACTS.md",
+    "llmrust.capabilities.json",
+    "tests/capability_freeze.rs",
+    "src/providers/capabilities.rs",
+    "src/providers/compat.rs",
+    "src/providers/openrouter.rs",
+    ".github/workflows/security.yml",
+    ".agents/skills/agent-workforce-loop/assets/evidence.template.json"
+  ],
+  "files_changed": [
+    "docs/CAPABILITIES.md",
+    "docs/CONTRACTS.md",
+    "llmrust.capabilities.json",
+    "tests/capability_freeze.rs",
+    "README.md",
+    "README.zh-CN.md",
+    ".gitleaks.toml"
+  ],
+  "rework_scope": {
+    "changed_this_round": [
+      "tests/capability_freeze.rs"
+    ],
+    "unchanged_this_round": [
+      "docs/CAPABILITIES.md (byte-identical to frozen QA-verified sha fe84e8bc…, re-verified after every injection)",
+      "docs/CONTRACTS.md",
+      "llmrust.capabilities.json",
+      "README.md",
+      "README.zh-CN.md",
+      ".gitleaks.toml"
+    ],
+    "note": "返工窄修复：只动 tests/capability_freeze.rs；上一轮六项修复（AUD#17-#22）成果零回退，其余六个 scope 文件本轮未改一字节"
+  },
+  "criteria": {
+    "c1": {
+      "verdict": "pass",
+      "what": "8/8 sub-items machine-checked (exit 0 each), re-run after rework: FACES contains embeddings+prompt_cache; six doc-row face-name strings; 7 providers boolean embeddings+prompt_cache; docs openrouter JSON-schema/logprobs cells ✅; DOC_ROWS_WITHOUT_CARRIER whitelist const with custom base URL; both READMEs Usage fix + google/ prefix; CONTRACTS.md carriers named; .gitleaks.toml 4 anchored ^...$ entries, no paths=",
+      "commands": [
+        {
+          "cmd": "python .workforce/tmp/c1_checks_C-AUD-DOCS.py (battery of c1 ①-⑧)",
+          "exit_code": 0
+        }
+      ]
+    },
+    "c2": {
+      "verdict": "pass",
+      "what": "4 named tests green individually (each: 1 passed; 0 failed; 0 ignored); full capability_freeze after rework: 16 passed; 0 failed; 0 ignored (10 pre-existing gates + 4 from round 1 + 2 new file-level F-1/F-2 regression tests); cargo test --workspace -- --list shows each of the 6 card-test names exactly once",
+      "runs": [
+        {
+          "cmd": "cargo test --test capability_freeze negative_unmapped_matrix_row_is_reported",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out"
+        },
+        {
+          "cmd": "cargo test --test capability_freeze negative_json_schema_cell_drift_is_reported",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out"
+        },
+        {
+          "cmd": "cargo test --test capability_freeze negative_missing_embeddings_or_prompt_cache_keys_are_reported",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out"
+        },
+        {
+          "cmd": "cargo test --test capability_freeze openrouter_json_schema_and_logprobs_are_true_in_json_and_documented",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out"
+        },
+        {
+          "cmd": "cargo test --test capability_freeze",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 16 passed; 0 failed; 0 ignored"
+        },
+        {
+          "cmd": "cargo test --workspace -- --list",
+          "exit_code": 0,
+          "observed": "each of the 6 test names appears exactly once as ': test'"
+        }
+      ]
+    },
+    "c3": {
+      "verdict": "pass",
+      "what": "injection-red proof re-verified after rework: openrouter.json_schema true->false injected → pin test FAILED (exit 101); byte-restore h1==h0 → green (exit 0)",
+      "sha256_h0_before_injection": "16ee153d300c55e6f67156884d82086c06c111e99f7d4105744670efe7235f79",
+      "injected_run": {
+        "cmd": "cargo test --test capability_freeze openrouter_json_schema_and_logprobs_are_true_in_json_and_documented [INJECTED openrouter.json_schema=false]",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored"
+      },
+      "restored_run": {
+        "cmd": "same command [RESTORED h1==h0]",
+        "exit_code": 0,
+        "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored"
+      },
+      "h1_equals_h0": true
+    },
+    "c4": {
+      "verdict": "pass",
+      "what": "four gate commands re-run on the reworked final state, each exit 0; 19 test-result lines all ok (0 failed), all non-doc suites 0 ignored, Doc-tests 6 passed 2 ignored (<= 2 allowance)",
+      "runs": [
+        {
+          "cmd": "cargo test --workspace",
+          "exit_code": 0
+        },
+        {
+          "cmd": "cargo build --workspace",
+          "exit_code": 0
+        },
+        {
+          "cmd": "cargo fmt --all --check",
+          "exit_code": 0
+        },
+        {
+          "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+          "exit_code": 0
+        }
+      ],
+      "concurrency_note": "shared tree with sibling cards' files (C-AUD-COMPAT/C-AUD-GUARD) still present in git status; no cargo lock failures encountered, no retries needed"
+    },
+    "c5": {
+      "verdict": "pass",
+      "runs": [
+        {
+          "cmd": "cargo test --test architecture_guard",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 16 passed; 0 failed; 0 ignored"
+        },
+        {
+          "cmd": "cargo test --test package_guard",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 4 passed; 0 failed; 0 ignored"
+        }
+      ],
+      "note": "count-agnostic as card requires"
+    },
+    "c6": {
+      "verdict": "pass",
+      "what": "negative proofs re-verified: card scopes contain no hotspot_ledger and no src/ path; tests/hotspot_ledger.json adjustments[] has zero entries mentioning C-AUD-DOCS (53 entries scanned); this rework round modified only tests/capability_freeze.rs",
+      "runs": [
+        {
+          "cmd": "python .workforce/tmp/c6_checks_C-AUD-DOCS.py",
+          "exit_code": 0
+        },
+        {
+          "cmd": "git status --porcelain",
+          "exit_code": 0,
+          "observed": "tree diff footprint identical to QA round apart from tests/capability_freeze.rs; the 4 sibling-card files untouched by this card"
+        }
+      ]
+    },
+    "c7": {
+      "verdict": "pass",
+      "runs": [
+        {
+          "cmd": "git grep -n -E '#[ignore|#[should_panic' -- src tests  vs  git grep -n -E '#[ignore|#[should_panic' b008185 -- src tests",
+          "exit_code": 0,
+          "observed": "worktree: exactly src/proxy/mod.rs:3292 and :3300 (#[should_panic]); baseline b008185: identical two positions; #[ignore]: 0 in both. Bidirectional difference empty"
+        },
+        {
+          "cmd": "python .workforce/tmp/c7_checks_C-AUD-DOCS.py",
+          "exit_code": 0,
+          "observed": "all test-result lines 0 failed + 0 ignored except Doc-tests 2 ignored (<=2); the 4 pre-existing positive gates present by name with intact problems.is_empty() assertions; all negative_* bodies (now 8, incl. the 2 new F-1/F-2 regressions) contain no assert!(problems.is_empty()) and every .len() right side is a literal >= 1"
+        }
+      ],
+      "note": "zero new #[ignore]/#[should_panic]; the two new regression tests are plain #[test] with exact-count red assertions"
+    }
+  },
+  "rework_fixes": {
+    "F-1_unmapped_matrix_row_real_file_escape": {
+      "qa_finding": "inserting an unmapped row '**telepathy** | ✅ x7' into the REAL docs/CAPABILITIES.md left cargo test --test capability_freeze green (exit 0) — the gate-2 collector pre-filtered unmapped, non-whitelisted rows, so doc_vs_json_problems' red branch was never driven by the real file path; module doc L37-39 claim falsified (K-05, ruling_refs #21)",
+      "root_cause": "tests/capability_freeze.rs old L392-401: collector computed is_mapped_or_whitelisted and only pushed rows passing it into rows[]",
+      "before": "for line in doc.lines() { ... let label = cells[0]; let is_mapped_or_whitelisted = doc_row_to_face(label).is_some() || DOC_ROWS_WITHOUT_CARRIER.iter().any(|w| normalize_doc_row(w) == normalize_doc_row(label)); if is_mapped_or_whitelisted { rows.push((label_ref, owned)); } }  // unknown rows dropped BEFORE the pure function ever sees them; collection scope was also unbounded (any later | table row would have been collected too)",
+      "after": "new parse_doc_matrix(doc) -> DocMatrix<'_>: zero pre-filtering — every data row of the Capability table is collected; collection scope is strictly bounded to that one table (in_matrix flag: starts at the '| Capability |' header, ends at the first non-| line, so the sampling-params/error/generated tables never enter the gate); gate 2 and both new file-level regression tests share one full-chain helper doc_matrix_problems(doc, json) = doc_vs_json_problems(columns, all_rows, json) + doc_row_set_problems(json, rows)",
+      "wording_fix": "module doc L37-39 rewritten: now states the collector does NOT pre-filter (and why — the F-1 history), that all rows inside the matrix table enter reconciliation, that unmapped+non-whitelisted rows go red, missing embeddings/prompt_cache keys go red, and (new) a matrix missing a row for any JSON-side face goes red",
+      "regression_test": "negative_real_doc_unmapped_row_injection_is_reported (reads the REAL docs/CAPABILITIES.md + REAL llmrust.capabilities.json, injects the QA-shaped '**telepathy** | ✅ x7' line in memory, asserts exactly 1 problem naming telepathy + whitelisted; requires the pristine file to be drift-free first — full-chain, not pure-function-only)",
+      "self_test": {
+        "escape_reproduced_before_fix": {
+          "cmd": "python f12_inject_C-AUD-DOCS.py f1 → cargo test --test capability_freeze (on pre-fix code)",
+          "exit_code": 0,
+          "observed": "14 passed — escape reproduced"
+        },
+        "red_after_fix": {
+          "cmd": "python .workforce/tmp/f12_inject_C-AUD-DOCS.py f1 → cargo test --test capability_freeze",
+          "exit_code": 101,
+          "observed": "gate 2 FAILED: row '**telepathy**' has no mapping … not whitelisted; 3 failed (gate 2 + both new regression tests' fixture-sanity preconditions correctly trip on the tampered file)"
+        },
+        "restored_green": {
+          "cmd": "python .workforce/tmp/f12_inject_C-AUD-DOCS.py restore → cargo test --test capability_freeze",
+          "exit_code": 0,
+          "observed": "16 passed; docs/CAPABILITIES.md sha restored byte-identical fe84e8bc…f8ac"
+        }
+      }
+    },
+    "F-2_deleted_matrix_row_escape": {
+      "qa_finding": "deleting a whole mapped row (system message) from the real matrix left the gate green — the docs↔JSON axis had no row-set completeness assertion; docs/CAPABILITIES.md L48-51 'Any drift … fails CI' untrue in delete-row form",
+      "root_cause": "doc_vs_json_problems only compares cells of rows that ARE present; nothing asserted that rows that SHOULD be present exist",
+      "before": "(axis did not exist)",
+      "after": "new pure function doc_row_set_problems(json, rows): expected row-set taken directly from json_matrix()'s read-set (12 faces, no second hand-copied list that could drift), minus prompt_cache (deliberately no doc row per ruling); any expected face with no matching row in the collected rows => problem 'docs/CAPABILITIES.md matrix has no row for `<face>` (row-set completeness … deleting a row is drift too)'; wired into doc_matrix_problems so gate 2 and the regression test share it",
+      "regression_test": "negative_real_doc_deleted_matrix_row_is_reported (reads the REAL files, removes the '**system message**' row in memory, asserts exactly 1 problem naming system_message + 'no row')",
+      "self_test": {
+        "escape_reproduced_before_fix": {
+          "cmd": "python f12_inject_C-AUD-DOCS.py f2 → cargo test --test capability_freeze (on pre-fix code)",
+          "exit_code": 0,
+          "observed": "14 passed — escape reproduced"
+        },
+        "red_after_fix": {
+          "cmd": "python .workforce/tmp/f12_inject_C-AUD-DOCS.py f2 → cargo test --test capability_freeze",
+          "exit_code": 101,
+          "observed": "gate 2 FAILED: 'docs/CAPABILITIES.md matrix has no row for `system_message` (row-set completeness …)'; 3 failed (gate + both new regressions)"
+        },
+        "restored_green": {
+          "cmd": "python .workforce/tmp/f12_inject_C-AUD-DOCS.py restore → cargo test --test capability_freeze",
+          "exit_code": 0,
+          "observed": "16 passed; sha restored byte-identical fe84e8bc…f8ac"
+        }
+      }
+    },
+    "aux_clippy_type_complexity": {
+      "what": "parse_doc_matrix's tuple return signature tripped clippy::type_complexity (-D warnings) during c4; fixed with two documented type aliases (DocMatrixRow<'a>, DocMatrix<'a>) instead of an #[allow] — same file, no behavior change"
+    },
+    "boundary_self_checks": {
+      "cell_drift_still_red": {
+        "cmd": "python f12_spot_C-AUD-DOCS.py cell_drift (logprobs OpenRouter cell ✅→➖ in the real file) → gate 2",
+        "exit_code": 101,
+        "observed": "openrouter.logprobs: docs says false but JSON says true — pre-existing per-cell axis intact"
+      },
+      "whitelist_still_exempt": {
+        "cmd": "python f12_spot_C-AUD-DOCS.py whitelist (custom base URL row Ollama cell ✅→➖) → full suite",
+        "exit_code": 0,
+        "observed": "16 passed — the by-design carrier-less-row exemption survives the rework"
+      },
+      "all_restores_verified": "docs/CAPABILITIES.md sha after every injection round: fe84e8bc600c106621dc8436474e5433c0d445294891926650b8f99b8afdf8ac (== frozen QA-verified value); llmrust.capabilities.json sha: 16ee153d300c55e6f67156884d82086c06c111e99f7d4105744670efe7235f79"
+    }
+  },
+  "fixes": {
+    "AUD-17_openrouter_json_schema_logprobs_truth_sync": {
+      "before": "docs/CAPABILITIES.md: OpenRouter JSON schema / logprobs cells ➖ vs llmrust.capabilities.json true/true",
+      "after": "both openrouter cells ✅ (ruling: JSON=true is the truth); unchanged this rework round (sha byte-identical to QA-verified state)",
+      "pinning_test": "openrouter_json_schema_and_logprobs_are_true_in_json_and_documented (reads both real files)"
+    },
+    "AUD-18_readme_usage_literal": {
+      "before": "let usage = Usage { prompt_tokens: 1_000, completion_tokens: 500, total_tokens: 1_500 };  (E0063)",
+      "after": "+ ..Default::default() in both READMEs; unchanged this round"
+    },
+    "AUD-19_readme_model_prefix": {
+      "before": "gemini/gemini-1.5-pro",
+      "after": "google/gemini-1.5-pro in both READMEs; unchanged this round"
+    },
+    "AUD-20_contracts_l5_carriers": {
+      "before": "blanket 'covered by tests/contract_tests.rs' claim",
+      "after": "per-section real carrier list incl. cap002_contract/cap003_dispatch; unchanged this round"
+    },
+    "AUD-21_capability_freeze_faces_expansion": {
+      "runtime_axis": "FACES = 8 faces incl. embeddings/prompt_cache; JSON carries both booleans for all 7 providers; unchanged this round (gate 1 green)",
+      "docs_axis": "doc_row_to_face maps 12 doc rows; DOC_ROWS_WITHOUT_CARRIER = [custom base URL]; this rework round closed the two real-file escapes the QA adversarial layer found (F-1 collection pre-filter, F-2 missing row-set completeness) and added 2 file-level regression tests",
+      "fail_closed": "json_matrix() requires all 12 boolean faces (missing key => panic); matrix row collection now zero-filter (F-1); row-set completeness enforced (F-2)",
+      "no_struct_change": "no src/*.rs file touched"
+    },
+    "AUD-22_gitleaks_anchoring": {
+      "before": "unanchored regexes",
+      "after": "4 anchored ^...$ entries, no paths=; unchanged this round; CI-run verdict belongs to the ci agent"
+    }
+  },
+  "mock_used": false,
+  "independent": true,
+  "declared_by_lead": false,
+  "artifacts": [
+    {
+      "path": "tests/capability_freeze.rs",
+      "sha256": "f58ab43a671816342411eeca8e22ca93ea284ca5d4dd83907cd3b3ca17ad41e3"
+    },
+    {
+      "path": "docs/CAPABILITIES.md",
+      "sha256": "fe84e8bc600c106621dc8436474e5433c0d445294891926650b8f99b8afdf8ac"
+    },
+    {
+      "path": "docs/CONTRACTS.md",
+      "sha256": "23d24197eaf184f937e061b4f8fe50cfeddbb7a2d1ad10514af9358790e5adf9"
+    },
+    {
+      "path": "llmrust.capabilities.json",
+      "sha256": "16ee153d300c55e6f67156884d82086c06c111e99f7d4105744670efe7235f79"
+    },
+    {
+      "path": "README.md",
+      "sha256": "05489f9958591cd15100f6d7e226b229881337541100cd7ab8750f0e69b9548a"
+    },
+    {
+      "path": "README.zh-CN.md",
+      "sha256": "5a0de29e8ccee336316bcf92b6c226288aef22e38e4aaf9a8df3a6b2a47ef234"
+    },
+    {
+      "path": ".gitleaks.toml",
+      "sha256": "c17a7e982a1b1323268e901fe995a148954c7c47050bebdc109feaea62e76442"
+    },
+    {
+      "path": ".workforce/tmp/c1_checks_C-AUD-DOCS.py",
+      "sha256": "d45ae409e31387a88f609df1aedbcbdcb9d30987a2f6b8e3e95503ae406da894"
+    },
+    {
+      "path": ".workforce/tmp/c3_inject.py",
+      "sha256": "49b9ca36e6d26e932d5494aed126e7f726916bdef0fbd4aed37ecb7c49380985"
+    },
+    {
+      "path": ".workforce/tmp/c6_checks_C-AUD-DOCS.py",
+      "sha256": "5516d1fd731244a37b0d1cf5d6658682757854f22056dc4de6e3936755c2871c"
+    },
+    {
+      "path": ".workforce/tmp/c7_checks_C-AUD-DOCS.py",
+      "sha256": "e5a4dffe0dec5ad6d647057dc624bc0a7f615bf935622c37d5162c3a65431f22"
+    },
+    {
+      "path": ".workforce/tmp/f12_inject_C-AUD-DOCS.py",
+      "sha256": "c5b0cf532fa62c9d842bb499e1df8fc7cc7ff51bc4f31bc49ed706191f87a338"
+    },
+    {
+      "path": ".workforce/tmp/f12_spot_C-AUD-DOCS.py",
+      "sha256": "4bfbf2ce70bb0fe691276e15afd1ff6e99489d4111aa0e1fab6a68502881e708"
+    },
+    {
+      "path": ".workforce/tmp/f12_f1_injection-red.txt",
+      "sha256": "e0b208e75856dfee79e78eba6622cec263c4502f7431550d75e224f08b92be54"
+    },
+    {
+      "path": ".workforce/tmp/f12_f2_injection-red.txt",
+      "sha256": "1f2b7bbecd235a88cb35efa13539e82a09c8b3f0bd840b2d1ae0d761acdfe11c"
+    },
+    {
+      "path": ".workforce/tmp/c4_test_workspace_C-AUD-DOCS.txt",
+      "sha256": "1356ae0f466f90765819696d8ee2c8cc1264e93b8c6f33350b7ccd08010bcf5b"
+    },
+    {
+      "path": ".workforce/tmp/c4_build_C-AUD-DOCS.txt",
+      "sha256": "5a3df8949e3ff2edec03240b3d5778c767bd91beef666643015aba689056bd23"
+    },
+    {
+      "path": ".workforce/tmp/c4_fmt_C-AUD-DOCS.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/tmp/c4_clippy_C-AUD-DOCS.txt",
+      "sha256": "38b0d24fa79a2cd3e67b38016edb6cdf38375e6883f3746f867dc5ae32f015f6"
+    },
+    {
+      "path": ".workforce/tmp/c5_arch_guard_C-AUD-DOCS.txt",
+      "sha256": "8b8312815d6c42a91c3547d5b0e29119f756f5b47a842a9c4971837a7a49f0b5"
+    },
+    {
+      "path": ".workforce/tmp/c5_pkg_guard_C-AUD-DOCS.txt",
+      "sha256": "0084dc7b0002f41878b8dce6198ba9e0c6b3873153cfb0054189c8828ecbfedc"
+    },
+    {
+      "path": ".workforce/tmp/test_list_C-AUD-DOCS.txt",
+      "sha256": "260aa8d4a27c0f288ba171345fbaad9aae55877fc9b5b5f84dd98063e8114884"
+    },
+    {
+      "path": ".workforce/tmp/gitleaks_anchor_emu_C-AUD-DOCS.py",
+      "sha256": "0113ca5c0ae8328d091df5c0d1299eb798e96d094c0f6ac5bc65bdcf424df11f"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "cargo test --test capability_freeze negative_unmapped_matrix_row_is_reported",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test capability_freeze negative_json_schema_cell_drift_is_reported",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test capability_freeze negative_missing_embeddings_or_prompt_cache_keys_are_reported",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test capability_freeze openrouter_json_schema_and_logprobs_are_true_in_json_and_documented",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test capability_freeze (full suite, reworked: 16 passed; 0 failed; 0 ignored)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace -- --list (6 card test names each exactly once)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "c3: inject openrouter.json_schema true→false → pin test",
+      "exit_code": 101
+    },
+    {
+      "cmd": "c3: byte-restore llmrust.capabilities.json (h1==h0=16ee153d…3f79) → pin test",
+      "exit_code": 0
+    },
+    {
+      "cmd": "F-1 pre-fix escape reproduction: insert telepathy row into real docs/CAPABILITIES.md → cargo test --test capability_freeze (pre-fix code)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "F-1 QA-retest scope: inject telepathy row into real docs/CAPABILITIES.md → cargo test --test capability_freeze (fixed code)",
+      "exit_code": 101
+    },
+    {
+      "cmd": "F-1: byte-restore docs/CAPABILITIES.md (sha fe84e8bc…f8ac) → cargo test --test capability_freeze",
+      "exit_code": 0
+    },
+    {
+      "cmd": "F-2 pre-fix escape reproduction: delete system message row → cargo test --test capability_freeze (pre-fix code)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "F-2 QA-retest scope: delete system message row from real docs/CAPABILITIES.md → cargo test --test capability_freeze (fixed code)",
+      "exit_code": 101
+    },
+    {
+      "cmd": "F-2: byte-restore docs/CAPABILITIES.md (sha fe84e8bc…f8ac) → cargo test --test capability_freeze",
+      "exit_code": 0
+    },
+    {
+      "cmd": "boundary: logprobs OpenRouter cell ✅→➖ (real file) → gate 2",
+      "exit_code": 101
+    },
+    {
+      "cmd": "boundary: custom base URL Ollama cell ✅→➖ (real file, whitelisted row) → full suite",
+      "exit_code": 0
+    },
+    {
+      "cmd": "boundary: byte-restore docs/CAPABILITIES.md (sha fe84e8bc…f8ac)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test architecture_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test package_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python .workforce/tmp/c1_checks_C-AUD-DOCS.py",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python .workforce/tmp/c6_checks_C-AUD-DOCS.py",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python .workforce/tmp/c7_checks_C-AUD-DOCS.py",
+      "exit_code": 0
+    }
+  ],
+  "notes": "QA-FAIL rework round (F-1/F-2). Scope: only tests/capability_freeze.rs changed (all 7 write_scopes stay as the card's overall delivery footprint; the other 6 files byte-identical to the QA-verified frozen state — docs fe84e8bc…, json 16ee153d…, re-checked by sha after every injection). F-1: gate-2 collector's is_mapped_or_whitelisted pre-filter removed (new zero-filter, table-bounded parse_doc_matrix + shared full-chain doc_matrix_problems; gate 2 and both new file-level regression tests drive the SAME chain); module doc L37-39 rewritten to state the now-true behavior. F-2: new doc_row_set_problems row-set completeness axis (expected set = json_matrix read-set minus prompt_cache, no second hand-copied list). Suite 14→16 tests, zero ignore, zero #[should_panic] change (positions identical to b008185), zero assertion weakened (4 positive gates' problems.is_empty() intact; all 8 negative_* bodies exact-count >= 1). Injected-red proofs: both QA-retest-scope injections now exit 101 on the real file and both pre-fix escapes were reproduced first (exit 0) to prove the tests target the actual root cause; every injection byte-restored and sha-verified (fe84e8bc…). cargo: no lock failures this round. c1-c7 re-run battery: all green (c4 gate commands re-run on the final state; clippy initially flagged type_complexity on the new parser signature — fixed with documented type aliases, re-run green). Dev self-check verdict PASS; independent QA re-verification of this rework belongs to qa-llmrust-dt.",
+  "verdict": "PASS"
+}

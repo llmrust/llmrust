@@ -1,0 +1,96 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "qa",
+  "agent": "qa-llmrust-cs",
+  "card_id": "C-AUD-COMPAT",
+  "batch_id": "B-AUD-1",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "inputs_seen": [
+    ".workforce/cards/C-AUD-COMPAT.json",
+    ".workforce/spec.json",
+    "src/providers/compat.rs",
+    "tests/hotspot_ledger.json",
+    "git objects b008185:src/providers/compat.rs",
+    "git objects b008185:tests/hotspot_ledger.json",
+    "docs/CONTRACTS.md"
+  ],
+  "files_changed": [],
+  "layers_covered": [
+    "event",
+    "logic",
+    "interface",
+    "criteria",
+    "adversarial",
+    "regression"
+  ],
+  "rule_ids": [
+    "AUD#1（severe：OpenAI 兼容流 thinking_done 同帧假设）",
+    "AUD#3（high：空 choices + error 帧被静默丢弃）",
+    "AUD#7（high：ToolCallAccumulator::ingest 无界 resize_with）",
+    "K-01",
+    "K-02",
+    "K-04",
+    "K-05",
+    "docs/CONTRACTS.md Provider contract 第 6 条 / stream 合约 No silent drops",
+    "AGENTS.md Providers 节（Streaming must surface parse errors and upstream errors）"
+  ],
+  "guidance_verified": [],
+  "mock_used": false,
+  "prototype_refs": [],
+  "artifacts": [
+    {
+      "path": "src/providers/compat.rs",
+      "sha256": "6ea3341312aa63a265b807eba2d6f66a45c149a7d15154f54e0009a33b081fb5"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "fc6243f9b7791a0679fe788c94da41fa3ac0ba302c411c1bed5c70b0c29df612"
+    }
+  ],
+  "command_exit_codes": [
+    { "cmd": "c1① python -c assert 'done.then_some(thinking.is_some())' not in compat.rs", "exit_code": 0 },
+    { "cmd": "c1② python -c assert findall(r'\\bsaw_thinking\\b')>=3", "exit_code": 0, "note": "实测出现 4 次：字段声明 L314、doc 注释 L303/313、置位 L469、终态读取 L484（匹配次数覆盖 4 个文本位置，代码用途三处齐备）" },
+    { "cmd": "c1③ python -c assert CompStreamChunk 含 #[serde(default)] + pub error: Option<", "exit_code": 0 },
+    { "cmd": "c1④ python -c assert ingest 有界（MAX_TOOL_CALL_INDEX）", "exit_code": 0, "note": "const MAX_TOOL_CALL_INDEX: usize = 1024（L293），ingest L331 在 resize（L341）之前比较拒绝" },
+    { "cmd": "c2① cargo test --lib providers::compat::tests::stream_terminal_after_thinking_marks_sticky_done", "exit_code": 0, "note": "test result: ok. 1 passed; 0 failed; 0 ignored" },
+    { "cmd": "c2② cargo test --lib providers::compat::tests::stream_no_thinking_terminal_done_is_false", "exit_code": 0, "note": "ok. 1 passed; 0 failed; 0 ignored" },
+    { "cmd": "c2③ cargo test --lib providers::compat::tests::stream_error_frame_surfaces_llm_error", "exit_code": 0, "note": "ok. 1 passed; 0 failed; 0 ignored" },
+    { "cmd": "c2④ cargo test --lib providers::compat::tests::stream_tool_call_delta_with_huge_index_is_rejected", "exit_code": 0, "note": "ok. 1 passed; 0 failed; 0 ignored" },
+    { "cmd": "c2⑤ cargo test --lib providers::compat::tests::stream_empty_choices_without_usage_stays_keepalive", "exit_code": 0, "note": "ok. 1 passed; 0 failed; 0 ignored" },
+    { "cmd": "c2 machine-list: cargo test --workspace -- --list（五名各恰好 1 次且无 ': ignored' 后缀）", "exit_code": 0 },
+    { "cmd": "c3 h0 记录: python sha256(src/providers/compat.rs) = 6ea3341312aa63a265b807eba2d6f66a45c149a7d15154f54e0009a33b081fb5", "exit_code": 0 },
+    { "cmd": "c3 注入（thinking_done = done.then_some(thinking.is_some())）后 cargo test --lib providers::compat::tests::stream_terminal_after_thinking_marks_sticky_done", "exit_code": 101, "note": "预期 FAILED：panicked 'a terminal frame after a thinking increment must mark the end of the thinking stage (sticky), got Some(false)'" },
+    { "cmd": "c3 注入态下 cargo test --lib providers::compat::tests::stream_no_thinking_terminal_done_is_false", "exit_code": 0, "note": "注入只击穿 sticky 语义，该测试仍 ok（ok. 1 passed; 0 failed; 0 ignored）" },
+    { "cmd": "c3 恢复（备份逐字节写回）: h1 = 6ea3341312aa63a265b807eba2d6f66a45c149a7d15154f54e0009a33b081fb5, h1 == h0", "exit_code": 0 },
+    { "cmd": "c3 恢复后 cargo test --lib providers::compat::tests::stream_terminal_after_thinking_marks_sticky_done", "exit_code": 0, "note": "ok. 1 passed; 0 failed; 0 ignored" },
+    { "cmd": "c4① cargo test --workspace", "exit_code": 0, "note": "全 19 个 test result 行 ok；lib 264 passed；Doc-tests 6 passed; 2 ignored（≤基线 2）" },
+    { "cmd": "c4② cargo build --workspace", "exit_code": 0 },
+    { "cmd": "c4③ cargo fmt --all --check", "exit_code": 0 },
+    { "cmd": "c4④ cargo clippy --workspace --all-targets -- -D warnings", "exit_code": 0 },
+    { "cmd": "c5① cargo test --test architecture_guard", "exit_code": 0, "note": "ok. 16 passed; 0 failed; 0 ignored；含 hotspot_files_do_not_grow ... ok 与 hotspot_ledger_is_consistent ... ok" },
+    { "cmd": "c5② cargo test --test package_guard", "exit_code": 0, "note": "ok. 4 passed; 0 failed; 0 ignored（pass 数锁 4，吻合）" },
+    { "cmd": "c6 台账机判 python -c（baseline==实测 2136；adjustments 末条六字段、old=1899、new=2136、Boss 2026-11-20、date=2026-11-20、reason 含 C-AUD-COMPAT 与三项修复要点）", "exit_code": 0 },
+    { "cmd": "c6 补充：台账 baseline_lines 对 b008185 逐键 diff = 仅 src/providers/compat.rs 1899→2136；其余 11 文件不变，无增删键", "exit_code": 0 },
+    { "cmd": "c7① git show b008185:src/providers/compat.rs assert 类断言行集合差：baseline−current = ∅（基线 distinct 断言行 118，与卡面口径一致；当前 165 行含新增，无删减）", "exit_code": 0 },
+    { "cmd": "c7② src/**/*.rs 与 tests/**/*.rs 全树 b008185 vs 当前 #[ignore]/#[should_panic] 位置集合双向差集均为空（should_panic 恰 2 处：src/proxy/mod.rs:3292、:3300；ignore 0 处；42 个 rs 文件无增删）", "exit_code": 0 },
+    { "cmd": "c7③ cargo test --workspace 输出解析：18 个单元/集成二进制 test result 行 ignored 全为 0；Doc-tests 行 ignored=2 ≤ 基线 2", "exit_code": 0 },
+    { "cmd": "回归层：五个『不得删改』用例函数体与 b008185 逐字一致（stream_reasoning_terminal_chunk_marks_thinking_done / stream_delta_content_still_parses_with_option / stream_terminal_chunk_with_null_delta_parses / stream_terminal_chunk_with_absent_delta_parses / stream_done_without_finish_reason_flushes_tool_calls）", "exit_code": 0 },
+    { "cmd": "对抗层：TEMP 副本（robocopy 全仓排除 .git/target/.workforce，附加探针模块，不动仓库）cargo test --lib qa_probe_c_aud_compat -- --nocapture", "exit_code": 0, "note": "ok. 6 passed; 0 failed; 0 ignored" },
+    { "cmd": "终验：测试全程结束后 compat.rs sha256 仍为 6ea33…85（与 h0/h1 一致），hotspot_ledger.json sha256 = fc6243f9b7791a0679fe788c94da41fa3ac0ba302c411c1bbed5c70b0c29df612", "exit_code": 0 }
+  ],
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "独立复测，未读 dev 回执/notes/.workforce/evidence 下任何 dev 文件；工作区并行 dev 的其余脏文件未触碰。c1–c7 机判全绿。对抗层在 %TEMP% 全仓副本内附加私有探针模块执行（探测 parse_sse_line/sse_chunk_stream 私有 API，仓库逐字节未改、测试后副本已删除、回收前再验冻结 sha 不变）。另：行数口径复核——python splitlines 与 rust lines() 同值 2136。c3 注入窗口期间该测试红（exit 101），恢复后 h1==h0 逐字节一致——测试期间 dev 冻结未被破坏。cargo 锁竞争在本 QA 时段未发生（无需重试）。对抗层 6 探针全过：index==1024 接受（准确定位 1025 个 builder）/ index==1025 拒绝（Err(Parse)，无增长）/ usize::MAX 拒绝且零分配（无 panic/OOM）/ code 为字符串、999、缺失、布尔时 status=502、code=429 时 429、空 error 对象 {} 仍上抛 Api{502}（无静默丢弃）/ error 与 choices 同帧 error 优先上抛 Api{429,'quota exceeded'] / thinking 后 EOF 不伪造终帧（仅 1 个增量 chunk，done=false，thinking_done=None）/ thinking 后裸 [DONE] 终帧 thinking_done=None（非 Some(false)，不撒谎；thinking_done 全流至多出现 1 次，符合 CONTRACTS §7）。",
+  "handoff_id": "b8d9b1d7ed5c681b398536b3",
+  "observations": [
+    "对抗层-边界（AUD#7）：MAX_TOOL_CALL_INDEX=1024 的闭区间上界处理正确——index 恰为 1024 接受，1025 拒绝；usize::MAX 被拒且 builders 零分配，无 panic/OOM。符合卡契约。",
+    "对抗层-error code（AUD#3）：code 非数值（字符串 'insufficient_quota'）、数值超错误区间（999）、缺失、布尔（true）一律落 status=502（上游侧错误、无可用 wire status 的保守默认），数值 429 保留为 429，message 原样保留；空对象 {'error':{}} 也不落回 keepalive 而是上抛 Api{502,''}——『无静默丢弃』方向正确。低风险提示：空 error 对象时 message 为空串，调用方只见 502 空文案（真实 wire 上未见此形态，登记备查）。",
+    "对抗层-同帧竞争（AUD#3 之外的补充面）：error 与非空 choices 同帧出现时，dev 实现的 error 臂优先于 choices 臂，错误被上抛（不吞成正常 delta 帧）。符合 CONTRACTS.md No silent drops 与 AGENTS.md Providers；卡面 c2③ 只钉了 error+空 choices 形态，error+非空 choices 尚无仓内测试，建议后续卡补一条（不属本卡判据，不阻 PASS）。",
+    "对抗层-EOF（AUD#1 之外的补充面）：thinking 增量后流直接 EOF（无终帧、无 [DONE]）：只产出该增量 chunk（done=false、thinking_done=None），不伪造 done 终帧——符合『缺失信息不得发明』（ERR-003/K-06 方向）。",
+    "对抗层-裸 [DONE]（发现的最接近缺口）：上游只发 thinking 增量 + 裸 [DONE]（终帧无 finish_reason）时，[DONE] 合成终帧的 thinking_done=None：既非 Some(false)（不撒谎），thinking_done 全流也至多出现 1 次（CONTRACTS §7 允许 0 次），不违反本卡判据与契约；但依赖 thinking_done 判定思考阶段结束的消费者在这类流上收不到结束标记（sticky 值未被 [DONE]/EOF 合成终帧读取）。基线 b008185 行为相同（改进为 sticky 前 [DONE] 帧同样 None），属既有语义而非本卡回归，不阻 PASS；建议 architect 评估是否在后续卡把 sticky 读取扩展到合成终帧。",
+    "回归层：基线 118 条 distinct assert 断言行零删减；五个『不得删改』用例函数体与 b008185 逐字节一致（含 stream_reasoning_terminal_chunk_marks_thinking_done——新语义下同帧输入仍 Some(true)，且断言未改写，K-04 语义超集成立）；#[ignore]/#[should_panic] 全树位置集合与基线双向一致；已有测试集合无删减。",
+    "环境事实：本 QA 时段未遇到 cargo 锁等待/失败，未触发重试；五条 c2 命令各自独立运行且全部走 parse_sse_line 夹具路径。"
+  ],
+  "written_by": "qa-llmrust-cs"
+}

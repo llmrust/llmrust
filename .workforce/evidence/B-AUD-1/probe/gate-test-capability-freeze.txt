@@ -1,0 +1,23 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests\capability_freeze.rs (target\debug\deps\capability_freeze-8eac8bf7620cbcdd.exe)
+
+running 16 tests
+test negative_json_schema_cell_drift_is_reported ... ok
+test negative_doc_underclaim_is_reported ... ok
+test consistent_carriers_produce_no_problems ... ok
+test negative_missing_face_in_json_is_reported ... ok
+test negative_doc_overclaim_is_reported ... ok
+test verification_levels_are_visible_in_the_documentation ... ok
+test documentation_matrix_matches_the_json_inventory ... ok
+test negative_unmapped_matrix_row_is_reported ... ok
+test negative_runtime_json_drift_is_reported ... ok
+test negative_real_doc_unmapped_row_injection_is_reported ... ok
+test negative_unreadable_cells_are_reported ... ok
+test runtime_declaration_matches_the_json_inventory ... ok
+test all_three_carriers_cover_the_same_providers ... ok
+test negative_real_doc_deleted_matrix_row_is_reported ... ok
+test negative_missing_embeddings_or_prompt_cache_keys_are_reported ... ok
+test openrouter_json_schema_and_logprobs_are_true_in_json_and_documented ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

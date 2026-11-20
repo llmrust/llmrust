@@ -1,0 +1,111 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "gate",
+  "agent": "gate-llmrust",
+  "written_by": "gate-llmrust",
+  "card_id": null,
+  "batch_id": "B-AUD-1",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "inputs_seen": [
+    ".workforce/spec.json（实测 sha256=254d36f2…，与 Lead 给定一致；K-01~K-06、VS-0 / PH-0.1.7 / B-AUD-1）",
+    ".workforce/config.json gates 段（required_commands = [cargo build --workspace, cargo test --workspace]，require_no_mock = true）",
+    ".workforce/cards/C-AUD-COMPAT.json（c4 四条门禁命令；c5 ① cargo test --test architecture_guard ② cargo test --test package_guard，package_guard pass 数锁 4）",
+    ".workforce/cards/C-AUD-DOCS.json（c4 四条门禁命令；c5 ① architecture_guard ② package_guard，③ capability_freeze 已在 c2 判定不重复）",
+    ".workforce/cards/C-AUD-GUARD.json（c4 四条门禁命令；c5 ① architecture_guard ② cap002_contract ③ package_guard ④ capability_freeze，count-agnostic 只锁双零与退出码）",
+    ".agents/skills/agent-workforce-loop/references/roles.md（gate 契约：如实记录 exit code 原文，禁止放宽判据 / 标 SKIP / 删 FAIL 行）",
+    ".agents/skills/agent-workforce-loop/assets/evidence.template.json（回执结构参照）",
+    ".agents/skills/agent-workforce-loop/scripts/lib.mjs checkEvidence/acceptLayers（机判字段口径：EVIDENCE_FIELDS 齐备、artifacts 非空且逐文件 sha256 比对、mock_used=false）",
+    ".workforce/evidence/B-DELTA-NULL/gate.json（上一批 gate 回执，结构沿用先例）",
+    "git HEAD 39928fc17e48f674006c6a1e15fc708cba2bbbd9；工作区含 B-AUD-1 三卡冻结改动（11 个未提交文件：compat.rs / hotspot_ledger.json / CAPABILITIES.md / CONTRACTS.md / capabilities.json / capability_freeze.rs / README.md / README.zh-CN.md / .gitleaks.toml / architecture_guard.rs / cap002_contract.rs，与三卡 write_scopes 并集一致）",
+    "9 段命令原始输出（8 条门禁命令 + 1 次归档后包卫生复核；cmd.exe 重定向字节级捕获，先落 %TEMP% 后归档，无管道损耗）"
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-AUD-1/probe/gate-build-workspace.txt",
+      "sha256": "fecede7c2157efe2f16c8c8b9dce94b0fb4dd384dca8207046c8bf7636eb0ffe",
+      "desc": "cargo build --workspace 原始输出（72B），exit 0"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-1/probe/gate-test-workspace.txt",
+      "sha256": "a5f222dccff6e5ec0a4b09a1b766bd450c7acc0da6da9f8d7a99cadb07df399d",
+      "desc": "cargo test --workspace 原始输出（35062B），exit 0，19 套 test result 全 ok，合计 464 passed / 0 failed"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-1/probe/gate-fmt-all-check.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "desc": "cargo fmt --all --check 原始输出（0B = 无格式差异），exit 0"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-1/probe/gate-clippy-all-targets.txt",
+      "sha256": "299f16a2c523be18fef769975d2df00e0505521db047540feea3a74b94666887",
+      "desc": "cargo clippy --workspace --all-targets -- -D warnings 原始输出（72B，无 warning/error），exit 0"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-1/probe/gate-test-architecture-guard.txt",
+      "sha256": "0a584274d22acbb7e17b9f2550c4f86b1350430e041866755752fe0e9f011363",
+      "desc": "cargo test --test architecture_guard 原始输出，exit 0，16 passed / 0 failed / 0 ignored"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-1/probe/gate-test-package-guard.txt",
+      "sha256": "68b3c9c0bee5dbb7e7b5ac603b953ca3ea2b320961274d3ed9d4c319bbd9f4cc",
+      "desc": "cargo test --test package_guard 原始输出（第 1 次，判定记录），exit 0，4 passed / 0 failed / 0 ignored"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-1/probe/gate-test-capability-freeze.txt",
+      "sha256": "98bdf84b653180dfac514c241c97878bf343833314de4bdbf3c88d6c71b01933",
+      "desc": "cargo test --test capability_freeze 原始输出，exit 0，16 passed / 0 failed / 0 ignored"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-1/probe/gate-test-cap002-contract.txt",
+      "sha256": "0f6499c7c0cb37541f2c1ccf127fb8a0c52f3573e093324a9dad67014966b916",
+      "desc": "cargo test --test cap002_contract 原始输出，exit 0，8 passed / 0 failed / 0 ignored"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "cargo build --workspace",
+      "exit_code": 0,
+      "output_summary": "输出共 1 行：`    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.14s`；warning/error 命中 0。原文见 probe/gate-build-workspace.txt。【config.gates.required_commands ①；三卡 c4 之一】"
+    },
+    {
+      "cmd": "cargo test --workspace",
+      "exit_code": 0,
+      "output_summary": "19 套 `test result:` 行全部 `ok`，全部 unit/integration 套 0 failed / 0 ignored（Doc-tests 行 `ok. 6 passed; 0 failed; 2 ignored`，ignored=2 为既有默认 feature 基线，如实照录）；合计 464 passed / 0 failed。逐套（Running → result 顺序对应）：lib 单测=264, agent_docs_validation=28, api_freeze=12, architecture_guard=16, cap002_contract=8, cap003_dispatch=10, capability_freeze=16, capability_table_guard=9, contract_tests=12, embeddings_contract_tests=10, guard_admission=6, integration_tests=21, package_guard=4, provider_contract_freeze=14, response_freeze=14, responses_proxy_tests=0（#[cfg(feature=\"proxy\")] 门控，默认 feature 集编译不到代理用例——照录事实）, spcc_guard=6, test_hygiene_guard=8, Doc-tests=6（+2 ignored）。原文见 probe/gate-test-workspace.txt。【config.gates.required_commands ②；三卡 c4 之一】"
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0,
+      "output_summary": "stdout/stderr 共 0 字节（--check 无格式差异即静默成功，无 Diff 输出）。原文（空文件）见 probe/gate-fmt-all-check.txt。【三卡 c4 之一】"
+    },
+    {
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0,
+      "output_summary": "输出共 1 行：`    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s`；warning/error 关键字命中 0 行（-D warnings 下任何 warning 都会非 0 退出，退出码 0 即零告警）。原文见 probe/gate-clippy-all-targets.txt。【三卡 c4 之一】"
+    },
+    {
+      "cmd": "cargo test --test architecture_guard",
+      "exit_code": 0,
+      "output_summary": "`test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s`（唯一 result 行，双零达标；pass 数按卡口径 count-agnostic 不锁）。关键用例逐条 ok：dependency_edge_guard_fails_closed_on_missing_edge_file（C-AUD-GUARD 新负例）、dependency_edges_are_respected、hotspot_files_do_not_grow、hotspot_ledger_is_consistent、hotspot_coverage_is_complete、hotspot_coverage_detects_unlisted_oversized_file、grd004_* 10 条全部 ok。原文见 probe/gate-test-architecture-guard.txt。【C-AUD-COMPAT c5①/ C-AUD-DOCS c5① / C-AUD-GUARD c5①】"
+    },
+    {
+      "cmd": "cargo test --test package_guard",
+      "exit_code": 0,
+      "output_summary": "`test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s`——与三卡 c5 锁定的 `4 passed; 0 failed; 0 ignored` 逐字一致。4 用例全 ok：clean_listing_yields_no_violations / lookalike_entries_are_not_flagged / negative_forbidden_entries_are_reported / package_list_contains_only_allowed_files（内含 cargo package --list --allow-dirty 实跑）。原文见 probe/gate-test-package-guard.txt。【C-AUD-COMPAT c5② / C-AUD-DOCS c5② / C-AUD-GUARD c5③】"
+    },
+    {
+      "cmd": "cargo test --test capability_freeze",
+      "exit_code": 0,
+      "output_summary": "`test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s`（双零达标）。C-AUD-DOCS 新增四用例 ok：negative_unmapped_matrix_row_is_reported / negative_json_schema_cell_drift_is_reported / negative_missing_embeddings_or_prompt_cache_keys_are_reported / openrouter_json_schema_and_logprobs_are_true_in_json_and_documented；四既有正向门 ok：runtime_declaration_matches_the_json_inventory / documentation_matrix_matches_the_json_inventory / all_three_carriers_cover_the_same_providers / verification_levels_are_visible_in_the_documentation。原文见 probe/gate-test-capability-freeze.txt。【C-AUD-GUARD c5④；C-AUD-DOCS c2 逐用例判定属其 dev/qa 回执，此处只记批次口径事实】"
+    },
+    {
+      "cmd": "cargo test --test cap002_contract",
+      "exit_code": 0,
+      "output_summary": "`test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s`（双零达标）。default_warn_is_idempotent ... ok（C-AUD-GUARD 补断言改造后仍绿）。原文见 probe/gate-test-cap002-contract.txt。【C-AUD-GUARD c5②】"
+    }
+  ],
+  "mock_used": false,
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "批次 B-AUD-1（C-AUD-COMPAT / C-AUD-DOCS / C-AUD-GUARD）gate 回执。① 全部实跑、零 mock：以上 8 条命令均为真实 cargo 进程（cargo 1.97.0 / rustc 1.97.0，Windows，工作目录 D:\\llmrust-0.1.5 仓库根，2026-11-21 01:07–01:12 +08:00 串行执行），每条经 cmd.exe `> 2>&1` 字节级重定向捕获后归档，无管道/无 mock/无桩，mock_used=false。② 重试与异常：无。8 条命令全部第 1 次尝试即终态退出（各输出中 `Blocking waiting for file lock` 等锁等待行命中 0，无环境瞬时故障，无需要重试的场景——如实记为「重试次数 0」，非 SKIP）。全部 8 条 exit_code=0，无 FAIL 行，未发生任何放宽/跳过/删改记录。③ 命令清单构成：config.gates.required_commands 两条（build/test）+ 三卡 c4 合并去重后的 fmt / clippy 两条 + 三卡 c5 卡面守卫命令去重 4 条（architecture_guard / package_guard / capability_freeze / cap002_contract），共 8 条，逐条独立记录。④ 归档影响自查（gate 自身动作的卫生复核）：8 个 probe/*.txt 归档写入后，`cargo test --test package_guard` 第 2 次实跑仍 exit 0（`test result: ok. 4 passed; 0 failed; 0 ignored`，输出未入判定项、仅记事实），包清单无 *.log/*.env/.secret 类判禁条目——本次归档未触碰 K-03 红线。⑤ 事实照录（不作放宽判断，供 accept 裁量）：`cargo test --workspace` 默认 feature 口径下 responses_proxy_tests 套为 0 passed / 0 failed（proxy 门控用例编译不进默认口径，与 spec revision_note ⑧ 的既有口径一致）；Doc-tests 行 ignored=2（src/lib.rs:57 与 src/providers/retry.rs:19 既有 rust,ignore 块，=K-04 基线值）。⑥ 边界声明：本回执只记录命令事实聚合（8/8 exit_code=0 → verdict=PASS），不下 accept 级总结论；accept 判据（含 c1–c7 其余机判项、注入验红、台账一致）由 dev/qa/ledger 回执与 Lead 的五层判据承载。gate 全程未改任何业务代码/测试/文档（工作区 11 个冻结文件原样未动），新增文件仅 .workforce/evidence/B-AUD-1/gate.json 与 probe/ 下 8 个输出归档，未执行 git commit。spec_sha256 已实测核对（Get-FileHash SHA256 .workforce/spec.json = 254d36f2…，与 Lead 派单一致）。"
+}

@@ -1,0 +1,76 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "written_by": "dev-llmrust-gv",
+  "role": "dev",
+  "agent": "dev-llmrust-gv",
+  "card_id": "C-AUD-GUARD",
+  "batch_id": "B-AUD-1",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "inputs_seen": [
+    ".workforce/cards/C-AUD-GUARD.json",
+    ".workforce/config.json",
+    ".workforce/spec.json",
+    "tests/architecture_guard.rs",
+    "tests/cap002_contract.rs",
+    "tests/guard_registry.json",
+    "tests/guard_admission.rs",
+    "tests/hotspot_ledger.json",
+    "tests/package_guard.rs",
+    "tests/test_hygiene_guard.rs",
+    "src/providers/capabilities.rs"
+  ],
+  "files_changed": [
+    "tests/architecture_guard.rs",
+    "tests/cap002_contract.rs"
+  ],
+  "mock_used": false,
+  "artifacts": [
+    {
+      "path": "tests/architecture_guard.rs",
+      "sha256": "f4ba676d1bfd03e8a2103793b0189df9a9f0a447ae82b3e97f91086d94c823a0"
+    },
+    {
+      "path": "tests/cap002_contract.rs",
+      "sha256": "0a114f6c03a5b54bcbea1fe6f70f5faf3749b6852fb9b09ea4ee9d9429de0d97"
+    }
+  ],
+  "command_exit_codes": [
+    { "cmd": "python c1-1: assert occurrences of 'if let Ok(src)' in tests/architecture_guard.rs == 0", "exit_code": 0 },
+    { "cmd": "python c1-2: assert regex (unreadable|not readable|missing edge|cannot be read) matches >= 1 in tests/architecture_guard.rs", "exit_code": 0 },
+    { "cmd": "python c1-3: assert '_checked' occurrences in tests/architecture_guard.rs == 0", "exit_code": 0 },
+    { "cmd": "python c1-4: assert >=1 assert with a comparison expression inside fn default_warn_is_idempotent body (repaired-regex, see notes)", "exit_code": 0 },
+    { "cmd": "python c1-5: assert six existing #[test] names present in both files", "exit_code": 0 },
+    { "cmd": "cargo test --test architecture_guard dependency_edge_guard_fails_closed_on_missing_edge_file (final merged-tree run)", "exit_code": 0 },
+    { "cmd": "cargo test --test cap002_contract default_warn_is_idempotent (final merged-tree run)", "exit_code": 0 },
+    { "cmd": "cargo test --test architecture_guard hotspot_coverage_is_complete (final merged-tree run)", "exit_code": 0 },
+    { "cmd": "cargo test --workspace -- --list (dependency_edge_guard_fails_closed_on_missing_edge_file appears exactly once, no ': ignored' suffix; 0 ignored-suffix lines)", "exit_code": 0 },
+    { "cmd": "python hashlib: record h0 of tests/architecture_guard.rs before injection (f4ba676d1bfd03e8a2103793b0189df9a9f0a447ae82b3e97f91086d94c823a0)", "exit_code": 0 },
+    { "cmd": "c3 INJECTION: revert dependency_edge_problems to fail-open form (drop the unreadable-file violation branch) -> cargo test --test architecture_guard dependency_edge_guard_fails_closed_on_missing_edge_file", "exit_code": 101 },
+    { "cmd": "c3 RESTORE: byte-identical restore (h1 == h0 == f4ba676d1bfd03e8a2103793b0189df9a9f0a447ae82b3e97f91086d94c823a0; first rerun hit a cargo-mtime stale binary, recompile) -> cargo test --test architecture_guard dependency_edge_guard_fails_closed_on_missing_edge_file", "exit_code": 0 },
+    { "cmd": "cargo build --workspace (config.gates.required_commands; final merged-tree run)", "exit_code": 0 },
+    { "cmd": "cargo test --workspace (config.gates.required_commands; final merged-tree run, all test-result lines 0 failed, unit/integration ignored=0, Doc-tests ignored=2)", "exit_code": 0 },
+    { "cmd": "cargo fmt --all --check (final merged-tree run)", "exit_code": 0 },
+    { "cmd": "cargo clippy --workspace --all-targets -- -D warnings (final merged-tree run)", "exit_code": 0 },
+    { "cmd": "cargo test --test architecture_guard (final merged-tree run: ok. 16 passed; 0 failed; 0 ignored)", "exit_code": 0 },
+    { "cmd": "cargo test --test cap002_contract (final merged-tree run: ok. 8 passed; 0 failed; 0 ignored)", "exit_code": 0 },
+    { "cmd": "cargo test --test package_guard (final merged-tree run: ok. 4 passed; 0 failed; 0 ignored)", "exit_code": 0 },
+    { "cmd": "cargo test --test capability_freeze (final merged-tree run: ok. 14 passed; 0 failed; 0 ignored — count per parallel card C-AUD-DOCS, contract locks only 0 failed/0 ignored)", "exit_code": 0 },
+    { "cmd": "cargo test --test guard_admission (GRD-003 admission gate: ok. 6 passed; 0 failed; 0 ignored)", "exit_code": 0 },
+    { "cmd": "python c6-1: assert write_scopes/exact_file_paths contain no tests/hotspot_ledger.json and no src/ path", "exit_code": 0 },
+    { "cmd": "python c6-2: assert no adjustments[] entry in tests/hotspot_ledger.json mentions C-AUD-GUARD (53 adjustments at final state, rechecked)", "exit_code": 0 },
+    { "cmd": "git diff -- tests/hotspot_ledger.json (empty — zero ledger writes by this card)", "exit_code": 0 },
+    { "cmd": "python c7-1: baseline-minus-current set of assert!/assert_eq!/assert_ne! line sets for both files is empty (arch baseline 4 distinct shapes/18 lines -> current 21 lines; cap002 16 -> 19 lines; no shape lost, no occurrence count shrunk)", "exit_code": 0 },
+    { "cmd": "python c7-2: #[ignore]/#[should_panic] position sets over src/**+tests/** identical to b008185 (baseline: 0 ignore / should_panic only src/proxy/mod.rs:3292,3300; final recheck at merged tree: identical)", "exit_code": 0 },
+    { "cmd": "c7-3 via final cargo test --workspace output: all unit/integration 'test result:' lines ignored=0; Doc-tests line ignored=2 (<= 2)", "exit_code": 0 },
+    { "cmd": "python c7-4: per-function assert-line counts of grd004_* (10) and hotspot_* (4) existing tests >= b008185 baseline (all equal, none weakened)", "exit_code": 0 },
+    { "cmd": "rustfmt --edition 2021 --check tests/architecture_guard.rs tests/cap002_contract.rs", "exit_code": 0 },
+    { "cmd": "[attribution proof] git worktree @ HEAD 39928fc + ONLY this card's two files, isolated CARGO_TARGET_DIR: cargo test --workspace", "exit_code": 0 },
+    { "cmd": "[attribution proof] same isolated worktree: cargo build --workspace / cargo fmt --all --check / cargo clippy --workspace --all-targets -- -D warnings", "exit_code": 0 },
+    { "cmd": "[transient, parallel-card WIP] cargo test --workspace on shared tree while C-AUD-COMPAT edit was mid-flight (src/providers/compat.rs 2135 then 1991/1990 lines vs ledger baseline 1899): hotspot_files_do_not_grow FAILED (compat.rs line-count guard, the file owned by C-AUD-COMPAT)", "exit_code": 101 },
+    { "cmd": "[transient, parallel-card WIP] cargo test --test capability_freeze on shared tree while C-AUD-DOCS edit was mid-flight on llmrust.capabilities.json: 4 tests FAILED (all 'llmrust.capabilities.json has no declaration for this face')", "exit_code": 101 }
+  ],
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "C1-C7 all verified on 2026-11-20/21. #15 fix: dependency_edges_are_respected is now fail-closed — read_edge_sources keeps the read-failure fact (None), pub fn dependency_edge_problems(sources, edges) (pure) overlays edge_violations with a new rule: an edge-referenced file that is unreadable/missing IS a violation (message contains 'unreadable' and 'not readable' and 'moved/renamed'); the old 'if let Ok(src)' silent skip is gone (count 0). Dead '_checked' HashMap removed from hotspot_ledger_is_consistent (its 4 lines + comment replaced by a pointer note); per architect ruling the moved/renamed intent is carried by the fail-closed dependency-edge guard, and hotspot unwrap_or_default() was deliberately NOT touched (0-line vs baseline>=500 is already fail-closed). New negative test dependency_edge_guard_fails_closed_on_missing_edge_file drives the same read_edge_sources->dependency_edge_problems path with a nonexistent edge file (src/does_not_exist_renamed_module.rs, precondition-asserted absent). #16 fix: default_warn_is_idempotent keeps its name and 100-iteration loop but now takes a baseline (first MinimalProvider.capabilities()) and asserts per-iteration equality of protocol / chat.level / coherence_problems() (3 assert_eq! with real comparisons; no tracing-subscriber, no src/ change). c1-4 regex repair: the card's literal regex 'assert(!?\\s*(eq\\()?\\s*\\w' has unbalanced parens (invalid Python); the repaired-intent form 'assert!?\\s*(eq\\()?\\s*\\w' matches the written asserts. GRD-003/guard_registry.json: no registration change was made — no new *_guard.rs file was created; architecture_guard.rs was already registered (negative test hotspot_coverage_detects_unlisted_oversized_file, untouched); the admission gate only checks file-level registration and the existence of declared negative-test fns (no per-new-test duty); cargo test --test guard_admission is green on the final merged tree; the card does not list tests/guard_registry.json in write_scopes and no c1-c7 criterion requires a registry entry, so writing it would have been an out-of-scope action. K-02: architecture_guard passes 15->16 (net +1 negative test), count-agnostic per spec v3 enforced_by. Zero ledger action: no writes to tests/hotspot_ledger.json (diff empty; no C-AUD-GUARD adjustment), no src/ writes; shared-tree transients during the batch (compat.rs hotspot red while C-AUD-COMPAT was mid-flight, capability_freeze red while C-AUD-DOCS was mid-flight on llmrust.capabilities.json) are attributed above and were resolved by those cards before the final merged-tree four-gate run — an isolated worktree (HEAD 39928fc + only these two files) proved the workspace fully green with this card's changes alone. rustfmt on Windows rewrote architecture_guard.rs to CRLF; the file was normalized back to the repository's pure-LF form (baseline blob is LF) so the diff is minimal and content-only. No #[ignore]/#[should_panic] added or moved; existing assertions only increased (arch assert lines 18->21, cap002 16->19; all 14 pre-existing guard test functions keep >= baseline per-function assert counts)."
+}

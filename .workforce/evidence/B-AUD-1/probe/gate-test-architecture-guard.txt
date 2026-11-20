@@ -1,0 +1,23 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running tests\architecture_guard.rs (target\debug\deps\architecture_guard-da34cb2bdc349a6c.exe)
+
+running 16 tests
+test grd004_plain_use_is_caught ... ok
+test grd004_unrelated_mentions_are_not_flagged ... ok
+test grd004_macro_internal_use_is_caught ... ok
+test grd004_multiline_use_is_caught ... ok
+test grd004_pub_crate_use_is_caught ... ok
+test grd004_attributed_use_is_caught ... ok
+test hotspot_coverage_detects_unlisted_oversized_file ... ok
+test grd004_commented_out_use_is_not_flagged ... ok
+test grd004_edges_are_file_scoped ... ok
+test grd004_braced_multiline_use_is_caught ... ok
+test grd004_pub_use_is_caught ... ok
+test dependency_edge_guard_fails_closed_on_missing_edge_file ... ok
+test hotspot_ledger_is_consistent ... ok
+test hotspot_files_do_not_grow ... ok
+test hotspot_coverage_is_complete ... ok
+test dependency_edges_are_respected ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

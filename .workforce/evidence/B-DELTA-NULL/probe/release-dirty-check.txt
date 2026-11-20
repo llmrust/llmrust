@@ -1,0 +1,12 @@
+HEAD          = 49aa90c635920f004b19b55c6d21d1018fc89ae2
+state         = EXECUTING
+batch         = B-DELTA-NULL status=accepted
+
+releaseDirtyFiles -> [
+  ".workforce/evidence/B-DELTA-NULL/probe/release-dirty-check.mjs",
+  ".workforce/evidence/B-DELTA-NULL/probe/release-dirty-check.txt"
+]
+WORKTREE_DIRTY would fire? YES (blocked)
+
+ciReceiptCheck -> CI_HEAD_MISMATCH：回执 head_sha=5084e935 ≠ 当前 HEAD 49aa90c6
+ciStatus       -> CI_NOT_PUSHED：HEAD 49aa90c6 不在任何远端分支上（先 push + 开 PR，CI 才会跑）

@@ -1,0 +1,5 @@
+{
+  "schema": "agent-workforce-acceptors/v1",
+  "note": "验收者（用户）的 git 提交邮箱。本文件本身也须由其中一个邮箱提交。agent 的提交身份不得出现在这里。",
+  "emails": ["boss@example.com"]
+}

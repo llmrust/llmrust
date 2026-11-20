@@ -1,0 +1,11 @@
+{
+  "schema": "agent-workforce-signoff/v1",
+  "role": "architect|dev|qa|gate|ledger|design|lead|user（design 可在 config 关闭）",
+  "agent": "<role>-<name>；lead 填 lead；user 填用户名",
+  "spec_sha256": "<所签 spec 的 sha256；spec 一改，签署自动失效>",
+  "agreed": true,
+  "approved": "<仅 lead：true>",
+  "confirmed": "<仅 user：true；该文件须由 acceptors.json 中的邮箱亲自 git commit>",
+  "comments": "",
+  "signedAt": "<ISO 时间>"
+}

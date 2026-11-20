@@ -1,0 +1,14 @@
+{
+  "schema": "agent-workforce-issue/v1",
+  "issue_id": "ISSUE-001",
+  "raised_by": "user",
+  "artifact": "<成品标识：页面/路由/命令/接口>",
+  "layer": "event|logic|interface|state|view",
+  "expected": "<需求文档/原型里期望看到什么>",
+  "observed": "<实际看到什么>",
+  "severity": "blocker|major|minor",
+  "trace_to_card": "C-001",
+  "used_as_pass_evidence": false,
+  "status": "open",
+  "reopen_to_phase": "（由 trace_to_card 自动定位批次，无需填写）"
+}

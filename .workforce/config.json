@@ -1,0 +1,57 @@
+{
+  "schema": "agent-workforce-config/v1",
+  "business_dirs": [
+    "src/"
+  ],
+  "roles": {
+    "design": false
+  },
+  "architect_required_inputs": [
+    "AGENTS.md",
+    "AGENT_MANIFESTO.md",
+    "docs/PROJECT_MAP.md",
+    "docs/CONTRACTS.md",
+    "docs/CAPABILITIES.md"
+  ],
+  "gates": {
+    "required_commands": [
+      "cargo build --workspace",
+      "cargo test --workspace"
+    ],
+    "require_no_mock": true
+  },
+  "rule_id_pattern": null,
+  "release": {
+    "overall_file": null,
+    "overall_pointer": "/summary/overall"
+  },
+  "ci": {
+    "provider": "github",
+    "repo": "llmrust/llmrust",
+    "branch": null,
+    "command": null,
+    "none_reason": null
+  },
+  "frontend": {
+    "dirs": [],
+    "web_guidance": false
+  },
+  "ledger": {
+    "command": null,
+    "none_reason": "llmrust 仓没有台账生成脚本（无 tools/gen_spcc.py 类生成器）；台账层只验 self_sha256 自洽，不重跑生成命令，手写台账可过。llmrust 的机器事实源是 cargo test 输出 + CI 运行记录，两者在 gate/ci 回执里逐条记录 exit code 与 URL。"
+  },
+  "acceptance": {
+    "user_confirm": false
+  },
+  "parallel": {
+    "max_batches": 2
+  },
+  "generated": [],
+  "trust": {
+    "anchor": "none",
+    "remote": "origin",
+    "branch": "main",
+    "allowed_signers": null,
+    "none_reason": "零人签模式，验收以 CI + 判据机器输出为准：不设人签锚（无受保护分支强制、无用户签名），验收者身份不做锚定；每个批次的通过与否只看 gate 逐条跑 cargo build --workspace / cargo test --workspace 的 exit code、ci 工种用 gh 拉取的该提交远端运行记录、以及 accept 的五层判据机器输出。"
+  }
+}

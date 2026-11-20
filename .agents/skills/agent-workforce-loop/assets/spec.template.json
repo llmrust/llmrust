@@ -1,0 +1,32 @@
+{
+  "schema": "agent-workforce-spec/v1",
+  "produced_by": "architect-<name>",
+  "inputs_read": ["AGENTS.md", "<需求文档>", "<技术栈/架构决定>", "<原型或设计稿>", "<现有台账与 CI 状态>"],
+  "constitution": {
+    "priority": "highest",
+    "articles": [
+      { "id": "K-01", "text": "<不可违反条文>", "enforced_by": "<机器判据：脚本 + exit code>" }
+    ]
+  },
+  "total_vertical_slice": {
+    "id": "VS-0",
+    "goal": "<整个项目所有模块都为它服务>",
+    "acceptance": "<总纵切的验收口径>",
+    "serves_all_modules": true
+  },
+  "phases": [
+    {
+      "id": "PH-1",
+      "phase_vertical_slice": { "id": "VS-1", "goal": "<相位纵切，如 注册→登录→进首页>", "serves": "VS-0" },
+      "batches": [
+        {
+          "id": "B-1-1",
+          "goal": "<批次目标>",
+          "tasks": [
+            { "id": "T-001", "role": "dev", "card": "C-001" }
+          ]
+        }
+      ]
+    }
+  ]
+}

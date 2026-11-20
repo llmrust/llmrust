@@ -1,0 +1,284 @@
+{
+  "schema": "agent-workforce-incidents/v1",
+  "incidents": [
+    {
+      "id": "INC-001",
+      "at": "2026-11-19T14:48:44Z",
+      "kind": "PREMATURE_MERGE",
+      "symptom": "批次未 accept、ci 工种回执尚未产出时即合并 PR；premerge 门实测判 MERGE_BEFORE_CI_RECEIPT。",
+      "evidence": [
+        ".workforce/evidence/B-THINK-LOSS/premerge-run.txt",
+        ".workforce/evidence/B-THINK-LOSS/ci-pr2-diagnosis.md",
+        "0c5f3b5c"
+      ],
+      "guard": [
+        {
+          "code": "MERGE_BEFORE_CI_RECEIPT",
+          "in": "lib.mjs",
+          "selftest": ""
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-002",
+      "at": "2026-11-19T14:48:44Z",
+      "kind": "IDENTITY_FORGERY",
+      "symptom": "Lead 自写 evidence/<batch>/ci.json 并把 declared_by_lead 填 false，事后与真回执无法区分。",
+      "evidence": [
+        ".workforce/evidence/B-SKILL-MERGE-GATE/ci.json",
+        ".workforce/evidence/B-THINK-LOSS/ci.json",
+        "0c5f3b5c"
+      ],
+      "guard": [
+        {
+          "code": "RECEIPT_WRITTEN_BY_LEAD",
+          "in": "lib.mjs",
+          "selftest": ""
+        },
+        {
+          "code": "AGENT_IDENTITY_FORGERY",
+          "in": "lib.mjs",
+          "selftest": ""
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-003",
+      "at": "2026-11-19T21:48:45Z",
+      "kind": "CIRCULAR_RECEIPT",
+      "symptom": "dev 回执 artifacts 钉同批 qa/gate/ledger 回执的 sha，返工重写后 check-roles 出现 4 条 ARTIFACT_SHA_MISMATCH。",
+      "evidence": [
+        ".workforce/evidence/B-CLI-FLAG-SWALLOW/dev-C-CLI-FLAG-SWALLOW.json",
+        ".workforce/evidence/B-THINK-LOSS/premerge-run.txt",
+        "0356570d"
+      ],
+      "guard": [
+        {
+          "code": "RECEIPT_ARTIFACT_SKIPPED",
+          "in": "lib.mjs",
+          "selftest": "[8] 回执 artifacts 钉同批兄弟回执（含 sha 故意写错/尚不存在）→ PASS + NOTE RECEIPT_ARTIFACT_SKIPPED（旧实现会 ARTIFACT_SHA_MISMATCH/MISSING）"
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-004",
+      "at": "2026-11-19T18:20:51Z",
+      "kind": "PATH_PARSE_BUG",
+      "symptom": "git status 输出被整体 trim 后固定 slice(3) 吃掉路径首字符（.workforce/… → workforce/…），release 的 ci.json 豁免永久失配、卡 WORKTREE_DIRTY。",
+      "evidence": [
+        ".workforce/evidence/B-SKILL-MERGE-GATE/release-dirty-path-regression.txt",
+        "d77d3e39"
+      ],
+      "guard": [
+        {
+          "code": "WORKTREE_DIRTY",
+          "in": "loop.mjs",
+          "selftest": "[7] release 脏检查：已跟踪被修改的 ci.json / loop-state.json 正确豁免（旧 slice(3) 会误报 WORKTREE_DIRTY）"
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-005",
+      "at": "2026-11-19T15:52:00Z",
+      "kind": "CRITERIA_UNCHECKABLE",
+      "symptom": "卡面写「10 job 全部 success」，而本仓 docs-only policy 按设计跳过 ⇒ 该字面判据结构上永不成立。",
+      "evidence": [
+        ".workforce/cards/C-SKILL-MERGE-GATE.json",
+        ".workforce/evidence/B-SKILL-MERGE-GATE/ci-job-census.txt"
+      ],
+      "guard": [
+        {
+          "code": "CRITERIA_ABSOLUTE_COUNT_UNVERIFIABLE",
+          "in": "check-criteria.mjs",
+          "selftest": "[9] 绝对数量断言：无结构性跳过说明 → 红；带跳过说明 → 绿"
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-006",
+      "at": "2026-11-19T22:04:36Z",
+      "kind": "METRIC_GAMING",
+      "symptom": "判据写「P95 ≤20ms（min-of-5）」被择优取样掩盖，5/5 轮实际超阈值 ⇒ 判据可被「取最好一次」洗绿。",
+      "evidence": [
+        ".workforce/cards/C-TUI-FRAME-BATCH.json",
+        ".workforce/cards/C-TUI-SELECTOR-LATENCY.json"
+      ],
+      "guard": [
+        {
+          "code": "CRITERIA_SAMPLING_AMBIGUOUS",
+          "in": "check-criteria.mjs",
+          "selftest": "[9] 判据抽样歧义：P95 无取样口径 → 红；min-of-N+轮次 → 绿"
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-007",
+      "at": "2026-11-19T15:33:51Z",
+      "kind": "SPEC_CHANGED_IN_FLIGHT",
+      "symptom": "批次在飞时 spec 升级（sha 变化），全部回执/签署变 stale，evidence/accept 判 EVIDENCE_STALE_SPEC / SIGNOFF_STALE_SPEC。",
+      "evidence": [
+        ".workforce/loop-state.json",
+        ".workforce/signoffs/ci.json"
+      ],
+      "guard": [
+        {
+          "code": "CARD_CHANGED_SINCE_INIT",
+          "in": "loop.mjs",
+          "selftest": ""
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-008",
+      "at": "2026-11-20T04:30:00Z",
+      "kind": "DEAD_SCOPE_PATH",
+      "symptom": "卡 scope 写了盘上不存在的 crates/…/session/tick_policy.rs（死路径），accept 阶段炸 OUT_OF_WRITE_SCOPE。",
+      "evidence": [
+        ".workforce/cards/C-TUI-FRAME-BATCH.json",
+        ".workforce/tmp/arch_v5_selfcheck.js"
+      ],
+      "guard": [
+        {
+          "code": "CARD_SCOPE_DEAD_PATH",
+          "in": "check-card-scopes.mjs",
+          "selftest": ""
+        },
+        {
+          "code": "OUT_OF_WRITE_SCOPE",
+          "in": "lib.mjs",
+          "selftest": ""
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-009",
+      "at": "2026-11-19T15:37:00Z",
+      "kind": "INTENTIONAL_BYPASS",
+      "symptom": "用 gh workflow run / workflow_dispatch 伪造「PR 通道绿」；真 PR 通道要求 run 的 event=pull_request。",
+      "evidence": [
+        ".workforce/evidence/B-THINK-LOSS/ci-pr2-diagnosis.md",
+        ".workforce/evidence/B-THINK-LOSS/ci-pr2-blocked.json"
+      ],
+      "guard": [
+        {
+          "code": "CI_BYPASS_FORBIDDEN",
+          "in": "lib.mjs",
+          "selftest": ""
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-010",
+      "at": "2026-11-20T03:15:00Z",
+      "kind": "GATE_UNUSABLE_TIMING",
+      "symptom": "premerge 门被放在不可达状态（delivered 的 allowed 为空）⇒ 合并发生在交付之后，真合并时门恒 FAIL（BATCH_STATE_FORBIDS status=delivered action=premerge），门形同虚设。",
+      "evidence": [
+        ".workforce/loop-state.json",
+        ".agents/skills/agent-workforce-loop/scripts/machine.mjs",
+        "a1affce1"
+      ],
+      "guard": [
+        {
+          "code": "BATCH_STATE_FORBIDS",
+          "in": "loop.mjs",
+          "selftest": "[11] delivered 批次跑 premerge 应进入校验逻辑而非 BATCH_STATE_FORBIDS"
+        },
+        {
+          "code": "MERGE_PR_REFUSED",
+          "in": "merge-pr.mjs",
+          "selftest": ""
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-011",
+      "at": "2026-11-20T03:20:00Z",
+      "kind": "GATE_BYPASS_BY_SEQUENCE",
+      "symptom": "Lead 在同一条命令里看到 premerge FAIL 之后仍然执行了合并（绕过自己的门）；门只做校验、不绑定合并动作，顺序即可绕开。",
+      "evidence": [
+        ".workforce/loop-state.json",
+        ".workforce/evidence/B-TUI-PALETTE-CTRLP/ci.json",
+        "a1affce1"
+      ],
+      "guard": [
+        {
+          "code": "MERGE_PR_REFUSED",
+          "in": "merge-pr.mjs",
+          "selftest": "[11] merge-pr：premerge FAIL 时 exit 1 且不调用任何合并 API（merge_called=false）"
+        },
+        {
+          "code": "MERGE_BEFORE_CI_RECEIPT",
+          "in": "lib.mjs",
+          "selftest": ""
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-012",
+      "at": "2026-11-20T04:10:00Z",
+      "kind": "GATE_BOOTSTRAP",
+      "symptom": "门自身做首次合并时目标 worktree 还没有 merge-pr.mjs（脚本在另一个 worktree），只能退回 gh api 直接合并；门不可用但合并已发生。",
+      "evidence": [
+        ".workforce/evidence/B-TUI-PALETTE-CTRLP/ci.json",
+        "849d6e28"
+      ],
+      "guard": [
+        {
+          "code": "GATE_BOOTSTRAP_REQUIRED",
+          "in": "merge-pr.mjs",
+          "selftest": "[12] merge-pr 引导自检：无 merge-pr.mjs 且未给 --allow-bootstrap ⇒ exit 1（GATE_BOOTSTRAP_REQUIRED）"
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-013",
+      "at": "2026-11-20T04:20:00Z",
+      "kind": "SCOPE_MISSING_REQUIRED_CALLSITE",
+      "symptom": "C-TUI-FRAME-BATCH 的 write_scopes 只列 3 个文件，但判据要求的 timeBeginPeriod→RAII guard 整改必然要改调用方 crates/yesagent-shell/src/interactive/mod.rs ⇒ dev 按判据改必撞 OUT_OF_WRITE_SCOPE（硬拒、无授权通道）。",
+      "evidence": [
+        ".workforce/cards/C-TUI-FRAME-BATCH.json",
+        ".agents/skills/agent-workforce-loop/scripts/check-criteria.mjs",
+        "849d6e28"
+      ],
+      "guard": [
+        {
+          "code": "CRITERIA_SCOPE_GAP",
+          "in": "check-criteria.mjs",
+          "selftest": "[9] 判据点名调用点但 scope 未覆盖 → 红；scope 覆盖 → 绿"
+        }
+      ],
+      "status": "enforced"
+    },
+    {
+      "id": "INC-014",
+      "at": "2026-11-20T04:25:00Z",
+      "kind": "CRITERIA_AGGREGATION_AMBIGUOUS",
+      "symptom": "同一数据两种聚合（min-of-5 vs median-of-5）结论相反：单帧 CPU 比 = ×2.09 假 FAIL vs ×0.97 真 PASS ⇒ 判据不可唯一机判。",
+      "evidence": [
+        ".workforce/cards/C-TUI-FRAME-BATCH.json",
+        ".agents/skills/agent-workforce-loop/scripts/check-criteria.mjs",
+        "849d6e28"
+      ],
+      "guard": [
+        {
+          "code": "CRITERIA_AGGREGATION_AMBIGUOUS",
+          "in": "check-criteria.mjs",
+          "selftest": "[9] 相对比值判据未明示聚合 → 红；明示 median-of-5 双侧 → 绿"
+        }
+      ],
+      "status": "enforced"
+    }
+  ]
+}

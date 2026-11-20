@@ -168,11 +168,17 @@ struct CompStreamChunk {
 
 #[derive(Deserialize)]
 struct CompStreamChoice {
-    delta: CompDelta,
+    /// DELTA-NULL: OpenAI-compatible endpoints commonly send the terminal frame
+    /// as `{"delta":null,"finish_reason":"stop",...}` (official OpenAI semantics,
+    /// llama.cpp, some vLLM builds, self-hosted proxies), and some omit the field
+    /// entirely. Both mean "no increment, only a finish_reason", so this is
+    /// optional and consumers substitute an empty [`CompDelta`].
+    #[serde(default)]
+    delta: Option<CompDelta>,
     finish_reason: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 struct CompDelta {
     content: Option<String>,
     #[serde(default)]
@@ -351,7 +357,11 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
     let usage = parsed.usage.map(comp_usage_to_usage);
     match parsed.choices.first() {
         Some(choice) => {
-            if let Some(deltas) = &choice.delta.tool_calls {
+            // DELTA-NULL: `delta` may be absent or explicitly `null` on terminal
+            // frames; substitute an empty delta so downstream logic is unchanged.
+            let empty_delta = CompDelta::default();
+            let delta = choice.delta.as_ref().unwrap_or(&empty_delta);
+            if let Some(deltas) = &delta.tool_calls {
                 tools.ingest(deltas);
             }
             let finish_reason = choice.finish_reason.clone().map(FinishReason::from);
@@ -363,11 +373,10 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
             // REA-003: accept both `reasoning` and `reasoning_content` delta
             // field names (O-1: tolerant parsing; the authoritative name is
             // verified against real endpoints in E2E-001).
-            let thinking = choice
-                .delta
+            let thinking = delta
                 .reasoning
                 .clone()
-                .or_else(|| choice.delta.reasoning_content.clone());
+                .or_else(|| delta.reasoning_content.clone());
             let done = finish_reason.is_some();
             // FIX-R2 (FND-R2, Contract §7 / CONTRACTS.md L33): providers that
             // map reasoning on the streaming path must mark the end of the
@@ -378,7 +387,7 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
             // marker whenever this line surfaced a thinking increment.
             let thinking_done = done.then_some(thinking.is_some());
             vec![Ok(StreamChunk {
-                delta: choice.delta.content.clone().unwrap_or_default(),
+                delta: delta.content.clone().unwrap_or_default(),
                 done,
                 finish_reason,
                 usage,
@@ -1183,6 +1192,53 @@ mod tests {
         assert_eq!(chunk.delta, "hi");
         assert!(chunk.done);
         assert!(chunk.tool_calls.is_none());
+    }
+
+    // DELTA-NULL regression: OpenAI-compatible endpoints (official OpenAI
+    // semantics, llama.cpp, some vLLM builds, self-hosted proxies) send the
+    // terminal frame as `{"delta":null,"finish_reason":"stop",...}`. A
+    // non-optional `delta: CompDelta` rejected it with
+    // `missing field \`delta\``, turning every streamed tool-calling turn
+    // into `LlmError::Parse` / "Invalid response". The three tests below pin
+    // the null / absent / normal shapes.
+    #[test]
+    fn stream_terminal_chunk_with_null_delta_parses() {
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"choices":[{"delta":null,"index":0,"finish_reason":"stop"}]}"#,
+        );
+        let chunk = chunks.into_iter().next().expect("one chunk").unwrap();
+        assert_eq!(chunk.delta, "", "a null delta carries no content increment");
+        assert!(chunk.done, "finish_reason present => done");
+        assert_eq!(chunk.finish_reason, Some(FinishReason::Stop));
+        assert!(chunk.tool_calls.is_none());
+        assert!(chunk.thinking.is_none());
+    }
+
+    #[test]
+    fn stream_delta_content_still_parses_with_option() {
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"choices":[{"delta":{"content":"hi"},"finish_reason":null}]}"#,
+        );
+        let chunk = chunks.into_iter().next().unwrap().unwrap();
+        assert_eq!(chunk.delta, "hi", "normal increments must survive the fix");
+        assert!(!chunk.done, "no finish_reason => not done");
+    }
+
+    #[test]
+    fn stream_terminal_chunk_with_absent_delta_parses() {
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"choices":[{"finish_reason":"stop"}]}"#,
+        );
+        let chunk = chunks.into_iter().next().expect("one chunk").unwrap();
+        assert_eq!(chunk.delta, "", "an absent delta means no increment");
+        assert!(chunk.done, "finish_reason present => done");
+        assert_eq!(chunk.finish_reason, Some(FinishReason::Stop));
     }
 
     #[test]

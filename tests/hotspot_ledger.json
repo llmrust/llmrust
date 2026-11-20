@@ -5,7 +5,7 @@
     "src/proxy/mod.rs": 3770,
     "src/proxy/anthropic_proxy.rs": 2053,
     "src/proxy/responses_proxy.rs": 964,
-    "src/providers/compat.rs": 1843,
+    "src/providers/compat.rs": 1899,
     "src/providers/google.rs": 1614,
     "src/types.rs": 1136,
     "src/providers/anthropic.rs": 1539,
@@ -424,6 +424,14 @@
       "reason": "Stream-close tool-call flush fix (post-0.1.4 bugfix, task R243): real upstreams exist that end an OpenAI-compatible stream WITHOUT a finish_reason frame (measured on xunfei spark-x2.6: [DONE] arrives with the tool-call arguments already fully accumulated; the same request with stream=false returns finish_reason \"tool_calls\" normally). The old pipeline only flushed ToolCallAccumulator on a finish_reason frame, so the accumulated arguments were swallowed inside the library and never became a ToolCall. Growth is real implementation + tests, not inflated: the new `sse_chunk_stream` assembly layer (flushes the accumulator at the two clean close points — the [DONE] chunk and end-of-stream — never after a surfaced error, never inventing a finish_reason per ERR-003) replacing the inline scan/flatten wiring, plus 7 regression tests (DONE-flush, clean-EOF flush, transport-error no-flush, parse-error no-flush, DONE-after-error no-flush, well-behaved-stream unchanged, and an end-to-end axum SSE stream with no finish_reason). parse_sse_line and ToolCallAccumulator bodies are untouched; the public API is unchanged (semver-clean). Ledger records the ACTUAL line count (never headroom).",
       "authorized_by": "Owner-directed bugfix loop R243 (direct order: fix, PR, CI-green, merge; recorded per §11.1.4 for architect review)",
       "date": "2026-11-17"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 1843,
+      "new": 1899,
+      "reason": "DELTA-NULL (post-0.1.5 bugfix, task DELTA-NULL): OpenAI-compatible endpoints legitimately send the TERMINAL stream frame as {\"delta\":null,\"finish_reason\":\"stop\",...} (official OpenAI semantics; also observed on llama.cpp, some vLLM builds and self-hosted proxies), and some upstreams omit the field entirely. CompStreamChoice declared `delta: CompDelta` (non-Option), so `delta:null` failed serde with `missing field `delta`` and parse_sse_line returned LlmError::Parse(\"failed to parse OpenAI-compatible stream chunk: missing field `delta`\") for the whole stream => the caller surfaced \"Invalid response\" => every streamed tool-calling turn failed at the real tool call. Measured reproduction (downstream beeli vertical slice S3): endpoint http://127.0.0.1:18778/v1, both nous/meituan/longcat-2.5:free and nous/upstage/solar-mini4:free trigger it; terminal frame verbatim: {\"choices\":[{\"delta\":null,\"index\":0,\"finish_reason\":\"stop\",\"message\":{\"role\":\"assistant\",\"content\":\"可用\"},...}]}. Fix: `#[serde(default)] delta: Option<CompDelta>` + a single `empty_delta` placeholder bound at the top of the choices arm, so the three usage sites (tool_calls ingest, reasoning/reasoning_content, content) keep their logic unchanged. Growth is real fix + tests, not inflation: +56 wc -l measured (1843 -> 1899), of which the implementation is ~15 lines (struct doc + Option/default, the empty_delta binding, the three rewritten usage sites) and ~41 lines are three regression tests (null delta parses / absent delta parses / normal increment still parses).",
+      "authorized_by": "Boss 2026-11-20 指令：llmrust 是我们自己的，发现问题就自己修、提 PR、跑 CI、合并发版；ledger adjustment per §11.1.4",
+      "date": "2026-11-20"
     }
   ]
 }

@@ -158,12 +158,35 @@ struct CompPromptTokensDetails {
     cached_tokens: Option<u64>,
 }
 
+/// AUD#3 (C-AUD-COMPAT): an in-band error payload delivered inside a
+/// 200-status SSE frame — `data: {"error":{...},"choices":[]}`. Real
+/// upstreams end a stream this way (observed on quota exhaustion: the HTTP
+/// status stays 200 and the failure is only visible in the frame body), so
+/// the frame has to surface as [`LlmError::Api`], never be dropped.
+#[derive(Deserialize)]
+struct CompStreamError {
+    #[serde(default)]
+    message: String,
+    /// OpenAI-compatible servers send `code` either as a number (HTTP-ish
+    /// status, e.g. `429`) or as a machine string; both are accepted, and
+    /// only a numeric error-range code is used as the surfaced status.
+    #[serde(default)]
+    code: Option<serde_json::Value>,
+}
+
 #[derive(Deserialize)]
 struct CompStreamChunk {
     #[serde(default)]
     choices: Vec<CompStreamChoice>,
     #[serde(default)]
     usage: Option<CompUsage>,
+    /// AUD#3: in-band error field, named exactly as on the wire (`error`)
+    /// and absent on normal frames. Checked before the choices arm, so a
+    /// `{"error":{...},"choices":[]}` frame can never fall into the
+    /// choice-less keepalive path (the old silent drop). Public so the
+    /// field form is directly checkable by the card's machine probe.
+    #[serde(default)]
+    pub error: Option<CompStreamError>,
 }
 
 #[derive(Deserialize)]
@@ -259,15 +282,36 @@ struct CompEmbeddingUsage {
     total_tokens: u64,
 }
 
+/// AUD#7 (C-AUD-COMPAT): hard upper bound on the tool-call `index` an
+/// upstream frame may carry. Real OpenAI-compatible streams number tool
+/// calls densely from 0 (a handful per turn, even with parallel tool
+/// calls), so anything beyond this is a broken or hostile payload. The
+/// bound exists because the accumulator is a `Vec` positioned by `index`:
+/// with unbounded growth a single frame directly sized the allocation
+/// (`index = 1000000` ordered a million builders up front; `usize::MAX`
+/// even overflowed/panicked). Reject loudly instead of dying by OOM.
+const MAX_TOOL_CALL_INDEX: usize = 1024;
+
 /// Accumulates streamed tool-call fragments across SSE lines. OpenAI-style
 /// streams deliver tool calls as a series of deltas keyed by `index`: the
 /// first delta for an index carries `id` and `name`, later deltas append
 /// `arguments` text. [`ToolCallAccumulator::ingest`] folds each delta in and
 /// [`ToolCallAccumulator::take`] drains the completed calls on the terminal
 /// chunk.
+///
+/// The accumulator doubles as the stream-state carrier for AUD#1: the
+/// `saw_thinking` flag records whether any thinking increment has been
+/// observed in this stream, so a later terminal frame can report the end of
+/// the thinking stage without re-checking its own frame for a reasoning
+/// delta (real reasoning streams finish on a bare
+/// `{"delta":null,"finish_reason":"stop"}` frame).
 #[derive(Default)]
 struct ToolCallAccumulator {
     builders: Vec<ToolCallBuilder>,
+    /// AUD#1 (C-AUD-COMPAT): sticky terminal-state flag — set when a frame
+    /// carries a `reasoning`/`reasoning_content` increment, read when the
+    /// terminal chunk computes `thinking_done`.
+    saw_thinking: bool,
 }
 
 #[derive(Default)]
@@ -278,9 +322,21 @@ struct ToolCallBuilder {
 }
 
 impl ToolCallAccumulator {
-    fn ingest(&mut self, deltas: &[CompToolCallDelta]) {
+    fn ingest(&mut self, deltas: &[CompToolCallDelta]) -> Result<()> {
         for delta in deltas {
+            // AUD#7 (C-AUD-COMPAT): bound the index BEFORE any growth. The
+            // accumulator is positioned by the upstream-supplied `index`,
+            // so an unbounded grow turned one hostile frame into a direct
+            // allocation order (panic/OOM at absurd indexes); reject it.
+            if delta.index > MAX_TOOL_CALL_INDEX {
+                return Err(LlmError::Parse(format!(
+                    "streamed tool_call index {} exceeds the bounded accumulator limit {}",
+                    delta.index, MAX_TOOL_CALL_INDEX
+                )));
+            }
             if self.builders.len() <= delta.index {
+                // Reachable only for index <= MAX_TOOL_CALL_INDEX (guarded
+                // above): the allocation is bounded by the constant.
                 self.builders
                     .resize_with(delta.index + 1, ToolCallBuilder::default);
             }
@@ -297,6 +353,7 @@ impl ToolCallAccumulator {
                 }
             }
         }
+        Ok(())
     }
 
     fn take(&mut self) -> Option<Vec<ToolCall>> {
@@ -335,6 +392,10 @@ impl ToolCallAccumulator {
 /// `stream_options.include_usage` was requested), then a literal `[DONE]`.
 /// Accumulated tool calls are drained onto the chunk that carries
 /// `finish_reason`.
+///
+/// A frame carrying an in-band `error` object (an upstream failure delivered
+/// inside a 200 stream, with `choices` empty or absent) surfaces as
+/// `LlmError::Api` instead of being dropped as a keepalive (AUD#3).
 fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     let Some(data) = line.strip_prefix("data: ") else {
@@ -354,6 +415,26 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
             )))];
         }
     };
+    // AUD#3 (C-AUD-COMPAT): surface an in-band error frame. Upstreams may
+    // end a 200 stream with `data: {"error":{...},"choices":[]}`; the
+    // choice-less shape used to fall through to the keepalive path, so the
+    // only record of the failure (e.g. quota exhaustion) vanished — a
+    // silent drop of an upstream error (AGENTS.md Providers; CONTRACTS.md
+    // stream contract "No silent drops"). A numeric `code` in the HTTP
+    // error range becomes the surfaced status; anything else maps to 502
+    // (upstream-side failure reported in-band, no usable wire status).
+    if let Some(err) = &parsed.error {
+        let status = err
+            .code
+            .as_ref()
+            .and_then(|c| c.as_u64())
+            .filter(|c| (400..=599).contains(c))
+            .map_or(502, |c| c as u16);
+        return vec![Err(LlmError::Api {
+            status,
+            message: err.message.clone(),
+        })];
+    }
     let usage = parsed.usage.map(comp_usage_to_usage);
     match parsed.choices.first() {
         Some(choice) => {
@@ -362,7 +443,9 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
             let empty_delta = CompDelta::default();
             let delta = choice.delta.as_ref().unwrap_or(&empty_delta);
             if let Some(deltas) = &delta.tool_calls {
-                tools.ingest(deltas);
+                if let Err(e) = tools.ingest(deltas) {
+                    return vec![Err(e)];
+                }
             }
             let finish_reason = choice.finish_reason.clone().map(FinishReason::from);
             let tool_calls = if finish_reason.is_some() {
@@ -377,15 +460,28 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
                 .reasoning
                 .clone()
                 .or_else(|| delta.reasoning_content.clone());
+            // AUD#1 (C-AUD-COMPAT): sticky observation — this frame streams
+            // a thinking increment, so the stream HAS a thinking stage.
+            // Recorded before the terminal decision below, so a terminal
+            // frame that carries its own increment (o-series `reasoning` +
+            // `finish_reason` on the same frame) still counts.
+            if thinking.is_some() {
+                tools.saw_thinking = true;
+            }
             let done = finish_reason.is_some();
-            // FIX-R2 (FND-R2, Contract §7 / CONTRACTS.md L33): providers that
-            // map reasoning on the streaming path must mark the end of the
-            // thinking stage with `StreamChunk.thinking_done = Some(true)` at
-            // most once on the terminal chunk. OpenAI o-series streams the
-            // `reasoning` delta and finishes on the same terminal chunk — the
-            // thinking stage ends there, so the terminal chunk must carry the
-            // marker whenever this line surfaced a thinking increment.
-            let thinking_done = done.then_some(thinking.is_some());
+            // AUD#1 (C-AUD-COMPAT), architect ruling 2026-11-20: sticky
+            // terminal marking. `thinking_done` reports whether THIS STREAM
+            // has produced any thinking increment up to and including this
+            // frame — the previous same-frame check (did the terminal frame
+            // itself carry a reasoning increment?) was wrong twice over:
+            // a reasoning stream that finishes on a bare frame
+            // (`{"delta":null,"finish_reason":"stop"}`) got
+            // `Some(false)` — an active lie about the stream (severity:
+            // severe) — and the sticky semantics below is a superset of the
+            // old one. `Some(true)` at most once on the terminal chunk per
+            // Contract §7 is preserved by construction: only a terminal
+            // frame (`done == true`) produces a `Some` at all.
+            let thinking_done = done.then_some(tools.saw_thinking);
             vec![Ok(StreamChunk {
                 delta: delta.content.clone().unwrap_or_default(),
                 done,
@@ -1290,6 +1386,147 @@ mod tests {
             chunk.thinking_done,
             Some(true),
             "terminal chunk that surfaced thinking must mark thinking_done = Some(true) per Contract §7"
+        );
+    }
+
+    // ── AUD#1 / AUD#3 / AUD#7 (C-AUD-COMPAT) regression tests ──────────
+
+    #[test]
+    fn stream_terminal_after_thinking_marks_sticky_done() {
+        // AUD#1 (severe): the terminal frame of a reasoning stream carries
+        // no thinking increment of its own — upstreams finish reasoning
+        // streams with `{"delta":null,"finish_reason":"stop"}`. `thinking_done`
+        // is sticky: it reports whether THINKING WAS SEEN EARLIER in this
+        // stream (architect ruling 2026-11-20: sticky terminal state). The
+        // old same-frame expression returned `Some(false)` here — a lie
+        // about the stream that had just streamed thinking.
+        let mut tools = ToolCallAccumulator::default();
+        let reasoning_frame = r#"data: {"choices":[{"delta":{"reasoning":"hmm"}}]}"#;
+        let terminal_frame = r#"data: {"choices":[{"delta":null,"finish_reason":"stop"}]}"#;
+        let first = parse_sse_line(&mut tools, reasoning_frame);
+        assert!(
+            first
+                .iter()
+                .all(|c| !c.as_ref().unwrap().thinking_done.is_some()),
+            "an increment frame is not terminal; thinking_done must be None, got {first:?}"
+        );
+        let second = parse_sse_line(&mut tools, terminal_frame);
+        let chunk = second
+            .into_iter()
+            .next()
+            .expect("terminal frame yields one chunk")
+            .unwrap();
+        assert!(chunk.done);
+        assert_eq!(
+            chunk.thinking_done,
+            Some(true),
+            "a terminal frame after a thinking increment must mark the end of the thinking stage (sticky), got {:?}",
+            chunk.thinking_done
+        );
+    }
+
+    #[test]
+    fn stream_no_thinking_terminal_done_is_false() {
+        // AUD#1, other side of the sticky semantics: a stream that never
+        // streamed a thinking increment must NOT report a thinking stage on
+        // its terminal frame. A plain content stream ends with
+        // `thinking_done == Some(false)` (not None and not true).
+        let mut tools = ToolCallAccumulator::default();
+        let content_frame = r#"data: {"choices":[{"delta":{"content":"hi"}}]}"#;
+        let terminal_frame = r#"data: {"choices":[{"delta":null,"finish_reason":"stop"}]}"#;
+        let first = parse_sse_line(&mut tools, content_frame);
+        assert!(
+            first
+                .iter()
+                .all(|c| !c.as_ref().unwrap().thinking_done.is_some()),
+            "non-terminal frames never carry thinking_done, got {first:?}"
+        );
+        let second = parse_sse_line(&mut tools, terminal_frame);
+        let chunk = second
+            .into_iter()
+            .next()
+            .expect("terminal frame yields one chunk")
+            .unwrap();
+        assert!(chunk.done);
+        assert_eq!(
+            chunk.thinking_done,
+            Some(false),
+            "a terminal frame in a stream with no thinking increments must carry thinking_done = Some(false)"
+        );
+    }
+
+    #[test]
+    fn stream_error_frame_surfaces_llm_error() {
+        // AUD#3 (high): an upstream may end a 200 stream with an in-band
+        // error frame — measured wire shape on quota exhaustion:
+        // `data: {"error":{"message":"quota exceeded","type":"insufficient_quota","code":429},"choices":[]}`.
+        // The empty-choices arm dropped it as a keepalive, so the stream
+        // ended cleanly with the failure vanished. It must surface as
+        // LlmError::Api (status from the numeric `code` when in the HTTP
+        // error range), per the stream contract "No silent drops".
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"error":{"message":"quota exceeded","type":"insufficient_quota","code":429},"choices":[]}"#,
+        );
+        let err = chunks
+            .into_iter()
+            .next()
+            .expect("error frame yields one item")
+            .expect_err("an in-band error frame must surface as Err");
+        match &err {
+            LlmError::Api {
+                status: 429,
+                message,
+            } => {
+                assert!(
+                    message.contains("quota exceeded"),
+                    "the upstream error message must be preserved, got {message}"
+                );
+            }
+            other => panic!("expected LlmError::Api {{ status: 429, .. }}, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn stream_tool_call_delta_with_huge_index_is_rejected() {
+        // AUD#7 (high): the accumulator grows by the upstream-supplied
+        // `index`, so an unbounded grow let a single frame size the
+        // allocation (index 1000000 ordered a million builders; usize::MAX
+        // overflowed). The index is now bounded
+        // (MAX_TOOL_CALL_INDEX); the hostile frame surfaces as
+        // Err(LlmError::Parse) — not a panic, not an OOM, not an ok chunk.
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(
+            &mut tools,
+            r#"data: {"choices":[{"delta":{"tool_calls":[{"index":1000000,"id":"x","function":{"name":"f","arguments":""}}]},"finish_reason":null}]}"#,
+        );
+        let err = chunks
+            .into_iter()
+            .next()
+            .expect("huge-index frame yields one item")
+            .expect_err("a tool_call index beyond the bound must be an Err");
+        assert!(
+            matches!(err, LlmError::Parse(_)),
+            "expected LlmError::Parse, got {err:?}"
+        );
+        assert!(
+            tools.builders.is_empty(),
+            "nothing may be allocated for a rejected index, got {} builders",
+            tools.builders.len()
+        );
+    }
+
+    #[test]
+    fn stream_empty_choices_without_usage_stays_keepalive() {
+        // AUD#3 guard: the #3 fix must not eat the choice-less keepalive
+        // semantics. A frame with no `error`, no usage and no choices still
+        // produces no chunks and no Err (the old empty-choices behaviour).
+        let mut tools = ToolCallAccumulator::default();
+        let chunks = parse_sse_line(&mut tools, r#"data: {"choices":[],"created":1}"#);
+        assert!(
+            chunks.is_empty(),
+            "a keepalive frame with no error and no usage must stay invisible, got {chunks:?}"
         );
     }
 

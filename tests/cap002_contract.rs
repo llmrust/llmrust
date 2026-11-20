@@ -173,15 +173,36 @@ fn downstream_provider_without_capabilities_still_compiles_and_is_conservative()
 
 /// DoD 3（续）：默认实现的 `warn` **只发一次**（每个 provider 名）。
 ///
-/// 直接驱动 `warn_missing_capabilities_once` 的幂等性：调用多次不得 panic，
-/// 且内部 once-set 语义由返回值/日志计数体现——此处以"多次调用稳定返回"证明不炸。
+/// 反复驱动 `capabilities()`（默认实现内部调 `warn_missing_capabilities_once`）：
+/// 不得 panic，且**幂等观测面逐次一致**——`protocol` / `chat.level` /
+/// `coherence_problems()` 每次调用的返回值相同（#16 修复口径：不在测试里装
+/// tracing subscriber、不引入新依赖、不改 src/；「warn 只发一次」的语义由
+/// 「反复调用不改变任何一次的返回、且全程不 panic」证明，日志存在性由
+/// `capabilities()` 的实现（同一函数）保证）。
 #[test]
 fn default_warn_is_idempotent() {
-    // 说明：日志断言需要 tracing subscriber；此处证明**幂等性与不 panic**，
-    // 日志本身的存在性由 `capabilities()` 的实现（同一函数）保证。
+    // 幂等观测面：先取基准，再在既有百次循环里逐次比对。循环内每次新建实例
+    // （与原实现相同）——顺带覆盖「进程级 once-set 已置位后，新实例返回值
+    // 仍一致」的组合；warn-once 不得在任何两次调用之间翻转声明。
+    let first = MinimalProvider.capabilities();
+    let first_problems = first.coherence_problems();
     for _ in 0..100 {
         let p = MinimalProvider;
-        let _ = p.capabilities();
+        let caps = p.capabilities();
+        assert_eq!(
+            caps.protocol, first.protocol,
+            "protocol must be identical across repeated capabilities() calls"
+        );
+        assert_eq!(
+            caps.chat.level, first.chat.level,
+            "default chat level must be identical across repeated capabilities() calls \
+             — warn-once must not flip the declaration between calls"
+        );
+        assert_eq!(
+            caps.coherence_problems(),
+            first_problems,
+            "coherence_problems() must be identical across repeated capabilities() calls"
+        );
     }
 }
 

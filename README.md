@@ -337,7 +337,7 @@ use llmrust::{ModelPricing, Usage};
 // $0.0025 per 1K prompt tokens, $0.01 per 1K completion tokens
 let pricing = ModelPricing::new(0.0025, 0.01);
 
-let usage = Usage { prompt_tokens: 1_000, completion_tokens: 500, total_tokens: 1_500 };
+let usage = Usage { prompt_tokens: 1_000, completion_tokens: 500, total_tokens: 1_500, ..Default::default() };
 let cost = usage.estimated_cost(&pricing); // 0.0075
 println!("Estimated cost: ${cost:.6}");
 ```
@@ -417,7 +417,7 @@ The proxy routes requests by the `model` string. Use the same provider-prefixed 
 
 - `openai/gpt-4o`
 - `anthropic/claude-3-5-sonnet-latest`
-- `gemini/gemini-1.5-pro`
+- `google/gemini-1.5-pro`
 - `ollama/llama3.2`
 
 The prefix selects the provider. The remaining model name is sent to the provider after llmrust resolves the route.

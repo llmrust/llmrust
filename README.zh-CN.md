@@ -297,7 +297,7 @@ use llmrust::{ModelPricing, Usage};
 // prompt $0.0025 / 1K，completion $0.01 / 1K
 let pricing = ModelPricing::new(0.0025, 0.01);
 
-let usage = Usage { prompt_tokens: 1_000, completion_tokens: 500, total_tokens: 1_500 };
+let usage = Usage { prompt_tokens: 1_000, completion_tokens: 500, total_tokens: 1_500, ..Default::default() };
 let cost = usage.estimated_cost(&pricing); // 0.0075
 println!("预估成本: ${cost:.6}");
 ```
@@ -360,7 +360,7 @@ proxy 通过 `model` 字段路由请求。请使用和 client API 一致的 prov
 
 - `openai/gpt-4o`
 - `anthropic/claude-3-5-sonnet-latest`
-- `gemini/gemini-1.5-pro`
+- `google/gemini-1.5-pro`
 - `ollama/llama3.2`
 
 前缀用于选择 provider，后面的模型名会在 llmrust 完成路由解析后发送给对应 provider。

@@ -6,10 +6,21 @@
 # (NOT allowlisted) and is reverted before merge.
 #
 # Allowlist policy (REL-003 incident 2026-08-03): exemptions are EXACT token
-# shapes via `regexes`, never directory-wide `paths` exemptions — a directory
-# exemption would let a real secret accidentally dropped into that directory
-# pass the gate. The previous `paths = [docs/.*, examples/.*, tests/.*]` was
-# removed for this reason.
+# shapes, never directory-wide `paths` exemptions — a directory exemption would
+# let a real secret accidentally dropped into that directory pass the gate. The
+# previous `paths = [docs/.*, examples/.*, tests/.*]` was removed for this
+# reason.
+#
+# Anchoring (AUD#22): every allowlist regex is fully anchored `^...$`. The
+# allowlist entry is matched against the *found secret* (gitleaks 8.21.x
+# default `regexTarget` = the secret group value), not the surrounding line —
+# an unanchored "dev-secret" would also allow a real token shaped
+# "dev-secret-hunter2". Anchoring makes each entry exact-match only: the
+# placeholder passes, any superstring of it stays a finding. Verified against
+# gitleaks v8.21.2 (the pinned CI version in .github/workflows/security.yml):
+# detect.go resolves the finding secret to the rule's capture group before the
+# global allowlist regexes are applied, so each regex below must equal the bare
+# placeholder token.
 
 title = "llmrust gitleaks config"
 
@@ -18,16 +29,18 @@ useDefault = true
 
 [allowlist]
 # Allowlist of exact example/placeholder strings that are safe and must not
-# fail the gate. These match ONLY the literal placeholder tokens in the repo —
-# a real key shape anywhere (including examples/tests/docs) is still caught.
+# fail the gate. Each entry is a fully-anchored exact match of the placeholder
+# token only (^...$) — a real key shape anywhere (including examples/tests/
+# docs), or any token that merely *contains* a placeholder, is still caught.
 regexes = [
   # AWS published example access key — documented, never a real credential.
-  "AKIAIOSFODNN7EXAMPLE",
+  "^AKIAIOSFODNN7EXAMPLE$",
   # Placeholder bearer token in examples/proxy_server.rs doc comments (curl
-  # usage examples). Exact literal "dev-secret"; a real token is not exempted.
-  "dev-secret",
+  # usage examples). Exact literal "dev-secret"; a real or extended token
+  # (e.g. "dev-secret-<anything>") is not exempted.
+  "^dev-secret$",
   # Placeholder secret in examples/e2e_smoke.rs test stub.
-  "sk-e2e-test-secret-0123456789abcdef",
+  "^sk-e2e-test-secret-0123456789abcdef$",
   # Placeholder shared secret in README / README.zh-CN.md proxy curl examples.
-  "some-shared-secret",
+  "^some-shared-secret$",
 ]

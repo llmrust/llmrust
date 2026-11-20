@@ -5,7 +5,7 @@
     "src/proxy/mod.rs": 3770,
     "src/proxy/anthropic_proxy.rs": 2053,
     "src/proxy/responses_proxy.rs": 964,
-    "src/providers/compat.rs": 1899,
+    "src/providers/compat.rs": 2136,
     "src/providers/google.rs": 1614,
     "src/types.rs": 1136,
     "src/providers/anthropic.rs": 1539,
@@ -431,6 +431,14 @@
       "new": 1899,
       "reason": "DELTA-NULL (post-0.1.5 bugfix, task DELTA-NULL): OpenAI-compatible endpoints legitimately send the TERMINAL stream frame as {\"delta\":null,\"finish_reason\":\"stop\",...} (official OpenAI semantics; also observed on llama.cpp, some vLLM builds and self-hosted proxies), and some upstreams omit the field entirely. CompStreamChoice declared `delta: CompDelta` (non-Option), so `delta:null` failed serde with `missing field `delta`` and parse_sse_line returned LlmError::Parse(\"failed to parse OpenAI-compatible stream chunk: missing field `delta`\") for the whole stream => the caller surfaced \"Invalid response\" => every streamed tool-calling turn failed at the real tool call. Measured reproduction (downstream beeli vertical slice S3): endpoint http://127.0.0.1:18778/v1, both nous/meituan/longcat-2.5:free and nous/upstage/solar-mini4:free trigger it; terminal frame verbatim: {\"choices\":[{\"delta\":null,\"index\":0,\"finish_reason\":\"stop\",\"message\":{\"role\":\"assistant\",\"content\":\"可用\"},...}]}. Fix: `#[serde(default)] delta: Option<CompDelta>` + a single `empty_delta` placeholder bound at the top of the choices arm, so the three usage sites (tool_calls ingest, reasoning/reasoning_content, content) keep their logic unchanged. Growth is real fix + tests, not inflation: +56 wc -l measured (1843 -> 1899), of which the implementation is ~15 lines (struct doc + Option/default, the empty_delta binding, the three rewritten usage sites) and ~41 lines are three regression tests (null delta parses / absent delta parses / normal increment still parses).",
       "authorized_by": "Boss 2026-11-20 指令：llmrust 是我们自己的，发现问题就自己修、提 PR、跑 CI、合并发版；ledger adjustment per §11.1.4",
+      "date": "2026-11-20"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 1899,
+      "new": 2136,
+      "reason": "C-AUD-COMPAT (B-AUD-1 审计清障) growth: AUD#1 sticky thinking_done —— 流状态载体 ToolCallAccumulator 新增 saw_thinking 标志，终帧 thinking_done 取「本流此前是否出现过 thinking 增量」（旧同帧判定对不含 reasoning 的裸终帧返回 Some(false)，严重级，#1）；AUD#3 流内错误帧暴露 —— CompStreamChunk 新增 error 字段，200-SSE 流中 data: {\"error\":{...},\"choices\":[]} 帧上抛为 LlmError::Api（数值 code 映射 status），不再落入空 choices 的 Vec::new() 静默丢弃（#3）；AUD#7 工具分片索引有界化 —— ToolCallAccumulator::ingest 在 resize 前以 MAX_TOOL_CALL_INDEX 拒收超额 index，敌意 index 不再直接驱动分配（panic/OOM，#7）。+237 行（1899→2136）全部为真实修复（约 90 行实现/文档）+ 5 条回归测试（约 147 行，含 K-04 语义超集不改既有断言、AUD#1 注入验红反证），非注水。本条为 dev 代写，待 architect-llmrust 在 spec-review 阶段追认。",
+      "authorized_by": "Boss 2026-11-20 决策 A",
       "date": "2026-11-20"
     }
   ]

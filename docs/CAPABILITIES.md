@@ -13,8 +13,8 @@ Which features each provider supports, and how they map across providers.
 | **tool calling (chat)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ |
 | **tool calling (stream)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ |
 | **JSON mode** | ✅ | ✅ | ✅ | ✅ | ➖ (n/a) | ✅ | ➖ |
-| **JSON schema** | ✅ | ➖ | ➖ | ➖ | ➖ (n/a) | ✅ | ➖ |
-| **logprobs** | ✅ | ➖ | ➖ | ➖ | ➖ (n/a) | ✅ | ➖ |
+| **JSON schema** | ✅ | ➖ | ➖ | ✅ | ➖ (n/a) | ✅ | ➖ |
+| **logprobs** | ✅ | ➖ | ➖ | ✅ | ➖ (n/a) | ✅ | ➖ |
 | **image input** | ✅ | ➖ | ➖ | ✅ | ✅ | ✅ (data: URL only) | ➖ |
 | **system message** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **multi-turn** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

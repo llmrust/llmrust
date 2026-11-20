@@ -2,7 +2,20 @@
 
 This document defines the behavioral contracts that every provider, the proxy, and the client must honor. These are not type-level guarantees — they're about runtime semantics. Tests should verify these.
 
-> These contracts are covered by local contract tests in `tests/contract_tests.rs`. Changes to provider, client, proxy, or stream behavior should update both this document and the relevant tests.
+> **Where these contracts are tested.** Coverage is shared between the contract-test tree
+> (`tests/`) and the inline `#[cfg(test)]` modules next to each implementation — no single
+> file covers everything. By section: the provider (chat/stream, logprobs, finish-reason)
+> and client (routing, `stream_collect`) contracts are exercised by `tests/contract_tests.rs`,
+> `tests/response_freeze.rs`, `tests/api_freeze.rs`, and `tests/integration_tests.rs`;
+> the capability-declaration carrier and the capability-adjudication contract below by
+> `tests/cap002_contract.rs` and `tests/cap003_dispatch.rs`; the retry/back-off contract
+> (§ERR-004, `Retry-After` capture included) by `tests/provider_contract_freeze.rs` plus
+> the inline `parse_retry_after` suite in `src/providers/retry.rs`; the embeddings contract
+> by `tests/embeddings_contract_tests.rs`; the router contract by the inline suite in
+> `src/router.rs`; and the proxy contracts by `src/proxy/mod.rs`, `src/proxy/anthropic_proxy.rs`,
+> and `tests/responses_proxy_tests.rs` (in-crate because proxy tests need types and helpers
+> behind the `proxy` feature). Changes to provider, client, proxy, or stream behavior should
+> update both this document and the relevant tests.
 
 ## Provider contract
 

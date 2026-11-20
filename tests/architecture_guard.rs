@@ -12,7 +12,7 @@
 //!
 //! Run locally with: `cargo test --test architecture_guard`
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
@@ -211,28 +211,98 @@ pub fn edge_violations(files: &[(String, String)], edges: &[(String, String)]) -
     violations
 }
 
+/// 读取全部边引用文件，**保留读取失败的事实**：`None` = 文件缺失或不可读。
+///
+/// 读取失败不允许在收集阶段被吞掉——fail-closed 的前提是守卫能看见
+/// 「有边指向的文件读不到」这件事本身（SPCC §9.2 第 1 条）。模块被移动或
+/// 改名后，指向它的禁用边绝不能静默失效。
+fn read_edge_sources(edge_files: &BTreeSet<String>) -> Vec<(String, Option<String>)> {
+    edge_files
+        .iter()
+        .map(|file| {
+            let src = fs::read_to_string(Path::new(file));
+            (file.clone(), src.ok())
+        })
+        .collect()
+}
+
+/// **纯函数**：依赖边守卫的 fail-closed 判定核心（#15）。
+///
+/// 与 [`edge_violations`] 的分工：[`edge_violations`] 只判「读到的源码里有没有
+/// 禁用边」；本函数在其上再立一条——**边引用的文件缺失/不可读，本身就是违规**。
+///
+/// 旧实现把 `fs::read_to_string` 的 `Err` 分支静默吞掉后直接跳过该文件：
+/// 模块被移动/改名后，指向它的禁用边全体失效，守卫却仍然全绿（fail-open，
+/// 违反 SPCC §9.2 第 1 条「守卫判门 fail-closed」）。fail-closed 的含义是：
+/// 读不到输入就产出违规，而不是安静地绿。
+pub fn dependency_edge_problems(
+    sources: &[(String, Option<String>)],
+    edges: &[(String, String)],
+) -> Vec<String> {
+    let readable: Vec<(String, String)> = sources
+        .iter()
+        .filter_map(|(file, src)| src.as_ref().map(|s| (file.clone(), s.clone())))
+        .collect();
+    let mut problems = edge_violations(&readable, edges);
+    for (file, src) in sources {
+        if src.is_none() {
+            problems.push(format!(
+                "{file}: edge-referenced file is unreadable (missing or not readable after a \
+                 move/rename); fail-closed per SPCC §9.2 item 1 — an unreadable input is a \
+                 violation, never a silently skipped check"
+            ));
+        }
+    }
+    problems
+}
+
 #[test]
 fn dependency_edges_are_respected() {
     let edges: Vec<(String, String)> = forbidden_edges()
         .into_iter()
         .map(|(f, p)| (f.to_string(), p.to_string()))
         .collect();
+    let edge_files: BTreeSet<String> = edges.iter().map(|(f, _)| f.clone()).collect();
 
-    let mut files: Vec<(String, String)> = Vec::new();
-    let mut seen = std::collections::BTreeSet::new();
-    for (file, _) in &edges {
-        if seen.insert(file.clone()) {
-            if let Ok(src) = fs::read_to_string(Path::new(file)) {
-                files.push((file.clone(), src));
-            }
-        }
-    }
-
-    let violations = edge_violations(&files, &edges);
+    let sources = read_edge_sources(&edge_files);
+    let violations = dependency_edge_problems(&sources, &edges);
     assert!(
         violations.is_empty(),
         "Dependency-edge violations found (SPCC §4.3):\n{}",
         violations.join("\n")
+    );
+}
+
+/// #15 负例：**边引用的文件缺失（如模块被移动/改名）时，守卫必须红**。
+///
+/// 与 [`dependency_edges_are_respected`] 走完全相同的判定路径
+/// （`read_edge_sources` → `dependency_edge_problems`），唯一差别是边表里多了一条
+/// 指向不存在文件的边：产出的违规必须非空、且点到该文件名。把 fail-closed
+/// 逻辑回退成「读不到的文件静默跳过」的任何形态，本用例都必须红。
+#[test]
+fn dependency_edge_guard_fails_closed_on_missing_edge_file() {
+    let missing = "src/does_not_exist_renamed_module.rs";
+    assert!(
+        !Path::new(missing).exists(),
+        "fixture precondition: {missing} must not exist on disk \
+         (it stands for a moved/renamed module)"
+    );
+    let edges: Vec<(String, String)> = vec![
+        ("src/types.rs".to_string(), "crate::proxy".to_string()),
+        (missing.to_string(), "crate::proxy".to_string()),
+    ];
+    let edge_files: BTreeSet<String> = edges.iter().map(|(f, _)| f.clone()).collect();
+
+    let problems = dependency_edge_problems(&read_edge_sources(&edge_files), &edges);
+    assert!(
+        !problems.is_empty(),
+        "an edge-referenced file that cannot be read MUST produce a violation \
+         (fail-closed, SPCC §9.2 item 1); a silently skipped unreadable file is \
+         exactly the #15 fail-open hole, got {problems:?}"
+    );
+    assert!(
+        problems.iter().any(|p| p.contains(missing)),
+        "the violations must name the missing edge file {missing}, got {problems:?}"
     );
 }
 
@@ -304,12 +374,12 @@ fn hotspot_ledger_is_consistent() {
         problems.join("\n")
     );
 
-    // Ensure the in-test map of forbidden edges lines up with real files so the
-    // guard cannot silently skip a moved/renamed module.
-    let mut _checked: HashMap<&str, u64> = HashMap::new();
-    for key in baseline.keys() {
-        _checked.insert(key.as_str(), 0);
-    }
+    // NOTE (AUD#15): the scrub-map that used to sit here (written into, never
+    // read — dead code) was removed. The intent it claimed — "the guard must not
+    // silently skip a moved/renamed edge file" — is now actually enforced, and
+    // fail-closed, by the dependency-edge guard above: see
+    // `dependency_edge_problems` and its negative test
+    // `dependency_edge_guard_fails_closed_on_missing_edge_file`.
 }
 
 /// Recursively collect `(repo-relative path, line count)` for every `.rs` file

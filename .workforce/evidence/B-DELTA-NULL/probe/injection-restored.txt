@@ -1,0 +1,17 @@
+
+running 9 tests
+test providers::compat::tests::stream_delta_content_still_parses_with_option ... ok
+test providers::compat::tests::stream_without_tool_calls_has_none ... ok
+test providers::compat::tests::stream_reasoning_terminal_chunk_marks_thinking_done ... ok
+test providers::compat::tests::stream_terminal_chunk_with_null_delta_parses ... ok
+test providers::compat::tests::stream_reasoning_content_delta_mapped_to_thinking ... ok
+test providers::compat::tests::stream_reasoning_delta_mapped_to_thinking ... ok
+test providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses ... ok
+test providers::compat::tests::stream_accumulates_tool_call_fragments ... ok
+test providers::compat::tests::stream_done_without_finish_reason_flushes_tool_calls ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 250 filtered out; finished in 0.00s
+
+   Compiling llmrust v0.1.5 (D:\llmrust-0.1.5)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.44s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)

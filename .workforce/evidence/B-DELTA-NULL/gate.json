@@ -1,0 +1,73 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "gate",
+  "agent": "gate-llmrust",
+  "card_id": null,
+  "batch_id": "B-DELTA-NULL",
+  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "inputs_seen": [
+    ".workforce/config.json (gates.required_commands = cargo build --workspace / cargo test --workspace; gates.require_no_mock = true)",
+    "git HEAD 5084e935c1b527de326657d3cb6328951dfbf8c4 (clean worktree for tracked files at gate start)",
+    ".workforce/evidence/B-DELTA-NULL/dev-C-DELTA-NULL.json (handoff 前 dev 交卷回执，PASS)",
+    ".workforce/evidence/B-DELTA-NULL/qa-C-DELTA-NULL.json (qa verdict=PASS, handoff_id=547de603e7cd8b7e12d3ddc2)",
+    ".workforce/tmp/gate-build-workspace.txt <- cargo build --workspace *> (真实 exit 0)",
+    ".workforce/tmp/gate-test-workspace.txt <- cargo test --workspace *> (真实 exit 0)",
+    ".workforce/tmp/obs-fmt-check.txt <- cargo fmt --all --check *> (真实 exit 0)",
+    ".workforce/tmp/obs-clippy.txt <- cargo clippy --workspace --all-targets -- -D warnings *> (真实 exit 0)",
+    ".workforce/tmp/obs-arch-guard.txt <- cargo test --test architecture_guard *> (真实 exit 0)",
+    ".workforce/tmp/obs-pkg-guard.txt <- cargo test --test package_guard *> (真实 exit 0)"
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/gate-build-workspace.txt",
+      "sha256": "15d07e0a160c151a1c4f4e5bc1d934afb52a8afb3cc776f08af2d4cb500b6f8d",
+      "desc": "cargo build --workspace 原始输出（*>, 无管道），exit 0"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/gate-test-workspace.txt",
+      "sha256": "66f1c7c93b26bad4b0aff57bd8897eee8cd2dedf0384cf7ef0c03572ec9392eb",
+      "desc": "cargo test --workspace 原始输出（*>, 无管道），exit 0，19 套 452 passed / 0 failed"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/gate-obs-fmt-check.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "desc": "cargo fmt --all --check 原始输出（空 = 无格式差异），exit 0"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/gate-obs-clippy.txt",
+      "sha256": "ffe61727ac326c5441dcb488434d7c4792f10aa78b1dba432296ea3bef7f815d",
+      "desc": "cargo clippy --workspace --all-targets -- -D warnings 原始输出，exit 0"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/gate-obs-architecture-guard.txt",
+      "sha256": "c56f17a8388cb903c7ec9f3caad9f95edf07c7520c8a01b54a6af06026e230eb",
+      "desc": "cargo test --test architecture_guard 原始输出，exit 0，15 passed / 0 failed"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/gate-obs-package-guard.txt",
+      "sha256": "232d0893862dd733ac0d6fba311dd8452daaeeac8a939a402d1c03d81c0aeff3",
+      "desc": "cargo test --test package_guard 原始输出，exit 0，4 passed / 0 failed"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/gate-run-summary.txt",
+      "sha256": "2c41883e04c4cafc4561fe4e618ade694184b6aa7cd7f018a3c045e2fb9e2484",
+      "desc": "门禁汇总：两条 config 门真实 exit code + 四条观测原值 + 重定向纪律"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "cargo build --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace",
+      "exit_code": 0
+    }
+  ],
+  "mock_used": false,
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "written_by": "gate-llmrust",
+  "notes": "config 门真值（判定项，全部实跑，输出 *> 重定向到 .workforce/tmp/ 后归档，未用管道）：① cargo build --workspace exit=0（Finished dev profile, 73B 日志）；② cargo test --workspace exit=0（19 个 test suite，合计 452 passed / 0 failed，含 6 个 doctest）。四条额外观测原值（不入判定）：③ cargo fmt --all --check exit=0（输出 0 字节 = 无差异）；④ cargo clippy --workspace --all-targets -- -D warnings exit=0；⑤ cargo test --test architecture_guard exit=0（15 passed / 0 failed）；⑥ cargo test --test package_guard exit=0（4 passed / 0 failed，含 package_list_contains_only_allowed_files 实跑 cargo package --list）。mock_used=false：全部为真实 cargo 进程，无 mock/桩。本回执只记录机器实测 exit code，不做产品判断，不钉 .workforce/signoffs/*、loop-state.json、spec.json、cards/（避免循环依赖）。"
+}

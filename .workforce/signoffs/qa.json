@@ -1,0 +1,8 @@
+{
+  "schema": "agent-workforce-signoff/v1",
+  "role": "qa",
+  "agent": "qa-llmrust",
+  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "agreed": true,
+  "signedAt": "2026-11-20T09:25:40.475Z"
+}

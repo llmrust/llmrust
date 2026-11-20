@@ -1,0 +1,13 @@
+======================================================================
+c7-3 investigation: are the 2 Doc-test `ignored` pre-existing at 33a8e3e^ ?
+
+--- baseline doc `ignore blocks ---
+  baseline total = 0
+
+--- current doc `ignore blocks ---
+  current total = 0
+
+  new since baseline (must be empty) = 0
+  lost since baseline = 0
+
+CONCLUSION: doc-test `ignored` count is PRE-EXISTING (not introduced by this card)

@@ -1,0 +1,38 @@
+ci-llmrust · B-DELTA-NULL merge attempt via merge-pr.mjs (sole entry)
+time    = 2026-11-20 (Asia/Shanghai)
+batch   = B-DELTA-NULL
+pr      = llmrust/llmrust #251
+head    = 5084e935c1b527de326657d3cb6328951dfbf8c4
+
+-- pre-merge confirmations (all passed) --
+gh pr view 251 --json mergeable,mergeStateStatus,headRefOid
+  => mergeable=MERGEABLE  mergeStateStatus=CLEAN  headRefOid=5084e935c1b527de326657d3cb6328951dfbf8c4
+workflows vs origin/main : zero diff; ci.yml blob ea1a3a91ee18e0996e8eb750968024774116e1c3 on both sides
+PR body contains task-ids: DELTA-NULL : yes
+
+-- dry-run (gate check only, merge_called=false) --
+cmd: node .agents/skills/agent-workforce-loop/scripts/merge-pr.mjs --batch B-DELTA-NULL --pr 251 --repo llmrust/llmrust --method squash --dry-run
+exit=0  verdict=PASS  dry_run=true  merge_called=false  would_merge=true  bootstrap_used=false
+premerge: ok=true reasons=[] head=5084e935... runs=2
+
+-- real merge attempt --
+cmd: node .agents/skills/agent-workforce-loop/scripts/merge-pr.mjs --batch B-DELTA-NULL --pr 251 --repo llmrust/llmrust --method squash
+exit=1  verdict=FAIL  reason=MERGE_PR_API_FAILED  merge_called=true  bootstrap_used=false
+stderr: gh: Not Found (HTTP 404)
+
+-- root cause: active gh account lacks write permission --
+gh api user => login=dongyanyuxuana (active)
+gh api repos/llmrust/llmrust => permissions={admin:false, maintain:false, pull:true, push:false, triage:false}
+gh auth status: active=dongyanyuxuana (scopes read:org, repo, workflow); inactive=bishuan (admin:true, push:true)
+note: GitHub answers PUT /pulls/<n>/merge with 404 (not 403) when the token cannot write the repo.
+
+-- post-attempt invariants (nothing merged, nothing fabricated) --
+PR: state=open  merged=false  merged_at=null  head=5084e935
+local HEAD unchanged = 5084e935c1b527de326657d3cb6328951dfbf8c4 (no new commit)
+merge.json written by script? NO (merge-pr.mjs FAIL branch exits before writeMergeRecord)
+ci.json untouched: verdict stays PASS (CI genuinely passed; no merge claim added)
+
+-- what is needed to finish --
+A gh identity with push/admin on llmrust/llmrust (e.g. bishuan) must be active for the merge call,
+then re-run the SAME command. Not self-escalated by ci role: switching credential identity is the
+delegating agent/user decision, not a ci-role action.

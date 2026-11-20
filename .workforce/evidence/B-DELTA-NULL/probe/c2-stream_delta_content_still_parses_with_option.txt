@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+
+running 1 test
+test providers::compat::tests::stream_delta_content_still_parses_with_option ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.00s
+

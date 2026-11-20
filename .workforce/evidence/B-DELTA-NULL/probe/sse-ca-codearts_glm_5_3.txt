@@ -1,0 +1,12 @@
+data: {"choices":[{"delta":{"reasoning_content":"Let","role":"assistant"},"index":0}],"created":1795167197,"id":"2026112017331728dc4b140e114d34","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" me","role":"assistant"},"index":0}],"created":1795167197,"id":"2026112017331728dc4b140e114d34","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" consider how to","role":"assistant"},"index":0}],"created":1795167197,"id":"2026112017331728dc4b140e114d34","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":"length","index":0}],"created":1795167197,"id":"2026112017331728dc4b140e114d34","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":null,"created":1795167197,"id":"2026112017331728dc4b140e114d34","model":"glm-5.3","object":"chat.completion.chunk","usage":{"completion_tokens":5,"prompt_tokens":13,"total_tokens":18}}
+
+data: [DONE]
+

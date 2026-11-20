@@ -1,0 +1,111 @@
+//! QA (qa-llmrust) independent real-endpoint verification for card C-DELTA-NULL.
+//!
+//! Drives `OpenAiCompatibleProvider::stream` — the exact production code path —
+//! against a REAL OpenAI-compatible HTTP endpoint whose terminal SSE frame omits
+//! the `delta` field (the DELTA-NULL defect trigger), and asserts:
+//!   * the stream completes without `LlmError::Parse`,
+//!   * content deltas are correct,
+//!   * a terminal chunk with `done == true` is observed.
+//!
+//! Credentials are read from the process environment only; nothing is written
+//! to disk. Exit code 0 = all assertions passed, 1 = failure, 2 = config error.
+
+use futures::StreamExt;
+use llmrust::providers::compat::OpenAiCompatibleProvider;
+use llmrust::{ChatRequest, Provider, ProviderConfig};
+
+#[tokio::main]
+async fn main() {
+    let base_url = std::env::var("QA_BASE_URL").unwrap_or_else(|_| {
+        eprintln!("config error: QA_BASE_URL not set");
+        std::process::exit(2);
+    });
+    let api_key = std::env::var("QA_API_KEY").unwrap_or_default();
+    let model = std::env::var("QA_MODEL").unwrap_or_else(|_| {
+        eprintln!("config error: QA_MODEL not set");
+        std::process::exit(2);
+    });
+
+    let config = ProviderConfig::new(&api_key)
+        .with_base_url(&base_url)
+        .with_timeout_secs(120);
+    let provider = OpenAiCompatibleProvider::new(config, []);
+
+    let req = ChatRequest::new(&model, "Reply with exactly the two characters: ok")
+        .with_max_tokens(24)
+        .with_stream();
+
+    println!("=== llmrust real-endpoint stream probe (C-DELTA-NULL) ===");
+    println!("base_url = {base_url}");
+    println!("model    = {model}");
+
+    let mut stream = match provider.stream(&req).await {
+        Ok(s) => {
+            println!("RESULT   = stream() opened OK (no Parse error at request time)");
+            s
+        }
+        Err(e) => {
+            println!("RESULT   = stream() FAILED: {e}");
+            println!("VERDICT  = FAIL");
+            std::process::exit(1);
+        }
+    };
+
+    let mut content = String::new();
+    let mut thinking = String::new();
+    let mut chunks = 0usize;
+    let mut saw_done = false;
+    let mut finish_reason = None;
+
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(chunk) => {
+                chunks += 1;
+                content.push_str(&chunk.delta);
+                if let Some(t) = &chunk.thinking {
+                    thinking.push_str(t);
+                }
+                if chunk.done {
+                    saw_done = true;
+                    finish_reason = chunk.finish_reason;
+                }
+            }
+            Err(e) => {
+                // This is the exact pre-fix failure mode: the terminal frame's
+                // missing/null `delta` aborts the WHOLE stream with LlmError::Parse.
+                println!("RESULT   = chunk error mid-stream: {e}");
+                println!("chunks before failure = {chunks}");
+                println!("content so far        = {content:?}");
+                println!("VERDICT  = FAIL (stream aborted: the DELTA-NULL defect)");
+                std::process::exit(1);
+            }
+        }
+    }
+
+    println!("chunks        = {chunks}");
+    println!("saw_done      = {saw_done}");
+    println!("finish_reason = {finish_reason:?}");
+    println!("content       = {content:?}");
+    println!("thinking_len  = {}", thinking.len());
+
+    let mut ok = true;
+    if !saw_done {
+        println!("ASSERT FAIL: never observed a terminal chunk with done == true");
+        ok = false;
+    }
+    if chunks == 0 {
+        println!("ASSERT FAIL: stream produced zero chunks");
+        ok = false;
+    }
+    if finish_reason.is_none() {
+        println!("ASSERT FAIL: terminal chunk carried no finish_reason");
+        ok = false;
+    }
+
+    if ok {
+        println!("VERDICT  = PASS (stream ended cleanly, done=true, no Parse error)");
+    } else {
+        println!("VERDICT  = FAIL");
+        std::process::exit(1);
+    }
+}

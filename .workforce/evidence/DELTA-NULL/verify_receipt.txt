@@ -1,0 +1,35 @@
+=== current facts ===
+  state            = SPEC_DRAFT (reset by spec-revise)
+  state.spec_sha256= f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c
+  card.owner_agent = "dev-llmrust"
+  card.qa_agent    = "qa-llmrust"
+
+=== receipt ===
+  agent       = "dev-llmrust"
+  written_by  = "dev-llmrust"
+  spec_sha256 = f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c
+  batch_id    = "B-DELTA-NULL"
+  card_id     = "C-DELTA-NULL"
+  role        = "dev"
+  verdict     = "PASS"
+  independent = true
+  declared_by_lead = false
+  files_changed    = ["src/providers/compat.rs","tests/hotspot_ledger.json"]
+
+=== GATE 1: workerReceiptProblems (the one handoff uses) ===
+  NO PROBLEMS -> handoff would PASS
+
+=== GATE 2: checkEvidence (the one check-roles uses) ===
+  all reasons     = [
+  "EVIDENCE_MISSING B-DELTA-NULL/qa-C-DELTA-NULL.json",
+  "EVIDENCE_MISSING B-DELTA-NULL/gate.json",
+  "EVIDENCE_MISSING B-DELTA-NULL/ledger.json"
+]
+  reasons about MY receipt = NONE -> my receipt is clean
+
+=== EVIDENCE_FIELDS completeness ===
+  missing fields = none
+
+GATE1(handoff)  : PASS
+GATE2(check-roles, my row) : PASS
+BOTH            : PASS

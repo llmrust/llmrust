@@ -1,0 +1,37 @@
+=== CONTROL EXPERIMENT: clean HEAD worktree (4b73d66), ZERO changes from llmrust-dev ===
+worktree: D:\_headcheck_deltanull
+4b73d66e0db41279612dbc7136a8192d6e4e15e7
+
+--- cargo package --list | forbidden entries (HEAD) ---
+.workforce/selftest.log
+
+--- cargo test --test package_guard (HEAD) ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests\package_guard.rs (target\debug\deps\package_guard-9a3761cce606e066.exe)
+
+running 4 tests
+test clean_listing_yields_no_violations ... ok
+test negative_forbidden_entries_are_reported ... ok
+test lookalike_entries_are_not_flagged ... ok
+test package_list_contains_only_allowed_files ... FAILED
+
+failures:
+
+---- package_list_contains_only_allowed_files stdout ----
+
+thread 'package_list_contains_only_allowed_files' (32420) panicked at tests\package_guard.rs:61:5:
+Forbidden files present in `cargo package` artifact (SPCC §9.2):
+.workforce/selftest.log
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    package_list_contains_only_allowed_files
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+error: test failed, to rerun pass `--test package_guard`
+EXIT_CODE(HEAD_package_guard)=101
+
+--- git: which commit tracked .workforce/selftest.log ---
+4b73d66 chore(workforce): 引入 agent-workforce-loop skill 体系（Boss 裁定方案 A）

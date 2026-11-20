@@ -1,0 +1,1 @@
+{"baseRefName":"main","headRefName":"fix/delta-null-stream-chunk","headRefOid":"dc1e754af2b24ed28849a332585301e3909d621b","isDraft":false,"mergeStateStatus":"UNSTABLE","mergeable":"MERGEABLE","number":251,"state":"OPEN","title":"fix(providers): 接受 OpenAI 兼容流末帧的 delta:null / 字段缺失（真调工具必失败）","url":"https://github.com/llmrust/llmrust/pull/251"}

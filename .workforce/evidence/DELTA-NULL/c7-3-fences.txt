@@ -1,0 +1,5 @@
+=== all doc fences in src (no_run / ignore / text / compile_fail) ===
+  File "<string>", line 10
+    if body.startswith('\\\') or body.startswith('\\\'):
+                                                   ^
+SyntaxError: unexpected character after line continuation character

@@ -1,0 +1,14 @@
+=== cargo test --doc -- --list ===
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+   Doc-tests llmrust
+src\lib.rs - (line 21): test
+src\lib.rs - (line 57): test
+src\lib.rs - LmrsClient::from_env (line 147): test
+src\prelude.rs - prelude (line 3): test
+src\pricing.rs - pricing (line 13): test
+src\providers\retry.rs - providers::retry (line 19): test
+src\router.rs - router (line 40): test
+src\types.rs - types::ChatRequest (line 579): test
+
+8 tests, 0 benchmarks
+EXIT=0

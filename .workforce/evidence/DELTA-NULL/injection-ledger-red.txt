@@ -1,0 +1,39 @@
+=== LEDGER INJECTION: baseline compat.rs 1899 -> 1843 (expect hotspot_files_do_not_grow FAILED) @ 2026-11-20T16:43:37.1289239+08:00 ===
+injected baseline=1843
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests\architecture_guard.rs (target\debug\deps\architecture_guard-2290ceb25243bf24.exe)
+
+running 15 tests
+test grd004_pub_crate_use_is_caught ... ok
+test grd004_multiline_use_is_caught ... ok
+test grd004_attributed_use_is_caught ... ok
+test grd004_braced_multiline_use_is_caught ... ok
+test grd004_edges_are_file_scoped ... ok
+test grd004_macro_internal_use_is_caught ... ok
+test grd004_plain_use_is_caught ... ok
+test grd004_commented_out_use_is_not_flagged ... ok
+test grd004_unrelated_mentions_are_not_flagged ... ok
+test hotspot_coverage_detects_unlisted_oversized_file ... ok
+test grd004_pub_use_is_caught ... ok
+test dependency_edges_are_respected ... ok
+test hotspot_ledger_is_consistent ... ok
+test hotspot_files_do_not_grow ... FAILED
+test hotspot_coverage_is_complete ... ok
+
+failures:
+
+---- hotspot_files_do_not_grow stdout ----
+
+thread 'hotspot_files_do_not_grow' (33520) panicked at tests\architecture_guard.rs:265:5:
+Hotspot-ledger violations:
+src/providers/compat.rs: 1899 lines != baseline 1843 (hotspot drift in either direction forbidden by SPCC §4.4; shrink = REL-003 truncation class)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    hotspot_files_do_not_grow
+
+test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `--test architecture_guard`
+EXIT_CODE=101

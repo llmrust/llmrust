@@ -1,0 +1,76 @@
+{
+  "criteria": {
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "c6": true,
+    "c7": true,
+    "c3": true,
+    "byte_restore": true,
+    "cargo_test": true,
+    "cargo_build": true,
+    "cargo_fmt": true,
+    "cargo_clippy": true
+  },
+  "command_exit_codes": [
+    {
+      "cmd": "python -c <c1 type check>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_terminal_chunk_with_null_delta_parses",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_delta_content_still_parses_with_option",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace -- --list",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test architecture_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test package_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c6 ledger check>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python c7_check_qa.py",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python inject_qa.py <injection red + byte restore>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0
+    }
+  ],
+  "compat_sha256": "1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9",
+  "compat_lines": 1899,
+  "overall": "PASS"
+}

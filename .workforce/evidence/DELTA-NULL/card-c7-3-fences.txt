@@ -1,0 +1,47 @@
+======================================================================
+Which doc fences carry a rustdoc ATTRIBUTE (ignore / no_run / text / compile_fail)?
+
+--- BASELINE 33a8e3e^ ---
+  src/lib.rs:7: ```toml
+  src/lib.rs:21: ```rust,no_run
+  src/lib.rs:57: ```rust,ignore
+  src/lib.rs:147: ```rust,no_run
+  src/prelude.rs:3: ```rust
+  src/pricing.rs:13: ```rust
+  src/pricing.rs:122: ```text
+  src/providers/retry.rs:19: ```rust,ignore
+  src/providers/stream_state.rs:6: ```text
+  src/proxy/mod.rs:9: ```rust,no_run
+  src/proxy/mod.rs:396: ```rust,ignore
+  src/proxy/mod.rs:595: ```rust,ignore
+  src/router.rs:40: ```rust,no_run
+  src/types.rs:579: ```rust
+  total doc fences = 28
+
+--- CURRENT (working tree) ---
+  src/lib.rs:7: ```toml
+  src/lib.rs:21: ```rust,no_run
+  src/lib.rs:57: ```rust,ignore
+  src/lib.rs:147: ```rust,no_run
+  src/prelude.rs:3: ```rust
+  src/pricing.rs:13: ```rust
+  src/pricing.rs:122: ```text
+  src/providers/retry.rs:19: ```rust,ignore
+  src/providers/stream_state.rs:6: ```text
+  src/proxy/mod.rs:9: ```rust,no_run
+  src/proxy/mod.rs:396: ```rust,ignore
+  src/proxy/mod.rs:595: ```rust,ignore
+  src/router.rs:40: ```rust,no_run
+  src/types.rs:579: ```rust
+  total doc fences = 28
+
+======================================================================
+rustdoc attributes present in current tree (ignore-like only):
+  src/pricing.rs:122: ```text
+  src/providers/stream_state.rs:6: ```text
+
+NOTE: `cargo test --doc` reported 2 ignored. A doc-test is also counted as
+ignored when it is compiled but not run, and rustdoc marks a block as
+ignored via the `ignore` attribute. If no `ignore` attribute exists, the
+2 ignored doc-tests come from rustdoc itself and are baseline behaviour,
+not a test-weakening introduced by this card.

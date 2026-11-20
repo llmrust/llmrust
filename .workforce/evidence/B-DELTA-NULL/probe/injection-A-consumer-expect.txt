@@ -1,0 +1,45 @@
+
+running 9 tests
+test providers::compat::tests::stream_without_tool_calls_has_none ... ok
+test providers::compat::tests::stream_reasoning_terminal_chunk_marks_thinking_done ... ok
+test providers::compat::tests::stream_delta_content_still_parses_with_option ... ok
+test providers::compat::tests::stream_reasoning_delta_mapped_to_thinking ... ok
+test providers::compat::tests::stream_reasoning_content_delta_mapped_to_thinking ... ok
+test providers::compat::tests::stream_terminal_chunk_with_null_delta_parses ... FAILED
+test providers::compat::tests::stream_accumulates_tool_call_fragments ... ok
+test providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses ... FAILED
+test providers::compat::tests::stream_done_without_finish_reason_flushes_tool_calls ... ok
+
+failures:
+
+---- providers::compat::tests::stream_terminal_chunk_with_null_delta_parses stdout ----
+
+thread 'providers::compat::tests::stream_terminal_chunk_with_null_delta_parses' (34272) panicked at src\providers\compat.rs:363:47:
+delta
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses stdout ----
+
+thread 'providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses' (41152) panicked at src\providers\compat.rs:363:47:
+delta
+
+
+failures:
+    providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses
+    providers::compat::tests::stream_terminal_chunk_with_null_delta_parses
+
+test result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 250 filtered out; finished in 0.00s
+
+   Compiling llmrust v0.1.5 (D:\llmrust-0.1.5)
+warning: unused variable: `empty_delta`
+   --> src\providers\compat.rs:362:17
+    |
+362 |             let empty_delta = CompDelta::default();
+    |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_empty_delta`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `llmrust` (lib test) generated 1 warning (run `cargo fix --lib -p llmrust --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.27s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+error: test failed, to rerun pass `--lib`

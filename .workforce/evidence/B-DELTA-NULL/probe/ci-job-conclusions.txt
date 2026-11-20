@@ -1,0 +1,30 @@
+ci-llmrust · B-DELTA-NULL per-job CI conclusions
+HEAD    = 5084e935c1b527de326657d3cb6328951dfbf8c4
+spec    = f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c
+PR      = llmrust/llmrust #251
+branch  = fix/delta-null-stream-chunk
+repo    = D:\llmrust-0.1.5
+
+-- workflow runs (event must be pull_request) --
+run 44715484550  CI              pull_request  completed/success  https://github.com/llmrust/llmrust/actions/runs/44715484550
+run 44715484442  Security Gates  pull_request  completed/success  https://github.com/llmrust/llmrust/actions/runs/44715484442
+
+-- per-job (7 jobs, all success) --
+PASS  Secret scan (gitleaks CLI)                    completed/success    https://github.com/llmrust/llmrust/actions/runs/44715484442/job/136217680668
+PASS  RustSec advisories                            completed/success    https://github.com/llmrust/llmrust/actions/runs/44715484442/job/136217681054
+PASS  Supply-chain policy (cargo-deny)              completed/success    https://github.com/llmrust/llmrust/actions/runs/44715484442/job/136217681118
+PASS  MSRV (1.86)                                   completed/success    https://github.com/llmrust/llmrust/actions/runs/44715484550/job/136217680956
+PASS  Architecture & package guards (CI-003)        completed/success    https://github.com/llmrust/llmrust/actions/runs/44715484550/job/136217681380
+PASS  Test (stable)                                 completed/success    https://github.com/llmrust/llmrust/actions/runs/44715484550/job/136217681391
+PASS  API-002 semver gate (vs 0.1.2 baseline)       completed/success    https://github.com/llmrust/llmrust/actions/runs/44715484550/job/136217681500
+
+-- totals --
+jobs_total = 7
+jobs_pass  = 7
+jobs_fail  = 0
+jobs_pending_after_poll = 0
+
+-- bypass checks --
+workflow files identical to origin/main : yes (git rev-parse origin/main:.github/workflows/ci.yml == HEAD:... )
+commit messages with skip-ci markers    : none
+PR merged at time of check              : merged_at=null (still open, not merged by ci role)

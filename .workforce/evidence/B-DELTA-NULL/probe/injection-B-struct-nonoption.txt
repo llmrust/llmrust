@@ -1,0 +1,40 @@
+
+running 9 tests
+test providers::compat::tests::stream_accumulates_tool_call_fragments ... ok
+test providers::compat::tests::stream_done_without_finish_reason_flushes_tool_calls ... ok
+test providers::compat::tests::stream_reasoning_delta_mapped_to_thinking ... ok
+test providers::compat::tests::stream_delta_content_still_parses_with_option ... ok
+test providers::compat::tests::stream_reasoning_terminal_chunk_marks_thinking_done ... ok
+test providers::compat::tests::stream_reasoning_content_delta_mapped_to_thinking ... ok
+test providers::compat::tests::stream_without_tool_calls_has_none ... ok
+test providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses ... ok
+test providers::compat::tests::stream_terminal_chunk_with_null_delta_parses ... FAILED
+
+failures:
+
+---- providers::compat::tests::stream_terminal_chunk_with_null_delta_parses stdout ----
+
+thread 'providers::compat::tests::stream_terminal_chunk_with_null_delta_parses' (23924) panicked at src\providers\compat.rs:1211:67:
+called `Result::unwrap()` on an `Err` value: Parse("failed to parse OpenAI-compatible stream chunk: invalid type: null, expected struct CompDelta at line 1 column 25")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    providers::compat::tests::stream_terminal_chunk_with_null_delta_parses
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 250 filtered out; finished in 0.01s
+
+    Blocking waiting for file lock on package cache
+   Compiling llmrust v0.1.5 (D:\llmrust-0.1.5)
+warning: unused variable: `empty_delta`
+   --> src\providers\compat.rs:362:17
+    |
+362 |             let empty_delta = CompDelta::default();
+    |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_empty_delta`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `llmrust` (lib test) generated 1 warning (run `cargo fix --lib -p llmrust --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.16s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+error: test failed, to rerun pass `--lib`

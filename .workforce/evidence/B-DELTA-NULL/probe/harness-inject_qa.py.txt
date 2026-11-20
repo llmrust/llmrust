@@ -1,0 +1,171 @@
+"""qa-llmrust independent injection harness for C-DELTA-NULL.
+
+Two INDEPENDENT mutations (not the dev's struct-side revert):
+
+  A) consumer-side neutralisation: the fix binds
+         let delta = choice.delta.as_ref().unwrap_or(&empty_delta);
+     Replace `.unwrap_or(&empty_delta)` with `.expect("delta")` so the
+     `Option<CompDelta>` is present but the *behaviour* of the fix is gone:
+     a null/absent delta panics exactly like the pre-fix reject did.
+
+  B) struct-side, but a DIFFERENT shape from dev's: keep `#[serde(default)]`
+     and drop only `Option`, i.e. `delta: CompDelta`. Then `delta:null` is
+     rejected (invalid type: null) while an absent delta still defaults.
+
+Every mutation is byte-restored from an out-of-tree backup and the sha256 is
+compared to the pre-injection value.
+"""
+import hashlib
+import pathlib
+import shutil
+import subprocess
+import sys
+
+REPO = pathlib.Path(r"D:\llmrust-0.1.5")
+TARGET = REPO / "src" / "providers" / "compat.rs"
+BACKUP = pathlib.Path(r"E:\Temp\qa-delta-null\compat.rs.pristine")
+
+
+def sha(p: pathlib.Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def restore():
+    shutil.copyfile(BACKUP, TARGET)
+
+
+TESTS = [
+    "stream_terminal_chunk_with_null_delta_parses",
+    "stream_delta_content_still_parses_with_option",
+    "stream_terminal_chunk_with_absent_delta_parses",
+]
+
+
+def run_tests(tag: str) -> tuple[int, str]:
+    p = subprocess.run(
+        ["cargo", "test", "--lib", "providers::compat::tests::stream_"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    out = p.stdout + p.stderr
+    dest = REPO / ".workforce" / "evidence" / "B-DELTA-NULL" / "probe" / f"injection-{tag}.txt"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(out, encoding="utf-8")
+    return p.returncode, out
+
+
+def per_test_status(out: str) -> dict[str, str]:
+    status = {}
+    for line in out.splitlines():
+        for t in TESTS:
+            if f"test providers::compat::tests::{t} ..." in line:
+                status[t] = "ok" if line.rstrip().endswith("ok") else "RED"
+    return status
+
+
+def main() -> int:
+    h0 = sha(TARGET)
+    print(f"pre-injection sha256 = {h0}")
+    shutil.copyfile(TARGET, BACKUP)
+    print(f"pristine backup      = {BACKUP}")
+    src0 = TARGET.read_text(encoding="utf-8")
+    assert "unwrap_or(&empty_delta)" in src0, "fix site A not found"
+    assert "#[serde(default)]\n    delta: Option<CompDelta>," in src0, "fix site B not found"
+
+    # ---- baseline (unmutated) ----
+    rc, out = run_tests("baseline")
+    base = per_test_status(out)
+    print(f"\n[baseline] exit={rc} {base}")
+
+    results = {}
+
+    # ---- mutation A: consumer-side neutralisation ----
+    mut_a = src0.replace(
+        "let delta = choice.delta.as_ref().unwrap_or(&empty_delta);",
+        'let delta = choice.delta.as_ref().expect("delta");',
+    )
+    assert mut_a != src0
+    TARGET.write_text(mut_a, encoding="utf-8")
+    print(f"\n[A] injected consumer-side .expect()  sha={sha(TARGET)}")
+    rc_a, out_a = run_tests("A-consumer-expect")
+    st_a = per_test_status(out_a)
+    red_a = [t for t in TESTS if st_a.get(t) == "RED"]
+    print(f"[A] exit={rc_a} red={red_a}")
+    results["A"] = (rc_a, red_a)
+    restore()
+    assert sha(TARGET) == h0, "mutation A did not restore byte-exactly"
+    print(f"[A] restored, sha={sha(TARGET)} == {h0}")
+
+    # ---- mutation B: struct-side Option dropped, serde(default) kept ----
+    # The consumer site must be adapted too, otherwise the crate does not even
+    # compile and "0 red tests" would be a meaningless (non-observational) result.
+    # Here we keep `#[serde(default)]` but drop `Option`, so an ABSENT delta still
+    # defaults while an explicit `null` becomes a type error. That isolates which
+    # of the two shapes (null vs absent) each test actually pins.
+    mut_b = src0.replace(
+        "#[serde(default)]\n    delta: Option<CompDelta>,",
+        "#[serde(default)]\n    delta: CompDelta,",
+    ).replace(
+        "let delta = choice.delta.as_ref().unwrap_or(&empty_delta);",
+        "let delta = &choice.delta;",
+    )
+    assert mut_b != src0
+    TARGET.write_text(mut_b, encoding="utf-8")
+    print(f"\n[B] injected struct-side delta: CompDelta (serde(default) kept)  sha={sha(TARGET)}")
+    rc_b, out_b = run_tests("B-struct-nonoption")
+    st_b = per_test_status(out_b)
+    red_b = [t for t in TESTS if st_b.get(t) == "RED"]
+    print(f"[B] exit={rc_b} red={red_b} (compiled={('could not compile' not in out_b)})")
+    results["B"] = (rc_b, red_b)
+    restore()
+    assert sha(TARGET) == h0, "mutation B did not restore byte-exactly"
+    print(f"[B] restored, sha={sha(TARGET)} == {h0}")
+
+    # ---- mutation C: full pre-fix revert (the defect itself) ----
+    mut_c = src0.replace(
+        "#[serde(default)]\n    delta: Option<CompDelta>,",
+        "    delta: CompDelta,",
+    ).replace(
+        "let delta = choice.delta.as_ref().unwrap_or(&empty_delta);",
+        "let delta = &choice.delta;",
+    )
+    assert mut_c != src0
+    TARGET.write_text(mut_c, encoding="utf-8")
+    print(f"\n[C] full revert to pre-fix shape  sha={sha(TARGET)}")
+    rc_c2, out_c2 = run_tests("C-full-revert")
+    st_c2 = per_test_status(out_c2)
+    red_c2 = [t for t in TESTS if st_c2.get(t) == "RED"]
+    print(f"[C] exit={rc_c2} red={red_c2} (compiled={('could not compile' not in out_c2)})")
+    results["C"] = (rc_c2, red_c2)
+    restore()
+    assert sha(TARGET) == h0, "mutation C did not restore byte-exactly"
+    print(f"[C] restored, sha={sha(TARGET)} == {h0}")
+
+    # ---- post-restore confirmation ----
+    rc_c, out_c = run_tests("restored")
+    st_c = per_test_status(out_c)
+    print(f"\n[restored] exit={rc_c} {st_c}")
+
+    print("\n=== SUMMARY ===")
+    print("  Required by card c3: reverting the fix must turn >= 2 of the 3 tests red.")
+    print("  Mutation B is a DIAGNOSTIC (keeps `#[serde(default)]`, drops only `Option`):")
+    print("  it is expected to red exactly the null case and keep the absent case green,")
+    print("  which proves test1 is pinned by `Option` and test3 by `serde(default)`.")
+    strong = [tag for tag, (rc, red) in results.items() if tag in ("A", "C") and rc != 0 and len(red) >= 2]
+    restored_ok = rc_c == 0 and all(v == "ok" for v in st_c.values()) and len(st_c) == 3
+    byte_ok = sha(TARGET) == h0
+    ok = len(strong) >= 1 and restored_ok and byte_ok
+    for tag, (rc, red) in results.items():
+        note = "PASS (>=2 red)" if tag in strong else ("diagnostic" if tag == "B" else "FAIL")
+        print(f"  mutation {tag}: exit={rc} red_tests={len(red)}/3 -> {note}")
+    print(f"  restored: exit={rc_c} all3_ok={restored_ok} sha_matches={byte_ok}")
+    print(f"  final sha = {sha(TARGET)}")
+    print(f"  VERDICT   = {'PASS' if ok else 'FAIL'}")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

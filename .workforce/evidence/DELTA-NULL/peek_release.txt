@@ -1,0 +1,45 @@
+--- release handler ---
+cmd === 'release') {
+  const s = load(); require(s, cmd);
+  const b = pickBatch(s, cmd);
+  const reasons = [];
+  const ov = L.overallOk(P);
+  if (!ov.ok) reasons.push('OVERALL_FALSE ' + ov.file);
+  // ci 回执**必须**不参与脏检查：它把自己绑在 `pushed.head_sha == 当前 HEAD` 上，
+  // 一旦把回执提交进去，HEAD 就变了、回执立刻自相矛盾（提交即失效）。
+  // 所以 ci.json 只能作为运行时产物留在工作树里；CI 是否真绿由 `ciStatus()` 现场
+  // 用 `gh run list --commit <HEAD>` 复查，回执不是唯一证据源，排除它不放宽任何判据。
+  // 路径解析走 L.releaseDirtyFiles()（内部用 L.statusPath()）：旧 slice(3) 在 git() trim 后
+  // 会吃掉路径首字符，使 ci.json / state 的豁免与 otherOk 范围判断对已跟踪被修改文件全部失配。
+  const dirtyFiles = L.releaseDirtyFiles(P, s, b);
+  if (dirtyFiles === null) reasons.push('GIT_UNAVAILABLE'); else if (dirtyFiles.length) reasons.push('WORKTREE_DIRTY：发布前全部提交并推送 ' + dirtyFiles.slice(0, 5).join(','));
+  reasons.push(...L.generatedCheck(P));
+  // CI 强制项（无后门）：①必须有 ci 工种回执且与当前 HEAD 对得上 ②当前 HEAD 必须真跑过远端 CI 且全绿
+  const ciRec = L.ciReceiptCheck(P, b);
+  if (!ciRec.ok) reasons.push(ciRec.reason);
+  const ci = L.ciStatus(P);
+  if (!ci.ok) reasons.push(ci.reason);
+  if (reasons.length) out({ verdict: 'FAIL', reason: 'RELEASE_BLOCKED', batch: b.id, reasons }, 1);
+  b.release_head = ci.head; b.status = 'released';
+  L.saveState(P, s);
+  out({ verdict: 'PASS', state: s.state, batch: b.id, batch_status: 'released', head: ci.head, ci_runs: ci.runs, ...(ci.warning ? { warning: ci.warning } : {}), next: 'deliver' }, 0);
+}
+
+if (cmd === 'deliver') {
+  const s = load(); require(s, cmd);
+  const b = pickBatch(s, cmd);
+  const d = { schema: 'agent-workforce-delivery/v1', at: nowISO(), batch: b.id, phase: b.phase, head: b.release_head,
+    report: '只报用户能操作什么、看到什么、与验收口径是否一致、过/不过。不谎报完成。', user_signoff: false };
+  for (const i of s.issues || []) if (i.batch === b.id && i.status === 'open') { i.status = 'redelivered'; i.redeliveredAt = d.at; }
+  s.deliveries.push(d); b.status = 'delivered'; b.deliveredAt = d.at;
+  syncGlobal(s);
+  L.saveState(P, s);
+  out({ verdict: 'PASS', state: s.state, batch: b.id, delivery: d, ready_to_dispatch: readyBatches(s).map(x => x.id),
+    next: s.state === 'ALL_DELIVERED' ? '所有批次已交付；仍不宣布完成，等 issue' : 'dispatch 下一个可开工的批次；不宣布完成' }, 0);
+}
+
+if (cmd === 'ready') {
+  const s = load();
+  const r = readyBatches(s);
+  out({ verdict: 'PASS', state: s?.state || 'IDLE', active_batches: L.activeBatches(s).map(x => x.id), ready_to_dispatch: r.map(x => x.id),
+    blocked: (s?.batches || []).filter(b => ['pending', 'reopened'].includes(b.status) && !r.includes(b)).map(b => ({ batch: b.id, reasons: [...batchPrereq(s, b), ...L.parallelConflicts(P, s, b)] }))

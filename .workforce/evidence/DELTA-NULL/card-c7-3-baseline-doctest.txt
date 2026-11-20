@@ -1,0 +1,18 @@
+=== BASELINE 33a8e3e^ (4b73d66) cargo test --doc in clean worktree @ 2026-11-20T17:10:16.7942601+08:00 ===
+worktree: D:\_base_c7_deltanull
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+   Doc-tests llmrust
+
+running 8 tests
+test src\lib.rs - (line 57) ... ignored
+test src\providers\retry.rs - providers::retry (line 19) ... ignored
+test src\lib.rs - LmrsClient::from_env (line 147) - compile ... ok
+test src\lib.rs - (line 21) - compile ... ok
+test src\router.rs - router (line 40) - compile ... ok
+test src\prelude.rs - prelude (line 3) ... ok
+test src\pricing.rs - pricing (line 13) ... ok
+test src\types.rs - types::ChatRequest (line 579) ... ok
+
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.82s
+
+EXIT=0

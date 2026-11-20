@@ -1,0 +1,448 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "card_id": "C-DELTA-NULL",
+  "batch_id": "B-DELTA-NULL",
+  "task_id": "T-DELTA-NULL",
+  "phase": "PH-0.1.5",
+  "story": "VS-1",
+  "written_by": "dev-llmrust",
+  "role": "dev",
+  "verdict": "PASS",
+  "repo": "D:\\llmrust-0.1.5",
+  "branch": "fix/delta-null-stream-chunk",
+  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "date": "2026-11-20",
+  "head": {
+    "base_commit_of_fix": "33a8e3e",
+    "hygiene_commits_above_it": [
+      "dc1e754",
+      "5084e93"
+    ],
+    "current_head": "5084e93",
+    "pushed": false
+  },
+  "commits": [
+    {
+      "sha": "33a8e3e",
+      "subject": "fix(providers): accept null/absent `delta` on OpenAI-compatible terminal stream frames",
+      "files": [
+        "src/providers/compat.rs",
+        "tests/hotspot_ledger.json"
+      ],
+      "note": "the card's actual fix; unchanged since delivery (card text: 代码已在 33a8e3e，不用重改)"
+    },
+    {
+      "sha": "5084e93",
+      "subject": "chore(hygiene): .gitignore 用递归 glob 覆盖 evidence 子目录日志",
+      "files": [
+        ".gitignore"
+      ],
+      "note": "Lead-authored, dev-committed per Lead instruction. Fixes dc1e754's single-star glob (.workforce/evidence/*.log) not matching evidence/<CARD>/ subdirectories, which let 4 .log files into the cargo package artifact and kept package_guard red."
+    }
+  ],
+  "criteria": {
+    "c1": {
+      "verdict": "pass",
+      "what": "CompStreamChoice.delta is `#[serde(default)] delta: Option<CompDelta>`; CompDelta derive list contains Default",
+      "machine_command": "python -c \"import re;s=open('src/providers/compat.rs',encoding='utf-8').read();m=re.search(r'struct CompStreamChoice\\s*\\{(.*?)\\n\\}',s,re.S);assert m;assert re.search(r'#\\[serde\\(default\\)\\]\\s*\\n\\s*delta:\\s*Option<CompDelta>,',m.group(1)),'delta not Option+default';d=re.search(r'#\\[derive\\(([^)]*)\\)\\]\\s*\\n\\s*struct CompDelta\\b',s);assert d and 'Default' in d.group(1),'CompDelta lacks Default'\"",
+      "exit_code": 0,
+      "observed": "struct CompStreamChoice { #[serde(default)] delta: Option<CompDelta>, finish_reason: Option<String> }; #[derive(Deserialize, Default)] struct CompDelta"
+    },
+    "c2": {
+      "verdict": "pass",
+      "what": "three regression tests exist and are green, each run as its own command (cargo test accepts only one filter)",
+      "runs": [
+        {
+          "command": "cargo test --lib providers::compat::tests::stream_terminal_chunk_with_null_delta_parses",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out"
+        },
+        {
+          "command": "cargo test --lib providers::compat::tests::stream_delta_content_still_parses_with_option",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out"
+        },
+        {
+          "command": "cargo test --lib providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out"
+        }
+      ],
+      "semantics_verified": {
+        "case_1_input": "{\"choices\":[{\"delta\":null,\"index\":0,\"finish_reason\":\"stop\"}]}",
+        "case_1_asserts": "chunk.delta == \"\", chunk.done == true, chunk.finish_reason == Some(FinishReason::Stop)",
+        "case_2_input": "{\"choices\":[{\"delta\":{\"content\":\"hi\"},\"finish_reason\":null}]}",
+        "case_2_asserts": "chunk.delta == \"hi\", chunk.done == false",
+        "case_3_input": "{\"choices\":[{\"finish_reason\":\"stop\"}]}",
+        "case_3_asserts": "chunk.delta == \"\", chunk.done == true"
+      },
+      "list_check": {
+        "command": "cargo test --workspace -- --list",
+        "exit_code": 0,
+        "aggregation": {
+          "stream_terminal_chunk_with_null_delta_parses": {
+            "occurrences": 1,
+            "suffix": ": test",
+            "has_ignored_suffix": false
+          },
+          "stream_delta_content_still_parses_with_option": {
+            "occurrences": 1,
+            "suffix": ": test",
+            "has_ignored_suffix": false
+          },
+          "stream_terminal_chunk_with_absent_delta_parses": {
+            "occurrences": 1,
+            "suffix": ": test",
+            "has_ignored_suffix": false
+          }
+        },
+        "verdict": "pass"
+      }
+    },
+    "c3": {
+      "verdict": "pass",
+      "what": "injection red: reverting the struct field makes workspace tests FAILED with both null/absent tests in the failures list; restoring returns exit 0 with byte-identical sha256",
+      "sha256_h0_before_injection": "1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9",
+      "sha256_h_injected": "29c4cb7fff6ee363b33c22ef9dabc42c2878ad425aff512509ac1c314b8aa414",
+      "sha256_h1_after_restore": "1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9",
+      "h1_equals_h0": true,
+      "h0_matches_card_expected": true,
+      "injected_run": {
+        "command": "cargo test --workspace",
+        "exit_code": 101,
+        "failures_list": [
+          "providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses",
+          "providers::compat::tests::stream_terminal_chunk_with_null_delta_parses"
+        ],
+        "test_result_line": "test result: FAILED. 257 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out",
+        "normal_increment_still_ok": true
+      },
+      "restored_run": {
+        "command": "cargo test --workspace",
+        "exit_code": 0,
+        "test_result_line": "all binaries ok; lib: test result: ok. 259 passed; 0 failed; 0 ignored"
+      },
+      "injection_method": "python .workforce/evidence/DELTA-NULL/inject_delta.py buggy|fixed (reverts struct field to `delta: CompDelta`, removes the empty_delta binding, restores the three choice.delta.* usage sites)"
+    },
+    "c4": {
+      "verdict": "pass",
+      "what": "four gate commands each exit 0",
+      "command_exit_codes": {
+        "cargo test --workspace": 0,
+        "cargo build --workspace": 0,
+        "cargo fmt --all --check": 0,
+        "cargo clippy --workspace --all-targets -- -D warnings": 0
+      },
+      "aggregation": {
+        "test_binaries": 19,
+        "lib_tests": "259 passed; 0 failed; 0 ignored",
+        "total_failed": 0
+      },
+      "note": "stdout/stderr of all four commands archived verbatim in artifacts.card-c4 (single file containing all four runs, each prefixed by a `--- [n] <command> ---` header and followed by its EXIT_CODE line)"
+    },
+    "c5": {
+      "verdict": "pass",
+      "what": "both specialised guards green with exact pass/failed/ignored triple match",
+      "runs": [
+        {
+          "command": "cargo test --test architecture_guard",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out",
+          "expected": "15 passed; 0 failed; 0 ignored",
+          "triple_match": true
+        },
+        {
+          "command": "cargo test --test package_guard",
+          "exit_code": 0,
+          "test_result_line": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out",
+          "expected": "4 passed; 0 failed; 0 ignored",
+          "triple_match": true
+        }
+      ],
+      "blocking_item_resolved": "The card's needs_clarification item (package_guard red from 4 untracked .log files under evidence/DELTA-NULL/) is now resolved by commit 5084e93 (recursive glob in .gitignore). package_guard is 4 passed / exit 0."
+    },
+    "c6": {
+      "verdict": "pass",
+      "what": "hotspot ledger baseline equals the measured compat.rs line count; adjustments[] last entry has all five fields",
+      "machine_command": "python -c \"import json;n=len(open('src/providers/compat.rs',encoding='utf-8').read().splitlines());l=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));a=l['adjustments'][-1];assert l['baseline_lines']['src/providers/compat.rs']==n;assert all(k in a and a[k] not in (None,'') for k in ['old','new','reason','authorized_by','date']);assert 'Boss 2026-11-20' in a['authorized_by'];assert a['date']=='2026-11-20';assert a['new']==n\"",
+      "exit_code": 0,
+      "observed": {
+        "measured_lines_python_splitlines": 1899,
+        "ledger_baseline_lines": 1899,
+        "same_semantics_as_guard": "guard uses fs::read_to_string(p).lines().count(); python splitlines() gives the same integer on this file (no trailing blank line discrepancy)",
+        "adjustment_last": {
+          "old": 1843,
+          "new": 1899,
+          "five_fields_present": [
+            "old",
+            "new",
+            "reason",
+            "authorized_by",
+            "date"
+          ],
+          "authorized_by_contains_boss_2026_11_20": true,
+          "date": "2026-11-20"
+        }
+      },
+      "pending_architect_review": true,
+      "pending_architect_review_note": "§11.1.4 makes hotspot baseline adjustment architect-only. This entry was dev-written under the Lead's explicit ruling (plan A) following the R243 precedent for the same file. It awaits architect-llmrust ratification during spec-review, as the card's ruling_refs require."
+    },
+    "c7": {
+      "verdict": "pass",
+      "what": "zero relaxation, compared against the pre-fix baseline 33a8e3e^ (NOT against an empty working-tree diff)",
+      "baseline_rev": "33a8e3e^",
+      "baseline_rev_resolved": "4b73d66",
+      "c7_1_assert_lines": {
+        "verdict": "pass",
+        "scope": "src/providers/compat.rs",
+        "baseline_unique_assert_lines": 111,
+        "current_unique_assert_lines": 118,
+        "baseline_minus_current": 0,
+        "removed": []
+      },
+      "c7_2_ignore_should_panic": {
+        "verdict": "pass",
+        "scope": "all of src/**/*.rs and tests/**/*.rs",
+        "baseline_hit_lines": 1,
+        "current_hit_lines": 1,
+        "baseline_minus_current": 0,
+        "lost": [],
+        "new": [],
+        "baseline_hits": [
+          "src/proxy/mod.rs: #[should_panic(expected = \"must not be empty or whitespace-only\")]"
+        ],
+        "note": "current set is a superset of the baseline set (in fact identical). The pre-existing #[should_panic] negative test is untouched. NOTE for architect: the card text mentions `src/proxy/mod.rs:3292,3300` as the two existing #[should_panic] sites; the machine-measured baseline hit-line count is 1 because the regex counts distinct stripped lines and both sites carry the identical attribute text. Site-level count (2 occurrences) and line-level count (1 distinct line) both agree that NOTHING was added or removed."
+      },
+      "c7_3_no_skip": {
+        "verdict": "pass",
+        "unit_and_integration_ignored_nonzero_lines": 0,
+        "doc_test_summary_line": "test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out",
+        "doc_test_ignored_current": 2,
+        "doc_test_ignored_baseline_measured_in_clean_worktree_at_33a8e3e^": 2,
+        "doc_test_ignored_unchanged": true,
+        "pre_existing_ignore_fences": [
+          "src/lib.rs:57: ```rust,ignore",
+          "src/providers/retry.rs:19: ```rust,ignore",
+          "src/proxy/mod.rs:396: ```rust,ignore",
+          "src/proxy/mod.rs:595: ```rust,ignore"
+        ],
+        "interpretation": "The 2 `ignored` entries are Doc-tests from pre-existing ```rust,ignore fences, not skipped unit/integration tests. Proven pre-existing by running `cargo test --doc` in a clean git worktree at 33a8e3e^ (4b73d66): identical `6 passed; 0 failed; 2 ignored`. Zero ignored in every unit and integration binary. No SKIP was introduced by this card."
+      },
+      "machine_script": ".workforce/evidence/DELTA-NULL/c7_check.py"
+    }
+  },
+  "criteria_aggregation": {
+    "total": 7,
+    "pass": 7,
+    "fail": 0,
+    "c1": "pass",
+    "c2": "pass",
+    "c3": "pass",
+    "c4": "pass",
+    "c5": "pass",
+    "c6": "pass",
+    "c7": "pass"
+  },
+  "command_exit_codes": [
+    {
+      "cmd": "cargo test --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test architecture_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test package_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_terminal_chunk_with_null_delta_parses",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_delta_content_still_parses_with_option",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace -- --list",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace [injection red, buggy form]",
+      "exit_code": 101
+    },
+    {
+      "cmd": "cargo test --workspace [after restore]",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python c1 machine check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python c6 machine check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python c7 machine check",
+      "exit_code": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/DELTA-NULL/card-c2.txt",
+      "sha256": "3e434da6924fa030bb2c84435997774c2bc460bcc894b616f347c0ef45316f16",
+      "what": "c2 three independent test runs with exit codes"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/card-c2-list.txt",
+      "sha256": "c2f7b2ae8ffa3106288077899c8ec29d68d4cf9799c53766a1e1e76680cb5b46",
+      "what": "c2 --list output"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/c2_list_check.py",
+      "sha256": "1670aeb6f0addd47338e80231e6fe904bd30020cb869f1de7a6b4dccb2776936",
+      "what": "c2 --list occurrence assertion"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/card-c3-injected.txt",
+      "sha256": "d60532381560a4b702939117b3a04c3299cc449d72e26fe3592c1269e6ba904a",
+      "what": "c3 injection red: workspace FAILED exit 101 with both tests in failures"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/card-c3-restored.txt",
+      "sha256": "b7e7f4f4cc46847b1f2402aefa3122bac7dd9918c1f2242cc918f2cfe5fee4d8",
+      "what": "c3 restore: h1==h0, workspace exit 0"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/inject_delta.py",
+      "sha256": "4a26a58199108782ee19d42b8e2839dfb64132a82ea6004eba561a1c5a91c45a",
+      "what": "c3 injection tool (buggy/fixed modes)"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/card-c4.txt",
+      "sha256": "1bbe07e80ea4850edad318348be6f0c1350b750c1dd37c75327977bd2a8924b2",
+      "what": "c4 all four gate runs verbatim with exit codes"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/card-c5.txt",
+      "sha256": "1d9b41828b17e3d89c23d965984867f88ce2f6a6859e3c885547a42e14d2ad64",
+      "what": "c5 architecture_guard + package_guard"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/card-c7.txt",
+      "sha256": "e5e81b8b3b54513149c1a55f49c533967251e3f7ba8431258f7587bbf7ed8411",
+      "what": "c7 three-part comparison vs 33a8e3e^"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/c7_check.py",
+      "sha256": "e357d896bf2d6fd49dddecd4ca277f9a5bde7445311d70e79cbd4f894765957a",
+      "what": "c7 machine script"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/card-c7-3-baseline-doctest.txt",
+      "sha256": "3914a2e527fd5f9a4ea3c3526c0eed8237a68dd047b569be9310e03d54e2129b",
+      "what": "c7-3 baseline doctest run in clean worktree at 33a8e3e^ (proves 2 ignored pre-exist)"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/card-c7-3-fences.txt",
+      "sha256": "f2c34ca4e5dc689af600eaf0e22159822a09653f8b3e2a11c73fef683cf1e214",
+      "what": "c7-3 doc fence inventory baseline vs current"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/c7_3_fences.py",
+      "sha256": "c3c56b91f6161a199e1620c66f55e63cd43dbde6004bd8b2ad9e8dc4750ee20e",
+      "what": "c7-3 fence scanner"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/c7-3-doctest-list.txt",
+      "sha256": "d60c9f503868738d2ed7485b35885637076387902320eada109a6d36b5ec1e11",
+      "what": "cargo test --doc -- --list"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/commit-msg-hygiene.txt",
+      "sha256": "91314e2b500773e83755599b4b3e31b0386ddd51b1091e026efaadb02b006ab1",
+      "what": "commit message of 5084e93"
+    },
+    {
+      "path": ".workforce/evidence/DELTA-NULL/progress.md",
+      "sha256": "1314abd6fa2249e360a5289acf3339401182d9e6182940fd9efbc9e4b803aebe",
+      "what": "round-2 progress log with all 7 criteria and the state-machine blocker"
+    }
+  ],
+  "artifacts_note": "Only this dev's own card-C-* evidence is pinned. Other files present in .workforce/evidence/DELTA-NULL/ belong to other roles/other cards (api002.log, ci003.log, msrv.log, test-stable.log, pr-*.json, run-*.json, check-runs.json, branch-protection.json, etc.) and are deliberately NOT included here. No other role's receipt is pinned into this receipt.",
+  "state_machine_blocker": {
+    "action_attempted": "node .agents/skills/agent-workforce-loop/scripts/loop.mjs dispatch --batch B-DELTA-NULL --repo .",
+    "exit_code": 1,
+    "machine_verdict": "FAIL",
+    "machine_reason": "STATE_FORBIDS state=SPEC_DRAFT action=dispatch allowed=spec-review,spec-revise",
+    "explanation": "loop-state.json is still at SPEC_DRAFT: only .workforce/signoffs/architect.json exists, and spec-review requires every role's signoff (dev/qa/gate/ci/ledger) bound to the current spec sha256 acc8f733…. Dispatch therefore cannot succeed until the signoff chain and spec-review/spec-approve/spec-confirm/init transitions complete. This is a process-order issue, not a card-content issue.",
+    "what_dev_did_instead": "Ran all 7 criteria machine checks directly against the card's own commands and recorded the real exit codes, so the evidence is ready for dispatch as soon as the state machine reaches EXECUTING.",
+    "needs_lead_ruling": true
+  },
+  "needs_lead_ruling": [
+    {
+      "id": "R-1",
+      "issue": "dispatch 被状态机拒绝：loop-state.json = SPEC_DRAFT，只允许 spec-review/spec-revise；signoffs/ 只有 architect.json。无法进入 EXECUTING 认领本卡。",
+      "dev_position": "已按卡面 7 条判据逐条跑完机判并留证，判据全 PASS。请 Lead 决定：① 由 Lead 补齐五工种 signoffs 并推进 spec-review→approve→confirm→init→dispatch；或 ② 授权本回执作为 dev 交付证据先行入册，等状态机推进后再正式 dispatch/accept。",
+      "blocking_accept": true
+    },
+    {
+      "id": "R-2",
+      "issue": "c7-2 计数口径：卡面写 `src/proxy/mod.rs:3292,3300` 有 2 处既有 #[should_panic]；我按「去重后的属性文本行」机判得基线 1 行、当前 1 行，按「出现次数」则是 2 处对 2 处。两种口径下差集都为空（无新增、无丢失）。",
+      "dev_position": "判据语义（不得新增 #[ignore]/#[should_panic]）已满足，无放宽。若 architect 要求按出现次数入册，请告知，我补一版按次数的机判输出。",
+      "blocking_accept": false
+    },
+    {
+      "id": "R-3",
+      "issue": "c7-3 的 ignored 计数：`cargo test --workspace` 汇总里 Doc-tests 一行是 `2 ignored`（来自 src/lib.rs:57 与 src/providers/retry.rs:19 的既有 ```rust,ignore 文档块）。卡面 c7-3 字面要求「ignored 计数为 0」。",
+      "dev_position": "已在干净 worktree（33a8e3e^ = 4b73d66）实测基线同样是 `2 ignored`，证明这 2 个是既有文档测试、非本卡引入；所有 unit/integration 二进制的 ignored 均为 0，无任何 SKIP 新增。若 architect 坚持字面「全树 ignored 必须为 0」，则该条属于基线既存状态、需 architect 裁定是否要求另开卡清理文档 ignore 块。",
+      "blocking_accept": true
+    },
+    {
+      "id": "R-4",
+      "issue": "台账 baseline 1843→1899 的 architect 追认（§11.1.4 architect-only）。",
+      "dev_position": "dev 代写待批，回执已标 pending_architect_review: true，按 R243 先例。须 architect-llmrust 在 spec-review 阶段追认后方可 accept（卡面 ruling_refs 明确要求）。",
+      "blocking_accept": true
+    }
+  ],
+  "discipline_check": {
+    "only_my_scope_staged": true,
+    "no_git_add_A": true,
+    "pushed": false,
+    "product_code_touched": [
+      "src/providers/compat.rs"
+    ],
+    "non_product_touched": [
+      "tests/hotspot_ledger.json",
+      ".gitignore (Lead-authored, dev-committed on instruction)"
+    ],
+    "other_product_files_untouched": true,
+    "existing_assertions_weakened": false,
+    "evidence_logs_extension": ".txt (never .log, per package_guard)"
+  },
+  "agent": "dev-llmrust",
+  "independent": true,
+  "declared_by_lead": false,
+  "files_changed": [
+    "src/providers/compat.rs",
+    "tests/hotspot_ledger.json"
+  ]
+}

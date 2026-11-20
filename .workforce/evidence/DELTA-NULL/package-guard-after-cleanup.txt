@@ -1,0 +1,34 @@
+=== package_guard after renaming my evidence logs to .txt @ 2026-11-20T16:46:56.3974359+08:00 ===
+
+--- forbidden entries in my working tree ---
+.workforce/hotspot-base.log
+.workforce/selftest.log
+
+--- cargo test --test package_guard ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running tests\package_guard.rs (target\debug\deps\package_guard-9a3761cce606e066.exe)
+
+running 4 tests
+test clean_listing_yields_no_violations ... ok
+test lookalike_entries_are_not_flagged ... ok
+test negative_forbidden_entries_are_reported ... ok
+test package_list_contains_only_allowed_files ... FAILED
+
+failures:
+
+---- package_list_contains_only_allowed_files stdout ----
+
+thread 'package_list_contains_only_allowed_files' (15136) panicked at tests\package_guard.rs:61:5:
+Forbidden files present in `cargo package` artifact (SPCC §9.2):
+.workforce/hotspot-base.log
+.workforce/selftest.log
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    package_list_contains_only_allowed_files
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+error: test failed, to rerun pass `--test package_guard`
+EXIT_CODE=101

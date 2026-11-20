@@ -1,0 +1,26 @@
+=== COMMIT ISOLATION CHECK @ 2026-11-20T16:51:42.8493166+08:00 ===
+Question: does MY commit 33a8e3e stand alone green, or does it depend on Lead's uncommitted fix?
+
+--- my commit touches only these 2 files ---
+33a8e3eabd27116619f46f7ab1f6283ae7a447f7 fix(providers): accept null/absent `delta` on OpenAI-compatible terminal stream frames
+
+ src/providers/compat.rs   | 70 ++++++++++++++++++++++++++++++++++++++++++-----
+ tests/hotspot_ledger.json | 12 ++++++--
+ 2 files changed, 73 insertions(+), 9 deletions(-)
+
+--- .workforce tracked in my commit (selftest.log STILL there) ---
+.workforce/acceptors.json
+.workforce/bootstrap-progress.md
+.workforce/config.json
+.workforce/selftest.log
+
+--- clean worktree at MY commit: cargo test --workspace ---
+RESULT: package_guard FAILED exit 101, sole violation .workforce/selftest.log
+
+--- Lead's fix is UNCOMMITTED in the shared working tree only ---
+ M .gitignore
+D  .workforce/bootstrap-progress.md
+D  .workforce/selftest.log
+
+CONCLUSION: my commit alone is NOT workspace-green; it needs Lead's separate commit
+(git rm --cached .workforce/selftest.log .workforce/bootstrap-progress.md + .gitignore *.log rules)

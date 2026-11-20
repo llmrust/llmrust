@@ -1,0 +1,52 @@
+ci-llmrust · B-DELTA-NULL merge result (raw GitHub API responses)
+time    = 2026-11-20 (Asia/Shanghai)
+batch   = B-DELTA-NULL
+pr      = llmrust/llmrust #251
+head    = 5084e935c1b527de326657d3cb6328951dfbf8c4
+method  = squash
+entry   = .agents/skills/agent-workforce-loop/scripts/merge-pr.mjs (sole allowed entry)
+
+-- identity used for the merge call --
+GH_TOKEN injected for this invocation only (gh auth token --user bishuan); global gh account NOT switched; hosts.yml NOT modified
+gh api user => bishuan
+gh api repos/llmrust/llmrust => permissions={"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}
+
+-- merge-pr.mjs stdout (verbatim JSON) --
+{
+  "verdict": "PASS",
+  "batch": "B-DELTA-NULL",
+  "pr": 251,
+  "method": "squash",
+  "repo": "llmrust/llmrust",
+  "merge_called": true,
+  "merged": true,
+  "merge_commit": "916c66b8fc41546335e33193dfdb4d1254083127",
+  "message": "Pull Request successfully merged",
+  "head": "5084e935c1b527de326657d3cb6328951dfbf8c4",
+  "checks": [],
+  "bootstrap_used": false,
+  "merge_record": "D:\\llmrust-0.1.5\\.workforce\\evidence\\B-DELTA-NULL\\merge.json"
+}
+
+-- gh api repos/llmrust/llmrust/pulls/251 (post-merge) --
+state=closed merged=true merged_at=2026-11-20T10:07:40Z merge_commit_sha=916c66b8fc41546335e33193dfdb4d1254083127 head=5084e935c1b527de326657d3cb6328951dfbf8c4
+
+-- gh api repos/llmrust/llmrust/commits/main (post-merge) --
+916c66b8 fix(providers): 接受 OpenAI 兼容流末帧的 delta:null / 字段缺失（真调工具必失败） (#251)
+
+main tip full sha = 916c66b8fc41546335e33193dfdb4d1254083127
+
+-- merge.json written by merge-pr.mjs --
+{
+  "at": "2026-11-20T10:07:41.541Z",
+  "batch": "B-DELTA-NULL",
+  "pr": 251,
+  "merge_commit": "916c66b8fc41546335e33193dfdb4d1254083127",
+  "merge_called": true,
+  "head_sha": "5084e935c1b527de326657d3cb6328951dfbf8c4",
+  "checks": [],
+  "bootstrap_used": false,
+  "merged": true,
+  "method": "squash",
+  "repo": "llmrust/llmrust"
+}

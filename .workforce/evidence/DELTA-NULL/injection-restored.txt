@@ -1,0 +1,62 @@
+=== RESTORED (round 2, FINAL code): fix back in place @ 2026-11-20T16:48:27.3802332+08:00 ===
+code sha after restore: 1FEDA36119A3A44F1ED95C76B531162D62F00379297067A944BF46722B8140D9 (identical to pre-injection)
+
+--- cargo test --lib providers::compat::tests::stream_terminal_chunk_with_null_delta_parses ---
+   Compiling llmrust v0.1.5 (D:\llmrust-0.1.5)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.15s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+
+running 1 test
+test providers::compat::tests::stream_terminal_chunk_with_null_delta_parses ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.00s
+
+EXIT_CODE(stream_terminal_chunk_with_null_delta_parses)=0
+
+--- cargo test --lib providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+
+running 1 test
+test providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.00s
+
+EXIT_CODE(stream_terminal_chunk_with_absent_delta_parses)=0
+
+--- cargo test --lib providers::compat::tests::stream_delta_content_still_parses_with_option ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+
+running 1 test
+test providers::compat::tests::stream_delta_content_still_parses_with_option ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.00s
+
+EXIT_CODE(stream_delta_content_still_parses_with_option)=0
+
+--- cargo test --test architecture_guard ---
+   Compiling llmrust v0.1.5 (D:\llmrust-0.1.5)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.98s
+     Running tests\architecture_guard.rs (target\debug\deps\architecture_guard-2290ceb25243bf24.exe)
+
+running 15 tests
+test grd004_attributed_use_is_caught ... ok
+test grd004_pub_use_is_caught ... ok
+test grd004_plain_use_is_caught ... ok
+test grd004_macro_internal_use_is_caught ... ok
+test grd004_braced_multiline_use_is_caught ... ok
+test grd004_edges_are_file_scoped ... ok
+test grd004_pub_crate_use_is_caught ... ok
+test grd004_commented_out_use_is_not_flagged ... ok
+test hotspot_coverage_detects_unlisted_oversized_file ... ok
+test grd004_unrelated_mentions_are_not_flagged ... ok
+test grd004_multiline_use_is_caught ... ok
+test hotspot_ledger_is_consistent ... ok
+test hotspot_files_do_not_grow ... ok
+test hotspot_coverage_is_complete ... ok
+test dependency_edges_are_respected ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+EXIT_CODE(architecture_guard)=0

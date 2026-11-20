@@ -1,0 +1,30 @@
+=== card as-is ===
+  card.owner_agent = "llmrust-dev"
+
+gate A = checkEvidence  : /^dev-/.test(agent)
+gate B = workerReceipt  : agentMatchesSeat(agent, card.owner_agent)
+
+--- card.owner_agent = "llmrust-dev" ---
+  agent=dev-llmrust   A=true   B=false  
+  agent=llmrust-dev   A=false  B=true   
+  agent=dev-seat      A=true   B=false  
+  agent=dev           A=false  B=false  
+  => any agent passes both? false
+
+--- card.owner_agent = "dev-llmrust" ---
+  agent=dev-llmrust   A=true   B=true   <== PASSES BOTH
+  agent=llmrust-dev   A=false  B=false  
+  agent=dev-seat      A=true   B=false  
+  agent=dev           A=false  B=false  
+  => any agent passes both? true
+
+--- card.owner_agent = "dev" ---
+  agent=dev-llmrust   A=true   B=true   <== PASSES BOTH
+  agent=llmrust-dev   A=false  B=false  
+  agent=dev-seat      A=true   B=true   <== PASSES BOTH
+  agent=dev           A=false  B=true   
+  => any agent passes both? true
+
+=== real workerReceiptProblems() with hypothetical owner_agent ===
+  owner_agent=llmrust-dev    -> ["DEV_AGENT_NOT_CARD_OWNER dev-C-DELTA-NULL.json"]
+  owner_agent=dev-llmrust    -> NO PROBLEMS

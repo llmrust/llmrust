@@ -1,0 +1,7 @@
+API-002 semver gate (vs 0.1.2 baseline)	pass	58s	https://github.com/llmrust/llmrust/actions/runs/44715484550/job/136217681500	
+Architecture & package guards (CI-003)	pass	22s	https://github.com/llmrust/llmrust/actions/runs/44715484550/job/136217681380	
+MSRV (1.86)	pass	33s	https://github.com/llmrust/llmrust/actions/runs/44715484550/job/136217680956	
+RustSec advisories	pass	12s	https://github.com/llmrust/llmrust/actions/runs/44715484442/job/136217681054	
+Secret scan (gitleaks CLI)	pass	6s	https://github.com/llmrust/llmrust/actions/runs/44715484442/job/136217680668	
+Supply-chain policy (cargo-deny)	pass	37s	https://github.com/llmrust/llmrust/actions/runs/44715484442/job/136217681118	
+Test (stable)	pass	1m12s	https://github.com/llmrust/llmrust/actions/runs/44715484550/job/136217681391	

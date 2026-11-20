@@ -1,0 +1,16 @@
+[package]
+name = "real_endpoint_check"
+version = "0.1.0"
+edition = "2021"
+
+# QA (qa-llmrust) scratch harness for card C-DELTA-NULL.
+# Deliberately OUTSIDE the llmrust tree so no product file, Cargo.toml or
+# tests/ file is touched. Consumes llmrust as a path dependency, i.e. exactly
+# the code under test (post-fix HEAD vs pre-fix 33a8e3e^).
+
+[dependencies]
+llmrust = { path = "D:/llmrust-0.1.5" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+futures = "0.3"
+
+[workspace]

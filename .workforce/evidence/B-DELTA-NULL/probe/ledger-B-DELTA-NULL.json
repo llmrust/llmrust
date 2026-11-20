@@ -1,0 +1,110 @@
+{
+  "schema": "agent-workforce-ledger/v1",
+  "generatedAt": "2026-11-20T09:59:12.272Z",
+  "batch_id": "B-DELTA-NULL",
+  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "head": "5084e935c1b527de326657d3cb6328951dfbf8c4",
+  "generator": {
+    "kind": "in-repo script (config.ledger.command = null, skill loop.mjs has no `ledger` subcommand)",
+    "command": "node .workforce/evidence/B-DELTA-NULL/probe/gen-ledger.mjs",
+    "script": ".workforce/evidence/B-DELTA-NULL/probe/gen-ledger.mjs",
+    "deterministic_except": [
+      "generatedAt"
+    ]
+  },
+  "chain_order": [
+    "dev",
+    "qa",
+    "gate",
+    "ledger"
+  ],
+  "rows": [
+    {
+      "order": 1,
+      "file": ".workforce/evidence/B-DELTA-NULL/dev-C-DELTA-NULL.json",
+      "role": "dev",
+      "agent": "dev-llmrust",
+      "verdict": "PASS",
+      "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+      "spec_sha256_matches": true,
+      "bytes": 21266,
+      "mtime_utc": "2026-11-20T09:25:10.733Z",
+      "sha256": "d44361e5065d697b4dbdbc4a48b89c74f338006c1c595cd545b55606d7f76273"
+    },
+    {
+      "order": 2,
+      "file": ".workforce/evidence/B-DELTA-NULL/qa-C-DELTA-NULL.json",
+      "role": "qa",
+      "agent": "qa-llmrust",
+      "verdict": "PASS",
+      "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+      "spec_sha256_matches": true,
+      "bytes": 26804,
+      "mtime_utc": "2026-11-20T09:50:45.766Z",
+      "sha256": "71b13201d2120838b636916b91eb69652c08363eaaf9ec758b13eaacc9e4123a"
+    },
+    {
+      "order": 3,
+      "file": ".workforce/evidence/B-DELTA-NULL/gate.json",
+      "role": "gate",
+      "agent": "gate-llmrust",
+      "verdict": "PASS",
+      "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+      "spec_sha256_matches": true,
+      "bytes": 4459,
+      "mtime_utc": "2026-11-20T09:56:16.911Z",
+      "sha256": "6b9fa74443b47f6afe6312a12853cf28d96d7ba991ac0c7101a4b85b9dec6b68"
+    }
+  ],
+  "mtime_sampling": {
+    "method": "两次采样间隔 >= 60s，三份回执 mtime 与 sha256 均不变",
+    "sample1_at": "2026-11-20T17:56:46+08:00",
+    "sample2_at": "2026-11-20T17:58:09+08:00",
+    "interval_seconds": 83,
+    "sample1": [
+      {
+        "file": ".workforce/evidence/B-DELTA-NULL/dev-C-DELTA-NULL.json",
+        "mtime_utc": "2026-11-20T09:25:10.733Z",
+        "sha256": "d44361e5065d697b4dbdbc4a48b89c74f338006c1c595cd545b55606d7f76273"
+      },
+      {
+        "file": ".workforce/evidence/B-DELTA-NULL/qa-C-DELTA-NULL.json",
+        "mtime_utc": "2026-11-20T09:50:45.766Z",
+        "sha256": "71b13201d2120838b636916b91eb69652c08363eaaf9ec758b13eaacc9e4123a"
+      },
+      {
+        "file": ".workforce/evidence/B-DELTA-NULL/gate.json",
+        "mtime_utc": "2026-11-20T09:56:16.911Z",
+        "sha256": "6b9fa74443b47f6afe6312a12853cf28d96d7ba991ac0c7101a4b85b9dec6b68"
+      }
+    ],
+    "sample2": [
+      {
+        "file": ".workforce/evidence/B-DELTA-NULL/dev-C-DELTA-NULL.json",
+        "mtime_utc": "2026-11-20T09:25:10.733Z",
+        "sha256": "d44361e5065d697b4dbdbc4a48b89c74f338006c1c595cd545b55606d7f76273"
+      },
+      {
+        "file": ".workforce/evidence/B-DELTA-NULL/qa-C-DELTA-NULL.json",
+        "mtime_utc": "2026-11-20T09:50:45.766Z",
+        "sha256": "71b13201d2120838b636916b91eb69652c08363eaaf9ec758b13eaacc9e4123a"
+      },
+      {
+        "file": ".workforce/evidence/B-DELTA-NULL/gate.json",
+        "mtime_utc": "2026-11-20T09:56:16.911Z",
+        "sha256": "6b9fa74443b47f6afe6312a12853cf28d96d7ba991ac0c7101a4b85b9dec6b68"
+      }
+    ],
+    "unchanged": true
+  },
+  "receipts_present": [
+    ".workforce/evidence/B-DELTA-NULL/dev-C-DELTA-NULL.json",
+    ".workforce/evidence/B-DELTA-NULL/qa-C-DELTA-NULL.json",
+    ".workforce/evidence/B-DELTA-NULL/gate.json",
+    ".workforce/evidence/B-DELTA-NULL/ledger.json"
+  ],
+  "receipts_all_pass": true,
+  "receipt_timestamps_distinct": true,
+  "notes": "三份回执齐（dev/qa/gate）+ 本台账。mtime 两次采样（17:56:46 / 17:58:09，间隔 83s）逐项不变。顺序：dev(17:25:10) -> qa(17:50:45) -> gate(17:56:16) -> ledger(本次)。config.ledger.command=null 且 skill 无 ledger 子命令，故由本仓脚本生成，self_sha256 按 lib.mjs selfShaOk 同式自洽。",
+  "self_sha256": "7edc75883631288c58dd045b425531a75568d7e8264ff9439a88e17b9a5c3686"
+}

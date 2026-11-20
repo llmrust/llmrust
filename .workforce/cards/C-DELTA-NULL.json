@@ -1,0 +1,63 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-DELTA-NULL",
+  "phase": "PH-0.1.5",
+  "story": "VS-1",
+  "priority": "P0",
+  "parallel": "[P]",
+  "owner_agent": "dev-llmrust",
+  "qa_agent": "qa-llmrust",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "src/providers/compat.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "exact_file_paths": [
+    "src/providers/compat.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-1",
+    "PH-0.1.5",
+    "B-DELTA-NULL",
+    "T-DELTA-NULL"
+  ],
+  "requirement_refs": [
+    "DELTA-NULL",
+    "K-01",
+    "K-02",
+    "K-04",
+    "K-05",
+    "docs/CONTRACTS.md#stream-5-no-silent-drops"
+  ],
+  "ruling_refs": [
+    "docs/SPCC-0.1.4.md §11.1.4（合并后状态回证账本）：热点台账 baseline 调整属 architect 专属 truth correction 权限；本卡该项由 dev 代写，须 architect-llmrust 在 spec-review 阶段追认后方可 accept",
+    "docs/SPCC-0.1.4.md §9.2 第 1 条：数值门禁一律双向（current != expected），缩水与膨胀同等对待，两者都须走架构师授权的 truth correction 流程",
+    "docs/SPCC-0.1.4.md §4.4：tests/hotspot_ledger.json 为热点台账唯一事实源，threshold=500，覆盖双向",
+    "Boss 2026-11-20 指令：llmrust 发现问题自行修复、提 PR、跑 CI、合并发版"
+  ],
+  "acceptance_criteria": [
+    "c1 类型判据（机判，python 正则读源码）：`src/providers/compat.rs` 的 `struct CompStreamChoice` 体内 `delta` 字段声明为 `Option<CompDelta>` 且其上一行为 `#[serde(default)]`；`struct CompDelta` 的 derive 列表含 `Default`。机判命令（exit 0 即 PASS）：python -c \"import re;s=open('src/providers/compat.rs',encoding='utf-8').read();m=re.search(r'struct CompStreamChoice\\s*\\{(.*?)\\n\\}',s,re.S);assert m;assert re.search(r'#\\[serde\\(default\\)\\]\\s*\\n\\s*delta:\\s*Option<CompDelta>,',m.group(1)),'delta not Option+default';d=re.search(r'#\\[derive\\(([^)]*)\\)\\]\\s*\\n\\s*struct CompDelta\\b',s);assert d and 'Default' in d.group(1),'CompDelta lacks Default'\"。类型合法性另由 c4 编译通过反向证明。",
+
+    "c2 三条回归测试存在且绿（机判：三条独立命令，各自 exit 0 且 stdout 含 `test result: ok. 1 passed; 0 failed; 0 ignored`）：① cargo test --lib providers::compat::tests::stream_terminal_chunk_with_null_delta_parses；② cargo test --lib providers::compat::tests::stream_delta_content_still_parses_with_option；③ cargo test --lib providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses。语义要求：用例①输入 `{\"choices\":[{\"delta\":null,\"index\":0,\"finish_reason\":\"stop\"}]}` 并断言 `chunk.delta == \"\"`、`chunk.done == true`、`chunk.finish_reason == Some(FinishReason::Stop)`；用例②输入 `{\"choices\":[{\"delta\":{\"content\":\"hi\"},\"finish_reason\":null}]}` 并断言 `chunk.delta == \"hi\"`、`chunk.done == false`；用例③输入 `{\"choices\":[{\"finish_reason\":\"stop\"}]}` 并断言 `chunk.delta == \"\"`、`chunk.done == true`。另机判：cargo test --workspace -- --list 的输出中三个测试名各出现恰好 1 次，且均不带 `: ignored` 后缀。",
+
+    "c3 注入验红（反向证明测试真能抓到回退）：把 `src/providers/compat.rs` 的 `delta: Option<CompDelta>` 回退为 `delta: CompDelta` 并去掉该行的 `#[serde(default)]` 后，`cargo test --workspace` 必须 FAILED（exit 非 0），且其 `failures:` 清单必须同时出现 `stream_terminal_chunk_with_null_delta_parses` 与 `stream_terminal_chunk_with_absent_delta_parses`；`stream_delta_content_still_parses_with_option` 允许仍 ok。恢复后 `cargo test --workspace` 必须 exit 0，且恢复后文件 sha256 与注入前实测 sha256 逐字节相同。机判命令：注入前 `python -c \"import hashlib;print(hashlib.sha256(open('src/providers/compat.rs','rb').read()).hexdigest())\"` 取 h0 → 注入并跑测试存档 → 恢复后同命令取 h1 → 断言 h1 == h0 且恢复后测试 exit 0。当前实测 h0 = 1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9。",
+
+    "c4 四条门禁命令逐条 exit 0：`cargo test --workspace`、`cargo build --workspace`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`。机判：gate 回执 command_exit_codes 中这四条命令的 exit_code 全为 0，且每条命令的 stdout/stderr 原文入库存档可比对；任一条非 0 即本卡 FAIL。",
+
+    "c5 两个专项守卫绿（机判：解析 stdout 的 `test result:` 行做字符串比对）：① `cargo test --test architecture_guard` exit 0，且 stdout 含 `test result: ok. 15 passed; 0 failed; 0 ignored`；② `cargo test --test package_guard` exit 0，且 stdout 含 `test result: ok. 4 passed; 0 failed; 0 ignored`。pass 数、failed 数、ignored 数三者必须同时相等（不是只比 pass 数）。",
+
+    "c6 台账与实测一致（SPCC §4.4 / §11.1.4 口径）：`tests/hotspot_ledger.json` 的 `baseline_lines[\"src/providers/compat.rs\"]` 必须等于 `src/providers/compat.rs` 的实测行数，且两侧行数口径同语义（Python `len(open(p, encoding='utf-8').read().splitlines())` 与守卫 `fs::read_to_string(p).lines().count()` 在本文件上必须给出同一个整数）。同时 `adjustments[]` 最后一条必须五字段齐备（`old`、`new`、`reason`、`authorized_by`、`date`），`authorized_by` 含 `Boss 2026-11-20`，`date` 等于 `2026-11-20`，`new` 等于上述实测行数。机判命令（exit 0 即 PASS）：python -c \"import json;n=len(open('src/providers/compat.rs',encoding='utf-8').read().splitlines());l=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));a=l['adjustments'][-1];assert l['baseline_lines']['src/providers/compat.rs']==n;assert all(k in a and a[k] not in (None,'') for k in ['old','new','reason','authorized_by','date']);assert 'Boss 2026-11-20' in a['authorized_by'];assert a['date']=='2026-11-20';assert a['new']==n\"。当前实测行数 1899。",
+
+    "c7 零放宽（机判，与修复前基线 `33a8e3e^` 逐项比对，非与工作区空 diff 比对）：① 不得删除或改写任何既有测试断言行 —— 对 `src/providers/compat.rs` 取 `33a8e3e^` 版本与当前版本的 `assert!` / `assert_eq!` / `assert_ne!` 行集合做差，`基线集合 - 当前集合` 必须为空（当前实测：基线 111 行、当前 118 行、差集为空）；② 不得新增 `#[ignore]` / `#[should_panic]`。**口径已明确：按「出现次数」计数**（逐文件逐行正则命中数，不对属性文本做去重）——该口径与「去重属性文本行」口径已交叉验证，两者在基线上均为 2 条、差集均为空，故口径选择不影响本项判定结论。对 `src/**/*.rs` 与 `tests/**/*.rs` 全树比对 `33a8e3e^` 与当前的命中集合，要求「当前命中数 ≤ 基线命中数」且「当前不存在基线之外的命中位置」——基线实测 2 处，均在 `src/proxy/mod.rs:3292` 与 `:3300`（既有 `#[should_panic(expected = \"must not be empty or whitespace-only\")]` 负例，属既有写法、不是放宽）；当前实测同为这 2 处，新增 0 处。③ 不得标 SKIP（**Doc-tests 的既有 `rust,ignore` 不计入本项**）：`cargo test --workspace` 输出中**每一个 unit / integration 测试二进制**（即 `Running unittests ...` 与 `Running tests\\*.rs ...` 之后对应的 `test result:` 行）的 ignored 计数必须全为 0；**Doc-tests 行单独判定**：其 ignored 基线为 2，来源是既有文档块 `src/lib.rs:57` 与 `src/providers/retry.rs:19` 的 `rust,ignore`（该基线在干净 worktree `4b73d66` 与 `33a8e3e^` 上实测同为 2，非本卡引入），故 Doc-tests 判据为「当前 doc-tests ignored 数 ≤ 基线 2」而非「等于 0」。当前实测：19 个 unit/integration 二进制 ignored 全为 0；Doc-tests `test result: ok. 6 passed; 0 failed; 2 ignored`，等于基线 2。机判：上述三条各用 python 读 git 对象 + 工作区文本 + 解析 `cargo test --workspace` 的 `test result:` 行断言，全部 exit 0。"
+  ],
+  "independent_test": "cargo test --workspace",
+  "needs_clarification": [
+    "【已解决，保留留痕】原阻断项：c5 第 ② 项 package_guard 曾为红（`test result: FAILED. 3 passed; 1 failed`），失败用例 `package_list_contains_only_allowed_files` 报 4 个禁止条目 —— `.workforce/evidence/DELTA-NULL/{api002,ci003,msrv,test-stable}.log`。根因：dc1e754 的忽略规则是单星 `.workforce/evidence/*.log`，只匹配 evidence 根层，不匹配 `evidence/DELTA-NULL/` 子目录；这 4 个文件既未被跟踪也未被忽略，被 `cargo package --list --allow-dirty` 收进产物。**已由 Lead 的 5084e93 修复**（`.gitignore` 追加 `.workforce/evidence/**/*.log` 与 `.workforce/**/*.log` 递归 glob）。**实测复核（architect-llmrust, 2026-11-20）：`cargo test --test package_guard` = `test result: ok. 4 passed; 0 failed; 0 ignored`，exit 0**；故 c5 第 ② 项现可转绿，本项不再构成 accept 阻断。"
+  ],
+  "blocked_by": [],
+  "checkpoint": "c1–c7 全绿且 dev/qa/gate/ci/ledger 回执齐全、注入验红证据入库，才允许进 PH-0.1.5 的下一批；台账 adjustment 的 architect 追认须在 spec-review 前完成；needs_clarification 中的 package_guard 阻断项须由 Lead 在 accept 前裁定并落盘，否则 c5 无法转绿、本批不得 accept。",
+  "status": "pending"
+}

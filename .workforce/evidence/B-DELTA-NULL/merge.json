@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-20T10:07:41.541Z",
+  "batch": "B-DELTA-NULL",
+  "pr": 251,
+  "merge_commit": "916c66b8fc41546335e33193dfdb4d1254083127",
+  "merge_called": true,
+  "head_sha": "5084e935c1b527de326657d3cb6328951dfbf8c4",
+  "checks": [],
+  "bootstrap_used": false,
+  "merged": true,
+  "method": "squash",
+  "repo": "llmrust/llmrust"
+}

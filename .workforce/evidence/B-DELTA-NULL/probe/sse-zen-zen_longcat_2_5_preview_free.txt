@@ -1,0 +1,1 @@
+{"error":{"code":"upstream_error","message":"upstream status 401: {\"error\":{\"type\":\"authentication_error\",\"code\":\"api_key_expired\",\"message\":\"This API key has expired. Create a new API key in OpenCode Console and replace it in your client or secret store. Signing in again will not renew this key. Manage your API keys at https://opencode.ai/console/account#api-keys"}}

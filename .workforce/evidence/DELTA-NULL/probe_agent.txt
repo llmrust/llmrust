@@ -1,0 +1,26 @@
+=== state ===
+  state           = EXECUTING
+  batch.id        = "B-DELTA-NULL"
+  spec_sha256     = acc8f73302842a3e53de4367053408231d9990b34cb99cbe3483fe7400b3ebe3
+
+=== PATH RULE (lib.mjs:461 evDir) ===
+  evDir(P, batch.id) = D:\llmrust-0.1.5\.workforce\evidence\B-DELTA-NULL
+  required file      = D:\llmrust-0.1.5\.workforce\evidence\B-DELTA-NULL\dev-C-DELTA-NULL.json
+  NOTE: batch.id is "B-DELTA-NULL", so the evidence directory must be
+        .workforce/evidence/B-DELTA-NULL/  — NOT evidence/DELTA-NULL/
+
+=== CARD SEAT ===
+  task.role       = "dev"
+  card.owner_agent= "llmrust-dev"
+  card.qa_agent   = "llmrust-qa"
+  card.write_scopes = ["src/providers/compat.rs","tests/hotspot_ledger.json"]
+
+=== AGENT FIELD: the two gates are mutually exclusive with owner_agent="llmrust-dev" ===
+  agent=dev-llmrust    checkEvidence(^dev-)= true   workerReceipt(owner)= false  => CANNOT PASS BOTH
+  agent=llmrust-dev    checkEvidence(^dev-)= false  workerReceipt(owner)= true   => CANNOT PASS BOTH
+  agent=dev            checkEvidence(^dev-)= false  workerReceipt(owner)= false  => CANNOT PASS BOTH
+  agent=dev-seat       checkEvidence(^dev-)= true   workerReceipt(owner)= false  => CANNOT PASS BOTH
+
+=== Would it pass if the card said owner_agent="dev" (role name, no hyphen)? ===
+  PASS BOTH: agent=dev-llmrust owner_agent=dev
+  PASS BOTH: agent=dev-seat owner_agent=dev

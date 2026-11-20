@@ -1,0 +1,9 @@
+=== llmrust real-endpoint stream probe (C-DELTA-NULL) ===
+base_url = http://127.0.0.1:18778/v1
+model    = codearts/glm-5.3
+RESULT   = stream() opened OK (no Parse error at request time)
+  [done chunk #23] delta="" finish=Some(Length) tool_calls=false
+RESULT   = chunk error mid-stream: Invalid response: failed to parse OpenAI-compatible stream chunk: invalid type: null, expected a sequence at line 1 column 15
+chunks before failure = 23
+content so far        = ""
+VERDICT  = FAIL (stream aborted: the DELTA-NULL defect)

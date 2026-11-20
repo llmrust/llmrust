@@ -1,0 +1,40 @@
+=== C5: two specialised guards @ 2026-11-20T17:08:02.4228300+08:00 ===
+
+--- [1] cargo test --test architecture_guard ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running tests\architecture_guard.rs (target\debug\deps\architecture_guard-2290ceb25243bf24.exe)
+
+running 15 tests
+test grd004_attributed_use_is_caught ... ok
+test grd004_commented_out_use_is_not_flagged ... ok
+test grd004_braced_multiline_use_is_caught ... ok
+test grd004_multiline_use_is_caught ... ok
+test grd004_plain_use_is_caught ... ok
+test grd004_unrelated_mentions_are_not_flagged ... ok
+test hotspot_coverage_detects_unlisted_oversized_file ... ok
+test grd004_edges_are_file_scoped ... ok
+test grd004_macro_internal_use_is_caught ... ok
+test grd004_pub_use_is_caught ... ok
+test grd004_pub_crate_use_is_caught ... ok
+test hotspot_ledger_is_consistent ... ok
+test hotspot_files_do_not_grow ... ok
+test hotspot_coverage_is_complete ... ok
+test dependency_edges_are_respected ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+EXIT_CODE(architecture_guard)=0
+
+--- [2] cargo test --test package_guard ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running tests\package_guard.rs (target\debug\deps\package_guard-9a3761cce606e066.exe)
+
+running 4 tests
+test lookalike_entries_are_not_flagged ... ok
+test clean_listing_yields_no_violations ... ok
+test negative_forbidden_entries_are_reported ... ok
+test package_list_contains_only_allowed_files ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+EXIT_CODE(package_guard)=0

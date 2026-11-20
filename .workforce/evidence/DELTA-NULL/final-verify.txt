@@ -1,0 +1,23 @@
+=== FINAL VERIFY: working tree clean of my files? ===
+HEAD=33a8e3e
+
+--- git status (short) ---
+ M .gitignore
+D  .workforce/bootstrap-progress.md
+D  .workforce/selftest.log
+?? .workforce/evidence/
+
+--- my commit contents ---
+33a8e3eabd27116619f46f7ab1f6283ae7a447f7
+fix(providers): accept null/absent `delta` on OpenAI-compatible terminal stream frames
+
+ src/providers/compat.rs   | 70 ++++++++++++++++++++++++++++++++++++++++++-----
+ tests/hotspot_ledger.json | 12 ++++++--
+ 2 files changed, 73 insertions(+), 9 deletions(-)
+
+--- working tree compat.rs line count ---
+1899
+
+--- sha256 of committed files ---
+1FEDA36119A3A44F1ED95C76B531162D62F00379297067A944BF46722B8140D9
+60D14A1F51447D871024E4486D3E69C403F22D06E029B89683DB5DF888A8E8F6

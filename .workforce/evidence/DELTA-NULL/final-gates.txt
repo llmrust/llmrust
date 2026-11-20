@@ -1,0 +1,14 @@
+=== FINAL GATES @ 2026-11-20T16:47:55.6320840+08:00 ===
+
+--- cargo build --workspace ---
+   Compiling llmrust v0.1.5 (D:\llmrust-0.1.5)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.34s
+EXIT_CODE(build)=0
+
+--- cargo fmt --all --check ---
+EXIT_CODE(fmt_check)=0
+
+--- cargo clippy --workspace --all-targets -- -D warnings ---
+    Checking llmrust v0.1.5 (D:\llmrust-0.1.5)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.73s
+EXIT_CODE(clippy)=0

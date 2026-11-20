@@ -1,0 +1,15 @@
+{
+  "verdict": "PASS",
+  "batch": "B-DELTA-NULL",
+  "pr": 251,
+  "method": "squash",
+  "repo": "llmrust/llmrust",
+  "merge_called": true,
+  "merged": true,
+  "merge_commit": "916c66b8fc41546335e33193dfdb4d1254083127",
+  "message": "Pull Request successfully merged",
+  "head": "5084e935c1b527de326657d3cb6328951dfbf8c4",
+  "checks": [],
+  "bootstrap_used": false,
+  "merge_record": "D:\\llmrust-0.1.5\\.workforce\\evidence\\B-DELTA-NULL\\merge.json"
+}

@@ -1,0 +1,58 @@
+fix(providers): accept null/absent `delta` on OpenAI-compatible terminal stream frames
+
+task-ids: DELTA-NULL
+
+OpenAI-compatible endpoints legitimately send the TERMINAL stream frame as
+`{"delta":null,"finish_reason":"stop",...}` — that is official OpenAI
+semantics, and llama.cpp, some vLLM builds and self-hosted proxies do the
+same. Some upstreams omit the `delta` field entirely.
+
+`CompStreamChoice` declared `delta: CompDelta` (non-Option), so `delta:null`
+failed serde with `missing field `delta`` and `parse_sse_line` returned
+`LlmError::Parse("failed to parse OpenAI-compatible stream chunk: ...")` for
+the whole stream. The caller saw "Invalid response", so every streamed
+tool-calling turn failed at the real tool call.
+
+Measured reproduction (downstream beeli vertical slice S3): endpoint
+http://127.0.0.1:18778/v1, both `nous/meituan/longcat-2.5:free` and
+`nous/upstage/solar-mini4:free` trigger it; terminal frame verbatim:
+
+  {"choices":[{"delta":null,"index":0,"finish_reason":"stop",
+   "message":{"role":"assistant","content":"可用"},...}]}
+
+Fix:
+- `CompStreamChoice.delta` becomes `#[serde(default)] Option<CompDelta>`
+  (covers both `null` and absent), with a doc comment stating why.
+- `CompDelta` derives `Default`.
+- `parse_sse_line` binds one `empty_delta` placeholder at the top of the
+  choices arm (`let delta = choice.delta.as_ref().unwrap_or(&empty_delta);`)
+  and the three usage sites — tool_calls ingest, reasoning/reasoning_content,
+  content — read through it, so downstream logic is unchanged for real
+  increments. `None` now simply means "no increment, only a finish_reason".
+
+Three regression tests (failure-first, in the existing `mod tests`):
+- `stream_terminal_chunk_with_null_delta_parses`: `{"delta":null,
+  "finish_reason":"stop"}` parses, delta == "", done == true.
+- `stream_delta_content_still_parses_with_option`: `{"delta":{"content":"hi"}}`
+  still yields delta == "hi" (anti-regression).
+- `stream_terminal_chunk_with_absent_delta_parses`: `{"finish_reason":"stop"}`
+  with no `delta` key also parses (serde(default) coverage).
+
+Injection-verified: reverting the struct field to `delta: CompDelta` makes
+tests 1 and 3 FAIL (exit 101) while test 2 stays green; restoring makes all
+three pass, byte-exact (sha256 identical pre/post injection). Logs under
+.workforce/evidence/DELTA-NULL/.
+
+Hotspot ledger: `tests/hotspot_ledger.json` baseline for
+`src/providers/compat.rs` goes 1843 -> 1899 (measured) with an adjustments[]
+entry recording the reason. `hotspot_files_do_not_grow` asserts exact
+equality in both directions, so any real change to this file necessarily
+requires the ledger write (SPCC §11.1.4). Ledger adjustment is normally an
+architect-only action; this entry is dev-written pending architect review,
+following the R243 precedent for the same file. Reverting the baseline to
+1843 was also injection-verified to turn the guard red (exit 101).
+
+No existing test assertion was weakened. Gates: cargo build --workspace (0),
+cargo test --workspace (0, 19 binaries), cargo fmt --all --check (0),
+cargo clippy --workspace --all-targets -- -D warnings (0),
+cargo test --test architecture_guard (0, 15 passed).

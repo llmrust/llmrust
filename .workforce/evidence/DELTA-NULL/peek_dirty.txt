@@ -1,0 +1,85 @@
+=== releaseDirtyFiles ===
+function releaseDirtyFiles(P, st, b) {
+  const dirty = git(P.repo, ['status', '--porcelain', '-uall']);
+  if (dirty === null) return null;
+  const others = activeBatches(st).filter(x => x.id !== b.id);
+  const otherOk = (f) => inScopes(f, others.flatMap(x => x.tasks.flatMap(t => t.card.write_scopes)))
+    || others.some(x => f.startsWith(P.dirRel + '/evidence/' + x.id + '/'));
+  const relState = norm(relative(P.repo, P.state));
+  const ciReceiptRel = P.dirRel + '/evidence/' + b.id + '/ci.json';
+  return dirty.split('\n').filter(Boolean).map(statusPath)
+    .filter(f => f !== relState && f !== ciReceiptRel && !otherOk(f));
+}
+export function gitHead(repo) { return git(repo, ['rev-parse', 'HEAD']); }
+/** 文件已提交、工作区无改动、最后一次提交作者邮箱 */
+export function committedBy(repo, file) {
+  const rel = norm(relative(repo, file));
+  const tracked = git(repo, ['ls-files', '--error-unmatch', rel]);
+  if (tracked === null) return { ok: false, reason: 'NOT_COMMITTED ' + rel };
+  const dirty = git(repo, ['status', '--porcelain', '--', rel]);
+  if (dirty) return { ok: false, reason: 'UNCOMMITTED_CHANGES ' + rel };
+  const email = git(repo, ['log', '-1', '--format=%ae', '--', rel]);
+  const commit = git(repo, ['log', '-1', '--format=%H', '--', rel]);
+  return { ok: !!email, email: (email || '').toLowerCase(), commit };
+}
+/**
+ * 信任锚：git 作者邮箱谁都能填，acceptors.json 也可能被 agent 抢先自写自提交（首次占位）。
+ * 所以验收者提交还必须满足仓外锚点之一：
+ *   remote — 提交已进入远端受保护分支（git ls-remote 取远端 tip，agent 凭据必须推不上该分支）
+ * 
+
+=== statusPath ===
+function statusPath(rec) {
+  const s = String(rec == null ? '' : rec);
+  const m = s.match(/^([ MADRCU?!]{1,2})\s+(.*)$/);
+  let p = (m ? m[2] : s).trim();
+  const st = s.trim();
+  if (/^[RC]/.test(st) && p.includes(' -> ')) p = p.split(' -> ').pop().trim();
+  if (p.length >= 2 && p.startsWith('"') && p.endsWith('"')) p = p.slice(1, -1);
+  return p;
+}
+/**
+ * release 前的工作树脏文件（必须干净才允许 release）。排除项不变：
+ *   ① 本批 state 文件（工具自身状态） ② 本批 ci 回执（它绑 pushed.head_sha，提交即自废）
+ *   ③ 其他在做的批次的 write_scopes / 回执目录。
+ * 路径解析统一走 statusPath()：旧实现的 `slice(3)` 在 git() trim 掉首条记录前导空格时
+ * 会吃掉路径首字符，导致 ①/②/③ 的豁免与范围判断对「已跟踪且被修改」的文件全部失配（真 bug）。
+ */
+export function releaseDirtyFiles(P, st, b) {
+  const dirty = git(P.repo, ['status', '--porcelain', '-uall']);
+  if (dirty === null) return null;
+  const others = activeBatches(st).filter(x => x.id !== b.id);
+  const otherOk = (f) => inScopes(f, others.flatMap(x => x.tasks.flatMap(t => t.card.write_scopes)))
+    || others.some(x => f.startsWith(P.dirRel + '/evidence/' + x.id + '/'));
+  const relState = norm(relative(P.repo, P.state));
+  const ciReceiptRel = P.dirRel + '/evidence/' + b.id + '/ci.json';
+  return dirty.split('\n').filter(Boolean).map(statusPath)
+    .filter(f => f !== relState && f !== ciReceiptRel && !otherOk(f));
+}
+export function gitHead(repo) { return git(repo, ['rev-parse', 'HEAD']); }
+/** 文件已提交、工作区无改动、最后一次提交作者邮箱 */
+export function committedBy(repo, file) {
+  const rel = norm(relative(repo, file));
+  const tracke
+
+=== ciReceiptCheck ===
+function ciReceiptCheck(P, batch) {
+  const f = join(P.evidence, batch.id, 'ci.json');
+  if (!existsSync(f)) return { ok: false, reason: 'CI_RECEIPT_MISSING：缺少 ci 工种回执 evidence/' + batch.id + '/ci.json（CI 是强制项，无回执不算发布）' };
+  const j = readJSON(f);
+  if (j.__error) return { ok: false, reason: 'CI_RECEIPT_INVALID_JSON' };
+  if (j.role !== 'ci') return { ok: false, reason: 'CI_RECEIPT_ROLE ' + j.role };
+  if (j.verdict !== 'PASS') return { ok: false, reason: 'CI_RECEIPT_NOT_PASS verdict=' + j.verdict };
+  if (j.bypass_detected === true) return { ok: false, reason: 'CI_BYPASS_ATTEMPT：回执自报绕开（bypass_detected=true）' };
+  if (j.provider !== 'github') return { ok: false, reason: 'CI_BYPASS_FORBIDDEN：回执 provider=' + j.provider };
+  const head = gitHead(P.repo);
+  if (!head) return { ok: false, reason: 'GIT_UNAVAILABLE' };
+  const recHead = j.pushed && j.pushed.head_sha;
+  if (!j.pushed || !j.pushed.remote || !recHead) return { ok: false, reason: 'CI_RECEIPT_NO_PUSH：回执缺 pushed.{remote,branch,head_sha}' };
+  if (String(recHead) !== head) return { ok: false, reason: 'CI_HEAD_MISMATCH：回执 head_sha=' + String(recHead).slice(0, 8) + ' ≠ 当前 HEAD ' + head.slice(0, 8) };
+  const refs = pushedRefs(P.repo, head);
+  if (!refs.length) return { ok: false, reason: 'CI_NOT_PUSHED：当前 HEAD 不在任何远端分支上' };
+  const runs = Array.isArray(j.workflow_runs) ? j.workflow_runs : [];
+  if (!runs.length) return { ok: false, reason: 'CI_RECEIPT_NO_RUNS：回执必须列出被核对的 CI 运行' };
+  const bad = runs.filter(r
+

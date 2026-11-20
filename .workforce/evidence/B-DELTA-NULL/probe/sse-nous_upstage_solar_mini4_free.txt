@@ -1,0 +1,1 @@
+{"error":{"code":"upstream_error","message":"post http://127.0.0.1:8647/v1/chat/completions: Post \"http://127.0.0.1:8647/v1/chat/completions\": dial tcp 127.0.0.1:8647: connectex: No connection could be made because the target machine actively refused it."}}

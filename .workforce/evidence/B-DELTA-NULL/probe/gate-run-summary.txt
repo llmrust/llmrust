@@ -1,0 +1,31 @@
+======================================================================
+gate-llmrust · B-DELTA-NULL gate evidence
+======================================================================
+
+repo       = D:\llmrust-0.1.5
+HEAD       = 5084e935c1b527de326657d3cb6328951dfbf8c4
+spec_sha256= f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c
+cargo      = C:\Users\yrxsz\.cargo\bin\cargo.exe
+date       = 2026-11-20 (Asia/Shanghai)
+
+-- config.gates.required_commands (逐条实跑，真实 exit code，判定项) ---------
+cargo build --workspace                                  exit=0  -> PASS
+cargo test  --workspace                                  exit=0  -> PASS
+  (19 test suites, 452 passed, 0 failed, 0 ignored-report lines with failures)
+
+-- 额外观测（不入判定） -----------------------------------------------------
+cargo fmt --all --check                                  exit=0  (空输出=无差异)
+cargo clippy --workspace --all-targets -- -D warnings    exit=0
+cargo test --test architecture_guard                     exit=0  (15 passed / 0 failed)
+cargo test --test package_guard                          exit=0  (4 passed / 0 failed)
+
+-- 重定向纪律 ---------------------------------------------------------------
+所有命令输出用 > / *> 重定向到 .workforce/tmp/ 后复制到本目录，未使用管道。
+
+-- 原始日志（本目录） -------------------------------------------------------
+gate-build-workspace.txt
+gate-test-workspace.txt
+gate-obs-fmt-check.txt
+gate-obs-clippy.txt
+gate-obs-architecture-guard.txt
+gate-obs-package-guard.txt

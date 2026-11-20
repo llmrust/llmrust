@@ -1,0 +1,51 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ledger",
+  "agent": "ledger-llmrust",
+  "card_id": null,
+  "batch_id": "B-DELTA-NULL",
+  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "inputs_seen": [
+    "node .workforce/evidence/B-DELTA-NULL/probe/gen-ledger.mjs  (本仓台账生成器，exit 0；config.ledger.command=null、skill 无 ledger 子命令，故自备并留档)",
+    ".workforce/evidence/B-DELTA-NULL/dev-C-DELTA-NULL.json  (mtime 2026-11-20T09:25:10.733Z, verdict PASS)",
+    ".workforce/evidence/B-DELTA-NULL/qa-C-DELTA-NULL.json   (mtime 2026-11-20T09:50:45.766Z, verdict PASS, handoff_id=547de603e7cd8b7e12d3ddc2)",
+    ".workforce/evidence/B-DELTA-NULL/gate.json              (mtime 2026-11-20T09:56:16.911Z, verdict PASS)",
+    "node .agents/skills/agent-workforce-loop/scripts/loop.mjs ledger --batch B-DELTA-NULL --repo .  -> exit 1 UNKNOWN_COMMAND ledger（探针原始输出见 probe/ledger-generator-probe.txt，该 exit 1 是「无此子命令」的探测结果，不是台账生成失败）",
+    ".workforce/config.json  ledger.command=null / ledger.none_reason 已说明本仓无台账生成脚本",
+    "两次 mtime 采样：sample1 2026-11-20T17:56:46+08:00, sample2 2026-11-20T17:58:09+08:00（间隔 83s）"
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/ledger-B-DELTA-NULL.json",
+      "sha256": "80fc6b06990b487d579c2d659c4c3495584f2e81ab54a18ef2e1a85509b053f2",
+      "desc": "台账 JSON：schema/generatedAt/self_sha256 自洽 + 三份回执的 mtime/sha256/verdict 行 + 两次 mtime 采样记录"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/gen-ledger.mjs",
+      "sha256": "348ef1f8851d5f0cf61c06c4e3821fd077dbaa171ea4ac76a2a5f9210b36a825",
+      "desc": "台账生成器源码（可复跑：重跑后除 generatedAt 外正文逐字节一致）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/ledger-generator-run.txt",
+      "sha256": "bb5145fb32611abfb33cd9e31f6866e3ce4c4f6a7554005400232cd4b1be459a",
+      "desc": "生成器最后一次运行的原始输出（exit 0，打印 self_sha256 与 rows=3）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/ledger-generator-probe.txt",
+      "sha256": "a9251bb54a7a2be07fd8ea47cb25ca3c90275d52e83e8c12a7ebb3e20641b1ea",
+      "desc": "skill 无 ledger 子命令的探针原始输出（exit 1 UNKNOWN_COMMAND ledger + 命令清单）"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "node .workforce/evidence/B-DELTA-NULL/probe/gen-ledger.mjs",
+      "exit_code": 0
+    }
+  ],
+  "mock_used": false,
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "written_by": "ledger-llmrust",
+  "notes": "① 生成器 exit=0：`node .workforce/evidence/B-DELTA-NULL/probe/gen-ledger.mjs` 真实 exit 0，写出 probe/ledger-B-DELTA-NULL.json 并打印 self_sha256=7edc75883631288c58dd045b425531a75568d7e8264ff9439a88e17b9a5c3686（该文件随后经 sha 归档，见 artifacts[0]）。先探 skill 生成器：`loop.mjs ledger` -> exit 1 UNKNOWN_COMMAND（原始输出留档）；config.ledger.command=null 且 none_reason 声明本仓无台账脚本，故按 lib.mjs selfShaOk 同式自备生成器，未改 .agents。用 lib.mjs 的 ledgerCheck 复验：{ok:true, unverified:true}（unverified 即 config 无 command 的正常降级提示）。② 三份回执 mtime 两次采样（间隔 83 秒 > 60 秒）逐项不变：dev-C-DELTA-NULL.json mtime_utc=2026-11-20T09:25:10.733Z sha256=d44361e5065d…；qa-C-DELTA-NULL.json mtime_utc=2026-11-20T09:50:45.766Z sha256=71b13201d212…；gate.json mtime_utc=2026-11-20T09:56:16.911Z sha256=6b9fa74443b4…。sample1_at=2026-11-20T17:56:46+08:00，sample2_at=2026-11-20T17:58:09+08:00，unchanged=true。③ 顺序 dev(09:25:10Z) → qa(09:50:45Z) → gate(09:56:16Z) → ledger(本次，generatedAt 2026-11-20T09:59Z 区间)，三份回执时间戳互不相同，符合 dev→qa→gate→ledger 的顺序产生。④ 三份回执 verdict 均 PASS，spec_sha256 均等于 f31889df…b33c。⑤ 台账只读回执元数据（mtime/sha256/verdict），不改产品代码/spec/cards/.agents，不提交 git。"
+}

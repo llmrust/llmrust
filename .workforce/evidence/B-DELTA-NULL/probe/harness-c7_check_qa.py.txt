@@ -1,0 +1,158 @@
+"""qa-llmrust independent c7 (zero-relaxation) checks for C-DELTA-NULL.
+
+c7-1  no existing assert line was deleted or rewritten (baseline 33a8e3e^ vs worktree)
+c7-2  no new `#[ignore]` / `#[should_panic]` (counted by occurrence, whole src/ + tests/)
+c7-3  every unit/integration test binary reports ignored == 0; doc-tests ignored <= 2
+
+Exit 0 = all three PASS.
+"""
+import json
+import pathlib
+import re
+import subprocess
+import sys
+
+REPO = pathlib.Path(r"D:\llmrust-0.1.5")
+BASE = "33a8e3e^"
+EVID = REPO / ".workforce" / "evidence" / "B-DELTA-NULL" / "probe"
+EVID.mkdir(parents=True, exist_ok=True)
+
+
+def git_show(path: str) -> str:
+    return subprocess.run(
+        ["git", "show", f"{BASE}:{path}"],
+        cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    ).stdout
+
+
+def tracked_rs(ref: str) -> list[str]:
+    out = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", ref],
+        cwd=REPO, capture_output=True, text=True, encoding="utf-8",
+    ).stdout.splitlines()
+    return [f for f in out if f.endswith(".rs") and (f.startswith("src/") or f.startswith("tests/"))]
+
+
+def worktree_rs() -> list[str]:
+    res = []
+    for root in ("src", "tests"):
+        for p in (REPO / root).rglob("*.rs"):
+            res.append(p.relative_to(REPO).as_posix())
+    return res
+
+
+# ---------------- c7-1 ----------------
+def c7_1() -> bool:
+    print("=== c7-1: existing assertion lines must not be removed/rewritten ===")
+    base_src = git_show("src/providers/compat.rs")
+    cur_src = (REPO / "src/providers/compat.rs").read_text(encoding="utf-8")
+    pat = re.compile(r"assert!|assert_eq!|assert_ne!")
+    b = {l.strip() for l in base_src.splitlines() if pat.search(l)}
+    c = {l.strip() for l in cur_src.splitlines() if pat.search(l)}
+    missing = sorted(b - c)
+    print(f"  baseline assert lines = {len(b)}")
+    print(f"  current  assert lines = {len(c)}")
+    print(f"  baseline - current    = {len(missing)}")
+    for m in missing:
+        print("    MISSING:", m[:120])
+    ok = not missing
+    print(f"  c7-1 {'PASS' if ok else 'FAIL'}")
+    return ok
+
+
+# ---------------- c7-2 ----------------
+def c7_2() -> bool:
+    print("\n=== c7-2: no new #[ignore] / #[should_panic] (occurrence count) ===")
+    pat = re.compile(r"#\[(ignore|should_panic)")
+    base_hits = []
+    for f in tracked_rs(BASE):
+        for i, line in enumerate(git_show(f).splitlines(), 1):
+            if pat.search(line):
+                base_hits.append((f, i, line.strip()))
+    cur_hits = []
+    for rel in worktree_rs():
+        txt = (REPO / rel).read_text(encoding="utf-8", errors="replace")
+        for i, line in enumerate(txt.splitlines(), 1):
+            if pat.search(line):
+                cur_hits.append((rel, i, line.strip()))
+
+    print(f"  baseline occurrences = {len(base_hits)}")
+    for f, i, l in base_hits:
+        print(f"    {f}:{i}  {l[:80]}")
+    print(f"  current  occurrences = {len(cur_hits)}")
+    for f, i, l in cur_hits:
+        print(f"    {f}:{i}  {l[:80]}")
+
+    bset = {(f, i) for f, i, _ in base_hits}
+    cset = {(f, i) for f, i, _ in cur_hits}
+    new_pos = sorted(cset - bset)
+    print(f"  new positions        = {len(new_pos)} {new_pos}")
+    ok = len(cur_hits) <= len(base_hits) and not new_pos
+    print(f"  c7-2 {'PASS' if ok else 'FAIL'}")
+    return ok
+
+
+# ---------------- c7-3 ----------------
+def c7_3() -> bool:
+    print("\n=== c7-3: no SKIP (unit/integration ignored == 0, doc-tests ignored <= 2) ===")
+    # NOTE: cargo writes the "Running ..." banners to stderr and the
+    # "test result:" lines to stdout. Capturing the two streams separately
+    # destroys their interleaving, so we must NOT pair banner->result.
+    # Instead: count banners (= number of unit/integration binaries), count
+    # result lines (= binaries + 1 doc-tests line, which cargo prints last),
+    # and require every non-final result line to report ignored == 0.
+    p = subprocess.run(
+        ["cargo", "test", "--workspace"],
+        cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    out = p.stdout + p.stderr
+    (EVID / "c7-3-cargo-test-workspace.txt").write_text(out, encoding="utf-8")
+    (EVID / "c7-3-cargo-test-stdout.txt").write_text(p.stdout, encoding="utf-8")
+    (EVID / "c7-3-cargo-test-stderr.txt").write_text(p.stderr, encoding="utf-8")
+    print(f"  cargo test --workspace exit = {p.returncode}")
+
+    banners = [l.strip() for l in p.stderr.splitlines()
+               if l.strip().startswith("Running unittests") or l.strip().startswith("Running tests")]
+    results = [l.strip() for l in p.stdout.splitlines() if l.strip().startswith("test result:")]
+    parsed = []
+    for line in results:
+        m = re.search(r"test result: (ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored", line)
+        if m:
+            parsed.append((m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))))
+
+    print(f"  unit/integration binaries (banners) = {len(banners)}")
+    print(f"  test result lines                   = {len(parsed)}")
+    # cargo prints the Doc-tests result line last.
+    unit_results = parsed[:-1]
+    doc = parsed[-1] if parsed else None
+    print(f"  non-final (unit/integration) lines  = {len(unit_results)}")
+    bad = [(i, r) for i, r in enumerate(unit_results) if r[3] != 0]
+    print(f"  unit/integration lines with ignored != 0 = {len(bad)} {bad[:5]}")
+    total_unit_ignored = sum(r[3] for r in unit_results)
+    print(f"  total unit/integration ignored      = {total_unit_ignored}")
+    doc_ignored = doc[3] if doc else None
+    print(f"  doc-tests line                      = {doc}")
+    print(f"  doc-tests ignored = {doc_ignored} (baseline 2, require <= 2)")
+
+    counts_match = len(banners) == len(unit_results)
+    print(f"  banner count == unit result count   = {counts_match}")
+    ok = (
+        p.returncode == 0
+        and counts_match
+        and len(unit_results) > 0
+        and not bad
+        and doc_ignored is not None
+        and doc_ignored <= 2
+    )
+    print(f"  c7-3 {'PASS' if ok else 'FAIL'}")
+    return ok
+
+
+if __name__ == "__main__":
+    r = {"c7-1": c7_1(), "c7-2": c7_2(), "c7-3": c7_3()}
+    print("\n=== SUMMARY ===")
+    for k, v in r.items():
+        print(f"  {k}: {'PASS' if v else 'FAIL'}")
+    print(f"  VERDICT = {'PASS' if all(r.values()) else 'FAIL'}")
+    (EVID / "c7-summary.json").write_text(json.dumps(r, indent=2), encoding="utf-8")
+    sys.exit(0 if all(r.values()) else 1)

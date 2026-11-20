@@ -1,0 +1,12 @@
+=== llmrust real-endpoint stream probe (C-DELTA-NULL) ===
+base_url = http://127.0.0.1:8080/v1
+model    = qwen3.6-35b-a3b
+RESULT   = stream() opened OK (no Parse error at request time)
+  [done chunk #26] delta="" finish=Some(Length) tool_calls=false
+  [done chunk #28] delta="" finish=None tool_calls=false
+chunks        = 28
+saw_done      = true
+finish_reason = Some(Length)
+content       = ""
+thinking_len  = 89
+VERDICT  = PASS (stream ended cleanly, done=true, no Parse error)

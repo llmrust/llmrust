@@ -1,0 +1,47 @@
+=== state ===
+  state       = EXECUTING
+  spec_sha256 = f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c
+  batch.id    = B-DELTA-NULL
+
+=== handoff ===
+  handoff_id = 547de603e7cd8b7e12d3ddc2
+
+=== requiredEvidence (is qa-C-DELTA-NULL.json required & where?) ===
+   dev-C-DELTA-NULL.json role=dev
+   qa-C-DELTA-NULL.json role=qa
+  evDir = D:\llmrust-0.1.5\.workforce\evidence\B-DELTA-NULL
+
+=== checkEvidence (full batch) ===
+  reasons: [
+  'EVIDENCE_MISSING B-DELTA-NULL/gate.json',
+  'EVIDENCE_MISSING B-DELTA-NULL/ledger.json'
+]
+
+=== handoffProblems for C-DELTA-NULL ===
+  reasons: (none)
+
+=== fiveLayers ===
+  event      PASS 
+  logic      PASS 
+  interface  FAIL gate 需逐条跑 config.gates.required_commands 且 exit 0（缺：cargo build --workspace | cargo test --workspace）、mock_used=false；qa 覆盖 interface
+  state      FAIL ledger 回执需 PASS、exit 0，并附台账 JSON
+  view       PASS 
+  reasons: [
+  'LAYER_FAIL interface gate 需逐条跑 config.gates.required_commands 且 exit 0（缺：cargo build --workspace | cargo test --workspace）、mock_used=false；qa 覆盖 interface',
+  'LAYER_FAIL state ledger 回执需 PASS、exit 0，并附台账 JSON'
+]
+
+=== QA receipt field check ===
+  agent        = "qa-llmrust"
+  written_by   = "qa-llmrust"
+  verdict      = PASS
+  handoff_id   = 547de603e7cd8b7e12d3ddc2 (expect 547de603e7cd8b7e12d3ddc2)
+  layers_covered = ["事件","逻辑","接口"] -> [ 'event', 'logic', 'interface' ]
+  mock_used    = false
+  artifacts    = 38
+  lowercase sha ok = true []
+  exit codes numeric = true
+  problems: (none)
+
+=== VERDICT ===
+  QA receipt valid = true

@@ -1,0 +1,62 @@
+data: {"choices":[{"delta":{"reasoning_content":"The","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" user","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" wants","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" to","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" know","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" the","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" weather","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" in","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" Beijing","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":".","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" I","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" should","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" use","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" the","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" get","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":"_weather","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" tool","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" with","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" the","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" city","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" parameter","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" set","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" to","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":" \"","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":"Be","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":"ijing","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"reasoning_content":"\".","role":"assistant"},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"tool_calls":[{"function":{"arguments":"{\"city\":\"Beijing\"}","name":"get_weather"},"id":"call_44626421725d4287b66da01b","index":0,"type":"function"}]},"index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":[{"finish_reason":"tool_calls","index":0}],"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk"}
+
+data: {"choices":null,"created":1795167957,"id":"20261120174556cf0fc342a6e64e1b","model":"glm-5.3","object":"chat.completion.chunk","usage":{"completion_tokens":40,"prompt_tokens":161,"total_tokens":201}}
+
+data: [DONE]
+

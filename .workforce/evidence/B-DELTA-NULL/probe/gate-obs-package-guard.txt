@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running tests\package_guard.rs (target\debug\deps\package_guard-9a3761cce606e066.exe)
+
+running 4 tests
+test clean_listing_yields_no_violations ... ok
+test lookalike_entries_are_not_flagged ... ok
+test negative_forbidden_entries_are_reported ... ok
+test package_list_contains_only_allowed_files ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+

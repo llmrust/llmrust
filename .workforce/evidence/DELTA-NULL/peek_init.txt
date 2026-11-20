@@ -1,0 +1,29 @@
+--- init handler ---
+cmd === 'init') {
+  const s = load(); require(s, cmd);
+  const d = specDrift(s); if (d) out({ verdict: 'FAIL', reason: d }, 1);
+  const sp = L.readJSON(resolve(repo, s.spec_path));
+  const reasons = [];
+  const prior = new Map((s.prior_batches || []).map(b => [b.id, b]));
+  const batches = [];
+  for (const p of sp.phases) for (const b of p.batches) {
+    const tasks = [];
+    for (const t of b.tasks) {
+      const c = L.loadCard(P, t.card);
+      if (c.error) { reasons.push(c.error); continue; }
+      if (c.card.phase !== p.id) reasons.push('CARD_PHASE_MISMATCH ' + c.id + ' card=' + c.card.phase + ' spec=' + p.id);
+      tasks.push({ task_id: t.id, role: t.role, card_id: c.id, card_sha256: c.sha256, card: c.card });
+    }
+    const pb = prior.get(b.id);
+    const sameCards = pb && JSON.stringify(pb.tasks.map(x => x.card_id + x.card_sha256)) === JSON.stringify(tasks.map(x => x.card_id + x.card_sha256));
+    batches.push({ id: b.id, phase: p.id, phase_slice: p.phase_vertical_slice.id, goal: b.goal, tasks,
+      status: sameCards && pb.status === 'delivered' ? 'delivered' : 'pending', ...(sameCards && pb.deliveredAt ? { deliveredAt: pb.deliveredAt } : {}) });
+  }
+  const allCards = new Set(batches.flatMap(b => b.tasks.map(t => t.card_id)));
+  for (const b of batches) for (const t of b.tasks) for (const x of t.card.blocked_by) if (!allCards.has(x)) reasons.push('BLOCKED_BY_UNKNOWN ' + t.card_id + '→' + x);
+  if (reasons.length) out({ verdict: 'FAIL', reason: 'INIT_FAILED', reasons }, 1);
+  s.batches = batches; s.batch = null;
+  syncGlobal(s);
+  s.history.push({ at: nowISO(), event: 'init' });
+  L.saveState(P, s);
+  out({ verdict: 'PASS', state: s.state, ready_to_dispatch: readyBatches(s).map(x => x.id), batches: batches.map(b => `${b.phase}/${b.id}:${b.tasks.length}卡:${b.st

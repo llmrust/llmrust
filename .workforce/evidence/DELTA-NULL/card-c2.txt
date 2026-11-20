@@ -1,0 +1,34 @@
+=== C2: three independent cargo test commands @ 2026-11-20T17:07:51.9460612+08:00 ===
+
+--- [1] cargo test --lib providers::compat::tests::stream_terminal_chunk_with_null_delta_parses ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+
+running 1 test
+test providers::compat::tests::stream_terminal_chunk_with_null_delta_parses ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.00s
+
+EXIT_CODE(1)=0
+
+--- [2] cargo test --lib providers::compat::tests::stream_delta_content_still_parses_with_option ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+
+running 1 test
+test providers::compat::tests::stream_delta_content_still_parses_with_option ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.00s
+
+EXIT_CODE(2)=0
+
+--- [3] cargo test --lib providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+
+running 1 test
+test providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.00s
+
+EXIT_CODE(3)=0

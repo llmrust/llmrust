@@ -1,0 +1,30 @@
+pre-injection sha256 = 1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9
+pristine backup      = E:\Temp\qa-delta-null\compat.rs.pristine
+
+[baseline] exit=0 {'stream_delta_content_still_parses_with_option': 'ok', 'stream_terminal_chunk_with_absent_delta_parses': 'ok', 'stream_terminal_chunk_with_null_delta_parses': 'ok'}
+
+[A] injected consumer-side .expect()  sha=9661c9b8fcfcafe1ec80ed066df89d54445b2ca6b393b7e92bdd378fae92bc80
+[A] exit=101 red=['stream_terminal_chunk_with_null_delta_parses', 'stream_terminal_chunk_with_absent_delta_parses']
+[A] restored, sha=1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9 == 1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9
+
+[B] injected struct-side delta: CompDelta (serde(default) kept)  sha=1273bae33c388540b6f540b6edd863af891c7a53bf2ccd5739bc82538de32b74
+[B] exit=101 red=['stream_terminal_chunk_with_null_delta_parses'] (compiled=True)
+[B] restored, sha=1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9 == 1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9
+
+[C] full revert to pre-fix shape  sha=6c418e57a395d22fe74a274073f3d2178efcb38a7acd6229aecc18c8bca2be5a
+[C] exit=101 red=['stream_terminal_chunk_with_null_delta_parses', 'stream_terminal_chunk_with_absent_delta_parses'] (compiled=True)
+[C] restored, sha=1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9 == 1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9
+
+[restored] exit=0 {'stream_delta_content_still_parses_with_option': 'ok', 'stream_terminal_chunk_with_null_delta_parses': 'ok', 'stream_terminal_chunk_with_absent_delta_parses': 'ok'}
+
+=== SUMMARY ===
+  Required by card c3: reverting the fix must turn >= 2 of the 3 tests red.
+  Mutation B is a DIAGNOSTIC (keeps `#[serde(default)]`, drops only `Option`):
+  it is expected to red exactly the null case and keep the absent case green,
+  which proves test1 is pinned by `Option` and test3 by `serde(default)`.
+  mutation A: exit=101 red_tests=2/3 -> PASS (>=2 red)
+  mutation B: exit=101 red_tests=1/3 -> diagnostic
+  mutation C: exit=101 red_tests=2/3 -> PASS (>=2 red)
+  restored: exit=0 all3_ok=True sha_matches=True
+  final sha = 1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9
+  VERDICT   = PASS

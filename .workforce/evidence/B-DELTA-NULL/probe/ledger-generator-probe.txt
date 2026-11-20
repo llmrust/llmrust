@@ -1,0 +1,28 @@
+{
+  "verdict": "FAIL",
+  "reason": "UNKNOWN_COMMAND ledger",
+  "commands": [
+    "status",
+    "guard",
+    "check-drift",
+    "validate-skill",
+    "scaffold",
+    "config-check",
+    "ready",
+    "architect-spec",
+    "spec-review",
+    "spec-revise",
+    "spec-approve",
+    "spec-confirm",
+    "init",
+    "dispatch",
+    "handoff",
+    "evidence",
+    "accept",
+    "release",
+    "premerge",
+    "deliver",
+    "reopen",
+    "user-issue"
+  ]
+}

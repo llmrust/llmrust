@@ -1,0 +1,9 @@
+{
+  "schema": "agent-workforce-signoff/v1",
+  "role": "architect",
+  "agent": "architect-llmrust",
+  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "agreed": true,
+  "comments": "首个批次：C-DELTA-NULL（OpenAI 兼容流末帧 delta:null 修复）；scope 2 文件；判据 7 条全可机判。v2 修订：KI-PKG-GLOB 转 resolved（5084e93 实测 package_guard 4 passed）；卡面 agent 席位名改为 <role>-llmrust，同时满足 agentMatchesSeat 精确匹配与 ^<role>- 前缀校验。",
+  "signedAt": "2026-11-20T09:23:39.739Z"
+}

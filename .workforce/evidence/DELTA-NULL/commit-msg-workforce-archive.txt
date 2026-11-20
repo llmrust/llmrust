@@ -1,0 +1,26 @@
+chore(workforce): B-DELTA-NULL 首个批次的卡/回执/证据归档
+
+task-ids: DELTA-NULL
+
+归档首个批次 B-DELTA-NULL（卡 C-DELTA-NULL，OpenAI 兼容流末帧
+`delta:null` / 字段缺失修复，代码已在 916c66b 合入 main）的全部
+运行态与证据：
+
+- .workforce/cards/C-DELTA-NULL.json —— 7 条可机判验收标准
+- .workforce/spec.json —— 已由 architect 修订（spec sha256
+  f31889df…），卡面 owner_agent 修正为 `dev-llmrust`
+- .workforce/signoffs/ —— 七签（architect/dev/qa/gate/ci/ledger/lead）
+- .workforce/evidence/B-DELTA-NULL/ —— 四份工种回执
+  （dev-C-DELTA-NULL / qa-C-DELTA-NULL / gate / ledger）
+  + merge.json + merge-result.txt + architect-ledger-approval.json
+  + probe/ 下的实测证据（c2/c3/c4/c5/c7 探针输出、真实端点 SSE 抓包、
+  注入验红与恢复日志）
+- .workforce/evidence/DELTA-NULL/ —— dev 在卡面定名前的同批证据与探针
+
+刻意**不提交** .workforce/evidence/B-DELTA-NULL/ci.json：该回执把自身
+绑在 `pushed.head_sha == 当前 HEAD` 上，提交它会让 HEAD 前移从而使回执
+自相矛盾（提交即失效）。它按 release 的脏检查路径豁免留在工作树中，
+CI 是否真绿由 ci 工种现场用 `gh run list --commit <HEAD>` 复查。
+
+证据文件一律使用 .txt/.md/.json/.py/.mjs 扩展名，无 .log —— 保证
+`cargo package` 产物不含日志、package_guard 保持绿。

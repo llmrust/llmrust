@@ -1,0 +1,94 @@
+{
+  "schema": "agent-workforce-spec/v1",
+  "produced_by": "architect-llmrust",
+  "inputs_read": [
+    "AGENTS.md",
+    "AGENT_MANIFESTO.md",
+    "docs/PROJECT_MAP.md",
+    "docs/CONTRACTS.md",
+    "docs/CAPABILITIES.md",
+    "docs/SPCC-0.1.4.md",
+    "tests/hotspot_ledger.json",
+    "tests/architecture_guard.rs",
+    "tests/package_guard.rs",
+    ".agents/skills/agent-workforce-loop/SKILL.md",
+    ".agents/skills/agent-workforce-loop/references/spec-structure.md",
+    ".agents/skills/agent-workforce-loop/references/roles.md",
+    ".workforce/config.json"
+  ],
+  "constitution": {
+    "priority": "highest",
+    "articles": [
+      {
+        "id": "K-01",
+        "text": "流式契约不得静默丢弃：OpenAI 兼容流的末帧无论 `delta` 为 null、缺失还是正常增量，都必须被解析为「无增量 + finish_reason」，不得让整个流因一帧解析失败而返回 LlmError::Parse（docs/CONTRACTS.md §stream 第 5 条「No silent drops」）。",
+        "enforced_by": "cargo test --workspace exit 0，且其中 stream_terminal_chunk_with_null_delta_parses / stream_terminal_chunk_with_absent_delta_parses / stream_delta_content_still_parses_with_option 三条用例结果为 ok（非 ignored）"
+      },
+      {
+        "id": "K-02",
+        "text": "热点台账是数值门禁的唯一事实源，且双向（current != expected）：tests/hotspot_ledger.json 的 baseline_lines 必须等于文件实测行数，任何基线变更只能以追加 adjustments[] 的 truth correction 形式发生，且该项属架构师专属权限（SPCC-0.1.4 §4.4 / §9.2 第 1 条 / §11.1.4）。",
+        "enforced_by": "cargo test --test architecture_guard exit 0（15 passed, 0 failed），其中 hotspot_files_do_not_grow 与 hotspot_coverage_is_complete 覆盖双向判定"
+      },
+      {
+        "id": "K-03",
+        "text": "发布包必须干净：.workforce 运行态与日志不得进入 cargo 包（否则 package_guard 红）。",
+        "enforced_by": "cargo test --test package_guard exit 0（4 passed, 0 failed）"
+      },
+      {
+        "id": "K-04",
+        "text": "零 skip、零 ignore、零放宽：任何判据不得标 SKIP，不得新增 #[ignore] 或 #[should_panic] 来绕开失败，不得删改既有测试断言。",
+        "enforced_by": "cargo test --workspace 输出中 ignored 计数为 0 且 exit 0；git diff 中不得出现既有断言行的删除，且不得新增 #[ignore] / #[should_panic]"
+      },
+      {
+        "id": "K-05",
+        "text": "不虚报：完成口径只认机器实测的 exit code 与 sha256，不认叙述性文档、回执自述或「我准备做」。",
+        "enforced_by": "gate 回执逐条记录 config.gates.required_commands 的 exit code 原文；accept 时重跑比对"
+      }
+    ]
+  },
+  "total_vertical_slice": {
+    "id": "VS-0",
+    "goal": "llmrust 0.1.5 对下游（beeli 纵切 S3）可用：用户一句任务 → 客户端经 OpenAI 兼容端点完成一次带工具调用的流式回合，末帧不再把整条流打成 LlmError::Parse /「Invalid response」。",
+    "acceptance": "cargo test --workspace / cargo build --workspace / cargo fmt --all --check / cargo clippy --workspace --all-targets -- -D warnings 四条均 exit 0；architecture_guard 与 package_guard 双绿；tests/hotspot_ledger.json 的 baseline_lines 与实测行数一致；注入回退（delta 改回非 Option）必须验红。",
+    "serves_all_modules": true
+  },
+  "known_issues": [
+    {
+      "id": "KI-PKG-GLOB",
+      "found_by": "architect-llmrust",
+      "found_at": "2026-11-20",
+      "severity": "resolved",
+      "statement": "`cargo test --test package_guard` 当前为红（实测 `test result: FAILED. 3 passed; 1 failed`），失败用例 `package_list_contains_only_allowed_files` 报 4 个禁止条目：`.workforce/evidence/DELTA-NULL/{api002,ci003,msrv,test-stable}.log`。根因：`dc1e754` 追加的忽略规则写成单星 `.workforce/evidence/*.log`，只匹配 `evidence/` 根层，不匹配 `evidence/DELTA-NULL/` 子目录；这 4 个文件既未被跟踪、也未被忽略，故被 `cargo package --list --allow-dirty` 收进产物。",
+      "impact": "VS-0 验收口径要求 package_guard 绿，但该缺陷的修复落点（`.gitignore` 改为 `.workforce/evidence/**/*.log`，或删除这 4 个未跟踪文件）不在 C-DELTA-NULL 的 write_scopes（`src/providers/compat.rs`、`tests/hotspot_ledger.json`）内，dev 不得代改。",
+      "resolution_owner": "lead",
+      "resolution": "已由 5084e93 修复：.gitignore 追加 .workforce/evidence/**/*.log 与 .workforce/**/*.log 递归 glob。实测 cargo test --test package_guard = ok. 4 passed; 0 failed; 0 ignored；cargo package --list --allow-dirty 中 *.log 条目数为 0。C-DELTA-NULL 的 c5 第 ② 项因此可转绿。",
+      "verification": "修复后 `cargo test --test package_guard` 须 exit 0 且 stdout 含 `test result: ok. 4 passed; 0 failed; 0 ignored`；同时 `cargo package --list --allow-dirty` 输出中 `*.log` 条目数为 0。",
+      "resolved_at": "2026-11-20",
+      "resolved_by_commit": "5084e93"
+    }
+  ],
+  "phases": [
+    {
+      "id": "PH-0.1.5",
+      "phase_vertical_slice": {
+        "id": "VS-1",
+        "goal": "OpenAI 兼容端点的流式末帧可解析：`{\"delta\":null,\"finish_reason\":\"stop\"}` 与「字段缺失」两种上游形态都能走完流并拿到 done 终态，正常增量不受影响；同时热点台账与发布包门禁保持绿。",
+        "serves": "VS-0"
+      },
+      "batches": [
+        {
+          "id": "B-DELTA-NULL",
+          "goal": "修 OpenAI 兼容流末帧 delta:null / 字段缺失导致的整条流解析失败，并以三条回归测试 + 注入验红钉住；同步把 tests/hotspot_ledger.json 的 compat.rs 基线按 §11.1.4 追认为实测值（本批 adjustment 由 dev 代写，待 architect 追认）。",
+          "tasks": [
+            {
+              "id": "T-DELTA-NULL",
+              "role": "dev",
+              "card": "C-DELTA-NULL"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "revision_note": "v2（2026-11-20）：① KI-PKG-GLOB 由 blocking 改为 resolved（5084e93 已修，实测 package_guard 4 passed）；② 卡 C-DELTA-NULL 的四个 agent 席位名改为 <role>-llmrust 形式（dev-llmrust / qa-llmrust / gate-llmrust / ledger-llmrust），以同时满足 lib.mjs agentMatchesSeat 的精确匹配分支与 checkEvidence 的 ^<role>- 前缀校验；原 llmrust-dev 含连字符故只能走精确匹配，必然与 ^dev- 冲突，属无解写法。"
+}

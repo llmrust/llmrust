@@ -1,0 +1,512 @@
+cache_control::tests::cache_policy_absent_sends_no_marker_and_keeps_system_as_string: test
+cache_control::tests::cache_policy_long_adds_one_hour_ttl: test
+cache_control::tests::cache_policy_marks_at_most_convention_breakpoints: test
+cache_control::tests::cache_policy_none_is_equivalent_to_absent: test
+cache_control::tests::cache_policy_short_marks_three_convention_breakpoints: test
+cache_control::tests::cache_policy_without_system_marks_tool_and_last_message_only: test
+capability_table::tests::cache_price_with_none_mode_is_a_problem: test
+capability_table::tests::consistent_table_has_no_problems: test
+capability_table::tests::extract_generated_block_handles_missing_sentinels: test
+capability_table::tests::max_output_above_window_is_a_problem: test
+capability_table::tests::negative_price_is_a_problem: test
+capability_table::tests::render_is_deterministic_and_sorted: test
+catalog::tests::access_path_ids_are_unique: test
+catalog::tests::catalog_excludes_third_party_aggregators: test
+catalog::tests::every_access_path_model_exists: test
+catalog::tests::every_model_is_reachable_through_some_path: test
+catalog::tests::model_ids_are_unique: test
+catalog::tests::model_windows_are_positive: test
+pricing::tests::cache_counts_larger_than_prompt_do_not_underflow: test
+pricing::tests::cache_hit_is_cheaper_than_uncached_and_1h_write_costs_more: test
+pricing::tests::cache_prices_split_the_prompt_count: test
+pricing::tests::cache_pricing_ignores_total_tokens: test
+pricing::tests::cache_pricing_serde_round_trip: test
+pricing::tests::estimated_cost_does_not_double_count_cache_or_reasoning_tokens: test
+pricing::tests::estimates_cost_from_separate_rates: test
+pricing::tests::prompt_and_completion_priced_independently: test
+pricing::tests::serde_round_trips: test
+pricing::tests::unconfigured_cache_pricing_matches_legacy_estimate: test
+pricing::tests::unconfigured_write_tier_falls_back_to_prompt_rate_not_zero: test
+pricing::tests::usage_method_matches_pricing_method: test
+pricing::tests::zero_usage_is_zero_cost: test
+providers::anthropic::tests::assistant_tool_calls_and_results_serialize_as_blocks: test
+providers::anthropic::tests::chat_usage_maps_cache_and_thinking: test
+providers::anthropic::tests::chat_with_thinking_is_unsupported_before_network: test
+providers::anthropic::tests::data_url_image_becomes_base64_block: test
+providers::anthropic::tests::http_url_image_becomes_url_block: test
+providers::anthropic::tests::image_message_serializes_as_content_blocks: test
+providers::anthropic::tests::message_start_usage_merges_cache_and_thinking: test
+providers::anthropic::tests::omitted_stop_is_not_serialized: test
+providers::anthropic::tests::response_tool_use_block_parsed_into_tool_calls: test
+providers::anthropic::tests::response_with_non_text_blocks_is_tolerated: test
+providers::anthropic::tests::split_messages_concatenates_multiple_system_messages: test
+providers::anthropic::tests::split_messages_extracts_system_text: test
+providers::anthropic::tests::stop_sequences_are_forwarded: test
+providers::anthropic::tests::stream_error_event_yields_stream_error: test
+providers::anthropic::tests::stream_malformed_json_yields_parse_error: test
+providers::anthropic::tests::stream_message_delta_translates_usage: test
+providers::anthropic::tests::stream_message_stop_and_unknown_events_are_ignored: test
+providers::anthropic::tests::stream_reconstructs_tool_calls: test
+providers::anthropic::tests::stream_redacted_thinking_marks_thinking_done: test
+providers::anthropic::tests::stream_signature_delta_marks_thinking_done: test
+providers::anthropic::tests::stream_text_deltas_have_no_tool_calls: test
+providers::anthropic::tests::stream_thinking_delta_produces_thinking_chunk: test
+providers::anthropic::tests::stream_truncated_json_yields_parse_error: test
+providers::anthropic::tests::text_message_serializes_as_plain_string: test
+providers::anthropic::tests::thinking_disabled_omits_field: test
+providers::anthropic::tests::thinking_done_emitted_only_once: test
+providers::anthropic::tests::thinking_enabled_serializes_with_budget: test
+providers::anthropic::tests::thinking_enabled_without_budget_errors: test
+providers::anthropic::tests::tool_choice_maps_to_anthropic: test
+providers::anthropic::tests::tools_serialize_with_input_schema: test
+providers::anthropic::tests::usage_missing_fields_stay_none: test
+providers::capabilities::tests::capabilities_serialize_to_the_expected_shape: test
+providers::capabilities::tests::coherence_reports_bad_dates: test
+providers::capabilities::tests::coherence_reports_empty_protocol: test
+providers::capabilities::tests::images_on_unsupported_provider_are_rejected: test
+providers::capabilities::tests::levels_are_five_and_stable: test
+providers::capabilities::tests::model_dependent_and_passthrough_are_not_rejected: test
+providers::capabilities::tests::multiple_verdicts_are_reported_together: test
+providers::capabilities::tests::n_greater_than_one_warns_but_does_not_reject: test
+providers::capabilities::tests::streaming_tools_consult_the_stream_capability: test
+providers::capabilities::tests::supported_paths_yield_no_verdicts: test
+providers::capabilities::tests::tools_on_unsupported_provider_are_rejected: test
+providers::capabilities::tests::unknown_is_conservative_not_optimistic: test
+providers::capabilities::tests::verdict_messages_do_not_leak_content: test
+providers::capabilities::tests::verified_requires_evidence_and_others_forbid_it: test
+providers::compat::tests::assistant_tool_call_message_omits_empty_content: test
+providers::compat::tests::compat_stream_done_still_returns_done_chunk: test
+providers::compat::tests::compat_stream_ignores_non_data_lines: test
+providers::compat::tests::compat_stream_malformed_data_returns_parse_error: test
+providers::compat::tests::disabled_thinking_omits_reasoning_effort: test
+providers::compat::tests::embed_error_response_parses_message: test
+providers::compat::tests::embed_request_serializes_correctly: test
+providers::compat::tests::embed_response_falls_back_to_request_model: test
+providers::compat::tests::embed_response_parses_correctly: test
+providers::compat::tests::omits_unset_sampling_params: test
+providers::compat::tests::openai_chat_with_thinking_is_unsupported_before_network: test
+providers::compat::tests::openai_compatible_embed_via_lmrs_client_strips_prefix: test
+providers::compat::tests::openai_stream_thinking_sends_reasoning_effort: test
+providers::compat::tests::openai_stream_with_budget_is_unsupported: test
+providers::compat::tests::parses_logprobs_from_response: test
+providers::compat::tests::parses_tool_calls_from_response: test
+providers::compat::tests::serializes_sampling_params_and_response_format: test
+providers::compat::tests::serializes_tools_and_tool_choice: test
+providers::compat::tests::sse_chunk_stream_error_line_does_not_flush: test
+providers::compat::tests::sse_chunk_stream_flushes_pending_tool_calls_on_clean_eof: test
+providers::compat::tests::sse_chunk_stream_parse_error_does_not_flush: test
+providers::compat::tests::sse_chunk_stream_parse_error_then_done_does_not_flush: test
+providers::compat::tests::sse_chunk_stream_well_behaved_stream_unchanged: test
+providers::compat::tests::stream_accumulates_tool_call_fragments: test
+providers::compat::tests::stream_delta_content_still_parses_with_option: test
+providers::compat::tests::stream_done_without_finish_reason_flushes_tool_calls: test
+providers::compat::tests::stream_reasoning_content_delta_mapped_to_thinking: test
+providers::compat::tests::stream_reasoning_delta_mapped_to_thinking: test
+providers::compat::tests::stream_reasoning_terminal_chunk_marks_thinking_done: test
+providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses: test
+providers::compat::tests::stream_terminal_chunk_with_null_delta_parses: test
+providers::compat::tests::stream_without_tool_calls_has_none: test
+providers::compat::tests::tool_message_serializes_with_id: test
+providers::compat::tests::usage_missing_cache_fields_stay_none: test
+providers::compat::tests::usage_translates_cache_and_reasoning_tokens: test
+providers::compat::tests::user_image_message_serializes_as_content_parts: test
+providers::compat::tests::wrapper_chat_and_stream_with_thinking_are_unsupported: test
+providers::compat::tests::wrapper_disabled_thinking_is_not_blocked: test
+providers::google::tests::chat_with_thinking_is_unsupported_before_network: test
+providers::google::tests::concurrent_same_name_tool_calls_get_unique_ids: test
+providers::google::tests::data_url_maps_to_inline_data: test
+providers::google::tests::empty_generation_config_returns_none: test
+providers::google::tests::function_declarations_serialize: test
+providers::google::tests::gemini_logprobs_parsed_into_logprobs: test
+providers::google::tests::generation_config_forwards_sampling_params: test
+providers::google::tests::http_image_url_is_skipped: test
+providers::google::tests::json_mode_sets_response_mime_type: test
+providers::google::tests::json_schema_sets_response_schema: test
+providers::google::tests::json_tool_result_is_passed_through_as_object: test
+providers::google::tests::logprobs_map_to_gemini_fields: test
+providers::google::tests::response_function_call_part_parsed: test
+providers::google::tests::roundtrip_resolves_name_from_tool_call_id: test
+providers::google::tests::stream_and_chat_produce_same_id_format: test
+providers::google::tests::stream_empty_candidates_without_usage_is_ignored: test
+providers::google::tests::stream_error_event_yields_stream_error: test
+providers::google::tests::stream_malformed_json_yields_parse_error: test
+providers::google::tests::stream_surfaces_function_call_as_tool_calls: test
+providers::google::tests::stream_text_chunk_has_no_tool_calls: test
+providers::google::tests::stream_text_delta_still_produced: test
+providers::google::tests::stream_thought_marks_thinking_done_on_terminal: test
+providers::google::tests::stream_thought_part_mapped_to_thinking: test
+providers::google::tests::stream_truncated_json_yields_parse_error: test
+providers::google::tests::stream_without_thought_has_no_thinking_done: test
+providers::google::tests::text_content_maps_to_text_part: test
+providers::google::tests::thinking_disabled_omits_thinking_config: test
+providers::google::tests::thinking_done_emitted_at_most_once: test
+providers::google::tests::thinking_enabled_serializes_thinking_config: test
+providers::google::tests::thinking_enabled_without_budget_omits_budget: test
+providers::google::tests::tool_choice_maps_to_gemini_mode: test
+providers::google::tests::tool_messages_build_function_call_and_response: test
+providers::google::tests::unknown_finish_reason_round_trips_through_other: test
+providers::google::tests::unspecified_finish_reason_is_not_reported_as_stop: test
+providers::google::tests::unspecified_is_distinguishable_from_a_real_stop: test
+providers::google::tests::unspecified_still_terminates_the_stream: test
+providers::google::tests::usage_translates_thoughts_token_count: test
+providers::http::tests::builds_hosted_client_with_overall_timeout: test
+providers::http::tests::builds_local_client_without_overall_timeout: test
+providers::ollama::tests::lmrs_client_ollama_embed_strips_prefix: test
+providers::ollama::tests::ollama_chat_thinking_disabled_passes_through: test
+providers::ollama::tests::ollama_chat_thinking_enabled_returns_unsupported_without_network: test
+providers::ollama::tests::ollama_chat_thinking_unset_passes_through: test
+providers::ollama::tests::ollama_embed_accepts_batch_and_preserves_order: test
+providers::ollama::tests::ollama_embed_does_not_send_user: test
+providers::ollama::tests::ollama_embed_forwards_truncate_options_keep_alive_from_extra: test
+providers::ollama::tests::ollama_embed_malformed_response_returns_parse: test
+providers::ollama::tests::ollama_embed_maps_api_error: test
+providers::ollama::tests::ollama_embed_model_falls_back_to_request_model: test
+providers::ollama::tests::ollama_embed_parses_usage_from_prompt_eval_count: test
+providers::ollama::tests::ollama_embed_posts_to_api_embed: test
+providers::ollama::tests::ollama_embed_sends_dimensions: test
+providers::ollama::tests::ollama_stream_ignores_empty_lines: test
+providers::ollama::tests::ollama_stream_malformed_json_returns_parse_error: test
+providers::ollama::tests::ollama_stream_thinking_enabled_returns_unsupported_without_network: test
+providers::ollama::tests::ollama_stream_valid_chunk_still_parses: test
+providers::retry::tests::backoff_jitter_is_random: test
+providers::retry::tests::backoff_produces_increasing_delays: test
+providers::retry::tests::backoff_respects_max: test
+providers::retry::tests::does_not_retry_4xx: test
+providers::retry::tests::exhausts_retries: test
+providers::retry::tests::h1_decorator_forwards_capability_declaration: test
+providers::retry::tests::h1_decorator_forwards_protocol_name: test
+providers::retry::tests::h1_decorator_forwards_retry_after_hint: test
+providers::retry::tests::h2_absurd_years_return_none_without_panicking: test
+providers::retry::tests::h2_arithmetic_is_saturating_not_wrapping: test
+providers::retry::tests::h2_valid_four_digit_years_still_parse: test
+providers::retry::tests::hint_is_capped_even_if_passed_directly: test
+providers::retry::tests::local_backoff_still_doubles_and_is_capped: test
+providers::retry::tests::retries_and_succeeds: test
+providers::retry::tests::retry_after_absent_or_empty_yields_none: test
+providers::retry::tests::retry_after_absurd_values_are_capped: test
+providers::retry::tests::retry_after_delay_seconds_is_honored: test
+providers::retry::tests::retry_after_http_date_is_honored_relative_to_now: test
+providers::retry::tests::retry_after_malformed_yields_none: test
+providers::retry::tests::retry_after_past_http_date_clamps_to_zero: test
+providers::retry::tests::retry_provider_delegates_embed: test
+providers::retry::tests::retry_provider_keeps_unsupported_for_chat_only_provider: test
+providers::retry::tests::retry_provider_retries_transient_embedding_failure: test
+providers::retry::tests::stream_retries_and_succeeds: test
+providers::retry::tests::succeeds_on_first_try: test
+providers::retry::tests::upstream_hint_takes_precedence_over_local_backoff: test
+providers::retry::tests::zero_hint_does_not_become_a_busy_loop: test
+providers::stream_state::tests::t1_finish_then_usage_then_done: test
+providers::stream_state::tests::t2_usage_then_finish: test
+providers::stream_state::tests::t3_error_after_content: test
+providers::stream_state::tests::t4_tool_fragments: test
+providers::stream_state::tests::t5_duplicate_done: test
+providers::stream_state::tests::t6_post_terminal_content: test
+providers::stream_state::tests::t7_empty_start_terminal: test
+providers::stream_state::tests::t8_no_done_on_end: test
+providers::stream_state::tests::t9_reasoning_preserved: test
+providers::stream_util::tests::reassembles_line_split_across_chunks: test
+providers::stream_util::tests::reassembles_multibyte_utf8_split_across_chunks: test
+providers::stream_util::tests::splits_multiple_lines_and_flushes_tail: test
+providers::stream_util::tests::strips_crlf_line_endings: test
+providers::tests::degradation_message_does_not_contain_the_raw_arguments: test
+providers::tests::invalid_tool_arguments_degrade_to_empty_object: test
+providers::tests::n_greater_than_one_is_unsupported: test
+providers::tests::n_one_or_none_is_supported: test
+providers::tests::provider_config_debug_masks_sensitive_fields: test
+providers::tests::serde_error_display_carries_position_not_payload: test
+providers::tests::valid_tool_arguments_parse_unchanged: test
+router::tests::all_deployments_fail_returns_last_error: test
+router::tests::concurrent_groups_do_not_interfere: test
+router::tests::cooldown_expires_and_retries_primary: test
+router::tests::cooldown_fail_open_when_all_deployments_are_cooling: test
+router::tests::cooldown_not_marked_for_api_400: test
+router::tests::cooldown_not_marked_for_parse_error: test
+router::tests::cooldown_skips_recently_failed_primary: test
+router::tests::default_router_does_not_skip_failed_primary: test
+router::tests::error_kind_mapping_reflects_the_real_classification: test
+router::tests::error_kinds_are_not_all_collapsed_to_one_value: test
+router::tests::falls_back_on_transient_error: test
+router::tests::independent_routers_have_independent_counters: test
+router::tests::ordered_strategy_ignores_counters_across_groups: test
+router::tests::permanent_error_is_not_retried: test
+router::tests::round_robin_composes_with_cooldown: test
+router::tests::round_robin_rotates_start: test
+router::tests::round_robin_starts_are_isolated_per_group: test
+router::tests::round_robin_unknown_group_forwards_literal: test
+router::tests::single_group_round_robin_cycles_unchanged: test
+router::tests::stream_falls_back_on_transient_error: test
+router::tests::stream_initial_failure_marks_cooldown: test
+router::tests::successful_deployment_clears_cooldown: test
+router::tests::unknown_group_routes_directly: test
+tests::stream_collect_full_keeps_terminal_usage_tools_finish: test
+tests::stream_collect_full_thinking_delta_returns_unsupported: test
+tests::stream_collect_full_thinking_done_returns_unsupported: test
+tests::stream_collect_plain_text_concatenates_unchanged: test
+tests::stream_collect_propagates_parse_error: test
+tests::stream_collect_thinking_delta_returns_unsupported: test
+types::tests::chat_request_from_messages_sets_messages: test
+types::tests::chat_request_sampling_builders_set_fields: test
+types::tests::chat_response_serializes_logprobs_only_when_present: test
+types::tests::content_deserializes_from_string_and_array: test
+types::tests::content_parts_serialize_as_openai_array: test
+types::tests::content_text_serializes_as_string: test
+types::tests::message_user_with_image_holds_parts: test
+types::tests::response_format_serializes_as_openai_wire_format: test
+types::tests::stream_chunk_serializes_tool_calls_only_when_present: test
+types::tests::tool_choice_function_serializes_as_object: test
+types::tests::tool_choice_mode_serializes_as_string: test
+types::tests::tool_message_has_role_and_id: test
+types::tests::tool_serializes_with_function_schema: test
+
+259 tests, 0 benchmarks
+agent_docs_free_of_dangerous_phrases: test
+capabilities_json_description_has_disclaimer: test
+capabilities_json_exists_and_is_valid: test
+capabilities_json_has_name_and_version: test
+capabilities_json_n_policy: test
+capabilities_json_no_retry_on_includes_429: test
+capabilities_json_providers_complete: test
+capabilities_json_providers_have_reasoning_matrix: test
+capabilities_json_providers_have_verified_at: test
+capabilities_json_proxy_auth_config: test
+capabilities_json_proxy_lists_embeddings_endpoint: test
+capabilities_json_version_matches_crate_version: test
+capabilities_md_has_disclaimer: test
+capabilities_md_no_stale_forwarding_claim: test
+capabilities_md_ollama_lists_reasoning_unsupported: test
+changelog_first_heading_matches_cargo_version: test
+clean_text_has_no_dangerous_phrases: test
+dangerous_phrases_are_case_distinct: test
+examples_readme_lists_only_registered_examples: test
+extracted_checks_agree_with_the_real_repo: test
+negative_changelog_unreleased_placeholder_is_reported: test
+negative_changelog_version_mismatch_is_reported: test
+negative_dangerous_phrase_case_variants_are_reported: test
+negative_dangerous_phrases_are_reported: test
+negative_empty_readme_table_is_reported: test
+negative_missing_historical_headers_are_reported: test
+negative_readme_phantom_example_is_reported: test
+proxy_server_command_includes_features_proxy: test
+
+28 tests, 0 benchmarks
+chat_response_shape_is_frozen: test
+finish_reason_variant_set_is_frozen: test
+inventory_is_adjudicated_baseline: test
+negative_loosened_classification_is_reported: test
+negative_missing_frozen_symbol_is_reported: test
+negative_non_exhaustive_on_frozen_symbol_is_reported: test
+negative_stable_additive_without_non_exhaustive_is_reported: test
+proxy_module_is_unstable: test
+real_inventory_passes_the_extracted_comparison: test
+stable_additive_symbols_require_non_exhaustive: test
+stable_symbols_are_not_misclassified: test
+thinking_config_is_stable_but_not_root_reexported: test
+
+12 tests, 0 benchmarks
+dependency_edges_are_respected: test
+grd004_attributed_use_is_caught: test
+grd004_braced_multiline_use_is_caught: test
+grd004_commented_out_use_is_not_flagged: test
+grd004_edges_are_file_scoped: test
+grd004_macro_internal_use_is_caught: test
+grd004_multiline_use_is_caught: test
+grd004_plain_use_is_caught: test
+grd004_pub_crate_use_is_caught: test
+grd004_pub_use_is_caught: test
+grd004_unrelated_mentions_are_not_flagged: test
+hotspot_coverage_detects_unlisted_oversized_file: test
+hotspot_coverage_is_complete: test
+hotspot_files_do_not_grow: test
+hotspot_ledger_is_consistent: test
+
+15 tests, 0 benchmarks
+all_seven_providers_declare_coherent_capabilities: test
+capabilities_are_built_through_the_constructor_api: test
+declared_providers_match_the_json_inventory_keys: test
+default_warn_is_idempotent: test
+downstream_provider_without_capabilities_still_compiles_and_is_conservative: test
+every_provider_claims_chat_and_stream: test
+ollama_tool_calling_is_declared_unsupported: test
+verified_levels_carry_a_date_and_evidence_kind: test
+
+8 tests, 0 benchmarks
+capability_adjudication_lives_at_the_entry_point_only: test
+declared_unsupported_is_the_only_reject_path: test
+ollama_declaration_is_the_basis_for_the_rejections: test
+ollama_images_are_rejected: test
+ollama_n_greater_than_one_is_not_rejected: test
+ollama_streaming_tools_are_rejected_on_the_stream_face: test
+ollama_tools_are_rejected_not_silently_dropped: test
+ollama_tools_are_still_rejected_after_with_retry: test
+tools_pass_cleanly_when_the_capability_is_implemented: test
+undeclared_provider_is_warned_not_rejected: test
+
+10 tests, 0 benchmarks
+all_three_carriers_cover_the_same_providers: test
+consistent_carriers_produce_no_problems: test
+documentation_matrix_matches_the_json_inventory: test
+negative_doc_overclaim_is_reported: test
+negative_doc_underclaim_is_reported: test
+negative_missing_face_in_json_is_reported: test
+negative_runtime_json_drift_is_reported: test
+negative_unreadable_cells_are_reported: test
+runtime_declaration_matches_the_json_inventory: test
+verification_levels_are_visible_in_the_documentation: test
+
+10 tests, 0 benchmarks
+capabilities_md_generated_block_matches_table: test
+generated_block_is_present_and_non_empty: test
+model_table_has_all_required_fields: test
+model_table_is_self_consistent: test
+negative_cache_price_without_cache_mode_is_reported: test
+negative_doc_drift_is_detected: test
+negative_max_output_above_window_is_reported: test
+negative_missing_sentinels_do_not_pass_silently: test
+negative_price_is_reported: test
+
+9 tests, 0 benchmarks
+model_routing_contracts::accepts_provider_model_format: test
+model_routing_contracts::forwards_model_name_without_provider_prefix: test
+model_routing_contracts::rejects_empty_model: test
+model_routing_contracts::rejects_empty_provider: test
+model_routing_contracts::rejects_model_without_provider_prefix: test
+model_routing_contracts::unknown_provider_returns_proper_error: test
+stream_contracts::stream_collect_full_stores_finish_reason: test
+stream_contracts::stream_collect_full_stores_model_name: test
+stream_contracts::stream_collect_full_stores_text: test
+stream_contracts::stream_collect_full_stores_tool_calls: test
+stream_contracts::stream_collect_full_stores_usage: test
+stream_contracts::stream_collect_propagates_error: test
+
+12 tests, 0 benchmarks
+embeddings_contracts::embed_batch_preserves_input_order: test
+embeddings_contracts::embed_rejects_empty_model: test
+embeddings_contracts::embed_rejects_empty_provider: test
+embeddings_contracts::embed_rejects_model_without_provider_prefix: test
+embeddings_contracts::embed_unknown_provider_returns_unknown_provider: test
+embeddings_contracts::embed_with_strips_provider_prefix: test
+embeddings_contracts::embedding_request_batch_sets_multiple_inputs: test
+embeddings_contracts::embedding_request_builders_set_optional_fields: test
+embeddings_contracts::embedding_request_new_sets_single_input: test
+embeddings_contracts::unsupported_provider_returns_unsupported: test
+
+10 tests, 0 benchmarks
+guard_admission_holds: test
+negative_declared_but_absent_test_is_reported: test
+negative_ghost_and_double_registration_are_reported: test
+negative_unregistered_guard_is_reported: test
+negative_zero_negative_tests_is_reported: test
+well_formed_registry_passes: test
+
+6 tests, 0 benchmarks
+tests::test_chat_request_builder: test
+tests::test_chat_request_default_no_stream: test
+tests::test_convenience_chat_and_stream_set_internal_model: test
+tests::test_from_env_registers_ollama_always: test
+tests::test_lmrs_client_parse_model_invalid: test
+tests::test_lmrs_client_parse_model_rejects_empty_parts: test
+tests::test_lmrs_client_parse_model_valid: test
+tests::test_lmrs_client_providers_empty: test
+tests::test_lmrs_client_set_all_seven_providers: test
+tests::test_lmrs_client_set_google: test
+tests::test_lmrs_client_set_moonshot: test
+tests::test_lmrs_client_set_multiple_providers: test
+tests::test_lmrs_client_set_ollama_custom_url: test
+tests::test_lmrs_client_set_ollama_default: test
+tests::test_lmrs_client_set_openai: test
+tests::test_lmrs_client_set_openai_compatible: test
+tests::test_lmrs_client_set_openrouter: test
+tests::test_message_constructors: test
+tests::test_message_serialization: test
+tests::test_prelude_reexports_compile: test
+tests::test_role_serialization: test
+
+21 tests, 0 benchmarks
+clean_listing_yields_no_violations: test
+lookalike_entries_are_not_flagged: test
+negative_forbidden_entries_are_reported: test
+package_list_contains_only_allowed_files: test
+
+4 tests, 0 benchmarks
+it1_embed_default_unsupported: test
+it2_llm_error_variants: test
+it3a_retries_5xx: test
+it3b_no_retry_4xx: test
+it3c_no_retry_429: test
+it3d_respects_max_retries: test
+it4a_embed_delegates: test
+it4b_embed_unsupported_passthrough: test
+it5_client_delegation_api_present: test
+negative_5xx_over_retry_budget_is_reported: test
+negative_retried_429_is_reported: test
+negative_retried_4xx_is_reported: test
+negative_zero_attempts_is_reported: test
+real_retry_behaviour_satisfies_the_extracted_policy: test
+
+14 tests, 0 benchmarks
+chat_response_serializes_known_shape: test
+finish_reason_known_variants_serialize_to_wire_strings: test
+finish_reason_unknown_round_trips_through_other: test
+negative_added_field_is_detected: test
+negative_array_length_change_is_detected: test
+negative_changed_value_is_detected: test
+negative_nested_removal_is_detected_with_path: test
+negative_removed_field_is_detected: test
+negative_renamed_key_is_detected: test
+none_options_are_not_reported_as_drift: test
+real_response_matches_frozen_shape_under_shape_diff: test
+stream_chunk_serializes_known_shape: test
+usage_option_token_counters_distinguish_none_from_some_zero: test
+usage_serializes_known_shape: test
+
+14 tests, 0 benchmarks
+0 tests, 0 benchmarks
+floors_are_positive: test
+governance_docs_do_not_fall_below_their_floors: test
+growth_and_equality_pass: test
+negative_missing_doc_is_reported: test
+negative_shrunk_doc_is_reported: test
+wc_l_counts_newlines_only: test
+
+6 tests, 0 benchmarks
+env_mutating_tests_hold_the_lock: test
+negative_env_mutation_without_lock_is_reported: test
+negative_exemption_is_only_this_file: test
+negative_generous_timeout_is_not_reported: test
+negative_negative_already_holding_lock_is_not_reported: test
+negative_real_repo_is_clean_today: test
+negative_short_timeout_is_reported: test
+test_timeouts_are_safety_nets_not_latency_assertions: test
+
+8 tests, 0 benchmarks
+src\lib.rs - (line 21): test
+src\lib.rs - (line 57): test
+src\lib.rs - LmrsClient::from_env (line 147): test
+src\prelude.rs - prelude (line 3): test
+src\pricing.rs - pricing (line 13): test
+src\providers\retry.rs - providers::retry (line 19): test
+src\router.rs - router (line 40): test
+src\types.rs - types::ChatRequest (line 579): test
+
+8 tests, 0 benchmarks
+   Compiling llmrust v0.1.5 (D:\llmrust-0.1.5)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.77s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+     Running tests\agent_docs_validation.rs (target\debug\deps\agent_docs_validation-147957182c421aa0.exe)
+     Running tests\api_freeze.rs (target\debug\deps\api_freeze-2db3f5be1a738429.exe)
+     Running tests\architecture_guard.rs (target\debug\deps\architecture_guard-2290ceb25243bf24.exe)
+     Running tests\cap002_contract.rs (target\debug\deps\cap002_contract-3b7bb0236eae5bf6.exe)
+     Running tests\cap003_dispatch.rs (target\debug\deps\cap003_dispatch-2899160eb6a3ed8b.exe)
+     Running tests\capability_freeze.rs (target\debug\deps\capability_freeze-341b0a8626a477f1.exe)
+     Running tests\capability_table_guard.rs (target\debug\deps\capability_table_guard-1d1e786fbfac9dcf.exe)
+     Running tests\contract_tests.rs (target\debug\deps\contract_tests-5c72a810dbb1a544.exe)
+     Running tests\embeddings_contract_tests.rs (target\debug\deps\embeddings_contract_tests-7573ab0134facbad.exe)
+     Running tests\guard_admission.rs (target\debug\deps\guard_admission-28aa34b67a8815d8.exe)
+     Running tests\integration_tests.rs (target\debug\deps\integration_tests-78a8224edf85bd5c.exe)
+     Running tests\package_guard.rs (target\debug\deps\package_guard-9a3761cce606e066.exe)
+     Running tests\provider_contract_freeze.rs (target\debug\deps\provider_contract_freeze-0a32240764e408d2.exe)
+     Running tests\response_freeze.rs (target\debug\deps\response_freeze-73bc1d93b06bca98.exe)
+     Running tests\responses_proxy_tests.rs (target\debug\deps\responses_proxy_tests-8983626885bcbb9c.exe)
+     Running tests\spcc_guard.rs (target\debug\deps\spcc_guard-b4e9df60b0b5d7f7.exe)
+     Running tests\test_hygiene_guard.rs (target\debug\deps\test_hygiene_guard-13ac00f459727c35.exe)
+   Doc-tests llmrust

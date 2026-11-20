@@ -1,0 +1,13 @@
+{
+  "schema": "agent-workforce-signoff/v1",
+  "role": "ci",
+  "agent": "ci-llmrust",
+  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "agreed": true,
+  "ci_repo": "llmrust/llmrust",
+  "pr": 251,
+  "evidence": {
+    "ci_jobs": "7 pass / 0 fail（API-002 semver 196 checks pass；Test stable 382 passed；architecture_guard 15 passed；package_guard 4 passed）"
+  },
+  "signedAt": "2026-11-20T09:25:40.475Z"
+}

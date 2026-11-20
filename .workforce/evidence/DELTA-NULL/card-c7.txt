@@ -1,0 +1,30 @@
+c7-1  baseline assert lines (unique) = 111
+c7-1  current  assert lines (unique) = 118
+c7-1  baseline - current (must be 0) = 0
+
+c7-2  baseline #[ignore]/#[should_panic] lines = 1
+      base: #[should_panic(expected = "must not be empty or whitespace-only")]
+c7-2  current  #[ignore]/#[should_panic] lines = 1
+      cur : #[should_panic(expected = "must not be empty or whitespace-only")]
+c7-2  baseline - current (must be 0) = 0
+c7-2  new in current (informational) = 0
+
+c7-3  cargo test --workspace summary lines = 19
+c7-3  unit+integration lines with ignored != 0 (must be 0) = 0
+c7-3  doc-test summary lines = 1
+      DOC: test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.86s
+c7-3  baseline doc-test ignored (worktree at 33a8e3e^) = 2
+c7-3  current  doc-test ignored = 2
+c7-3  doc-test ignored UNCHANGED vs baseline = True
+
+c7-3  pre-existing ```rust,ignore doc fences (the source of the 2 ignored):
+      src/lib.rs:57: ```rust,ignore
+      src/providers/retry.rs:19: ```rust,ignore
+      src/proxy/mod.rs:396: ```rust,ignore
+      src/proxy/mod.rs:595: ```rust,ignore
+
+============================================================
+c7-1: PASS
+c7-2: PASS
+c7-3: PASS
+C7_OVERALL: PASS

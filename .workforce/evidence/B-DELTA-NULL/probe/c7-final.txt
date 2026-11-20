@@ -1,0 +1,33 @@
+=== c7-1: existing assertion lines must not be removed/rewritten ===
+  baseline assert lines = 111
+  current  assert lines = 118
+  baseline - current    = 0
+  c7-1 PASS
+
+=== c7-2: no new #[ignore] / #[should_panic] (occurrence count) ===
+  baseline occurrences = 2
+    src/proxy/mod.rs:3292  #[should_panic(expected = "must not be empty or whitespace-only")]
+    src/proxy/mod.rs:3300  #[should_panic(expected = "must not be empty or whitespace-only")]
+  current  occurrences = 2
+    src/proxy/mod.rs:3292  #[should_panic(expected = "must not be empty or whitespace-only")]
+    src/proxy/mod.rs:3300  #[should_panic(expected = "must not be empty or whitespace-only")]
+  new positions        = 0 []
+  c7-2 PASS
+
+=== c7-3: no SKIP (unit/integration ignored == 0, doc-tests ignored <= 2) ===
+  cargo test --workspace exit = 0
+  unit/integration binaries (banners) = 18
+  test result lines                   = 19
+  non-final (unit/integration) lines  = 18
+  unit/integration lines with ignored != 0 = 0 []
+  total unit/integration ignored      = 0
+  doc-tests line                      = ('ok', 6, 0, 2)
+  doc-tests ignored = 2 (baseline 2, require <= 2)
+  banner count == unit result count   = True
+  c7-3 PASS
+
+=== SUMMARY ===
+  c7-1: PASS
+  c7-2: PASS
+  c7-3: PASS
+  VERDICT = PASS

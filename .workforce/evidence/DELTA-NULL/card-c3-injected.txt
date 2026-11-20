@@ -1,0 +1,292 @@
+=== C3 INJECTION: struct field reverted to delta: CompDelta @ 2026-11-20T17:10:31.2534901+08:00 ===
+h0 (before injection) = 1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9
+h_injected = 29c4cb7fff6ee363b33c22ef9dabc42c2878ad425aff512509ac1c314b8aa414
+
+--- cargo test --workspace ---
+   Compiling llmrust v0.1.5 (D:\llmrust-0.1.5)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.00s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-3ebff3cc792c9c20.exe)
+
+running 259 tests
+test cache_control::tests::cache_policy_absent_sends_no_marker_and_keeps_system_as_string ... ok
+test cache_control::tests::cache_policy_none_is_equivalent_to_absent ... ok
+test catalog::tests::access_path_ids_are_unique ... ok
+test cache_control::tests::cache_policy_marks_at_most_convention_breakpoints ... ok
+test cache_control::tests::cache_policy_short_marks_three_convention_breakpoints ... ok
+test capability_table::tests::consistent_table_has_no_problems ... ok
+test capability_table::tests::extract_generated_block_handles_missing_sentinels ... ok
+test capability_table::tests::max_output_above_window_is_a_problem ... ok
+test capability_table::tests::negative_price_is_a_problem ... ok
+test cache_control::tests::cache_policy_long_adds_one_hour_ttl ... ok
+test catalog::tests::catalog_excludes_third_party_aggregators ... ok
+test catalog::tests::every_access_path_model_exists ... ok
+test catalog::tests::model_ids_are_unique ... ok
+test pricing::tests::cache_counts_larger_than_prompt_do_not_underflow ... ok
+test pricing::tests::cache_prices_split_the_prompt_count ... ok
+test pricing::tests::cache_pricing_ignores_total_tokens ... ok
+test pricing::tests::estimated_cost_does_not_double_count_cache_or_reasoning_tokens ... ok
+test pricing::tests::cache_pricing_serde_round_trip ... ok
+test cache_control::tests::cache_policy_without_system_marks_tool_and_last_message_only ... ok
+test pricing::tests::prompt_and_completion_priced_independently ... ok
+test pricing::tests::estimates_cost_from_separate_rates ... ok
+test catalog::tests::model_windows_are_positive ... ok
+test pricing::tests::cache_hit_is_cheaper_than_uncached_and_1h_write_costs_more ... ok
+test capability_table::tests::cache_price_with_none_mode_is_a_problem ... ok
+test capability_table::tests::render_is_deterministic_and_sorted ... ok
+test pricing::tests::serde_round_trips ... ok
+test catalog::tests::every_model_is_reachable_through_some_path ... ok
+test pricing::tests::unconfigured_cache_pricing_matches_legacy_estimate ... ok
+test pricing::tests::usage_method_matches_pricing_method ... ok
+test pricing::tests::unconfigured_write_tier_falls_back_to_prompt_rate_not_zero ... ok
+test providers::anthropic::tests::assistant_tool_calls_and_results_serialize_as_blocks ... ok
+test pricing::tests::zero_usage_is_zero_cost ... ok
+test providers::anthropic::tests::message_start_usage_merges_cache_and_thinking ... ok
+test providers::anthropic::tests::data_url_image_becomes_base64_block ... ok
+test providers::anthropic::tests::http_url_image_becomes_url_block ... ok
+test providers::anthropic::tests::image_message_serializes_as_content_blocks ... ok
+test providers::anthropic::tests::omitted_stop_is_not_serialized ... ok
+test providers::anthropic::tests::response_tool_use_block_parsed_into_tool_calls ... ok
+test providers::anthropic::tests::response_with_non_text_blocks_is_tolerated ... ok
+test providers::anthropic::tests::chat_usage_maps_cache_and_thinking ... ok
+test providers::anthropic::tests::split_messages_concatenates_multiple_system_messages ... ok
+test providers::anthropic::tests::stream_malformed_json_yields_parse_error ... ok
+test providers::anthropic::tests::split_messages_extracts_system_text ... ok
+test providers::anthropic::tests::stop_sequences_are_forwarded ... ok
+test providers::anthropic::tests::stream_error_event_yields_stream_error ... ok
+test providers::anthropic::tests::stream_message_delta_translates_usage ... ok
+test providers::anthropic::tests::stream_message_stop_and_unknown_events_are_ignored ... ok
+test providers::anthropic::tests::chat_with_thinking_is_unsupported_before_network ... ok
+test providers::anthropic::tests::stream_redacted_thinking_marks_thinking_done ... ok
+test providers::anthropic::tests::stream_reconstructs_tool_calls ... ok
+test providers::anthropic::tests::stream_text_deltas_have_no_tool_calls ... ok
+test providers::anthropic::tests::stream_signature_delta_marks_thinking_done ... ok
+test providers::anthropic::tests::stream_thinking_delta_produces_thinking_chunk ... ok
+test providers::anthropic::tests::stream_truncated_json_yields_parse_error ... ok
+test providers::anthropic::tests::text_message_serializes_as_plain_string ... ok
+test providers::anthropic::tests::thinking_disabled_omits_field ... ok
+test providers::anthropic::tests::thinking_done_emitted_only_once ... ok
+test providers::anthropic::tests::thinking_enabled_serializes_with_budget ... ok
+test providers::anthropic::tests::thinking_enabled_without_budget_errors ... ok
+test providers::anthropic::tests::tool_choice_maps_to_anthropic ... ok
+test providers::anthropic::tests::tools_serialize_with_input_schema ... ok
+test providers::anthropic::tests::usage_missing_fields_stay_none ... ok
+test providers::capabilities::tests::capabilities_serialize_to_the_expected_shape ... ok
+test providers::capabilities::tests::coherence_reports_bad_dates ... ok
+test providers::capabilities::tests::coherence_reports_empty_protocol ... ok
+test providers::capabilities::tests::levels_are_five_and_stable ... ok
+test providers::capabilities::tests::images_on_unsupported_provider_are_rejected ... ok
+test providers::capabilities::tests::model_dependent_and_passthrough_are_not_rejected ... ok
+test providers::capabilities::tests::multiple_verdicts_are_reported_together ... ok
+test providers::capabilities::tests::n_greater_than_one_warns_but_does_not_reject ... ok
+test providers::capabilities::tests::streaming_tools_consult_the_stream_capability ... ok
+test providers::capabilities::tests::supported_paths_yield_no_verdicts ... ok
+test providers::capabilities::tests::tools_on_unsupported_provider_are_rejected ... ok
+test providers::capabilities::tests::unknown_is_conservative_not_optimistic ... ok
+test providers::capabilities::tests::verified_requires_evidence_and_others_forbid_it ... ok
+test providers::capabilities::tests::verdict_messages_do_not_leak_content ... ok
+test providers::compat::tests::assistant_tool_call_message_omits_empty_content ... ok
+test providers::compat::tests::compat_stream_done_still_returns_done_chunk ... ok
+test providers::compat::tests::compat_stream_ignores_non_data_lines ... ok
+test providers::compat::tests::compat_stream_malformed_data_returns_parse_error ... ok
+test providers::compat::tests::disabled_thinking_omits_reasoning_effort ... ok
+test providers::compat::tests::embed_error_response_parses_message ... ok
+test providers::compat::tests::embed_request_serializes_correctly ... ok
+test providers::compat::tests::embed_response_falls_back_to_request_model ... ok
+test providers::compat::tests::embed_response_parses_correctly ... ok
+test providers::compat::tests::omits_unset_sampling_params ... ok
+test providers::compat::tests::openai_chat_with_thinking_is_unsupported_before_network ... ok
+test providers::compat::tests::openai_stream_thinking_sends_reasoning_effort ... ok
+test providers::compat::tests::openai_compatible_embed_via_lmrs_client_strips_prefix ... ok
+test providers::compat::tests::openai_stream_with_budget_is_unsupported ... ok
+test providers::compat::tests::parses_tool_calls_from_response ... ok
+test providers::compat::tests::parses_logprobs_from_response ... ok
+test providers::compat::tests::serializes_sampling_params_and_response_format ... ok
+test providers::compat::tests::serializes_tools_and_tool_choice ... ok
+test providers::compat::tests::sse_chunk_stream_parse_error_does_not_flush ... ok
+test providers::compat::tests::sse_chunk_stream_flushes_pending_tool_calls_on_clean_eof ... ok
+test providers::compat::tests::sse_chunk_stream_error_line_does_not_flush ... ok
+test providers::compat::tests::sse_chunk_stream_parse_error_then_done_does_not_flush ... ok
+test providers::compat::tests::stream_accumulates_tool_call_fragments ... ok
+test providers::compat::tests::sse_chunk_stream_well_behaved_stream_unchanged ... ok
+test providers::compat::tests::stream_delta_content_still_parses_with_option ... ok
+test providers::compat::tests::stream_reasoning_content_delta_mapped_to_thinking ... ok
+test providers::compat::tests::stream_done_without_finish_reason_flushes_tool_calls ... ok
+test providers::compat::tests::stream_reasoning_delta_mapped_to_thinking ... ok
+test providers::compat::tests::stream_reasoning_terminal_chunk_marks_thinking_done ... ok
+test providers::compat::tests::stream_without_tool_calls_has_none ... ok
+test providers::compat::tests::stream_terminal_chunk_with_null_delta_parses ... FAILED
+test providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses ... FAILED
+test providers::compat::tests::tool_message_serializes_with_id ... ok
+test providers::compat::tests::usage_missing_cache_fields_stay_none ... ok
+test providers::compat::tests::user_image_message_serializes_as_content_parts ... ok
+test providers::compat::tests::usage_translates_cache_and_reasoning_tokens ... ok
+test providers::compat::tests::wrapper_chat_and_stream_with_thinking_are_unsupported ... ok
+test providers::compat::tests::wrapper_disabled_thinking_is_not_blocked ... ok
+test providers::google::tests::chat_with_thinking_is_unsupported_before_network ... ok
+test providers::google::tests::concurrent_same_name_tool_calls_get_unique_ids ... ok
+test providers::google::tests::data_url_maps_to_inline_data ... ok
+test providers::google::tests::empty_generation_config_returns_none ... ok
+test providers::google::tests::function_declarations_serialize ... ok
+test providers::google::tests::gemini_logprobs_parsed_into_logprobs ... ok
+test providers::google::tests::generation_config_forwards_sampling_params ... ok
+test providers::google::tests::http_image_url_is_skipped ... ok
+test providers::google::tests::json_mode_sets_response_mime_type ... ok
+test providers::google::tests::json_schema_sets_response_schema ... ok
+test providers::google::tests::json_tool_result_is_passed_through_as_object ... ok
+test providers::google::tests::logprobs_map_to_gemini_fields ... ok
+test providers::google::tests::response_function_call_part_parsed ... ok
+test providers::google::tests::stream_and_chat_produce_same_id_format ... ok
+test providers::google::tests::roundtrip_resolves_name_from_tool_call_id ... ok
+test providers::google::tests::stream_empty_candidates_without_usage_is_ignored ... ok
+test providers::google::tests::stream_error_event_yields_stream_error ... ok
+test providers::google::tests::stream_malformed_json_yields_parse_error ... ok
+test providers::google::tests::stream_surfaces_function_call_as_tool_calls ... ok
+test providers::google::tests::stream_text_chunk_has_no_tool_calls ... ok
+test providers::google::tests::stream_text_delta_still_produced ... ok
+test providers::google::tests::stream_thought_marks_thinking_done_on_terminal ... ok
+test providers::google::tests::stream_thought_part_mapped_to_thinking ... ok
+test providers::google::tests::stream_truncated_json_yields_parse_error ... ok
+test providers::google::tests::stream_without_thought_has_no_thinking_done ... ok
+test providers::google::tests::text_content_maps_to_text_part ... ok
+test providers::google::tests::thinking_done_emitted_at_most_once ... ok
+test providers::google::tests::thinking_disabled_omits_thinking_config ... ok
+test providers::google::tests::thinking_enabled_serializes_thinking_config ... ok
+test providers::google::tests::thinking_enabled_without_budget_omits_budget ... ok
+test providers::google::tests::tool_choice_maps_to_gemini_mode ... ok
+test providers::google::tests::tool_messages_build_function_call_and_response ... ok
+test providers::google::tests::unknown_finish_reason_round_trips_through_other ... ok
+test providers::google::tests::unspecified_finish_reason_is_not_reported_as_stop ... ok
+test providers::google::tests::unspecified_is_distinguishable_from_a_real_stop ... ok
+test providers::google::tests::unspecified_still_terminates_the_stream ... ok
+test providers::google::tests::usage_translates_thoughts_token_count ... ok
+test providers::http::tests::builds_hosted_client_with_overall_timeout ... ok
+test providers::http::tests::builds_local_client_without_overall_timeout ... ok
+test providers::ollama::tests::ollama_stream_ignores_empty_lines ... ok
+test providers::ollama::tests::ollama_stream_malformed_json_returns_parse_error ... ok
+test providers::ollama::tests::ollama_stream_valid_chunk_still_parses ... ok
+test providers::retry::tests::backoff_jitter_is_random ... ok
+test providers::retry::tests::backoff_produces_increasing_delays ... ok
+test providers::retry::tests::backoff_respects_max ... ok
+test providers::retry::tests::does_not_retry_4xx ... ok
+test providers::retry::tests::h1_decorator_forwards_protocol_name ... ok
+test providers::retry::tests::h1_decorator_forwards_retry_after_hint ... ok
+test providers::retry::tests::h1_decorator_forwards_capability_declaration ... ok
+test providers::retry::tests::h2_absurd_years_return_none_without_panicking ... ok
+test providers::retry::tests::h2_arithmetic_is_saturating_not_wrapping ... ok
+test providers::retry::tests::h2_valid_four_digit_years_still_parse ... ok
+test providers::retry::tests::hint_is_capped_even_if_passed_directly ... ok
+test providers::ollama::tests::ollama_embed_sends_dimensions ... ok
+test providers::retry::tests::retry_after_past_http_date_clamps_to_zero ... ok
+test providers::retry::tests::retry_provider_delegates_embed ... ok
+test providers::retry::tests::retry_after_absent_or_empty_yields_none ... ok
+test providers::ollama::tests::ollama_embed_malformed_response_returns_parse ... ok
+test providers::retry::tests::retry_after_absurd_values_are_capped ... ok
+test providers::retry::tests::retry_after_delay_seconds_is_honored ... ok
+test providers::ollama::tests::ollama_stream_thinking_enabled_returns_unsupported_without_network ... ok
+test providers::ollama::tests::ollama_embed_parses_usage_from_prompt_eval_count ... ok
+test providers::retry::tests::retry_after_malformed_yields_none ... ok
+test providers::ollama::tests::lmrs_client_ollama_embed_strips_prefix ... ok
+test providers::retry::tests::succeeds_on_first_try ... ok
+test providers::ollama::tests::ollama_embed_model_falls_back_to_request_model ... ok
+test providers::ollama::tests::ollama_embed_maps_api_error ... ok
+test providers::retry::tests::retry_after_http_date_is_honored_relative_to_now ... ok
+test providers::ollama::tests::ollama_embed_does_not_send_user ... ok
+test providers::ollama::tests::ollama_embed_accepts_batch_and_preserves_order ... ok
+test providers::ollama::tests::ollama_chat_thinking_unset_passes_through ... ok
+test providers::retry::tests::zero_hint_does_not_become_a_busy_loop ... ok
+test providers::retry::tests::retry_provider_keeps_unsupported_for_chat_only_provider ... ok
+test providers::stream_state::tests::t5_duplicate_done ... ok
+test providers::ollama::tests::ollama_embed_forwards_truncate_options_keep_alive_from_extra ... ok
+test providers::retry::tests::local_backoff_still_doubles_and_is_capped ... ok
+test providers::ollama::tests::ollama_chat_thinking_disabled_passes_through ... ok
+test providers::stream_state::tests::t1_finish_then_usage_then_done ... ok
+test providers::stream_state::tests::t2_usage_then_finish ... ok
+test providers::stream_state::tests::t3_error_after_content ... ok
+test providers::stream_state::tests::t4_tool_fragments ... ok
+test providers::stream_util::tests::reassembles_line_split_across_chunks ... ok
+test providers::retry::tests::upstream_hint_takes_precedence_over_local_backoff ... ok
+test providers::stream_state::tests::t6_post_terminal_content ... ok
+test providers::stream_state::tests::t7_empty_start_terminal ... ok
+test providers::stream_state::tests::t8_no_done_on_end ... ok
+test providers::stream_state::tests::t9_reasoning_preserved ... ok
+test providers::ollama::tests::ollama_chat_thinking_enabled_returns_unsupported_without_network ... ok
+test providers::stream_util::tests::reassembles_multibyte_utf8_split_across_chunks ... ok
+test providers::stream_util::tests::splits_multiple_lines_and_flushes_tail ... ok
+test providers::tests::invalid_tool_arguments_degrade_to_empty_object ... ok
+test providers::stream_util::tests::strips_crlf_line_endings ... ok
+test providers::tests::n_one_or_none_is_supported ... ok
+test providers::tests::n_greater_than_one_is_unsupported ... ok
+test providers::tests::degradation_message_does_not_contain_the_raw_arguments ... ok
+test providers::ollama::tests::ollama_embed_posts_to_api_embed ... ok
+test providers::tests::provider_config_debug_masks_sensitive_fields ... ok
+test providers::tests::serde_error_display_carries_position_not_payload ... ok
+test providers::tests::valid_tool_arguments_parse_unchanged ... ok
+test router::tests::all_deployments_fail_returns_last_error ... ok
+test router::tests::cooldown_fail_open_when_all_deployments_are_cooling ... ok
+test router::tests::cooldown_not_marked_for_api_400 ... ok
+test router::tests::cooldown_not_marked_for_parse_error ... ok
+test router::tests::cooldown_skips_recently_failed_primary ... ok
+test router::tests::error_kind_mapping_reflects_the_real_classification ... ok
+test router::tests::default_router_does_not_skip_failed_primary ... ok
+test router::tests::error_kinds_are_not_all_collapsed_to_one_value ... ok
+test router::tests::falls_back_on_transient_error ... ok
+test router::tests::independent_routers_have_independent_counters ... ok
+test router::tests::ordered_strategy_ignores_counters_across_groups ... ok
+test router::tests::permanent_error_is_not_retried ... ok
+test router::tests::round_robin_composes_with_cooldown ... ok
+test router::tests::round_robin_rotates_start ... ok
+test router::tests::concurrent_groups_do_not_interfere ... ok
+test router::tests::round_robin_starts_are_isolated_per_group ... ok
+test router::tests::stream_falls_back_on_transient_error ... ok
+test router::tests::round_robin_unknown_group_forwards_literal ... ok
+test router::tests::stream_initial_failure_marks_cooldown ... ok
+test router::tests::single_group_round_robin_cycles_unchanged ... ok
+test router::tests::unknown_group_routes_directly ... ok
+test types::tests::chat_request_sampling_builders_set_fields ... ok
+test types::tests::chat_request_from_messages_sets_messages ... ok
+test types::tests::chat_response_serializes_logprobs_only_when_present ... ok
+test types::tests::content_deserializes_from_string_and_array ... ok
+test types::tests::content_parts_serialize_as_openai_array ... ok
+test types::tests::content_text_serializes_as_string ... ok
+test types::tests::message_user_with_image_holds_parts ... ok
+test types::tests::response_format_serializes_as_openai_wire_format ... ok
+test types::tests::tool_choice_function_serializes_as_object ... ok
+test types::tests::tool_choice_mode_serializes_as_string ... ok
+test types::tests::tool_message_has_role_and_id ... ok
+test types::tests::tool_serializes_with_function_schema ... ok
+test types::tests::stream_chunk_serializes_tool_calls_only_when_present ... ok
+test tests::stream_collect_propagates_parse_error ... ok
+test tests::stream_collect_full_thinking_done_returns_unsupported ... ok
+test tests::stream_collect_full_keeps_terminal_usage_tools_finish ... ok
+test tests::stream_collect_thinking_delta_returns_unsupported ... ok
+test tests::stream_collect_full_thinking_delta_returns_unsupported ... ok
+test tests::stream_collect_plain_text_concatenates_unchanged ... ok
+test router::tests::cooldown_expires_and_retries_primary ... ok
+test router::tests::successful_deployment_clears_cooldown ... ok
+test providers::retry::tests::retry_provider_retries_transient_embedding_failure ... ok
+test providers::retry::tests::exhausts_retries ... ok
+test providers::retry::tests::stream_retries_and_succeeds ... ok
+test providers::retry::tests::retries_and_succeeds ... ok
+
+failures:
+
+---- providers::compat::tests::stream_terminal_chunk_with_null_delta_parses stdout ----
+
+thread 'providers::compat::tests::stream_terminal_chunk_with_null_delta_parses' (39920) panicked at src\providers\compat.rs:1207:67:
+called `Result::unwrap()` on an `Err` value: Parse("failed to parse OpenAI-compatible stream chunk: invalid type: null, expected struct CompDelta at line 1 column 25")
+
+---- providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses stdout ----
+
+thread 'providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses' (21060) panicked at src\providers\compat.rs:1234:67:
+called `Result::unwrap()` on an `Err` value: Parse("failed to parse OpenAI-compatible stream chunk: missing field `delta` at line 1 column 36")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses
+    providers::compat::tests::stream_terminal_chunk_with_null_delta_parses
+
+test result: FAILED. 257 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s
+
+error: test failed, to rerun pass `--lib`
+EXIT_CODE(injected_workspace)=101

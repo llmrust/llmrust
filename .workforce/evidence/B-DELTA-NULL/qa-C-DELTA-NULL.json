@@ -1,0 +1,467 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "card_id": "C-DELTA-NULL",
+  "batch_id": "B-DELTA-NULL",
+  "task_id": "T-DELTA-NULL",
+  "phase": "PH-0.1.5",
+  "story": "VS-1",
+  "role": "qa",
+  "agent": "qa-llmrust",
+  "written_by": "qa-llmrust",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "handoff_id": "547de603e7cd8b7e12d3ddc2",
+  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "verdict": "PASS",
+  "repo": "D:/llmrust-0.1.5",
+  "branch": "fix/delta-null-stream-chunk",
+  "head": "5084e935c1b527de326657d3cb6328951dfbf8c4",
+  "date": "2026-11-20",
+  "layers_covered": [
+    "事件",
+    "逻辑",
+    "接口"
+  ],
+  "rule_ids": [
+    "DELTA-NULL",
+    "K-01",
+    "K-02",
+    "K-04",
+    "K-05"
+  ],
+  "files_changed": [],
+  "files_changed_note": "QA 不改产品代码。注入期间临时改过 src/providers/compat.rs 三次（变异 A/B/C），每次均从仓库外备份字节还原，最终 sha256 = 1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9 与注入前一致；git status 对产品文件为空。",
+  "command_exit_codes": [
+    {
+      "cmd": "python -c <c1 type check>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_terminal_chunk_with_null_delta_parses",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_delta_content_still_parses_with_option",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_terminal_chunk_with_absent_delta_parses",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace -- --list",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test architecture_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test package_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c6 ledger check>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python c7_check_qa.py <c7-1/c7-2/c7-3>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::compat::tests::stream_ [after byte-exact restore]",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo run <real endpoint probe, post-fix HEAD, llama-server 127.0.0.1:8080>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python build_receipt.py <receipt written>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node validate-receipt.mjs <receipt checked by lib.mjs>",
+      "exit_code": 0
+    }
+  ],
+  "command_exit_codes_note": "按 lib.mjs 的 exitsOk()/pass() 口径：command_exit_codes 里每一项都必须是 exit 0，否则整份 QA 回执不成立（event/logic/interface 三层直接 FAIL）。因此本数组只放「期望为绿」的判据与门禁命令；注入验红与修复前复现这些**故意非零**的观测另放 negative_observations，不混进来。",
+  "negative_observations": [
+    {
+      "cmd": "python inject_qa.py <mutation A: consumer-side .expect()>",
+      "exit_code": 101,
+      "expected": "非零：变异后回归用例必须变红",
+      "observed": "红 2/3（null_delta + absent_delta）"
+    },
+    {
+      "cmd": "python inject_qa.py <mutation B: serde(default) kept, Option dropped>",
+      "exit_code": 101,
+      "expected": "非零：诊断变异，只应红 null 那条",
+      "observed": "红 1/3（null_delta）"
+    },
+    {
+      "cmd": "python inject_qa.py <mutation C: full revert to pre-fix shape>",
+      "exit_code": 101,
+      "expected": "非零：完整回退，应红 ≥2 条",
+      "observed": "红 2/3（null_delta + absent_delta）"
+    },
+    {
+      "cmd": "cargo run <real endpoint probe, pre-fix 33a8e3e^, codearts/deepseek-v4.1-flash>",
+      "exit_code": 1,
+      "expected": "非零：修复前必须复现 missing field `delta`",
+      "observed": "missing field `delta` at line 1 column 46，流在第 4 帧后中断"
+    },
+    {
+      "cmd": "cargo run <real endpoint probe, pre-fix 33a8e3e^, codearts/glm-5.3>",
+      "exit_code": 1,
+      "expected": "非零：同上",
+      "observed": "missing field `delta` at line 1 column 48，流在第 22 帧后中断"
+    },
+    {
+      "cmd": "cargo run <real endpoint probe, post-fix HEAD, codearts/deepseek-v4.1-flash>",
+      "exit_code": 1,
+      "expected": "delta 已修复，但该端随后发 {\"choices\":null} 触发另一个独立缺陷",
+      "observed": "delta 缺失终止帧已解析（finish=Some(Stop)）；随后 invalid type: null, expected a sequence（choices:null）"
+    },
+    {
+      "cmd": "cargo run <real endpoint probe, post-fix HEAD, codearts/glm-5.3>",
+      "exit_code": 1,
+      "expected": "同上（同一个 choices:null 残差缺陷）",
+      "observed": "终止帧通过后撞 choices:null"
+    },
+    {
+      "cmd": "curl nous/* via gateway 18778",
+      "exit_code": 0,
+      "expected": "本应可用",
+      "observed": "HTTP 层 200 但 body 是 upstream_error：8647 拒绝连接（Hermes 17:27 被卸载）；已如实留证"
+    }
+  ],
+  "criteria": {
+    "c1": {
+      "verdict": "PASS",
+      "independent_method": "自跑卡面 python 正则（未采信 dev 数字）：CompStreamChoice 体内 delta 上行为 #[serde(default)] 且类型 Option<CompDelta>；CompDelta derive 含 Default。",
+      "observed": "#[serde(default)] + delta: Option<CompDelta>；#[derive(Deserialize, Default)] struct CompDelta"
+    },
+    "c2": {
+      "verdict": "PASS",
+      "independent_method": "三条独立 cargo test --lib 命令各自 exit 0 且 stdout 含 `test result: ok. 1 passed; 0 failed; 0 ignored`；另跑 --workspace -- --list 核三个测试名各出现恰 1 次且无 `: ignored` 后缀。",
+      "observed": "三条全 exit 0、结果行逐字命中；--list 中三个名字 occurrences=1、ignored=False。"
+    },
+    "c3": {
+      "verdict": "PASS",
+      "independent_method": "自造变异（非照抄 dev 的 struct 回退），三次注入各自从仓库外备份字节还原并比 sha：A=消费侧中和（unwrap_or(&empty_delta) → .expect(\"delta\")）exit 101、红 2/3；B=诊断变异（保留 #[serde(default)] 仅去掉 Option）exit 101、只红 null 那条；C=完整回退到修复前形态 exit 101、红 2/3。",
+      "observed": "A 红：stream_terminal_chunk_with_null_delta_parses + stream_terminal_chunk_with_absent_delta_parses；C 红：同两条；B 红：仅 null 一条（证明用例①由 Option 钉住、用例③由 serde(default) 钉住）；三次还原后 sha256 均回到 1feda36119a3a44f1ed95c76b531162d62f00379297067a944bf46722b8140d9，三条用例全 ok、exit 0。",
+      "note": "变异 B 只有 1 条红是设计如此（诊断项），判据要求由 A/C 满足（各红 2 条 ≥ 2）。"
+    },
+    "c5": {
+      "verdict": "PASS",
+      "independent_method": "自跑两条守卫命令，解析 `test result:` 行做 pass/failed/ignored 三者同时比对。",
+      "observed": "architecture_guard: ok. 15 passed; 0 failed; 0 ignored（exit 0）；package_guard: ok. 4 passed; 0 failed; 0 ignored（exit 0）。"
+    },
+    "c6": {
+      "verdict": "PASS",
+      "independent_method": "自跑卡面 python 判据：baseline_lines['src/providers/compat.rs'] == len(read().splitlines())；adjustments 末条五字段齐、authorized_by 含 'Boss 2026-11-20'、date=='2026-11-20'、new==实测行数。",
+      "observed": "baseline=1899，python splitlines 实测=1899，adjustments 末条 old=1843 new=1899 且五字段齐备。",
+      "note": "c6 只核「台账与实测一致」。台账调整的 architect 追认属 spec-review 事项（.workforce/evidence/B-DELTA-NULL/architect-ledger-approval.json 已在批次目录中），不在 QA 判据内。"
+    },
+    "c7": {
+      "verdict": "PASS",
+      "independent_method": "三项各自机器判定，基线取 git 对象 33a8e3e^ 而非空 diff：c7-1 取 compat.rs 的 assert!/assert_eq!/assert_ne! 行集合做差；c7-2 全树 src/**.rs + tests/**.rs 按出现次数正则计数并比对位置集合；c7-3 解析 cargo test --workspace 的 test result 行。",
+      "observed": "c7-1 基线 111 / 当前 118 / 基线-当前 = 0；c7-2 基线 2 处（src/proxy/mod.rs:3292、:3300，既有 should_panic 负例）/ 当前同为这 2 处 / 新增 0；c7-3 18 个 unit/integration 二进制 ignored 全 0（总数 0），Doc-tests `ok. 6 passed; 0 failed; 2 ignored` = 基线 2。",
+      "method_note": "c7-3 解析注意：cargo 把 `Running ...` 横幅写 stderr、`test result:` 写 stdout，分路捕获会破坏交错，故改为「横幅数 == 结果行数-1」并对每条非末行断言 ignored==0，末行单独作 Doc-tests 判定。"
+    },
+    "c4": {
+      "verdict": "PASS",
+      "independent_method": "QA 侧自跑四条门禁命令（c4 的正式判定归 gate 回执，此处仅作 QA 独立复证）。",
+      "observed": "cargo test --workspace=0、cargo build --workspace=0、cargo fmt --all --check=0、cargo clippy --workspace --all-targets -- -D warnings=0。"
+    }
+  },
+  "real_endpoint_verification": {
+    "performed": true,
+    "why_it_matters": "dev 的三条用例是 fixture 级；本节用真实网关 + 真实上游证明修复在真实帧形态上有效。",
+    "endpoints_tried": [
+      {
+        "endpoint": "http://127.0.0.1:18778/v1 · nous/meituan/longcat-2.5:free（任务书指定）",
+        "result": "不可用：网关到 upstream 127.0.0.1:8647 拒绝连接",
+        "evidence": "probe/sse-nous_meituan_longcat_2_5_free.txt",
+        "root_cause": "网关 config.json 的 nous 上游指向 http://127.0.0.1:8647/v1/chat/completions（nous_relay.py → Hermes 8645）。Hermes 于 2026-11-20 17:27 被 _hermes_uninstall.ps1 卸载（_hermes_uninstall.log 末尾 'DONE'，8645/8647 均无监听）。这是环境在测试期间发生的变更，不是本卡引入。"
+      },
+      {
+        "endpoint": "http://127.0.0.1:18778/v1 · nous/upstage/solar-mini4:free（任务书指定的第二个）",
+        "result": "不可用：同一 upstream 8647 拒绝连接",
+        "evidence": "probe/sse-nous_upstage_solar_mini4_free.txt"
+      },
+      {
+        "endpoint": "http://127.0.0.1:18778/v1 · zen/longcat-2.5-preview-free、zen/glm-5.3-flash-free",
+        "result": "不可用：网关持有的 OpenCode zen key 已过期，上游 401 api_key_expired",
+        "evidence": "probe/sse-zen-zen_longcat_2_5_preview_free.txt, probe/sse-zen-zen_glm_5_3_flash_free.txt"
+      },
+      {
+        "endpoint": "http://127.0.0.1:18778/v1 · codearts/deepseek-v4.1-flash（华为云 IAM 上游，实测可用）",
+        "result": "可用，且末帧正是缺陷触发形态",
+        "terminal_frame": "data: {\"choices\":[{\"finish_reason\":\"length\",\"index\":0}],...} —— delta 字段完全缺失",
+        "evidence": "probe/sse-ca-codearts_*.txt"
+      },
+      {
+        "endpoint": "http://127.0.0.1:18778/v1 · codearts/glm-5.3（自然 stop + tool_calls 两种终止帧）",
+        "result": "可用；自然终止帧 {\"choices\":[{\"finish_reason\":\"stop\",\"index\":0}]} 与 tool_calls 终止帧均省略 delta",
+        "evidence": "probe/sse-ca-glm53-natural-stop.txt, probe/sse-ca-glm53-tools.txt"
+      },
+      {
+        "endpoint": "http://127.0.0.1:8080/v1 · llama-server qwen3.6-35b-a3b",
+        "result": "可用；但末帧为 \"delta\":{}（空对象）而非 null/缺失，不触发本缺陷，作为对照",
+        "evidence": "probe/llama8080-sse.txt, probe/sse-gemini8083.txt"
+      }
+    ],
+    "ab_comparison": {
+      "harness": "仓库外 crate（.workforce/evidence 下不留构建产物），path 依赖分别指向 HEAD 工作区与 worktree 33a8e3e^(=4b73d66)；直接调用 OpenAiCompatibleProvider::stream 真实生产路径。",
+      "pre_fix_33a8e3e_caret": {
+        "endpoint": "codearts/deepseek-v4.1-flash",
+        "observed": "chunk error mid-stream: Invalid response: failed to parse OpenAI-compatible stream chunk: missing field `delta` at line 1 column 46",
+        "conclusion": "缺陷按 dev 描述复现：整个流在终止帧处被 Parse 错误中断"
+      },
+      "post_fix_head": {
+        "endpoint": "codearts/deepseek-v4.1-flash",
+        "observed": "[done chunk #6] delta=\"\" finish=Some(Stop)；delta 缺失的终止帧被正常解析，流越过该帧",
+        "conclusion": "修复在真实端点上有效：null/缺失 delta 的终止帧不再中断流"
+      },
+      "pre_fix_glm53": "missing field `delta` at line 1 column 48（流中断）",
+      "post_fix_glm53": "终止帧 finish=Some(Length) 通过，随后撞到下述另一个独立缺陷"
+    },
+    "residual_defect_found_but_out_of_scope": {
+      "symptom": "修复后真实端点在 delta 问题之后仍会中断：`failed to parse OpenAI-compatible stream chunk: invalid type: null, expected a sequence at line 1 column 15`",
+      "cause": "真实端点在 include_usage 的 usage 帧里发 {\"choices\":null,...}；CompStreamChunk.choices 是 Vec<CompStreamChoice> 且只有 #[serde(default)]，serde 的 default 只覆盖「字段缺失」，不覆盖「显式 null」，故 null 报 invalid type。",
+      "is_this_the_card_defect": "不是。该缺陷在 33a8e3e^（4b73d66）上同样存在，33a8e3e 未触及 choices 字段（git diff 可证），属另一个独立 bug。",
+      "why_not_a_fail_for_this_card": "本卡判据 c1–c7 只针对 delta 的 null/缺失；该 residual 缺陷不影响 c1–c7 任何一条的结论，已如实记录供 Lead/architect 决定是否另开卡。",
+      "evidence": "probe/real-endpoint-postfix.txt, probe/real-endpoint-postfix-glm53.txt"
+    },
+    "full_stream_success_case": {
+      "endpoint": "http://127.0.0.1:8080/v1 llama-server",
+      "observed": "28 chunks，saw_done=true，finish=Some(Length)，thinking 89 字符，content 为空（模型只吐 thinking 即触 max_tokens）",
+      "conclusion": "修复后的流式路径在真实端点上能完整跑完并正确置 done=true；该端末帧为 delta:{} 故不构成缺陷触发，但可作为「修复未破坏正常流」的活证。"
+    }
+  },
+  "discipline_check": {
+    "product_code_untouched": true,
+    "product_code_note": "注入三次均字节还原，最终 sha256 与注入前一致；git status 对非 .workforce 路径为空。",
+    "git_committed": false,
+    "spec_cards_agents_untouched": true,
+    "pinned_circular_files": "none（未钉 .workforce/signoffs/*、loop-state.json、spec.json、cards/*）",
+    "build_artifacts_kept_out_of_repo": "真实端点验证 crate 建在 E:/Temp/qa-delta-null/（仓库外），避免 package_guard 把临时产物收进包；源码已归档进 probe/*.txt。",
+    "progress_logged": ".workforce/evidence/B-DELTA-NULL/qa-progress.md"
+  },
+  "needs_lead_ruling": [
+    "真实端点残差缺陷（独立于本卡）：真实 OpenAI 兼容端点在 include_usage 帧里发 {\"choices\":null}，CompStreamChunk.choices: Vec<CompStreamChoice> 无法接受显式 null（#[serde(default)] 只覆盖缺失不覆盖 null），导致 delta 修复之后流仍会在末尾中断。该缺陷在 33a8e3e^ 上同样存在、本卡未触及，故不改变 c1–c7 判定；建议另开卡（例如 choices-null）修 Option<Vec<..>> 或自定义 deserializer。",
+    "任务书指定的 nous 两个模型在验收期间不可用：网关 upstream 8647（Hermes）于 17:27 被卸载，zen key 已过期。QA 已改用同网关仍在线的真实上游 codearts/* 与本地 llama-server 完成真实端点验证，A/B 对比结论成立；若 Lead 要求必须用 nous 模型本身回证，需先恢复 Hermes 上游后重跑。"
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/final-verify-run.txt",
+      "sha256": "bc9f7dcae9ff58db1dd88c0d4ce396d779634964466d17694c137b249f21c996",
+      "desc": "全判据一次跑完的原始输出（c1/c2/c3/c5/c6/c7 + 4 条门禁）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/final-verification.json",
+      "sha256": "059934b324a35f62fd976455d1520917b6080570fc3c9ab7a3faa1ba6966c348",
+      "desc": "机判汇总：criteria 逐项 bool + command_exit_codes + 实测 sha/行数"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/injection-final.txt",
+      "sha256": "c83655f406c42aa58e57935f23dbdaae86e82b5e88fe05170c67b5df87b1fc7a",
+      "desc": "注入验红最终输出：变异 A/C 各红 2/3，变异 B 为诊断（红 1/3），还原后 sha 逐字节一致"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/injection-A-consumer-expect.txt",
+      "sha256": "3fd8a5a6f4a2f3be9aee979dabe121c95ab97605f68d70eff285eba5782d9294",
+      "desc": "变异 A 原始 cargo test 输出（消费侧 .expect() 中和，exit 101）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/injection-C-full-revert.txt",
+      "sha256": "57632d4af76961ddac4a04386d078452cc9edf7161af6f9526c1a1b08f3e1431",
+      "desc": "变异 C 原始 cargo test 输出（完整回退到修复前形态，exit 101）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/injection-B-struct-nonoption.txt",
+      "sha256": "c23b905ca9184e09449abe46786534d27b97e36a03cb806131f2a5e897762567",
+      "desc": "变异 B 原始 cargo test 输出（诊断：保留 serde(default) 仅去 Option，只红 null 用例）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/injection-restored.txt",
+      "sha256": "0f62d0cb3c37530e266b33023082f9e3a64b7e8efc3d4780b8efa432bb70ad41",
+      "desc": "字节还原后的 cargo test 输出：三条全 ok，exit 0"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/harness-inject_qa.py.txt",
+      "sha256": "95364a2254d45e90493daa45b470765443e6e41c7cb0631e93c351048f0f817b",
+      "desc": "注入脚本源码（自造变异；仓库外运行，备份在仓库外，逐次比对 sha）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/harness-real-endpoint-main.rs.txt",
+      "sha256": "1fed19436f6fe1512b18b55eb9f81842f3a46d5d2ecdd9eca8c1321be67e7dc1",
+      "desc": "真实端点验证程序源码：直接驱动 OpenAiCompatibleProvider::stream"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/harness-post-Cargo.toml.txt",
+      "sha256": "6b502526dc23b0aa5aecb06e3dba0f49e897a45bcf7f64934a136d9276e1dd19",
+      "desc": "真实端点验证 crate 清单（path 依赖指向 HEAD 工作区）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/harness-pre-Cargo.toml.txt",
+      "sha256": "bab9976c304cdc2a4c5edb9a329ada66b00362597787ba981bdfaaa9fd845326",
+      "desc": "真实端点验证 crate 清单（path 依赖指向 worktree 33a8e3e^ = 4b73d66）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/harness-c7_check_qa.py.txt",
+      "sha256": "4386c5430c76eb96570a2226d23366d06604d7d48053be71c45e13159db02627",
+      "desc": "c7 三项零放宽检查脚本源码"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/real-endpoint-prefix.txt",
+      "sha256": "a138a3e57487ccac6c65099c5aec28dbb221eb4ade8653bf844362368c3db44e",
+      "desc": "修复前(33a8e3e^) 打真实端点 codearts/deepseek-v4.1-flash：missing field `delta`，流中断"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/real-endpoint-postfix.txt",
+      "sha256": "2f1cb04870dacaf49972eefcf0c5245ff7ef0daaca44282e0d9b6c811e30adfa",
+      "desc": "修复后(HEAD) 打同一真实端点：delta 缺失的终止帧解析成功 finish=Some(Stop)，越过该帧"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/real-endpoint-prefix-glm53.txt",
+      "sha256": "0331ac0a935f4e97cc3cd40c0b0232a2d11e80d27d19e7431802d0d49df56768",
+      "desc": "修复前(33a8e3e^) 打真实端点 codearts/glm-5.3：missing field `delta`，流中断"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/real-endpoint-postfix-glm53.txt",
+      "sha256": "d7d271f762945e55399575c55786d9bbc42d4b5f79670a37761c38ee5bae98c2",
+      "desc": "修复后(HEAD) 打 codearts/glm-5.3：终止帧通过，随后撞到另一个独立缺陷 choices:null"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/real-endpoint-postfix-llama8080.txt",
+      "sha256": "1dde4b52ec6e39a0837ad66ae9f007a8e2fe6f681e97f6677a9e635923fd6a13",
+      "desc": "修复后(HEAD) 打真实 llama-server 8080：28 chunks、done=true、finish=Some(Length)，完整跑通"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/sse-ca-glm53-natural-stop.txt",
+      "sha256": "78e11275c3e80a81550fbde8aeb0315f3d514649565c78d9e60e37ced97007ff",
+      "desc": "真实端点原始 SSE：终止帧 {\"choices\":[{\"finish_reason\":\"stop\",\"index\":0}]} —— delta 字段缺失"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/sse-ca-glm53-tools.txt",
+      "sha256": "321a518495dd7a4917692a2cb16f4d28c90b6918bb36e83476b37f96e0068185",
+      "desc": "真实端点原始 SSE：tool_calls 终止帧同样省略 delta"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/sse-ca-codearts_glm_5_3.txt",
+      "sha256": "6724aff6a01ae62b0c089cb0a18472529e4da256315cd1fdb6f3054d7877ac1f",
+      "desc": "真实端点 SSE 全量抓取（codearts/glm-5.3）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/sse-ca-codearts_kimi_k3.txt",
+      "sha256": "ccd91da95679f6986ad74ae2d3768efee0079ed92bd5a89b29cc45fe5df7a501",
+      "desc": "真实端点 SSE 全量抓取（codearts/kimi-k3）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/sse-gemini8083.txt",
+      "sha256": "da1c48d69c01bc530038af8478044ad0aa1d5f2d08339889a71b0eeae57563f5",
+      "desc": "真实端点 SSE（gemini-web2api 8083）：终止帧 delta:{} —— 不触发本缺陷，作为对照"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/llama8080-sse.txt",
+      "sha256": "fa1e29c705ac226af8f75d8ea3bf5477b5c1098b4a064fec92482485a5eb55a2",
+      "desc": "llama-server 8080 原始 SSE 全量"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/sse-nous_meituan_longcat_2_5_free.txt",
+      "sha256": "458870d3e6b656a94c7abfe7b815b08b2a0ffc0af0cfd26533aaac191c0030e5",
+      "desc": "任务书给的 nous 端点：上游 8647 已下线（dial refused），如实留证"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/sse-nous_upstage_solar_mini4_free.txt",
+      "sha256": "458870d3e6b656a94c7abfe7b815b08b2a0ffc0af0cfd26533aaac191c0030e5",
+      "desc": "任务书给的第二个 nous 端点：同样 upstream 8647 拒绝连接"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/sse-zen-zen_longcat_2_5_preview_free.txt",
+      "sha256": "7286120e9e8c284697af447cbb6d288fed369aee7a340a144f714e52bac5ab4c",
+      "desc": "网关 zen 上游：key 过期 401 api_key_expired，如实留证"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/sse-zen-zen_glm_5_3_flash_free.txt",
+      "sha256": "7286120e9e8c284697af447cbb6d288fed369aee7a340a144f714e52bac5ab4c",
+      "desc": "网关 zen 上游第二个模型：同样 401 key 过期"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/c2-stream_terminal_chunk_with_null_delta_parses.txt",
+      "sha256": "6e4d8acfa6859a5862edc82b13ff3666fcc9227770cb6b57261b11d5070e8d41",
+      "desc": "c2 用例①单跑输出"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/c2-stream_delta_content_still_parses_with_option.txt",
+      "sha256": "827fa5a7ac019a03fbd46b2e5a5d6af5c5920edf38ac981364d671d5d7ab226f",
+      "desc": "c2 用例②单跑输出"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/c2-stream_terminal_chunk_with_absent_delta_parses.txt",
+      "sha256": "8b7aa3dda73bf3eccb02898ddffc073c625635959e721dad13fa2126e788993a",
+      "desc": "c2 用例③单跑输出"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/c2-workspace-list.txt",
+      "sha256": "6b2d348f22db58c8ac4e70115cd003f03ae78172d52642c48474ec072c636088",
+      "desc": "cargo test --workspace -- --list 全量，用于核三个测试名各出现 1 次且未 ignored"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/c5-architecture_guard.txt",
+      "sha256": "9021d67c3e663df381f444b9f5768f8046ff894c91b87cb084eb025f4f7ae1d6",
+      "desc": "architecture_guard 原始输出：15 passed; 0 failed; 0 ignored"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/c5-package_guard.txt",
+      "sha256": "c2ce1669ec22b491dfb9476ee0b09d6f17583731b20e8e2c5abcbd3c683158a5",
+      "desc": "package_guard 原始输出：4 passed; 0 failed; 0 ignored"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/c7-final.txt",
+      "sha256": "2d35ffd12ef6ab8d9fde999c172e154bdac37357932e9c24475598c94495bf20",
+      "desc": "c7 三项零放宽检查最终输出（c7-1/c7-2/c7-3 全 PASS）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/c7-3-cargo-test-stdout.txt",
+      "sha256": "2a6979d85c9c23af7f4261cacc4ba8d0cb1aebcb0ec603c39a9aaaf9e94303f8",
+      "desc": "c7-3 用的 cargo test --workspace stdout 原文"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/c7-3-cargo-test-stderr.txt",
+      "sha256": "069222cb1f02feda8e07fb2a5dfd3fa3a9bc8aa0011725a463b74813c162b020",
+      "desc": "c7-3 用的 cargo test --workspace stderr 原文（含 Running 横幅）"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/probe/c7-summary.json",
+      "sha256": "903ebda77a4f9fea27b882057345c4de9deda262360009c39ce9c53343bbc456",
+      "desc": "c7 三项 bool 汇总"
+    },
+    {
+      "path": ".workforce/evidence/B-DELTA-NULL/qa-progress.md",
+      "sha256": "ffb2c2d69cfd6b2162138a5323238fce3d8836db6be20377be79349c9ae9d0d4",
+      "desc": "QA 过程进度留痕"
+    }
+  ],
+  "artifacts_note": "artifacts 均为本卡 evidence 目录下的原始输出与脚本源码，sha256 为小写；不含任何同批兄弟回执、signoff、loop-state、spec 或 card 文件。"
+}

@@ -1,0 +1,16 @@
+chore(hygiene): .gitignore 用递归 glob 覆盖 evidence 子目录日志
+
+task-ids: DELTA-NULL
+
+上一提交 dc1e754 把忽略规则写成 `.workforce/evidence/*.log`（单星），
+该模式只匹配 `.workforce/evidence/` 的**直接子文件**，不匹配子目录
+`.workforce/evidence/<CARD>/*.log`。结果 4 个证据日志仍被
+`cargo package --list` 收进产物，`tests/package_guard.rs` 继续红。
+
+修复：改成递归 glob
+- `.workforce/evidence/**/*.log`（覆盖按卡分目录的证据日志）
+- `.workforce/**/*.log`（兜底整个 .workforce 树的日志）
+
+验证：`cargo test --test package_guard` → 4 passed / exit 0。
+
+Lead 修复、dev 提交（按 Lead 指令，hygiene 改动由 dev 落 commit）。

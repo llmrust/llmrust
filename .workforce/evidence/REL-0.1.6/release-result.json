@@ -116,6 +116,25 @@
     "remote_ref": "53267828c6805e5172cbcff3076a2680f05b671e refs/tags/v0.1.6"
   },
 
+  "evidence_archive_commit": {
+    "sha": "58913f7690e4de854bc43844528f80f3266c1f6e",
+    "short": "58913f7",
+    "subject": "chore(workforce): 归档 REL-0.1.6 发版回执与进度（commit/tag/CI/crates.io 结论）",
+    "pushed": "175fb8a..58913f7  main -> main",
+    "note": "Evidence-only commit pushed AFTER the tag. The tag v0.1.6 still dereferences to the release commit 175fb8a, not to this evidence commit — the release artifact is unaffected.",
+    "ci": {
+      "CI": { "run_id": 44723227908, "conclusion": "success", "jobs": ["API-002 semver gate", "Test (stable)", "MSRV (1.86)", "Architecture & package guards (CI-003)"] },
+      "Security Gates": { "run_id": 44723227966, "conclusion": "success", "jobs": ["Supply-chain policy (cargo-deny)", "RustSec advisories", "Secret scan (gitleaks CLI)", "Security audit"] }
+    }
+  },
+
+  "final_state": {
+    "local_head": "58913f7690e4de854bc43844528f80f3266c1f6e",
+    "remote_main": "58913f7690e4de854bc43844528f80f3266c1f6e",
+    "remote_tag_v0_1_6": "53267828c6805e5172cbcff3076a2680f05b671e (-> commit 175fb8a)",
+    "tag_points_to_release_commit_not_evidence_commit": true
+  },
+
   "working_tree": {
     "git_status_porcelain_uall": "",
     "clean": true,

@@ -57,7 +57,12 @@ function require(s, action) {
   // 旧写法对该动作本身也判红 ⇒ 一旦 config 在确认后被改，所有动作（含修复通道）全被拒 = 死锁。
   // 只放行 `spec-revise` 这一条修复通道：改完仍需 spec-approve/spec-confirm 重新锁 sha，
   // 判据强度不变（其它动作照样被 CONFIG_DRIFT 拒）。
-  if (action !== 'spec-revise' && s?.config_sha256 && CF.sha256 !== s.config_sha256) out({ verdict: 'FAIL', reason: 'CONFIG_DRIFT：config.json 在用户确认后被改动，须架构师 spec-revise 并重走审批' }, 1);
+  // 诊断（不改判据）：若纯属 CRLF 物化造成的假漂移，附上可读提示，免得人以为规则表真被改了。
+  if (action !== 'spec-revise' && s?.config_sha256 && CF.sha256 !== s.config_sha256) {
+    const why = L.crlfNormalizedNote(P.config, s.config_sha256);
+    out({ verdict: 'FAIL', reason: 'CONFIG_DRIFT：config.json 在用户确认后被改动，须架构师 spec-revise 并重走审批',
+      ...(why ? { crlf_hint: why, crlf_fix: 'git config --local core.autocrlf false 后按 LF 原始字节重写该文件（git cat-file -p HEAD:<path>）' } : {}) }, 1);
+  }
   if (!ARCHITECT_ONLY.has(action)) { const d = specDrift(s); if (d) out({ verdict: 'FAIL', reason: d }, 1); }
   return st;
 }
@@ -88,6 +93,9 @@ function warnings() {
   if (c.trust.anchor === 'none') w.push('TRUST_NONE：验收者身份只靠 git 作者邮箱，agent 可抢先自写自提交 acceptors.json（首次占位）。理由：' + c.trust.none_reason);
   if (!c.ledger.command) w.push('LEDGER_UNVERIFIED：台账层只验 self_sha256 自洽，不重跑生成命令，手写台账可过。理由：' + c.ledger.none_reason);
   if (c.ci.provider === 'none') w.push('CI_DISABLED：' + c.ci.none_reason);
+  // 只报警不改判据：Windows CRLF 物化会让「按原始字节算的 sha」与 LF 锁不一致，制造 CONFIG_DRIFT 假红
+  if (CF.crlfNote) w.push(CF.crlfNote);
+  if (CF.autocrlfRisk) w.push(CF.autocrlfRisk);
   return w;
 }
 if (cmd === 'config-check') {

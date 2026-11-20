@@ -49,6 +49,17 @@ for (const s of ['check-incidents.mjs', 'check-criteria.mjs']) {
     catch { reasons.push(s + ' FAILED'); }
   }
 }
+// 环境风险（**warning 级，不进 reasons、不阻断**）：Windows core.autocrlf=true 且无 .gitattributes 时，
+// git 物化会把 LF 文件写成 CRLF，使「按原始字节算的 sha」与 LF 锁不一致 ⇒ CONFIG_DRIFT 假红。
+// 事故：2026-11-20 llmrust B-DELTA-NULL（config.json 内容逐字相同，仅行尾差异，1761-1704=57 字节）。
+const warnings = [];
+try {
+  const repoRoot = resolve(SKILL, '..', '..', '..');
+  const acrlf = execFileSync('git', ['config', '--get', 'core.autocrlf'], { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().toLowerCase();
+  if (['true', 'input'].includes(acrlf) && !existsSync(join(repoRoot, '.gitattributes'))) {
+    warnings.push('AUTOCRLF_RISK：git core.autocrlf=' + acrlf + ' 且仓库无 .gitattributes；CRLF 物化会让 LF 锁的 sha 对不上（CONFIG_DRIFT 假红）。建议 git config --local core.autocrlf false');
+  }
+} catch { /* 非 git 环境或安装副本：静默跳过，不影响判定 */ }
 const verdict = reasons.length ? 'FAIL' : 'PASS';
-console.log(JSON.stringify({ verdict, skill_dir: SKILL, checked_files: need.length + 1, reasons }, null, 2));
+console.log(JSON.stringify({ verdict, skill_dir: SKILL, checked_files: need.length + 1, reasons, warnings }, null, 2));
 process.exit(reasons.length ? 1 : 0);

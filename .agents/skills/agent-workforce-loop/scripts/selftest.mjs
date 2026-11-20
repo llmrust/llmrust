@@ -71,7 +71,11 @@ try {
   commitAs(USER, 'user config');
   expect('config 由用户提交但未进受保护分支 → 拒绝', 'loop.mjs', ['config-check'], 1, has('TRUST_NOT_ON_PROTECTED_BRANCH'));
   pushUser();
-  expect('config 由用户提交并进入远端受保护分支 → config-check PASS', 'loop.mjs', ['config-check'], 0, (j) => !(j.warnings || []).length);
+  // 环境类警告（AUTOCRLF_RISK / CRLF_NORMALIZED）与本用例要验的「config 自身是否有效」无关：
+  // 它们取决于跑测试的机器（Windows core.autocrlf），不是 config 内容问题，故从断言里排除。
+  // 判据强度不变：除这两类环境提示外，config-check 仍必须零警告。
+  const envWarn = (j) => (j.warnings || []).filter(w => !/^(AUTOCRLF_RISK|CRLF_NORMALIZED)/.test(String(w)));
+  expect('config 由用户提交并进入远端受保护分支 → config-check PASS', 'loop.mjs', ['config-check'], 0, (j) => !envWarn(j).length);
   // ----- spec + cards -----
   const spec = {
     produced_by: 'architect-a', inputs_read: ['AGENTS.md'],
@@ -744,6 +748,54 @@ try {
     if (rec && typeof rec.at === 'string' && rec.batch === 'B-BS' && rec.pr === 7 && rec.merge_commit === 'abc123' && rec.merge_called === true && rec.head_sha === 'deadbeef' && Array.isArray(rec.checks) && rec.checks.length === 1 && rec.bootstrap_used === true) console.log('✓ [12] 合并后自动写 evidence/<batch>/merge.json（{at,pr,merge_commit,merge_called:true,head_sha,checks,bootstrap_used}）');
     else { fails++; console.log('✗ [12] merge.json 记录字段不对', JSON.stringify(rec)); }
   } finally { rmSync(R12, { recursive: true, force: true }); }
+
+  // ----- 场景 13：CRLF 假漂移检测（只报警、不改判据） -----
+  // 事故：2026-11-20 llmrust B-DELTA-NULL —— Windows core.autocrlf=true 把 LF 的 config.json 物化成 CRLF，
+  // shaFile() 按原始字节算 ⇒ 与 LF 锁不一致 ⇒ CONFIG_DRIFT 假红（内容逐字相同，仅行尾差 57 字节）。
+  // 断言：① 归一化 sha 与 LF 版一致 ② crlfNormalizedNote 能识别「仅行尾不同」③ 真改内容时**不**误报
+  const R13 = mkdtempSync(join(tmpdir(), 'awl13-'));
+  try {
+    const g13 = (...a) => execFileSync('git', a, { cwd: R13, stdio: 'pipe' }).toString().trim();
+    const w13 = (p, t) => { mkdirSync(dirname(join(R13, p)), { recursive: true }); writeFileSync(join(R13, p), t); };
+    const L13 = await import(pathToFileURL(join(S, 'lib.mjs')).href);
+    g13('init', '-q');
+    const cfgObj = { schema: 'agent-workforce-config/v1', business_dirs: ['lib/'], roles: { design: false },
+      gates: { required_commands: ['t'], require_no_mock: true }, ledger: { none_reason: 'demo' },
+      trust: { anchor: 'none', none_reason: 'demo' }, ci: { provider: 'github', repo: 'x/y' } };
+    const cfgLF = JSON.stringify(cfgObj, null, 2) + '\n';
+    const P13 = L13.paths(R13, {});
+
+    // ① LF 与 CRLF 两种写法的「归一化 sha」必须一致，且原始 sha 必须不同（证明检测有意义）
+    w13('.workforce/config.json', cfgLF);
+    const shaLFraw = L13.shaFile(P13.config);
+    const shaLFnorm = L13.shaFileLF(P13.config);
+    w13('.workforce/config.json', cfgLF.replace(/\n/g, '\r\n'));
+    const shaCRLFraw = L13.shaFile(P13.config);
+    const shaCRLFnorm = L13.shaFileLF(P13.config);
+    n++;
+    if (shaLFnorm === shaCRLFnorm && shaLFraw !== shaCRLFraw && L13.hasCRLF(readFileSync(P13.config))) console.log('✓ [13] CRLF 归一化：LF 与 CRLF 两种写法的 shaFileLF 相同，而 shaFile（原始字节）不同（锁语义未被改动）');
+    else { fails++; console.log('✗ [13] CRLF 归一化口径不对', JSON.stringify({ shaLFraw, shaCRLFraw, shaLFnorm, shaCRLFnorm })); }
+
+    // ② CRLF 文件 + LF 锁 ⇒ 必须能报出 CRLF_NORMALIZED（这是「假漂移」的可读诊断）
+    n++;
+    const note = L13.crlfNormalizedNote(P13.config, shaLFnorm);
+    if (note && /^CRLF_NORMALIZED /.test(note)) console.log('✓ [13] crlfNormalizedNote 识别「仅行尾不同」⇒ CRLF_NORMALIZED（CONFIG_DRIFT 假红可被诊断）');
+    else { fails++; console.log('✗ [13] CRLF 假漂移未被识别', JSON.stringify(note)); }
+
+    // ③ 真改内容时不得误报（判据未被放宽：内容不同 ⇒ 无 note）
+    n++;
+    w13('.workforce/config.json', cfgLF.replace(/\n/g, '\r\n').replace('x/y', 'x/CHANGED'));
+    const noteBad = L13.crlfNormalizedNote(P13.config, shaLFnorm);
+    if (!noteBad) console.log('✓ [13] 真改内容时 crlfNormalizedNote 不误报（判据未被放宽）');
+    else { fails++; console.log('✗ [13] 内容真变却仍报 CRLF_NORMALIZED（判据被放宽）', JSON.stringify(noteBad)); }
+
+    // ④ LF 文件本身不得报 CRLF_NORMALIZED
+    n++;
+    w13('.workforce/config.json', cfgLF);
+    const noteLF = L13.crlfNormalizedNote(P13.config, L13.shaFile(P13.config));
+    if (!noteLF) console.log('✓ [13] LF 文件不报 CRLF_NORMALIZED（无假阳性）');
+    else { fails++; console.log('✗ [13] LF 文件被误报', JSON.stringify(noteLF)); }
+  } finally { rmSync(R13, { recursive: true, force: true }); }
 } finally {
   rmSync(R, { recursive: true, force: true });
   rmSync(BIN, { recursive: true, force: true });

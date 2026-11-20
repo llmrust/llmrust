@@ -17,7 +17,7 @@
     "references/flow.md": "9084a33bf766aeb3706ec626072c36f358e14d9538593b8381ea77044a37c536",
     "references/generated/config-fields.md": "56836e1de023c9c0f9833912dd225feec3b2aa72f288235003c3d915800f9fcc",
     "references/generated/incidents.md": "7ca4525fc83869fd0b58218ee506675e3c49ae86452db98c95512d717bcb8d37",
-    "references/generated/reason-codes.md": "769670e0ac313d82d21a7e2a1fb9c6e4f8d7a1814051b537969af0c4280625b7",
+    "references/generated/reason-codes.md": "e8793a844329cc1c8671bda9487d248b8b59a02e71d8a7fb5388e979641cca1e",
     "references/generated/state-machine.md": "62159f1ab3c4ea37dd73a21ed87dbcafe280c5d654f58923bf5989a73fd9769b",
     "references/harness-adapters.md": "ce6a7a64fae0e16236f6b648856f27d0fcd61941fd4aa8ff8ec2f9bd60b30fb9",
     "references/loop-state-machine.md": "5dda75a9ca7378ca996e4eb7628630625ad5350280b94d517ae365d3e82602c6",
@@ -31,12 +31,12 @@
     "scripts/check-roles.mjs": "cf95ad5f9bdb9e3ff3fa6350a623de889571208b6c5f694ab544f2e67d578598",
     "scripts/gen-docs.mjs": "ae366cc6ea604588f47008c2fbef70375f411d020bad571446d80d65fff69e98",
     "scripts/gen-incidents.mjs": "c48049dac310dfbc48641f7bc43a4ecd8c18b942ca5d9cc5a7baf082eba2157b",
-    "scripts/lib.mjs": "4351c7fae1fa62349c4a39637091fc2af596b7dcb1b3f7d7cd94927dd42db13b",
-    "scripts/loop.mjs": "80e9ab316f4f3893a3aef4b40e74ddcd783a10ea0679754ebc41aa9eaf2bb925",
+    "scripts/lib.mjs": "5a6de4c0d045f0c2d69631db1a0cfd4625b74f9942af68b90fcdc1e2158b3b4e",
+    "scripts/loop.mjs": "e3c466d18d54b3bcb4d8ae05506cca04285c52e9945d771abb6d1798b05f854b",
     "scripts/machine.mjs": "2fb3a8890d98ffe6077fcdf36d4f896275056d2f14cbd161bfb99fa5a28e0851",
     "scripts/merge-pr.mjs": "693244454dbe24dab1a327c7c38828420647f3a803d9bae06599401f58e7a893",
-    "scripts/selftest.mjs": "15f5a031802184af293c119a04089b055f1a0d61b2f837bbbf4a12d0a8458802",
-    "scripts/validate-skill.mjs": "604de602f94d98b144ab6a915bf43e7d213494d463315727996b107be4727632",
+    "scripts/selftest.mjs": "55f1f2815f105d1a97c9f36a00237117216dd9f21dc632b08849fbd5d58c8e45",
+    "scripts/validate-skill.mjs": "37412c90df27e9f3933e6f7bb2e573784632499d9a154594512516a8cb51b916",
     "scripts/validate-spec.mjs": "a3b08360625c1b917de63beec8054a7c52cd03ac274f373f0c7da0f1e78d273a"
   }
 }

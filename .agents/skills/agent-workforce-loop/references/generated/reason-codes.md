@@ -27,6 +27,7 @@
 | `ARCHITECT_SIGNOFF_MISSING_OR_STALE` | lib.mjs |
 | `ARTIFACT_MISSING` | lib.mjs |
 | `ARTIFACT_SHA_MISMATCH` | lib.mjs |
+| `AUTOCRLF_RISK` | lib.mjs、validate-skill.mjs |
 | `BATCHES_MISSING` | lib.mjs |
 | `BATCH_AMBIGUOUS` | loop.mjs |
 | `BATCH_NO_GOAL` | lib.mjs |
@@ -103,6 +104,7 @@
 | `CRITERIA_SAMPLING_AMBIGUOUS` | check-criteria.mjs |
 | `CRITERIA_SCOPE_GAP` | check-criteria.mjs |
 | `CRITERIA_UNCHECKABLE` | check-incidents.mjs |
+| `CRLF_NORMALIZED` | lib.mjs |
 | `DANGLING_REF` | validate-skill.mjs |
 | `DEAD_SCOPE_PATH` | check-incidents.mjs |
 | `DESCRIPTION_MISSING` | validate-skill.mjs |

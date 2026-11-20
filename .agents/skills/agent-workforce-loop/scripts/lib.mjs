@@ -13,6 +13,35 @@ export const sha = (buf) => createHash('sha256').update(buf).digest('hex');
 export const shaFile = (p) => sha(readFileSync(p));
 export const norm = (p) => p.split(sep).join('/').replace(/\\/g, '/');
 
+// ---------- CRLF 假漂移检测（**只报警，不改判据**） ----------
+// 事故（2026-11-20，llmrust B-DELTA-NULL）：Windows 上 `core.autocrlf=true` 且仓库无 .gitattributes 时，
+// 任何 git checkout/restore 都会把 LF blob 物化成 CRLF 工作区文件。shaFile() 哈希的是**原始字节**，
+// 而 config_sha256 / acceptors_sha256 是在 scaffold 阶段按 LF 内容锁定的，于是出现
+// 「内容逐字相同、git status 干净、但 sha 对不上」的 CONFIG_DRIFT 假红（实测 1761-1704=57 字节 = 换行数）。
+// 这里**只做识别与报警**：绝不改变 shaFile() 的哈希口径，否则会静默改变所有既有锁的语义。
+export const hasCRLF = (buf) => buf.includes('\r\n');
+/** 按 LF 归一化后计算 sha（与 gen-docs.mjs 的 MANIFEST 口径一致），用于识别「只是行尾不同」 */
+export const shaFileLF = (p) => sha(Buffer.from(readFileSync(p, 'utf8').replace(/\r\n/g, '\n'), 'utf8'));
+/** 若文件是 CRLF 且 LF 归一化后与 givenSha 相同 ⇒ 返回 'CRLF_NORMALIZED <file>'，否则 null */
+export function crlfNormalizedNote(p, givenSha) {
+  try {
+    const buf = readFileSync(p);
+    if (!hasCRLF(buf)) return null;
+    if (!givenSha) return null;
+    if (shaFileLF(p) !== String(givenSha)) return null;
+    return 'CRLF_NORMALIZED ' + norm(p) + '：工作区文件是 CRLF，按 LF 归一化后与锁定的 sha 一致（内容相同，仅行尾不同；多半是 Windows core.autocrlf=true 物化造成，不是真实改动）';
+  } catch { return null; }
+}
+/** git 层风险：core.autocrlf=true 且仓库无 .gitattributes ⇒ 'AUTOCRLF_RISK ...'（warning 级，不阻断） */
+export function autocrlfRisk(repo) {
+  try {
+    const v = execFileSync('git', ['config', '--get', 'core.autocrlf'], { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().toLowerCase();
+    if (!['true', 'input'].includes(v)) return null;
+    if (existsSync(join(repo, '.gitattributes'))) return null;
+    return 'AUTOCRLF_RISK：git core.autocrlf=' + v + ' 且仓库无 .gitattributes；git 物化会把 LF 文件写成 CRLF，导致按原始字节算的 sha 与 LF 锁不一致（CONFIG_DRIFT 假红）。建议 git config --local core.autocrlf false';
+  } catch { return null; }
+}
+
 export function parseArgs(argv) {
   const pos = [];
   const flags = {};
@@ -117,6 +146,9 @@ export function loadConfig(P) {
   if (!Number.isInteger(c.parallel.max_batches) || c.parallel.max_batches < 1) problems.push('CONFIG_PARALLEL_MAX_BATCHES_INVALID');
   if (c.rule_id_pattern) { try { new RegExp(c.rule_id_pattern); } catch { problems.push('CONFIG_RULE_ID_PATTERN_INVALID'); } }
   _cfg = { path: P.config, present: true, sha256: shaFile(P.config), c, problems };
+  // 只报警不改判据：CRLF 物化会让 shaFile 与 LF 锁不一致（CONFIG_DRIFT 假红），这里给出可读诊断
+  _cfg.crlfNote = crlfNormalizedNote(P.config, _cfg.sha256) || null;
+  _cfg.autocrlfRisk = autocrlfRisk(P.repo) || null;
   return _cfg;
 }
 export const cfg = (P) => loadConfig(P).c;

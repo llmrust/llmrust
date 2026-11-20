@@ -1,0 +1,49 @@
+{
+  "_note": "由 scripts/gen-docs.mjs 从默认配置生成，禁止手改。项目按需改这份副本后交用户本地审核",
+  "schema": "agent-workforce-config/v1",
+  "business_dirs": [
+    "src/"
+  ],
+  "roles": {
+    "design": true
+  },
+  "architect_required_inputs": [],
+  "gates": {
+    "required_commands": [],
+    "require_no_mock": true
+  },
+  "rule_id_pattern": null,
+  "release": {
+    "overall_file": null,
+    "overall_pointer": "/summary/overall"
+  },
+  "ci": {
+    "provider": "github",
+    "repo": null,
+    "branch": null,
+    "command": null,
+    "none_reason": null
+  },
+  "frontend": {
+    "dirs": [],
+    "web_guidance": true
+  },
+  "ledger": {
+    "command": null,
+    "none_reason": null
+  },
+  "acceptance": {
+    "user_confirm": false
+  },
+  "parallel": {
+    "max_batches": 2
+  },
+  "generated": [],
+  "trust": {
+    "anchor": "local_review",
+    "remote": "origin",
+    "branch": "main",
+    "allowed_signers": null,
+    "none_reason": null
+  }
+}

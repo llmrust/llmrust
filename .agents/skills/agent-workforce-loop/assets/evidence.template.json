@@ -1,0 +1,71 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "dev|qa|gate|ledger|design",
+  "agent": "<role>-<name>，如 dev-c001；须与任务卡 owner_agent / qa_agent 一致",
+  "card_id": "<dev/qa 必填；gate/ledger/design 为批次级回执，可留空>",
+  "batch_id": "B-1-1",
+  "spec_sha256": "<当前已确认 spec 的 sha256，loop.mjs status 可见>",
+  "inputs_seen": [
+    "<diff 路径>",
+    "<命令输出路径>"
+  ],
+  "files_changed": [
+    "<仅 dev：本卡改动的业务文件，必须落在 write_scopes 内>"
+  ],
+  "web_guidance": {
+    "_仅前端卡_dev": "write_scopes 落在 config.frontend.dirs 下时必填",
+    "queries": [
+      "light dismiss dialog"
+    ],
+    "guide_ids": [
+      "<retrieve 的指南 id>"
+    ],
+    "retrieved_artifact": "out/mwg-<card>.md（同时列入 artifacts）",
+    "none_applicable_reason": "<guide_ids 为空时必填>",
+    "deviations": [
+      {
+        "guide_id": "<id>",
+        "overridden_by": "<项目技术栈裁定编号>",
+        "note": ""
+      }
+    ]
+  },
+  "layers_covered": [
+    "<仅 qa：event|logic|interface>"
+  ],
+  "rule_ids": [
+    "<仅 qa：覆盖的需求规则编号，如 AUTH-L-08；可用 config.rule_id_pattern 约束格式>"
+  ],
+  "guidance_verified": [
+    "<仅 qa 前端卡：逐条核对过的 dev guide_ids>"
+  ],
+  "mock_used": false,
+  "prototype_refs": [
+    "<仅 design：原型/设计稿的具体状态，如 #/login?state=error>"
+  ],
+  "artifacts": [
+    {
+      "path": "<相对仓库根的文件路径>",
+      "sha256": "<该文件实际 sha256，脚本会核对>"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "npx -y modern-web-guidance@latest search \"light dismiss dialog\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "npx -y modern-web-guidance@latest retrieve \"<id>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "<实际执行的命令，gate 须包含 config.gates.required_commands 每一条>",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS|FAIL",
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "",
+  "handoff_id": "<仅 qa 回执：handoff 输出的 handoff_id>"
+}

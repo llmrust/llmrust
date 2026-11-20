@@ -1,0 +1,33 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-001",
+  "phase": "PH-1",
+  "story": "US-01",
+  "priority": "P1",
+  "parallel": "[P]",
+  "owner_agent": "dev-c001",
+  "qa_agent": "qa-c001",
+  "gate_agent": "gate-ph1",
+  "ledger_agent": "ledger-ph1",
+  "design_agent": "design-ui",
+  "write_scopes": [
+    "src/auth/"
+  ],
+  "exact_file_paths": [],
+  "spec_refs": [],
+  "requirement_refs": [
+    "AUTH-L-08"
+  ],
+  "ruling_refs": [],
+  "acceptance_criteria": [
+    "GIVEN 用户点登录 WHEN 邮箱格式错 THEN 显示「请输入正确的邮箱」（AUTH-L-08）"
+  ],
+  "independent_test": "npm test -- auth",
+  "needs_clarification": [],
+  "blocked_by": [],
+  "checkpoint": "登录可独立走通才进 PH-2",
+  "status": "pending",
+  "web_guidance_queries": [
+    "<可选，仅前端卡：2–5 个英文词的检索提示，如 email input validation>"
+  ]
+}

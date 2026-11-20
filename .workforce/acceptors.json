@@ -1,0 +1,7 @@
+{
+  "schema": "agent-workforce-acceptors/v1",
+  "emails": [
+    "exec@local"
+  ],
+  "note": "零人签模式"
+}

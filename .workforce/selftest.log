@@ -1,0 +1,129 @@
+✓ 无 config.json → 一切迁移拒绝
+✓ scaffold 生成 config 模板
+✓ config 没有门禁命令 → 拒绝
+✓ config 没有台账生成命令也没写理由 → 拒绝
+✓ config 由 agent 提交 → config-check 拒绝
+✓ config 由用户提交但未进受保护分支 → 拒绝
+✓ config 由用户提交并进入远端受保护分支 → config-check PASS
+✓ Lead 不能写 spec（guard）
+✓ Lead 不能执行 architect-spec
+✓ 工种动作一律拒绝
+✓ produced_by 与执行者不符拒绝
+✓ 架构师产出 spec
+✓ 无签署不能 review
+✓ 签署 agent 角色不符 / 复用拒绝
+✓ 签署绑定旧 spec 拒绝
+✓ 六工种全部同意 → SPEC_REVIEWED
+✓ 无 Lead 签署不能 approve
+✓ Lead 审批 → SPEC_APPROVED
+✓ 用户签署未提交拒绝
+✓ agent 代提交用户签署拒绝
+✓ 用户亲自提交 → SPEC_CONFIRMED
+✓ 确认后放宽 config → CONFIG_DRIFT
+✓ 手改状态文件拒绝
+✓ init 从已确认 spec 展开批次
+✓ dispatch B-1（只唤醒 dev，测试等交接）
+✓ 开发还没交卷 → 不能交接给测试
+✓ v2 漏洞：空回执直接 evidence → 拒绝
+✓ v2 漏洞：跳过 evidence 直接 accept → 拒绝
+✓ 业务改动未被认领 → check-drift FAIL
+✓ 开发自测冒充 QA、sha 造假 → 拒绝
+✓ 前端卡没跑 modern-web-guidance → 拒绝
+✓ 声称取了指南但存档里没有该指南 → 拒绝
+✓ QA 没核对 dev 用到的指南 → 拒绝
+✓ 测试回执没走交接（与开发同时进行）→ 拒绝
+✓ 交接后开发又改代码 → 测试作废
+✓ 重新交接后，旧测试回执不算数
+✓ check-roles.mjs 独立运行 PASS
+✓ 回执齐全 → EVIDENCE_COLLECTED
+✓ overall 未达标 + 手写台账（self_sha256 不自洽）→ accept FAIL 并自动 REOPEN
+✓ REOPEN 后重新 dispatch（工作区仍有未提交改动）→ 拒绝
+✓ 提交后重新 dispatch
+✓ 回流期间提交的未认领业务改动 → 仍被 evidence 拦下（批次基线不重置）
+✓ evidence
+✓ 自洽但手写的台账 → 重跑生成命令不一致 → accept FAIL
+✓ 回流 dispatch
+✓ evidence
+✓ 五层 PASS（台账由生成命令重跑一致）→ ACCEPTED
+✓ 无 gh / 远端 CI → release 拒绝
+✓ 远端 CI failure → release 拒绝
+✓ CI success → RELEASED
+✓ deliver → DELIVERED
+✓ 交付后 ready 列出 B-2（C1 已交付，C3 解锁）
+✓ B-2 的 C3 依赖已交付的 C1 → dispatch 可行（guard）
+✓ agent 冒充用户提 issue → 拒绝
+✓ 用户 issue → REOPEN 到 C2 所在批次
+✓ REOPEN 允许 dispatch
+✓ 确认后改 spec → dispatch 拒绝
+✓ 架构师 spec-revise → 回 SPEC_DRAFT，旧签署失效
+✓ 旧签署不能复用
+✓ B-1 未交付时 B-2 不能开工（blocked_by）
+✓ init 后只有 B-1 可开工
+✓ [2] trust=none / 无台账命令 → status 永久提示
+✓ [2] 自定义目录 + architect-spec
+✓ [2] design 关闭时六工种（含 ci）签署即可 review
+✓ [2] approve
+✓ [2] confirm
+✓ [2] init
+✓ [2] dispatch 给出与 harness 无关的 brief，且无 design
+✓ [2] evidence（非前端卡不要求 web_guidance）
+✓ [2] gate 没跑 config 要求的命令 → accept FAIL
+✓ [2] 回流后 dispatch
+✓ [2] evidence
+✓ [2] 英文层名 + view 跳过 → ACCEPTED
+✓ [2] 有 CI 强制门（无远端/无回执）→ release 拒绝
+✓ [4] 没登记审批人 → config-check 拒绝
+✓ [4] 有审批人但用户没签同意 → 拒绝（没有佐证就不可信）
+✓ [4] agent 用自己的钥匙伪造同意 → 拒绝
+✓ [4] 同意记录被改 → 签名不符，拒绝
+✓ [4] 不知道密码打不开用户的钥匙
+✓ [4] 用户本人签名同意 → config-check PASS，并给出指纹供核对
+✓ [4] approve.mjs 不在真实终端 → 拒绝（agent 不能代跑）
+✓ [4] 同一张卡被两个任务认领 → spec 拒绝
+✓ [4] architect-spec
+✗ [4] 同意后又改规则表 → 同意失效，不能开工 → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=spec-confirm allowed=spec-review,spec-revise"}
+✗ [4] acceptance.user_confirm=false → 不需要用户签署即可确认 → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=spec-confirm allowed=spec-review,spec-revise"}
+✗ [4] 开发和测试是同一个 agent → init 拒绝 → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=init allowed=spec-review,spec-revise"}
+✗ [4] 开工后审批人被换 → 一切迁移拒绝 → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=init allowed=spec-review,spec-revise"}
+✗ [4] init → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=init allowed=spec-review,spec-revise"}
+✗ [4] 派前端批 B-F → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=dispatch allowed=spec-review,spec-revise"}
+✗ [4] 并行派后端批 B-B → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=dispatch allowed=spec-review,spec-revise"}
+✗ [4] status 显示两批同时在做 → exit 0 {"verdict":"PASS","state":"SPEC_DRAFT","active_batches":[],"ready_to_dispatch":[],"spec_sha256":"6d5085a2c58b8eabaabb10155920d6706defc86c3549f1a8ba10e2d6e0ddca7b","allowed_actions":["spec-review","spec-revise"],"spec_drift":null,"config_problems":[],"config_drift":null,"warnings":["LEDGER_UNVERIFIED：台账层只验 self_sha256 自洽，不重跑生成命令，手写台账可过。理由：demo"],"batches":[],"handoffs":{},"open_issues":[],"last_rea
+✗ [4] 第三批：超并行上限且写入范围与前端批重叠 → 拒绝 → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=dispatch allowed=spec-review,spec-revise"}
+✗ [4] 两批都在做时不指定批次 → 拒绝（要求 --batch） → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=evidence allowed=spec-review,spec-revise"}
+✗ [4] 后端批回执：前端批的改动不算后端批的未认领改动 → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=evidence allowed=spec-review,spec-revise"}
+✗ [4] 两批范围都不覆盖的业务改动 → 仍被拦下 → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=evidence allowed=spec-review,spec-revise"}
+✗ [4] 前端批回执 → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=evidence allowed=spec-review,spec-revise"}
+✗ [4] 后端批独立验收 → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=accept allowed=spec-review,spec-revise"}
+✗ [4] 机器生成文件被手改 → 验收拒绝 → exit 1 {"verdict":"FAIL","reason":"STATE_FORBIDS state=SPEC_DRAFT action=accept allowed=spec-review,spec-revise"}
+✓ [4] 检查后恢复原文件，不偷偷替你修
+✓ [5] 原样 skill → validate PASS
+✓ [5] 手改生成的状态表 → validate FAIL
+✓ [5] 文档写了不存在的命令 → validate FAIL
+✓ [3] agent 自写自提交 acceptors（首次占位）→ 未进受保护分支，拒绝
+✓ [6] dispatch：wake 含 role=ci 的卡（交卷方不再写死 dev）
+✓ [6] role=ci 的卡可 handoff：冻结文件 + handoff_id + 唤醒 qa
+✓ [6] role=qa 的卡仍被拒（验证方不能自交自测）
+✓ [7] release 脏检查：已跟踪被修改的 ci.json / loop-state.json 正确豁免（旧 slice(3) 会误报 WORKTREE_DIRTY）
+✓ [7] release 脏检查：未被豁免的真实脏文件仍被拦下，判据未放宽
+✓ [8] 回执 artifacts 钉同批兄弟回执（含 sha 故意写错/尚不存在）→ PASS + NOTE RECEIPT_ARTIFACT_SKIPPED（旧实现会 ARTIFACT_SHA_MISMATCH/MISSING）
+✓ [8] 非回执文件 sha 写错 → FAIL ARTIFACT_SHA_MISMATCH（未放宽；skip 仅限同批回执命名）
+✓ [9] 判据抽样歧义：P95 无取样口径 → 红；min-of-N+轮次 → 绿
+✓ [9] 绝对数量断言：无结构性跳过说明 → 红；带跳过说明 → 绿
+✓ [9] 基线未钉：不劣于基线无路径/sha → 红；带基线文件+sha → 绿
+✓ [9] 判据点名调用点但 scope 未覆盖 → 红；scope 覆盖 → 绿
+✓ [9] 相对比值判据未明示聚合 → 红；明示 median-of-5 双侧 → 绿
+✓ [10] incidents 基线：14 条 / 18 guard 全验通过 → PASS
+✓ [10] 守卫 code 在 scripts 里不存在 → INCIDENT_GUARD_CODE_UNKNOWN
+✓ [10] 守卫 selftest 用例名找不到 → INCIDENT_SELFTEST_MISSING
+✓ [10] 只记录不设防（无 guard）→ INCIDENT_WITHOUT_ENFORCEMENT
+✓ [10] accepted_risk 的 review_by 过期 → INCIDENT_RISK_REVIEW_EXPIRED
+✓ [10] status 不在白名单 → INCIDENT_STATUS_INVALID
+✓ [10] kind 不在白名单 → INCIDENT_KIND_UNKNOWN
+✓ [10] 生成物被手改 → INCIDENTS_DOC_DRIFT
+✓ [11] delivered 批次跑 premerge 应进入校验逻辑而非 BATCH_STATE_FORBIDS
+✓ [11] merge-pr：premerge FAIL 时 exit 1 且不调用任何合并 API（merge_called=false）
+✓ [12] merge-pr 引导自检：无 merge-pr.mjs 且未给 --allow-bootstrap ⇒ exit 1（GATE_BOOTSTRAP_REQUIRED）
+✓ [12] --allow-bootstrap：打印 GATE_BOOTSTRAP_MODE 后继续到门校验（premerge FAIL 仍不合并）
+✓ [12] 合并后自动写 evidence/<batch>/merge.json（{at,pr,merge_commit,merge_called:true,head_sha,checks,bootstrap_used}）
+{"verdict":"FAIL","cases":128,"failed":15}

@@ -1,7 +1,7 @@
-# REL-0.1.6 发版进度（dev-llmrust）
+# REL-0.1.6 发版进度（dev-llmrust）—— 已完成
 
 - repo: D:\llmrust-0.1.5, branch `main`, 起点 HEAD `3ed46b0`（= origin/main）
-- 起始版本 0.1.5，已有 tag v0.1.0 / v0.1.1 / v0.1.3 / v0.1.4 / v0.1.5
+- 发布版本 0.1.5 → **0.1.6**，已完成 commit / push / tag / CI / crates.io
 
 ## 1. 查到的发版惯例（已核实）
 
@@ -15,23 +15,23 @@ tag == `Cargo.toml` version == `llmrust.capabilities.json` version == `CHANGELOG
 2. `Cargo.toml` `version = "X.Y.Z"`
 3. `llmrust.capabilities.json` 的 `"version"`（机器门 `capabilities_json_version_matches_crate_version`）
 4. `CHANGELOG.md` 首标题 `## [X.Y.Z] - YYYY-MM-DD`（机器门 `changelog_first_heading_matches_cargo_version`；
-   日期必须真实，占位符/`[Unreleased]` 一律红；0.1.3/0.1.1/0.1.0 历史标题必须保留）
+   日期必须真实，占位符/`[Unreleased]` 一律红；历史标题必须保留）
 
 ### 0.1.5 实际动的 7 个文件（零源码）
-`Cargo.toml`、`Cargo.lock`（恰 1 行 llmrust 自身版本）、`CHANGELOG.md`、
-`llmrust.capabilities.json`、`llmrust.models.json`、`README.md`、`README.zh-CN.md`。
-README 双语：当前版本段升新版、旧版降为 `<details>` 折叠保留原文。
+`Cargo.toml`、`Cargo.lock`（恰 1 行）、`CHANGELOG.md`、`llmrust.capabilities.json`、
+`llmrust.models.json`、`README.md`、`README.zh-CN.md`。README 双语：当前段升新版、
+旧版降为 `<details>` 折叠保留原文。
 
 ### 发布通道
 `.github/workflows/release.yml` **只有** `on: push: tags: v[0-9]+.[0-9]+.[0-9]+`，
 **无 workflow_dispatch**（无旁路条款）⇒ 推 tag 自动触发 validate → dry-run → publish；
 dry-run 与 publish 两 job 均挂 `environment: release`（required_reviewers=bishuan）
-⇒ Owner 需在 GitHub 上点 **2 次**环境审批。不手动触发 workflow、不本地 `cargo publish`。
+⇒ Owner 点 **2 次**环境审批。未手动触发 workflow、未本地 `cargo publish`。
 
 ### 其它硬门
 - Gate 3：`git status --porcelain -uall` 必须完全为空（故未跟踪的
   `.workforce/evidence/B-DELTA-NULL/ci.json` 随本次提交入库，Lead 已批准）。
-- Gate 4：默认特性不得拉入 `axum`（实测 `cargo tree -e no-dev -i axum` 无匹配 ⇒ PASS）。
+- Gate 4：默认特性不得拉入 `axum`（实测无匹配 ⇒ PASS）。
 - `core.autocrlf=false` 保持不动。
 
 ## 2. 改动清单（已完成）
@@ -58,10 +58,23 @@ dry-run 与 publish 两 job 均挂 `environment: release`（required_reviewers=b
 - cargo fmt --all --check
 - cargo clippy --workspace --all-targets -- -D warnings
 
-## 5. 待办
+## 5. 发版结果（全部完成）
 
-- [ ] commit（消息含 task-ids: REL-0.1.6）
-- [ ] push main
-- [ ] tag v0.1.6 + push tag
-- [ ] 等 CI（main push run + tag release 流水线）
-- [ ] release-result.json
+| 项 | 值 |
+|---|---|
+| commit | `175fb8a801314d10760452a9887485be3b1fd9af` |
+| push main | `3ed46b0..175fb8a`（无 force push） |
+| tag | `v0.1.6` annotated，object `53267828c6805e5172cbcff3076a2680f05b671e` → commit `175fb8a` |
+| push tag | `* [new tag] v0.1.6 -> v0.1.6` |
+| git status | 提交后为空（Gate 3 PASS） |
+| CI（main push） | CI #44722309945 success / Security Gates #44722310195 success |
+| Release 流水线 | #44722333950 success（validate / dry-run / **Publish to crates.io** 四 job 全绿） |
+| crates.io | 0.1.6 已发布，yanked=false，checksum `af06f3f9f4c0120d7601c55ac0dc21dac3f23cfb8f149ffe9f6b62e64186e482`（与 dry-run provenance 样本一致） |
+| docs.rs | https://docs.rs/crate/llmrust/0.1.6 → HTTP 200 |
+| Owner 审批 | 2 次（dry-run + 真实上传），均已批准 |
+
+## 6. 留痕的已知残留（不阻塞本次发版）
+
+`{"choices":null}` 是 `delta:null` 的下一层同类缺陷：`CompStreamChunk.choices` 的
+`#[serde(default)]` 只覆盖"字段缺失"、不覆盖显式 `null`。已在 CHANGELOG `### Known issues`
+与双语 README 留痕，**未改代码**（超出本次发版范围），建议独立任务卡跟进。

@@ -1,0 +1,226 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "release",
+  "agent": "dev-llmrust (release 工种)",
+  "written_by": "dev-llmrust",
+  "task_ids": ["REL-0.1.6"],
+  "repo": "llmrust/llmrust",
+  "local_repo": "D:\\llmrust-0.1.5",
+  "branch": "main",
+  "released_version": "0.1.6",
+  "previous_version": "0.1.5",
+
+  "release_convention": {
+    "source_of_truth": [
+      "bf7dee9 (0.1.5 release commit, squash of 764bc2f, tag v0.1.5 = a9fe0c0)",
+      "RELEASE_CHECKLIST.md",
+      ".github/scripts/release-validate.sh (Gate 2)",
+      "tests/agent_docs_validation.rs (changelog_first_heading_matches_cargo_version / capabilities_json_version_matches_crate_version)"
+    ],
+    "four_way_consistency": {
+      "rule": "release-validate.sh Gate 2: tag == Cargo.toml version == llmrust.capabilities.json version == CHANGELOG.md section",
+      "places": [
+        "1. git tag vX.Y.Z",
+        "2. Cargo.toml version = \"X.Y.Z\"",
+        "3. llmrust.capabilities.json \"version\" (machine gate)",
+        "4. CHANGELOG.md first heading `## [X.Y.Z] - YYYY-MM-DD` (machine gate; real date required, no placeholder/Unreleased; historical headers 0.1.3/0.1.1/0.1.0 must survive)"
+      ]
+    },
+    "files_touched_by_0_1_5_release": [
+      "Cargo.toml",
+      "Cargo.lock",
+      "CHANGELOG.md",
+      "llmrust.capabilities.json",
+      "llmrust.models.json",
+      "README.md",
+      "README.zh-CN.md"
+    ],
+    "readme_convention": "bilingual: current release section promoted to new version; previous release demoted into <details> with original text preserved",
+    "publish_channel": {
+      "workflow": ".github/workflows/release.yml",
+      "trigger": "on: push: tags: v[0-9]+.[0-9]+.[0-9]+ (NO workflow_dispatch — no manual bypass path)",
+      "jobs": ["validate", "dry-run (environment: release)", "publish (environment: release, real upload via Trusted Publishing/OIDC)"],
+      "owner_approvals_required": 2,
+      "manual_cargo_publish": false,
+      "manual_workflow_trigger": false
+    },
+    "other_gates": [
+      "Gate 3: git status --porcelain -uall must be completely clean",
+      "Gate 4: default feature must not pull in axum (proxy-only dep)",
+      "core.autocrlf stays false (repo-local setting, not modified)"
+    ]
+  },
+
+  "changes": {
+    "files_modified": [
+      "Cargo.toml (version 0.1.5 -> 0.1.6)",
+      "Cargo.lock (llmrust package version, exactly 1 line)",
+      "CHANGELOG.md (new first section ## [0.1.6] - 2026-11-20: Fixed + Known issues)",
+      "llmrust.capabilities.json (version)",
+      "llmrust.models.json (version)",
+      "README.md (current section -> 0.1.6, 0.1.5 demoted to <details>, Known issue note)",
+      "README.zh-CN.md (same in Chinese)"
+    ],
+    "files_added": [
+      ".workforce/evidence/B-DELTA-NULL/ci.json (batch receipt committed to satisfy Gate 3 clean-tree requirement; Lead approved)",
+      ".workforce/evidence/REL-0.1.6/progress.md"
+    ],
+    "source_code_touched": false,
+    "source_code_note": "src/providers/compat.rs fix already landed in 916c66b (PR #251); this release commit touches zero source lines",
+    "diff_stat": "9 files changed, 238 insertions(+), 10 deletions(-)",
+    "crlf_incident": {
+      "problem": "editor materialised 7 files as CRLF while HEAD blobs are LF and core.autocrlf=false => whole-file drift in git diff (e.g. CHANGELOG 1015 lines)",
+      "resolution": "rewrote the 7 files back to LF using HEAD raw bytes; diff converged to 2/2/49/33/13/2/2 lines",
+      "core_autocrlf_unchanged": true,
+      "core_autocrlf_value": "false"
+    }
+  },
+
+  "local_gates": {
+    "cargo_build_workspace": { "exit": 0, "note": "Finished dev profile, llmrust v0.1.6" },
+    "cargo_test_workspace": { "exit": 0, "note": "19 test binaries, all green, 0 failed (includes agent_docs_validation, architecture_guard 15, package_guard 4)" },
+    "cargo_fmt_all_check": { "exit": 0 },
+    "cargo_clippy_workspace_all_targets_deny_warnings": { "exit": 0 },
+    "four_way_consistency_manual": {
+      "tag": "0.1.6",
+      "Cargo.toml": "0.1.6",
+      "llmrust.capabilities.json": "0.1.6",
+      "llmrust.models.json": "0.1.6",
+      "Cargo.lock(llmrust)": "0.1.6",
+      "CHANGELOG first heading": "## [0.1.6] - 2026-11-20",
+      "changelog_history_preserved": ["0.1.5", "0.1.4", "0.1.3", "0.1.1", "0.1.0"],
+      "unreleased_placeholder_present": false
+    },
+    "gate4_default_graph_has_no_axum": true
+  },
+
+  "commit": {
+    "sha": "175fb8a801314d10760452a9887485be3b1fd9af",
+    "short": "175fb8a",
+    "subject": "release(REL): 0.1.6 版本与元数据 —— OpenAI 兼容流末帧 delta:null/缺失修复随版生效（四处一致 + README 双语指针）",
+    "contains_task_ids": "task-ids: REL-0.1.6",
+    "parent": "3ed46b0f31b23d64d4c31a67054a887e9b7b9448",
+    "pushed": true,
+    "push_output": "3ed46b0..175fb8a  main -> main",
+    "force_push_used": false,
+    "remote_main_after_push": "175fb8a801314d10760452a9887485be3b1fd9af"
+  },
+
+  "tag": {
+    "name": "v0.1.6",
+    "type": "annotated",
+    "object_sha": "53267828c6805e5172cbcff3076a2680f05b671e",
+    "dereferences_to_commit": "175fb8a801314d10760452a9887485be3b1fd9af",
+    "message": "0.1.6: 修 OpenAI 兼容流末帧 delta:null/缺失（真调工具必失败）",
+    "pushed": true,
+    "remote_ref": "53267828c6805e5172cbcff3076a2680f05b671e refs/tags/v0.1.6"
+  },
+
+  "working_tree": {
+    "git_status_porcelain_uall": "",
+    "clean": true,
+    "checked_after_commit": true
+  },
+
+  "ci": {
+    "main_push": {
+      "CI": {
+        "run_id": 44722309945,
+        "event": "push",
+        "head_sha": "175fb8a801314d10760452a9887485be3b1fd9af",
+        "conclusion": "success",
+        "duration": "1m15s",
+        "url": "https://github.com/llmrust/llmrust/actions/runs/44722309945",
+        "jobs": [
+          { "name": "Architecture & package guards (CI-003)", "conclusion": "success" },
+          { "name": "MSRV (1.86)", "conclusion": "success" },
+          { "name": "Test (stable)", "conclusion": "success" },
+          { "name": "API-002 semver gate (vs 0.1.2 baseline)", "conclusion": "success" }
+        ]
+      },
+      "Security Gates": {
+        "run_id": 44722310195,
+        "event": "push",
+        "head_sha": "175fb8a801314d10760452a9887485be3b1fd9af",
+        "conclusion": "success",
+        "duration": "49s",
+        "url": "https://github.com/llmrust/llmrust/actions/runs/44722310195",
+        "jobs": [
+          { "name": "RustSec advisories", "conclusion": "success" },
+          { "name": "Secret scan (gitleaks CLI)", "conclusion": "success" },
+          { "name": "Supply-chain policy (cargo-deny)", "conclusion": "success" },
+          { "name": "Security audit", "conclusion": "success" }
+        ]
+      }
+    },
+    "tag_release_pipeline": {
+      "run_id": 44722333950,
+      "name": "Release — tag-triggered, validates the tag and publishes via Trusted Publishing",
+      "event": "push",
+      "head_branch": "v0.1.6",
+      "head_sha": "175fb8a801314d10760452a9887485be3b1fd9af",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/44722333950",
+      "jobs": [
+        { "name": "fmt / clippy gate (re-run after auto-fix, per CI-003 MUST-1)", "conclusion": "success" },
+        { "name": "Pre-flight validation (tag / version / clean / deps)", "conclusion": "success" },
+        { "name": "Package + dry-run (no upload) + post-extract scan + provenance sample", "conclusion": "success" },
+        { "name": "Publish to crates.io (Trusted Publishing)", "conclusion": "success" }
+      ],
+      "dry_run_provenance_sample": "{\"name\":\"llmrust\",\"version\":\"0.1.6\",\"artifact\":\"llmrust-0.1.6.crate\",\"sha256\":\"af06f3f9f4c0120d7601c55ac0dc21dac3f23cfb8f149ffe9f6b62e64186e482\",\"published\":false,\"generated_by\":\"REL-001 dry-run\"}",
+      "gate3_clean_tree_passed": true,
+      "gate2_four_way_passed": true,
+      "gate4_no_axum_passed": true
+    },
+    "all_green": true
+  },
+
+  "crates_io": {
+    "version": "0.1.6",
+    "published": true,
+    "published_at": "2026-11-20T10:52:22Z",
+    "yanked": false,
+    "checksum": "af06f3f9f4c0120d7601c55ac0dc21dac3f23cfb8f149ffe9f6b62e64186e482",
+    "checksum_matches_dry_run_provenance": true,
+    "crate_max_version": "0.1.6",
+    "crate_newest_version": "0.1.6",
+    "api": "https://crates.io/api/v1/crates/llmrust/0.1.6"
+  },
+
+  "docs_rs": {
+    "url": "https://docs.rs/crate/llmrust/0.1.6",
+    "http_status": 200,
+    "reachable": true,
+    "note": "docs.rs builds asynchronously; page reachable at time of check. Build conclusion not asserted here (builds.json not exposed at the checked path)."
+  },
+
+  "owner_actions": {
+    "approvals_clicked": 2,
+    "approvals_detail": "release environment (required_reviewers: bishuan) gates BOTH the dry-run job and the real-upload publish job; both approvals were granted during this run and the publish job completed success.",
+    "remaining_owner_actions": [],
+    "manual_cargo_publish_needed": false,
+    "manual_workflow_dispatch_needed": false
+  },
+
+  "known_issues_left_open": [
+    {
+      "title": "OpenAI 兼容流 choices:null 同样导致解析失败（delta:null 的下一层同类缺陷）",
+      "status": "documented_in_CHANGELOG_and_README_only",
+      "code_touched": false,
+      "detail": "CompStreamChunk.choices has #[serde(default)] which covers a MISSING field but not an explicit null; {\"choices\":null} still fails the whole stream with LlmError::Parse. Out of scope for #251/0.1.6; needs its own task card.",
+      "suggested_fix": "choices: Option<Vec<CompStreamChoice>> or a custom deserializer, with failure-first regression tests"
+    }
+  ],
+
+  "discipline_compliance": {
+    "force_push": false,
+    "core_autocrlf_modified": false,
+    "manual_cargo_publish": false,
+    "manual_workflow_trigger": false,
+    "source_code_changed_in_release_commit": false,
+    "ci_json_receipt_tampered": false,
+    "ci_json_note": "B-DELTA-NULL/ci.json keeps pushed.head_sha=3ed46b0 (its historical binding); it was NOT rewritten to match the new HEAD — the batch is already delivered, so the receipt's CI binding is expected to mismatch. No falsification."
+  },
+
+  "verdict": "RELEASE SUCCESS — 0.1.6 committed (175fb8a), tagged (v0.1.6 = 5326782), pushed, all CI green (3/3 workflows), published to crates.io (checksum af06f3f9…), docs.rs reachable."
+}

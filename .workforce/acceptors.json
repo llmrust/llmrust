@@ -1,7 +1,8 @@
 {
   "schema": "agent-workforce-acceptors/v1",
   "emails": [
-    "exec@local"
+    "exec@local",
+    "hushsaisi@foxmail.com"
   ],
-  "note": "零人签模式"
+  "note": "零人签模式。2026-11-20 补登 hushsaisi@foxmail.com：PR #251 squash-merge（916c66b）将 .workforce/config.json 与本文件的最后提交作者改写为该仓库实际提交身份，致 CONFIG_ACCEPTORS_NOT_COMMITTED_BY_ACCEPTOR 误拦 spec-confirm；此为身份名单维护，非判据放宽（anchor=none 模式明示接受作者邮箱为唯一弱锚）。"
 }

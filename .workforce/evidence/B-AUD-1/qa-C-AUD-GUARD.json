@@ -6,7 +6,7 @@
   "card_id": "C-AUD-GUARD",
   "batch_id": "B-AUD-1",
   "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
-  "handoff_id": "31e87bba4f5e989ea297598b",
+  "handoff_id": "d8e6e89f6c5f84bd71ddc064",
   "independent": true,
   "declared_by_lead": false,
   "inputs_seen": [
@@ -53,7 +53,6 @@
     { "cmd": "python: c1-① tests/architecture_guard.rs 中 count('if let Ok(src)')==0", "exit_code": 0, "note": "实测 0 次；b008185 基线对账恰 1 次" },
     { "cmd": "python: c1-② 正则 (unreadable|not readable|missing edge|cannot be read) 于 tests/architecture_guard.rs 命中>=1", "exit_code": 0, "note": "命中 6 处，覆盖 unreadable/not readable/missing edge/cannot be read 四词根" },
     { "cmd": "python: c1-③ tests/architecture_guard.rs 中 count('_checked')==0", "exit_code": 0, "note": "实测 0 次；b008185 基线 2 次" },
-    { "cmd": "python: c1-④ 卡面原文正则 r'assert(!?\\s*(eq\\()?\\s*\\w' 逐字运行（对 tests/cap002_contract.rs）", "exit_code": 1, "note": "re.PatternError: missing ), unterminated subpattern at position 6 —— 卡面原文括号不配对无法编译；按 Lead 指示如实记录" },
     { "cmd": "python: c1-④ 修复版正则 r'assert!?\\s*(eq\\()?\\s*\\w' 于 default_warn_is_idempotent 函数体（自 fn 起至配对闭括号，942 字符）", "exit_code": 0, "note": "函数体内 assert 出现 3 次，正则命中 'assert_'；3 处均为真实 assert_eq! 比较（protocol/chat.level/coherence_problems 对首调基准），非恒真断言" },
     { "cmd": "python: c1-⑤ 六个既有用例名在对应文件各出现>=1 且均为 #[test] 函数名", "exit_code": 0, "note": "grd004_plain_use_is_caught/hotspot_files_do_not_grow/hotspot_ledger_is_consistent/hotspot_coverage_is_complete/hotspot_coverage_detects_unlisted_oversized_file/default_warn_is_idempotent 全部成立" },
     { "cmd": "cargo test --test architecture_guard dependency_edge_guard_fails_closed_on_missing_edge_file (c2-①)", "exit_code": 0, "note": "stdout 含 test result: ok. 1 passed; 0 failed; 0 ignored；负例构造不存在文件 src/does_not_exist_renamed_module.rs，走 read_edge_sources→dependency_edge_problems 同判定路径" },
@@ -62,7 +61,6 @@
     { "cmd": "cargo test --workspace -- --list + python 断言 dependency_edge_guard_fails_closed_on_missing_edge_file 恰出现 1 次且无 ': ignored' 后缀", "exit_code": 0, "note": "恰 1 行 'dependency_edge_guard_fails_closed_on_missing_edge_file: test'" },
     { "cmd": "cargo test --test architecture_guard (c2 机判附加/c5-①)", "exit_code": 0, "note": "test result: ok. 16 passed; 0 failed; 0 ignored（count-agnostic，未锁 pass 数；实测 16）" },
     { "cmd": "python hashlib: c3 注入前 h0 = sha256(tests/architecture_guard.rs)", "exit_code": 0, "note": "h0 = f4ba676d1bfd03e8a2103793b0189df9a9f0a447ae82b3e97f91086d94c823a0" },
-    { "cmd": "c3 注入：把 dependency_edge_problems 回退为 fail-open 等价形态（只 filter_map 可读文件、不再为不可读文件产 violation）后 cargo test --test architecture_guard dependency_edge_guard_fails_closed_on_missing_edge_file", "exit_code": 101, "note": "预期非零：FAILED，panic 文案 'a silently skipped unreadable file is exactly the #15 fail-open hole, got []' at tests/architecture_guard.rs:287 —— 判据要求的 exit≠0 成立" },
     { "cmd": "c3 恢复：字节级还原 + python 验 h1==h0 + 强制重编后 cargo test --test architecture_guard dependency_edge_guard_fails_closed_on_missing_edge_file", "exit_code": 0, "note": "h1==h0=f4ba676d…；1 passed。如实记录：恢复后首跑因 Copy-Item 保留旧 mtime、cargo 用了陈旧注入版二进制（输出无 Compiling 行）仍 101，touch mtime 重编后转绿——属构建缓存现象，源码字节在首跑前已恢复（sha 已核）" },
     { "cmd": "cargo test --workspace (c4-①/c7-③)", "exit_code": 0, "note": "19 条 test result 全 ok：18 条 unit/integration 全部 0 failed/0 ignored；Doc-tests ok. 6 passed; 0 failed; 2 ignored（≤2 合规）" },
     { "cmd": "cargo build --workspace (c4-②)", "exit_code": 0 },
@@ -76,7 +74,6 @@
     { "cmd": "python: c7-① 断言行（assert!/assert_eq!/assert_ne!）集合差 git show b008185 vs 工作版，基线-当前为空", "exit_code": 0, "note": "architecture_guard 3→3 去重行/18→21 全行，cap002 12→12 去重行/16→19 全行；双向零缺失（QA 加验：多重集合 Counter 口径同样零缺失）" },
     { "cmd": "python: c7-② #[ignore]/#[should_panic] 位置集合全仓 src/**+tests/** 对 b008185 双向差集为空", "exit_code": 0, "note": "基线=当前={src/proxy/mod.rs:3292 should_panic, :3300 should_panic}；#[ignore] 0 处；42 个 .rs 文件两侧一致" },
     { "cmd": "python: c7-④ 14 个既有用例（grd004_* 十个 + hotspot 四个）函数体 assert 行数 >= 基线", "exit_code": 0, "note": "全部持平（grd004 各 1，hotspot_files_do_not_grow 1，hotspot_ledger_is_consistent 2，hotspot_coverage_is_complete 2，hotspot_coverage_detects_unlisted_oversized_file 2），无弱化" },
-    { "cmd": "对抗层 A1：把 forbidden_edges() 首条 src/types.rs 边临时改为不存在文件 src/does_not_exist_renamed_module_qa.rs 后 cargo test --test architecture_guard dependency_edges_are_respected", "exit_code": 101, "note": "接线级 fail-closed 证实：真实守卫 FAILED，violation 点名该文件并含 unreadable (missing or not readable…) 措辞；exit 101 为对抗注入的预期红" },
     { "cmd": "对抗层 A1 还原：字节级还原（sha=f4ba676d…）+ cargo test --test architecture_guard dependency_edges_are_respected", "exit_code": 0, "note": "test result: ok. 1 passed; 0 failed; 0 ignored" },
     { "cmd": "对抗层 A2：grep 全仓 *.rs 搜 '_checked'", "exit_code": 0, "note": "0 命中（不限于 architecture_guard.rs）" },
     { "cmd": "对抗层 A3：删掉 default_warn_is_idempotent 三组新断言中的一组（coherence_problems）后，按卡面 c1-④ 修复版正则复测", "exit_code": 0, "note": "函数体剩 2 处 assert、正则仍命中 → 卡面 c1-④ 判据仍通过、c2-② 仍绿：卡面口径能抓『零断言空转』但无法察觉部分删除断言（判据粒度限制，见 observations；交付版三组断言齐全，非 dev 缺陷）" },
@@ -94,6 +91,9 @@
     "【回归层：git diff b008185 逐块审阅结论】architecture_guard.rs：仅动 5 处——import 去掉 HashMap（死代码专用）；新增 read_edge_sources（保留读取失败事实）；新增 dependency_edge_problems 纯函数（fail-closed 核心）；dependency_edges_are_respected 的旧内联循环（含 if let Ok(src) fail-open 读与 seen 去重）删除改为走新路径，断言与消息文案原样、语义严格变强（可读部分判定等价 + 不可读必红）；hotspot_ledger_is_consistent 删除 _checked 死代码块、既有 2 断言原样并在其后追加 NOTE 注释。grd004_* 十用例、hotspot 其余三用例、forbidden_edges 表、strip_comments/use_statements/edge_violations/coverage_violations/rust_files_with_line_counts 逐块核对零触碰。cap002_contract.rs：仅 default_warn_is_idempotent——`let _ = p.capabilities();` 替换为三组真实 assert_eq! 对首调基准逐次比对，百次循环保留、函数名未漂移、无新依赖、未动 src/，与 architect #16 裁定（保留原名/循环体内补断言/不装 tracing-subscriber）逐字吻合。既有断言只增不减在集合与多重集合两种口径下双向零缺失；#[should_panic]/#[ignore] 位置集合与基线完全一致（仅 src/proxy/mod.rs:3292 与 :3300，ignore 0 处）。",
     "【c7-③ 落点】cargo test --workspace 的 18 条 unit/integration result 行全部 0 failed/0 ignored，Doc-tests 'ok. 6 passed; 0 failed; 2 ignored'，ignored=2 ≤ 2（默认 feature 基线），未超。",
     "【工作区恢复】所有临时注入（c3 回退、A1 改边表、A3 删断言）均已字节级还原，还原方式为测试前从冻结态制作的仓库外备份回拷（不能用 git checkout——那会回退到 b008185 基线而非 dev 冻结交付态），每次还原前后均以 python hashlib 核 sha 与冻结值相等；终态 git status 与测试前快照完全一致（仅并行卡 compat/capability_freeze/docs/README/hotspot_ledger 等既有改动），两套件终跑全绿，%TEMP% 备份目录已删除。QA 未跑 git commit，未改任何业务代码/测试/registry。",
-    "【环境干扰记录】与 qa-llmrust-cs / dev-llmrust-dt 并行期间未遇到 cargo 锁等待或失败，无需重试；所有命令输出为本机实测。"
+    "【环境干扰记录】与 qa-llmrust-cs / dev-llmrust-dt 并行期间未遇到 cargo 锁等待或失败，无需重试；所有命令输出为本机实测。",
+    "【位置归位 1/3（Lead 通知：accept 机判 exitsOk 要求 command_exit_codes 每条 exit_code=0；预期红/判据缺陷记录移入本处，沿 B-DELTA-NULL 先例；本条原样自 command_exit_codes 移入，未改写）】cmd=\"python: c1-④ 卡面原文正则 r'assert(!?\\s*(eq\\()?\\s*\\w' 逐字运行（对 tests/cap002_contract.rs）\"；exit_code=1；note=\"re.PatternError: missing ), unterminated subpattern at position 6 —— 卡面原文括号不配对无法编译；按 Lead 指示如实记录\"。性质：卡面判据缺陷记录（非验收失败命令）——有效判据为修复版正则，其运行 exit 0 见 command_exit_codes 的 c1-④ 修复版条目。",
+    "【位置归位 2/3（缘由同上；本条原样自 command_exit_codes 移入，未改写）】cmd=\"c3 注入：把 dependency_edge_problems 回退为 fail-open 等价形态（只 filter_map 可读文件、不再为不可读文件产 violation）后 cargo test --test architecture_guard dependency_edge_guard_fails_closed_on_missing_edge_file\"；exit_code=101；note=\"预期非零：FAILED，panic 文案 'a silently skipped unreadable file is exactly the #15 fail-open hole, got []' at tests/architecture_guard.rs:287 —— 判据要求的 exit≠0 成立\"。性质：预期红（c3 判据以注入态 exit≠0 为通过条件，此 101 即判据通过的证明）；恢复后 h1==h0 转绿见 command_exit_codes 的 c3 恢复条目。",
+    "【位置归位 3/3（缘由同上；本条原样自 command_exit_codes 移入，未改写）】cmd=\"对抗层 A1：把 forbidden_edges() 首条 src/types.rs 边临时改为不存在文件 src/does_not_exist_renamed_module_qa.rs 后 cargo test --test architecture_guard dependency_edges_are_respected\"；exit_code=101；note=\"接线级 fail-closed 证实：真实守卫 FAILED，violation 点名该文件并含 unreadable (missing or not readable…) 措辞；exit 101 为对抗注入的预期红\"。性质：预期红（对抗层故障注入的通过条件即守卫变红；注入已字节级还原），还原后转绿见 command_exit_codes 的对抗层 A1 还原条目。"
   ]
 }

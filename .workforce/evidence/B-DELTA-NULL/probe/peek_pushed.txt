@@ -1,0 +1,67 @@
+=== pushedRefs ===
+function pushedRefs(repo, head) {
+  try {
+    const raw = execFileSync('git', ['branch', '-r', '--contains', head], { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const refs = raw.split('\n').map(s => s.replace(/^\*?\s+/, '').trim()).filter(Boolean).filter(r => !r.includes('->'));
+    return refs;
+  } catch { return []; }
+}
+
+export function ciStatus(P) {
+  const repo = P.repo; const C = cfg(P).ci;
+  const head = gitHead(repo);
+  if (!head) return { ok: false, reason: 'GIT_UNAVAILABLE' };
+  // 强制项：provider 只能是 github。command/none 在配置校验阶段就被拒（CONFIG_CI_BYPASS_FORBIDDEN）
+  if (C.provider !== 'github') return { ok: false, reason: 'CI_BYPASS_FORBIDDEN：ci.provider=' + C.provider + '（只允许 github，CI 不得绕开）' };
+  if (!C.repo) return { ok: false, reason: 'CI_REPO_MISSING：ci.repo 未配置' };
+  // 1) 必须已经推到远端：未推送的提交，远端 CI 根本没跑过，不许当通过
+  const refs = pushedRefs(repo, head);
+  if (!refs.length) return { ok: false, head, pushed: false, reason: 'CI_NOT_PUSHED：HEAD ' + head.slice(0, 8) + ' 不在任何远端分支上（先 push + 开 PR，CI 才会跑）' };
+  // 2) 查该提交的远端 CI 运行记录
+  let raw;
+  try {
+    raw = execFileSync('gh', ['run', 'list', '--repo', C.repo, '--commit', head,
+      '--json', 'conclusion,status,workflowName,headSha,url', '--limit', '50'],
+      { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' });
+  } catch (e) { return { ok: false, head, pushed: true, reason: 'CI_UNVERIFIABLE: gh 不可用或未登录（' + String(e.message || e).split('\n')[0] + '）' }; }
+  let runs; try { runs = JSON.parse(raw); } catch { return { ok: false, reason: 'CI_OUTPUT_INVALID' }; }
+  runs = runs.filter(r => !r.headSha || r.headSha === head);
+  if (!runs.length) return { ok: false, head, pushed: true, reason: 'CI_NO_RUN_FOR_HEAD ' + head.slice(0, 8) + '（已推送但没有 CI 运行记录：workflow 可能没监听该分支）' };
+  const bad = runs.filter(r => r.status !== 'completed' || r.conclusion !== 'success');
+  if (bad.length) return { ok: false, head, pushed: true, runs: runs.length, reason: 'CI_NOT_SUCCESS ' + bad.map(r => r.workflowName + ':' + (r.conclusion || r.status)).join(',') };
+  return { ok: true, head, pushed: true, runs: runs.length, refs, runs_detail: 
+
+=== ciStatus ===
+function ciStatus(P) {
+  const repo = P.repo; const C = cfg(P).ci;
+  const head = gitHead(repo);
+  if (!head) return { ok: false, reason: 'GIT_UNAVAILABLE' };
+  // 强制项：provider 只能是 github。command/none 在配置校验阶段就被拒（CONFIG_CI_BYPASS_FORBIDDEN）
+  if (C.provider !== 'github') return { ok: false, reason: 'CI_BYPASS_FORBIDDEN：ci.provider=' + C.provider + '（只允许 github，CI 不得绕开）' };
+  if (!C.repo) return { ok: false, reason: 'CI_REPO_MISSING：ci.repo 未配置' };
+  // 1) 必须已经推到远端：未推送的提交，远端 CI 根本没跑过，不许当通过
+  const refs = pushedRefs(repo, head);
+  if (!refs.length) return { ok: false, head, pushed: false, reason: 'CI_NOT_PUSHED：HEAD ' + head.slice(0, 8) + ' 不在任何远端分支上（先 push + 开 PR，CI 才会跑）' };
+  // 2) 查该提交的远端 CI 运行记录
+  let raw;
+  try {
+    raw = execFileSync('gh', ['run', 'list', '--repo', C.repo, '--commit', head,
+      '--json', 'conclusion,status,workflowName,headSha,url', '--limit', '50'],
+      { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' });
+  } catch (e) { return { ok: false, head, pushed: true, reason: 'CI_UNVERIFIABLE: gh 不可用或未登录（' + String(e.message || e).split('\n')[0] + '）' }; }
+  let runs; try { runs = JSON.parse(raw); } catch { return { ok: false, reason: 'CI_OUTPUT_INVALID' }; }
+  runs = runs.filter(r => !r.headSha || r.headSha === head);
+  if (!runs.length) return { ok: false, head, pushed: true, reason: 'CI_NO_RUN_FOR_HEAD ' + head.slice(0, 8) + '（已推送但没有 CI 运行记录：workflow 可能没监听该分支）' };
+  const bad = runs.filter(r => r.status !== 'completed' || r.conclusion !== 'success');
+  if (bad.length) return { ok: false, head, pushed: true, runs: runs.length, reason: 'CI_NOT_SUCCESS ' + bad.map(r => r.workflowName + ':' + (r.conclusion || r.status)).join(',') };
+  return { ok: true, head, pushed: true, runs: runs.length, refs, runs_detail: runs.map(r => ({ name: r.workflowName, conclusion: r.conclusion, url: r.url })) };
+}
+
+/**
+ * ci 工种回执校验（<batch>/ci.json）。release 前**必须**有它，且必须与当前 HEAD、真远端运行对得上。
+ * 无后门：缺失 / 未推送 / 结论非 success / head 不符 / 自报 bypass 都判红。
+ */
+export function ciReceiptCheck(P, batch) {
+  const f = join(P.evidence, batch.id, 'ci.json');
+  if (!existsSync(f)) return { ok: false, re
+

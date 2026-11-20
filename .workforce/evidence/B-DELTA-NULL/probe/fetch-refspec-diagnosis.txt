@@ -1,0 +1,28 @@
+=== ROOT CAUSE: remote.origin.fetch was misconfigured (tag-only refspec) @ 2026-11-20T18:17:51.5576763+08:00 ===
+
+--- BEFORE fix ---
+remote.origin.fetch = +refs/tags/v0.1.5:refs/tags/v0.1.5   <-- ONLY tags, no branches
+tracking origin/main = bf7dee949fb3527c81b01da00dceb14deee19295   (STALE)
+real remote main     = 5369a8bece02d9f8d5e21e4b7bcd984355d7d873
+
+Consequence: lib.mjs pushedRefs() uses git branch -r --contains <head>, which reads
+local remote-tracking refs. With a tag-only fetch refspec those refs never advance, so
+ciStatus() reported CI_NOT_PUSHED even though the commit WAS pushed and CI WAS green.
+
+--- FIX ---
+git config --add remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"   (tag refspec kept)
+git fetch origin
+
+--- AFTER fix ---
+remote.origin.fetch = +refs/tags/v0.1.5:refs/tags/v0.1.5
+                    + +refs/heads/*:refs/remotes/origin/*
+tracking origin/main = 5369a8bece02d9f8d5e21e4b7bcd984355d7d873   (MATCHES remote)
+git branch -r --contains 5369a8b -> origin/HEAD -> origin/main / origin/main
+
+--- ciStatus() after fix ---
+ok = true | head = 5369a8bece02d9f8d5e21e4b7bcd984355d7d873 | pushed = true | runs = 2
+reason = (none)
+   Security Gates success https://github.com/llmrust/llmrust/actions/runs/44717114858
+   CI success https://github.com/llmrust/llmrust/actions/runs/44717114762
+(node:15504) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)

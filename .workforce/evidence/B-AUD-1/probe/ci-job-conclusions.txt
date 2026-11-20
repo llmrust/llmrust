@@ -1,0 +1,24 @@
+ci-llmrust . B-AUD-1 per-job remote CI conclusions for head e4b44422b70f6d486121bb969a9fcfef268bb33a
+channel = push to origin/main (release-stage CI push; batch B-AUD-1, no PR channel this batch)
+polling discipline = conclusions read only after every run reached status=completed (queued/in_progress never counted as pass)
+
+-- run 44787124471 . Security Gates . event=push . conclusion=success -- https://github.com/llmrust/llmrust/actions/runs/44787124471
+PASS  RustSec advisories  ->  completed success  [8 steps]  https://github.com/llmrust/llmrust/actions/runs/44787124471/job/136464810998
+PASS  Supply-chain policy (cargo-deny)  ->  completed success  [9 steps]  https://github.com/llmrust/llmrust/actions/runs/44787124471/job/136464811540
+PASS  Secret scan (gitleaks CLI)  ->  completed success  [6 steps]  https://github.com/llmrust/llmrust/actions/runs/44787124471/job/136464811655
+PASS  Security audit  ->  completed success  [0 steps]  https://github.com/llmrust/llmrust/runs/136464968961
+
+-- run 44787124629 . CI . event=push . conclusion=success -- https://github.com/llmrust/llmrust/actions/runs/44787124629
+PASS  Test (stable)  ->  completed success  [15 steps]  https://github.com/llmrust/llmrust/actions/runs/44787124629/job/136464810555
+PASS  API-002 semver gate (vs 0.1.2 baseline)  ->  completed success  [10 steps]  https://github.com/llmrust/llmrust/actions/runs/44787124629/job/136464810909
+PASS  MSRV (1.86)  ->  completed success  [8 steps]  https://github.com/llmrust/llmrust/actions/runs/44787124629/job/136464810937
+PASS  Architecture & package guards (CI-003)  ->  completed success  [9 steps]  https://github.com/llmrust/llmrust/actions/runs/44787124629/job/136464811202
+
+-- totals --
+runs=2  jobs_total=8  jobs_pass=8  jobs_fail=0  jobs_pending=0
+
+-- job notes --
+"Security audit" entry: labels empty, steps=0, check-run URL form (llmrust/runs/<id>) - it is the advisory check run published by
+rustsec/audit-check (security.yml grants checks:write for exactly this). API returns it as a run job with conclusion=success; recorded as-is.
+"Secret scan (gitleaks CLI)": gitleaks 8.21.2 pinned+checksum-verified in workflow, ./gitleaks detect --source . --no-git --redact --config .gitleaks.toml.
+The B-AUD-1 .gitleaks.toml anchor change (C-AUD-GUARD) got its remote verdict here: success on the pushed tree.

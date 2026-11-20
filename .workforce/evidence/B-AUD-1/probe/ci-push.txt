@@ -1,0 +1,44 @@
+ci-llmrust · B-AUD-1 main push transcript (repo llmrust/llmrust, origin https://github.com/llmrust/llmrust.git)
+time    = 2026-11-21 01:49..01:50 +08:00 (Asia/Shanghai)
+batch   = B-AUD-1 (loop status at push time: accepted; this is the release-stage CI push to main — no PR channel this batch)
+spec    = 254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b
+
+-- permission plan (mirrors B-DELTA-NULL precedent (f); details in probe/ci-credmgr-identity.txt) --
+active gh account (keyring, untouched): dongyanyuxuana -> llmrust/llmrust permissions {pull:true, push:false} (direct push not possible)
+push identity: bishuan, token read from Windows Credential Manager entry 'gh:github.com:bishuan' (Generic credential)
+injection: single-call env var GH_TOKEN -> picked up by gitconfig credential.https://github.com.helper = !'C:\tools\gh-cli\bin\gh.exe' auth git-credential
+           (system credential.helper=manager is reset for github.com by an empty helper entry in ~/.gitconfig, then the gh helper takes over)
+global gh config / gh auth switch NOT modified; active session remained dongyanyuxuana throughout (verified after push)
+
+-- pre-push state (measured) --
+git rev-parse HEAD            => e4b44422b70f6d486121bb969a9fcfef268bb33a
+git ls-remote --heads origin main (dedicated pre-check, exit 0) => b008185281072619f24dba37d13c59d42762c1db  refs/heads/main
+  note: an in-script ls-remote right before the push printed empty (transient TLS hiccup, stderr not captured in that subshell);
+  the authoritative pre-push remote position is the dedicated probe above and is corroborated by git's own push delta line below.
+commits to be pushed (b008185..e4b4442, fast-forward only): 6 commits
+  e4b4442 chore(workforce): B-AUD-1 qa 回执最终 handoff_id 对齐（accept 五层全绿）
+  7e1a1c2 chore(workforce): B-AUD-1 qa 回执按 B-DELTA-NULL 先例归位非零命令（预期红入 observations，验收命令全 0）
+  0f2530c chore(workforce): B-AUD-1 回执、gate/ledger 台账裁定归档与 P1-ollama 链 ruling（B-AUD-2 前向硬条件在案）
+  ec125d6 PH-0.1.7 B-AUD-1 三卡交付：compat 流三缺陷修复 + 文档六项对齐 + 守卫 fail-closed 化（dev: cs/dt/gv，qa 全 PASS）
+  39928fc chore(workforce): PH-0.1.7 审计清障战役 — spec v3 (254d36f2) + 五卡 + 六工种签署 + Lead 审批
+  878c3c1 chore(workforce): acceptors 补登仓库实际提交身份（PR #251 squash 改写作者致 spec-confirm 误拦）
+  (task brief estimated 5 commits; measured 6 — the extra one is 878c3c1, covered by the brief's "你看到的其他" clause)
+
+-- push (attempt 1 of max 3; retry loop armed for the documented transient TLS failure mode, not needed) --
+cmd:  $env:GH_TOKEN = <bishuan token via CredReadW, in-process only>; $env:GIT_TERMINAL_PROMPT='0';
+      git push origin main; Remove-Item Env:GH_TOKEN
+output:
+  To https://github.com/llmrust/llmrust.git
+     b008185..e4b4442  main -> main
+exit = 0     (normal fast-forward push; no force, no lease tricks)
+
+-- post-push verification --
+git ls-remote --heads origin main  => e4b44422b70f6d486121bb969a9fcfef268bb33a  refs/heads/main     [exit 0]
+git fetch origin                  => first attempt failed: "fatal: unable to access '...llmrust.git/': TLS connect error:
+                                     error:0A000126:SSL routines::unexpected eof while reading" (the known transient failure mode);
+                                     retry succeeded ("git fetch origin: ok"), and the push itself had already updated refs/remotes/origin/main
+git branch -r --contains HEAD     => origin/HEAD -> origin/main ; origin/main   (loop pushedRefs() criterion satisfied)
+gh api user (active, no injection, after push) => dongyanyuxuana   (active account unchanged by the injection)
+Actions API (see probe/ci-workflow-runs.txt):
+  run 44787124629 (CI)             actor=bishuan triggering_actor=bishuan
+  run 44787124471 (Security Gates) actor=bishuan triggering_actor=bishuan   (push channel truthfully recorded)

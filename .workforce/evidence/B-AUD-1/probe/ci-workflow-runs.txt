@@ -1,0 +1,24 @@
+ci-llmrust . B-AUD-1 remote workflow runs for main push (repo llmrust/llmrust)
+fetch time  = 2026-11-21T01:54:53+08:00 (post-settle verbatim re-fetch; polls below are the original live sequence)
+head_sha    = e4b44422b70f6d486121bb969a9fcfef268bb33a  (= local HEAD after push = origin/main)
+pushed via  = single-call GH_TOKEN injection (bishuan); see probe/ci-push.txt and probe/ci-credmgr-identity.txt
+poll cmd    = gh api "repos/llmrust/llmrust/actions/runs?head_sha=e4b44422b70f6d486121bb969a9fcfef268bb33a"
+
+-- live polling transcript (2026-11-21 01:50:59..01:52:10 +08:00; 20s interval; conclusions taken only after ALL settled) --
+poll 1 total_count=2  CI[44787124629] in_progress | Security Gates[44787124471] in_progress
+poll 2 total_count=2  CI in_progress | Security Gates in_progress
+poll 3 total_count=2  CI in_progress | Security Gates completed/success
+poll 4 total_count=2  CI completed/success | Security Gates completed/success  => settled
+e2e-smoke.yml (manual/cron) and release.yml (tag trigger): no runs for this SHA, as expected.
+
+-- workflow runs (event recorded as-is: both are push runs; not disguised as pull_request) --
+run 44787124471  Security Gates  event=push  head_sha=e4b44422b70f6d486121bb969a9fcfef268bb33a  status=completed  conclusion=success  run_number=299
+     created_at=2026-11-20T17:50:30Z  run_started_at=2026-11-20T17:50:30Z  updated_at=2026-11-20T17:51:24Z  actor=bishuan  triggering_actor=bishuan
+     path=.github/workflows/security.yml  display_title=chore(workforce): B-AUD-1 qa 回执最终 handoff_id 对齐（accept 五层全绿）
+     url=https://github.com/llmrust/llmrust/actions/runs/44787124471
+run 44787124629  CI  event=push  head_sha=e4b44422b70f6d486121bb969a9fcfef268bb33a  status=completed  conclusion=success  run_number=521
+     created_at=2026-11-20T17:50:30Z  run_started_at=2026-11-20T17:50:30Z  updated_at=2026-11-20T17:51:59Z  actor=bishuan  triggering_actor=bishuan
+     path=.github/workflows/ci.yml  display_title=chore(workforce): B-AUD-1 qa 回执最终 handoff_id 对齐（accept 五层全绿）
+     url=https://github.com/llmrust/llmrust/actions/runs/44787124629
+
+verbatim API responses: probe/ci-api-runs-raw.json, probe/ci-api-jobs-44787124629.json, probe/ci-api-jobs-44787124471.json (sha256 in ci.json artifacts)

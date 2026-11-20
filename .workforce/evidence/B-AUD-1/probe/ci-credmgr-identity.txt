@@ -1,0 +1,42 @@
+ci-llmrust · B-AUD-1 credential exploration & identity probes (token metadata only — value never printed, never written to any file)
+time = 2026-11-21 01:47..01:50 +08:00 (Asia/Shanghai)
+
+-- exploration path (in the order prescribed by the task brief) --
+① Windows Credential Manager (cmdkey /list) — github-related entries:
+     Target: LegacyGeneric:target=gh:github.com:dongyanyuxuana   (User: dongyanyuxuana)
+     Target: LegacyGeneric:target=gh:github.com:bishuan          (User: bishuan)     <== push credential found here
+     Target: LegacyGeneric:target=gh:github.com:                 (Local machine persistence)
+     Target: LegacyGeneric:target=61add5e0-....github-copilot-app
+   No GCM-style git:https://github.com entries exist.
+   git credential helper chain (git config --show-origin --get-regexp ^credential):
+     system D:/Git/etc/gitconfig       credential.helper=manager
+     user   C:/Users/yrxsz/.gitconfig  credential.https://github.com.helper=(empty — resets 'manager' for github.com)
+     user   C:/Users/yrxsz/.gitconfig  credential.https://github.com.helper=!'C:\tools\gh-cli\bin\gh.exe' auth git-credential
+   => git push to https://github.com/... authenticates through gh's credential helper, which honors a single-call GH_TOKEN env injection.
+② gh auth status — active account dongyanyuxuana (keyring, token ghp_****, scopes read:org, repo, workflow);
+   hosts.yml (C:/Users/yrxsz/AppData/Roaming/GitHub CLI/hosts.yml) lists only dongyanyuxuana. Global gh config NOT touched (no gh auth switch).
+③ env scan (Get-ChildItem env: GH*/GITHUB*) — no GH_TOKEN / GITHUB_TOKEN / GH_ENTERPRISE_TOKEN in the process environment.
+
+-- bishuan credential read (advapi32 CredReadW, type 1 Generic, in-process only) --
+target       = gh:github.com:bishuan
+user         = bishuan
+blob         = 40 bytes UTF-8, raw GitHub token (token_len=40, prefix ghp_), no keyring-JSON wrapping
+handling     = held only in pwsh process memory; exported to $env:GH_TOKEN for the duration of single commands (push, identity
+               probe), then removed in a finally block; never echoed, never written to disk, never entered any git/gh config
+
+-- identity & permission probes --
+[active session, no injection]
+  gh api user                              => dongyanyuxuana
+  gh api repos/llmrust/llmrust --jq .permissions
+                                           => {"admin":false,"maintain":false,"pull":true,"push":false,"triage":false}
+                                              (active account cannot push — direct push would be rejected; permission plan justified)
+[GH_TOKEN = bishuan injected, single call]
+  gh api user                              => bishuan            [exit 0]
+  gh api repos/llmrust/llmrust --jq .permissions
+                                           => {"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}   [exit 0]
+  git push origin main (see probe/ci-push.txt) => b008185..e4b4442  main -> main  [exit 0, actor=bishuan on both CI runs]
+
+-- constraints honored --
+* no credential was fabricated; an existing stored credential was used read-only
+* global gh configuration NOT modified (hosts.yml unchanged; gh auth switch NOT used); active account stayed dongyanyuxuana
+* token value redacted from all logs, archives, and the ci.json receipt

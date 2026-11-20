@@ -1,0 +1,593 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ledger",
+  "agent": "ledger-llmrust",
+  "written_by": "ledger-llmrust",
+  "card_id": null,
+  "batch_id": "B-AUD-2",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "inputs_seen": [
+    ".workforce/spec.json（sha256=254d36f2…1911b 与批次指定 spec_sha256 逐字节一致；B-AUD-2 目标与 T-AUD-PROV 任务段、revision_note 台账集中策略段已读）",
+    ".workforce/cards/C-AUD-PROV.json（本批唯一台账写入卡：c6 判据原文与其单行机判命令原文、ruling_refs 台账条目规范；sha256=8c485ac3…016 与 B-AUD-1 回执钉值一致，卡未漂移）",
+    ".workforce/config.json ledger 段（ledger.command=null + none_reason：本仓台账层只验 self_sha256 自洽，不重跑生成命令；机器事实源为 cargo test 输出 + CI 记录）",
+    "tests/hotspot_ledger.json（B-AUD-2 交付态，raw sha256=39e63f65…f00d3；与 loop-state handoff 冻结 sha 同值——冻结面与核验面同态）",
+    ".workforce/evidence/B-AUD-1/ledger.json（B-AUD-1 台账回执全文：验收依据——chain_convergence.verdict=FAIL（ollama 缺口）记录、W5 前向硬条件原文、guard_semantics_note、ruling_compliance.forward_obligations）",
+    ".workforce/evidence/B-AUD-2/architect-ruling-2026-11-21-P1-ollama-chain.md（architect-llmrust 正式 ruling 原文，sha256=384cd516…05cc 与 B-AUD-1 回执钉值一致：【A】定性 /【B】补链条目规范+R1-R4 硬规则 /【E】date=授权日语义）",
+    ".workforce/evidence/B-AUD-2/dev-C-AUD-PROV.json + qa-C-AUD-PROV.json（仅读 artifacts 清单（path+sha256）与 dev 回执 files_changed，交叉对账职责；未读 verdict/notes/叙述——硬边界：核验独立）",
+    ".workforce/loop-state.json B-AUD-2 段（C-AUD-PROV handoff_id=2a20273362d54212cfab0dba 冻结 8 文件，含 tests/hotspot_ledger.json@39e63f65…==当前实测——交接后零漂移）",
+    ".agents/skills/agent-workforce-loop/SKILL.md + scripts/lib.mjs（checkEvidence / ledgerCheck unverified 路径 / selfShaOk / isSiblingReceiptArtifact 的机器校验语义——本回执结构与 self_sha256 口径依据）",
+    "git 历史：bd33b5a（B-AUD-1 交付态：台账 blob sha256=fc6243f9… 与 B-AUD-1 回执实测钉值逐字节一致，53 条）与 39928fc（52 条基线态，ollama baseline=830）"
+  ],
+  "ledger": {
+    "duty_basis": {
+      "config_ledger": "command=null；none_reason：llmrust 仓没有台账生成脚本，台账层只验 self_sha256 自洽、不重跑生成命令、手写台账可过；本回执即机器事实载体",
+      "K02": "热点台账是数值门禁的唯一事实源，且双向（current != expected）：tests/hotspot_ledger.json 的 baseline_lines 必须等于文件实测行数，任何基线变更只能以追加 adjustments[] 的 truth correction 形式发生，且该项属架构师专属权限（SPCC-0.1.4 §4.4 / §9.2 第 1 条 / §11.1.4）。",
+      "K05": "不虚报：完成口径只认机器实测的 exit code 与 sha256，不认叙述性文档、回执自述或「我准备做」。",
+      "forward_basis": "B-AUD-1 台账回执（verdict=PASS 范围性、内层 chain_convergence.verdict=FAIL）+ architect-llmrust 2026-11-21 ruling（P1 处置【B】：补链 entry 于 B-AUD-2/C-AUD-PROV 台账写入窗口由 dev 先行追加；W5 八项前向硬条件缺任一即本回执 FAIL）——两者为本批验收依据。",
+      "guard_semantics_note": "守卫 hotspot_ledger_is_consistent / hotspot_files_do_not_grow 仍不校验 adjustments[] 链（同 B-AUD-1 判读）；全链收敛核验面是台账工种自建核验面，本批延续执行并叠加 W5 前向硬条件逐项核验。"
+    },
+    "target": "tests/hotspot_ledger.json",
+    "target_sha256_raw_bytes": "39e63f659c1e9656e4e8674934b98abfc5dc8b59e4c007f00198e117cd7f00d3",
+    "threshold": 500,
+    "threshold_present": true,
+    "line_count_metric": "python len(open(p,encoding='utf-8').read().splitlines())；机扫全部 25 个 src/**/*.rs 文件均无 \\x0b/\\x0c/\\x1c-\\x1e/\\x85/\\u2028/\\u2029、无孤立 \\r ⇒ splitlines 与守卫 fs::read_to_string(p).lines().count() 在全部文件上同值",
+    "baseline_files": [
+      {
+        "file": "src/proxy/mod.rs",
+        "baseline_lines": 3770,
+        "measured_lines": 3770,
+        "sha256": "8bbb9d765b19502b57a6a8174f48e7904ceb49d932aac488a367cf91bf46cb11",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 3770,
+        "updated_this_batch": false
+      },
+      {
+        "file": "src/proxy/anthropic_proxy.rs",
+        "baseline_lines": 2053,
+        "measured_lines": 2053,
+        "sha256": "e21de12570edfcf658cdae16d4f5e8c2204359c3e1acc4c51b726e47e592adeb",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 2053,
+        "updated_this_batch": false
+      },
+      {
+        "file": "src/proxy/responses_proxy.rs",
+        "baseline_lines": 964,
+        "measured_lines": 964,
+        "sha256": "972bef608ad23bd9822cc62670173f9688a6d6e659bc3c1c7f603a32dffd3126",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 964,
+        "updated_this_batch": false
+      },
+      {
+        "file": "src/providers/compat.rs",
+        "baseline_lines": 2136,
+        "measured_lines": 2136,
+        "sha256": "6ea3341312aa63a265b807eba2d6f66a45c149a7d15154f54e0009a33b081fb5",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 2136,
+        "updated_this_batch": false
+      },
+      {
+        "file": "src/providers/google.rs",
+        "baseline_lines": 1813,
+        "measured_lines": 1813,
+        "sha256": "a0c158dbfc73c535b3208c6bf47379c2131e2e08701bb9bb888043a48e06b402",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 1614,
+        "updated_this_batch": true
+      },
+      {
+        "file": "src/types.rs",
+        "baseline_lines": 1136,
+        "measured_lines": 1136,
+        "sha256": "b6eaade3f0c8c214f653bde4eaa56673e899f0d172f4b550106de4c208c68c66",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 1136,
+        "updated_this_batch": false
+      },
+      {
+        "file": "src/providers/anthropic.rs",
+        "baseline_lines": 1684,
+        "measured_lines": 1684,
+        "sha256": "32e9668a9da49dc370bd6ee40b9b5048ab4ad696514e37add6a5df11c27938d7",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 1539,
+        "updated_this_batch": true
+      },
+      {
+        "file": "src/router.rs",
+        "baseline_lines": 1231,
+        "measured_lines": 1231,
+        "sha256": "7eca653e5bb38f3316550eaf0790ca70370f04ae12cddde90189ebf8658f374d",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 1231,
+        "updated_this_batch": false
+      },
+      {
+        "file": "src/providers/ollama.rs",
+        "baseline_lines": 855,
+        "measured_lines": 855,
+        "sha256": "ade072f4f82bffa9f99824bf2d767f04cef8c241ba0e346680c59c7ea99bd65c",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 830,
+        "updated_this_batch": true
+      },
+      {
+        "file": "src/lib.rs",
+        "baseline_lines": 847,
+        "measured_lines": 847,
+        "sha256": "ff7ba5ef2cc568d26b7151e760a96d10696c0d602bc49e0464d286908ac2dbe3",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 839,
+        "updated_this_batch": true
+      },
+      {
+        "file": "src/providers/retry.rs",
+        "baseline_lines": 970,
+        "measured_lines": 970,
+        "sha256": "966535a632c0e45b2145ff575cc1b06cd44d37b6af113127395f5744e95b41a4",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 970,
+        "updated_this_batch": false
+      },
+      {
+        "file": "src/providers/capabilities.rs",
+        "baseline_lines": 712,
+        "measured_lines": 712,
+        "sha256": "e5aaaedb7092c620e75f9a42e63795ef742213f457d01206a6dfb0d130809929",
+        "baseline_eq_measured": true,
+        "b_aud_1_baseline": 712,
+        "updated_this_batch": false
+      }
+    ],
+    "baseline_bidirectional_consistent": true,
+    "baseline_bidirectional_detail": "12/12 baseline_lines == 实测行数（零 mismatch）；本批基线变化恰为 4 项：google.rs 1614→1813、anthropic.rs 1539→1684、ollama.rs 830→855、lib.rs 839→847（均与 C-AUD-PROV c6 预告的 old 值一致）；其余 8 项与 B-AUD-1 交付态逐项相同",
+    "coverage_scan": {
+      "src_rs_files_total": 25,
+      "files_ge_threshold": 12,
+      "unlisted_oversized": [],
+      "bidirectional_coverage_ok": true,
+      "openai_rs": "src/providers/openai.rs 实测 160 行 < 500，未入 baseline_lines（c6 反向约束：不得为其新增台账条目——遵守）"
+    },
+    "adjustments": {
+      "count": 58,
+      "expected_count": 58,
+      "six_fields": [
+        "file",
+        "old",
+        "new",
+        "reason",
+        "authorized_by",
+        "date"
+      ],
+      "six_fields_all_present_nonempty": true,
+      "chain_continuity": "58/58：同一文件相邻条目 old == 前条 new，全表零断链（本批新增 5 条：补链 ollama 829→830 恰插在 CAP-002 末条 829 之后、C-AUD-PROV 自身 ollama 条目 830→855 之前；google 第七连 1614→1813、anthropic 第八连 1539→1684、lib 第七连 839→847）",
+      "chain_continuity_gaps": [],
+      "last_entry": {
+        "file": "src/lib.rs",
+        "old": 839,
+        "new": 847,
+        "authorized_by": "Boss 2026-11-20 决策 A",
+        "date": "2026-11-20",
+        "authorized_by_exact_match": true,
+        "date_ok": true,
+        "reason_contains_card_id": true,
+        "new_eq_lib_measured_lines": true,
+        "old_eq_prebatch_head_baseline": true
+      },
+      "chains": {
+        "src/proxy/mod.rs": {
+          "entries": 11,
+          "first_old": 2573,
+          "last_new": 3770,
+          "baseline_now": 3770,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/anthropic.rs": {
+          "entries": 8,
+          "first_old": 972,
+          "last_new": 1684,
+          "baseline_now": 1684,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/google.rs": {
+          "entries": 7,
+          "first_old": 1221,
+          "last_new": 1813,
+          "baseline_now": 1813,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/compat.rs": {
+          "entries": 7,
+          "first_old": 1228,
+          "last_new": 2136,
+          "baseline_now": 2136,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/proxy/anthropic_proxy.rs": {
+          "entries": 4,
+          "first_old": 1520,
+          "last_new": 2053,
+          "baseline_now": 2053,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/router.rs": {
+          "entries": 3,
+          "first_old": 851,
+          "last_new": 1231,
+          "baseline_now": 1231,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/proxy/responses_proxy.rs": {
+          "entries": 1,
+          "first_old": 0,
+          "last_new": 964,
+          "baseline_now": 964,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/ollama.rs": {
+          "entries": 4,
+          "first_old": 0,
+          "last_new": 855,
+          "baseline_now": 855,
+          "chain_gaps": [],
+          "converges_to_baseline": true,
+          "chain_sequence": "0→805（#209 注册）→829（CAP-002）→830（P1 genesis 补链，architect-llmrust ruling 2026-11-21）→855（C-AUD-PROV AUD#6）"
+        },
+        "src/lib.rs": {
+          "entries": 7,
+          "first_old": 0,
+          "last_new": 847,
+          "baseline_now": 847,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/retry.rs": {
+          "entries": 4,
+          "first_old": 0,
+          "last_new": 970,
+          "baseline_now": 970,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/types.rs": {
+          "entries": 1,
+          "first_old": 1132,
+          "last_new": 1136,
+          "baseline_now": 1136,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/capabilities.rs": {
+          "entries": 1,
+          "first_old": 0,
+          "last_new": 712,
+          "baseline_now": 712,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        }
+      },
+      "chain_convergence": {
+        "verdict": "PASS",
+        "converged_files": [
+          "src/lib.rs",
+          "src/providers/anthropic.rs",
+          "src/providers/capabilities.rs",
+          "src/providers/compat.rs",
+          "src/providers/google.rs",
+          "src/providers/ollama.rs",
+          "src/providers/retry.rs",
+          "src/proxy/anthropic_proxy.rs",
+          "src/proxy/mod.rs",
+          "src/proxy/responses_proxy.rs",
+          "src/router.rs",
+          "src/types.rs"
+        ],
+        "non_converged_files": [],
+        "ollama_flip_from_b_aud_1": {
+          "b_aud_1_verdict": "FAIL（ollama 链止于 829 vs baseline/实测 830，缺口 +1，P1-OLLAMA-ADJUSTMENT-CHAIN-NON-CONVERGENCE）",
+          "b_aud_2_verdict": "PASS（补链条目 829→830 按 ruling【B】规范落位后，ollama 链 0→805→829→830→855 逐环闭合，末环 855 == baseline 855 == 实测 855）",
+          "resolution": "genesis chain-documentation backfill（truth correction）补链：architect-llmrust ruling 2026-11-21 授权，dev 于本批台账写入窗口先行追加（详见 forward_hard_conditions_W5）",
+          "all_12_converged_now": true
+        }
+      },
+      "append_only_vs_bd33b5a": {
+        "base_commit": "bd33b5ad15ced359f86ee00e8636e0fd85797fc5（B-AUD-1 交付态 HEAD）",
+        "base_adjustments": 53,
+        "first_53_entries_parsed_identical": true,
+        "base_blob_sha256": "fc6243f9b7791a0679fe788c94da41fa3ac0ba302c411c1bed5c70b0c29df612（== B-AUD-1 回执钉值，交付态被逐字节提交）",
+        "baseline_lines_delta": {
+          "src/providers/google.rs": {
+            "old": 1614,
+            "new": 1813
+          },
+          "src/providers/anthropic.rs": {
+            "old": 1539,
+            "new": 1684
+          },
+          "src/providers/ollama.rs": {
+            "old": 830,
+            "new": 855
+          },
+          "src/lib.rs": {
+            "old": 839,
+            "new": 847
+          }
+        },
+        "other_8_baselines_unchanged": true,
+        "description_unchanged": true,
+        "threshold_unchanged": true,
+        "top_level_keyset_unchanged": true,
+        "new_entries_54_to_58": [
+          "idx53 补链 ollama 829→830（ruling 条目规范逐字落位）",
+          "idx54 google 1614→1813（C-AUD-PROV AUD#4）",
+          "idx55 anthropic 1539→1684（C-AUD-PROV AUD#5）",
+          "idx56 ollama 830→855（C-AUD-PROV AUD#6）",
+          "idx57 lib 839→847（C-AUD-PROV AUD#8）"
+        ],
+        "git_diff_shape": "bd33b5a…工作区 tests/hotspot_ledger.json：+44/-4（尾部追加 5 条 + 4 行基线值变更；无整文件重写噪音）",
+        "cap002_entry_untouched": "已提交的 CAP-002 ollama 805→829 条目未改写（append-only/K-02 遵守）"
+      }
+    },
+    "forward_hard_conditions_W5": {
+      "basis": "B-AUD-1 台账回执 ruling_compliance.forward_obligations + architect ruling 2026-11-21【B】R1-R4——缺任一即本回执 FAIL",
+      "backfill_entry_index": 53,
+      "item_1_file": {
+        "expected": "src/providers/ollama.rs",
+        "actual": "src/providers/ollama.rs",
+        "pass": true
+      },
+      "item_2_old_eq_829": {
+        "actual": 829,
+        "pass": true
+      },
+      "item_3_new_eq_830_R2_anti_absorption": {
+        "actual": 830,
+        "not_merged_into_own_entry": true,
+        "own_entry_separate": "830→855 由 C-AUD-PROV 自身条目承载（idx56）",
+        "pass": true
+      },
+      "item_4_six_fields": {
+        "fields": [
+          "file",
+          "old",
+          "new",
+          "reason",
+          "authorized_by",
+          "date"
+        ],
+        "all_present_nonempty": true,
+        "pass": true
+      },
+      "item_5_R1_order": {
+        "backfill_idx": 53,
+        "card_own_entries_idx": [
+          54,
+          55,
+          56,
+          57
+        ],
+        "backfill_precedes_all_own_entries": true,
+        "backfill_precedes_own_ollama_entry": true,
+        "prefix_invariant": "补链后（任意前缀时刻）ollama 链末 830 == 批前基线 830",
+        "pass": true
+      },
+      "item_6_reason_norm": {
+        "first_segment": "appended 2026-11-21（B-AUD-2 台账写入窗口）",
+        "genesis_narrative_present": true,
+        "p1_reference_present": "P1-OLLAMA-ADJUSTMENT-CHAIN-NON-CONVERGENCE",
+        "ruling_authorization_present": "architect-llmrust 2026-11-21 ruling 授权引用在场",
+        "contains_string_C_AUD_PROV": false,
+        "pass": true
+      },
+      "item_7_authorized_by_and_date": {
+        "authorized_by": "architect-llmrust ruling 2026-11-21（SPCC §11.1.4 truth correction；授权链：Boss 2026-11-20 决策 A → architect-llmrust 2026-11-21）",
+        "authorization_chain_ok": true,
+        "date": "2026-11-21",
+        "date_is_authorization_day_ruling_E": true,
+        "pass": true
+      },
+      "item_8_post_append_convergence_and_append_only": {
+        "full_chain_convergence_12_of_12": true,
+        "first_53_identical_to_bd33b5a": true,
+        "baseline_delta_exactly_4_card_files": true,
+        "cap_002_entry_not_rewritten": true,
+        "pass": true
+      },
+      "verdict": "PASS 8/8——W5 前向硬条件全部满足，B-AUD-1 遗留的 ollama 链缺口翻身落地"
+    },
+    "card_own_adjustments": {
+      "basis": "C-AUD-PROV c6（四文件四条）+ ruling【E】date=授权日语义",
+      "google": {
+        "old": 1614,
+        "new": 1813,
+        "date": "2026-11-20",
+        "authorized_by": "Boss 2026-11-20 决策 A",
+        "reason_first_segment_appended_disclosure": true,
+        "contains_card_id": true,
+        "audit_item": "AUD#4",
+        "new_eq_measured": true,
+        "ok": true
+      },
+      "anthropic": {
+        "old": 1539,
+        "new": 1684,
+        "date": "2026-11-20",
+        "authorized_by": "Boss 2026-11-20 决策 A",
+        "reason_first_segment_appended_disclosure": true,
+        "contains_card_id": true,
+        "audit_item": "AUD#5",
+        "new_eq_measured": true,
+        "ok": true
+      },
+      "ollama": {
+        "old": 830,
+        "new": 855,
+        "date": "2026-11-20",
+        "authorized_by": "Boss 2026-11-20 决策 A",
+        "reason_first_segment_appended_disclosure": true,
+        "contains_card_id": true,
+        "audit_item": "AUD#6",
+        "new_eq_measured": true,
+        "ok": true
+      },
+      "lib": {
+        "old": 839,
+        "new": 847,
+        "date": "2026-11-20",
+        "authorized_by": "Boss 2026-11-20 决策 A",
+        "reason_first_segment_appended_disclosure": true,
+        "contains_card_id": true,
+        "audit_item": "AUD#8",
+        "new_eq_measured": true,
+        "ok": true
+      },
+      "negative_constraints": {
+        "no_stray_C_AUD_PROV_entries_outside_four_files": true,
+        "openai_rs_not_added_to_baseline": true,
+        "compat_ownership_untouched": "compat.rs baseline 2136 与其末条 adjustment（C-AUD-COMPAT 1899→2136，Boss 2026-11-20 决策 A，2026-11-20）归 B-AUD-1/C-AUD-COMPAT 所有，本批未动"
+      },
+      "verdict": "PASS（四条全绿 + 三项反向约束全绿）"
+    },
+    "c6_machine_command_independent_rerun": {
+      "method": "从卡 c6 判据原文逐字提取单行机判命令（python -c 形态）独立复跑",
+      "exit_code": 0,
+      "pass": true
+    },
+    "cross_check_receipts_artifacts": {
+      "method": "仅读两份回执的 artifacts（path+sha256）与 dev 回执 files_changed 做对账；未读 verdict/notes/结论（硬边界：核验独立）",
+      "receipts": [
+        {
+          "file": "dev-C-AUD-PROV.json",
+          "role": "dev",
+          "agent": "dev-llmrust-pv",
+          "artifacts_total": 8,
+          "sha_mismatches": 0,
+          "missing_on_disk": 0,
+          "files_changed": [
+            "src/providers/google.rs",
+            "src/providers/anthropic.rs",
+            "src/providers/ollama.rs",
+            "src/providers/openai.rs",
+            "src/lib.rs",
+            "docs/CAPABILITIES.md",
+            "llmrust.capabilities.json",
+            "tests/hotspot_ledger.json"
+          ],
+          "files_changed_eq_card_write_scopes": true
+        },
+        {
+          "file": "qa-C-AUD-PROV.json",
+          "role": "qa",
+          "agent": "qa-llmrust-pv",
+          "artifacts_total": 9,
+          "sha_mismatches": 0,
+          "missing_on_disk": 0
+        }
+      ],
+      "all_artifact_shas_match_disk": true,
+      "dev_files_changed_scope_check": "dev 回执 files_changed 8 文件与 card.write_scopes（9 项）交集完全落位（tests/capability_freeze.rs 在 scope 内但本卡未改、未虚报）；git 工作区 8 个 M 文件与 files_changed 一一对应，无未认领业务改动"
+    },
+    "problems": [],
+    "observations_non_blocking": [
+      {
+        "note": "工作区台账仍为 CRLF 行尾（485 行全 CRLF）；ruling【B】末的 LF 保存偏好（非约束、非判据）未被采纳。由于 bd33b5a 提交的 B-AUD-1 交付态 blob 本身即 CRLF（fc6243f9），本批 git diff 为 +44/-4 的最小尾部 diff，B-AUD-1 观察记录的整文件重写噪音问题已自然消解。",
+        "impact": "零机判影响（ruling 原文：改不改不影响任何机判）"
+      }
+    ],
+    "forward_obligations": {
+      "architect_ratification_pending": "按 ruling【B】：四条 dev 代写的 C-AUD-PROV adjustment（google/anthropic/ollama/lib）与补链条目（ollama 829→830）由 architect-llmrust 在 B-AUD-2 accept 前复核追认（机制：Lead 将台账 diff 转架构师复核）。本回执核实五条在台账中均已按规范落位，追认状态：待 architect 追认——记录用，不阻塞本回执（Lead 已另行安排）。",
+      "b_aud_3_note": "B-AUD-3/C-AUD-PROXY 是下一张台账写入卡（tests/hotspot_ledger.json 串行持有）；其新增条目同样适用 ruling【E】date=授权日语义与 reason 首段 appended 披露。本批 12/12 链收敛是其后任何 accept 的链面基线。",
+      "no_new_genesis_gaps": "本批全链核验未发现新的 genesis 类缺口（12/12 收敛即排除）；若后续批次再发现，按 ruling 泛化条款逐条报 architect 授权、同窗口补链。"
+    }
+  },
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-AUD-2/ledger.json",
+      "sha256": "SELF-REFERENTIAL：回执文件的文件级 sha256 结构上不可自钉（skill 对回执类 artifact 本就跳过 sha 比对，见 lib.mjs isSiblingReceiptArtifact）；本回执的机器完整性由同文件内 self_sha256（对去掉该字段后的 JSON 串做 sha256）承载",
+      "desc": "本回执自身：config.ledger.command=null 下按 lib.mjs ledgerCheck 口径携带 schema/generatedAt/self_sha256 的自洽台账 JSON（unverified 降级路径）"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "39e63f659c1e9656e4e8674934b98abfc5dc8b59e4c007f00198e117cd7f00d3",
+      "desc": "B-AUD-2 交付时点被核验的台账实物（raw 字节 sha256；含补链条目第 54 条与 C-AUD-PROV 四条 adjustment，共 58 条；与 loop-state handoff 冻结 sha 同值）"
+    },
+    {
+      "path": ".workforce/spec.json",
+      "sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+      "desc": "核验所依据的已确认 spec（文件 sha256 == spec_sha256，实测一致）"
+    },
+    {
+      "path": ".workforce/cards/C-AUD-PROV.json",
+      "sha256": "8c485ac32b2419cd6f05d09049605df5a517302232503e2bc7fea806e1369016",
+      "desc": "B-AUD-2 唯一台账写入卡（c6 判据原文，其机判命令已独立复跑 exit 0；与本回执 B-AUD-1 钉值一致，卡未漂移）"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-2/architect-ruling-2026-11-21-P1-ollama-chain.md",
+      "sha256": "384cd516996c944d44e70b4130871414d3701410e88229e12cbaaefc9ae105cc",
+      "desc": "architect-llmrust 2026-11-21 正式 ruling 原文（P1 定性/补链条目规范+R1-R4/W5 前向硬条件/date 语义），本回执 forward_hard_conditions_W5 的授权依据（sha 与 B-AUD-1 回执钉值一致）"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-1/ledger.json",
+      "sha256": "6741caf11f3d7c7226765f3bc662abb43000b06f99c38e86b5cb2b517d527b63",
+      "desc": "B-AUD-1 台账回执（本批验收依据之一：chain_convergence FAIL 记录与 W5 前向义务的出处；本回执的 ollama 翻身即对其 chain_convergence.non_converged_files=[src/providers/ollama.rs] 的闭环）"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "python -c \"<内联核验脚本①：threshold/12 基线文件 splitlines 行数+sha256 实测与 B-AUD-1 基线对比（恰 4 项更新）、58 条 adjustments 六字段、12 链相邻 old==前条 new 且末条 new==baseline 的全链收敛核验>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<内联核验脚本②：src/**/*.rs 25 文件全覆盖扫描（12 个 ≥500 全在册、零未登记超限、openai.rs 160 行不入册）+ 换行口径等价性机扫（全 25 文件无 VT/FF/FS/GS/RS/NEL/LS/PS、无孤立 CR ⇒ splitlines 与 lines().count() 同值）>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<内联核验脚本③：W5 八项逐项判读（补链条目 idx53：file/old==829/new==830/六字段/R1 顺序 idx53 早于 idx54-57 且早于自身 ollama 条目 idx56/reason 首段 appended 2026-11-21+genesis 叙述+P1 引用+ruling 授权且不含字符串 C-AUD-PROV/authorized_by 授权链+date==2026-11-21/追加后 ollama 链 0→805→829→830→855 全收敛）+ 卡自身四条（old/new==实测/date/authorized_by/appended 首段披露/卡 id/审计项 AUD#4#5#6#8）+ c6 反向约束（无游离 C-AUD-PROV 条目、openai.rs 不在 baseline、compat.rs 归属未动）>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<git 追溯脚本④：git show bd33b5a:tests/hotspot_ledger.json 解析——53 条与当前前 53 条逐字相同（parsed deep-equal）、baseline_lines delta 恰为 4 卡文件、description/threshold/顶层键集不变；39928fc 52 条态 ollama baseline==830 核对>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<sha 谱系脚本⑤：.workforce/spec.json==254d36f2…（==批次 spec_sha256）、ruling==384cd516…、C-AUD-PROV.json==8c485ac3…（后两者与 B-AUD-1 回执钉值一致）、B-AUD-1/ledger.json==6741caf1…、工作区台账==39e63f65…、bd33b5a 台账 blob==fc6243f9…（B-AUD-1 回执钉值，逐字节提交确认）>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<C-AUD-PROV c6 单行机判命令（从卡 c6 判据原文逐字提取：python -c 形态，四文件 baseline==实测 + 各自末条 adjustment 六字段/old/new/Boss 2026-11-20/2026-11-20/C-AUD-PROV 联合断言）独立复跑>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<交叉对账脚本：B-AUD-2 dev/qa 回执仅读 artifacts（path+sha256）与 dev files_changed 逐条与磁盘实测比对；dev 8 artifacts 0 mismatch/0 missing、files_changed 8 文件全落 card.write_scopes；qa 9 artifacts 0 mismatch/0 missing>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git diff bd33b5a --stat/--numstat -- tests/hotspot_ledger.json（结果：+44/-4——尾部追加 5 条 adjustment + 4 行基线值变更，无整文件重写噪音）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"<loop-state.json B-AUD-2 handoffs 判读：C-AUD-PROV handoff_id=2a20273362d54212cfab0dba（2026-11-20T18:22:06Z）冻结 8 文件，tests/hotspot_ledger.json@39e63f65…==当前实测 sha——交接后零漂移，代码冻结面与台账核验面同态>\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"<机器校验双保险：按 lib.mjs selfShaOk 语义复验本回执 self_sha256 自洽>\"",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS",
+  "notes": "B-AUD-2 台账层 PASS：①常规核验全绿——threshold=500 在位、12/12 baseline==实测（双向）、本批基线变化恰 4 项（google 1614→1813 / anthropic 1539→1684 / ollama 830→855 / lib 839→847）、25 文件全扫零未登记超限（openai.rs 160 行不入册）、58/58 条 adjustments 六字段齐备；②全链收敛核验 12/12 PASS——B-AUD-1 的 chain_convergence.verdict=FAIL（ollama 缺口）正式翻身：补链条目 829→830 按 architect ruling 2026-11-21【B】条目规范落位（adjustments 第 54 条，idx53），ollama 链现为 0→805→829→830→855 全闭合；③W5 八项前向硬条件逐项核验 8/8 PASS（含 R1 顺序：补链先于 C-AUD-PROV 自身四条；R2 防吸收：new 恰 830、自身行数变化 830→855 分立记账；R3：补链 reason 不含 C-AUD-PROV 字符串；R4/date==2026-11-21 授权日语义；append-only：前 53 条与 bd33b5a 逐字相同、CAP-002 已提交条目未改写）；④卡自身四条 adjustment（AUD#4/#5/#6/#8）全绿 + c6 三项反向约束全绿；⑤C-AUD-PROV c6 机判命令独立复跑 exit 0；⑥交叉对账：dev/qa 回执 artifacts 0 mismatch/0 missing，dev files_changed 8 文件全落 write_scopes、与 git 工作区 M 文件一一对应。problems=[]：未发现任何问题（含未发现新 genesis 类缺口）。追认状态：五条 dev 代写条目按 ruling【B】待 architect-llmrust 在 B-AUD-2 accept 前复核追认（Lead 已另行安排；记录于 forward_obligations，不阻塞本回执）。未改任何业务文件，未跑 git commit。",
+  "generatedAt": "2026-11-20T18:45:00Z",
+  "self_sha256": "55abbd991b530b05f0fb2cf3446ed3236efd3f54dffdd06aa042d0742c9b82f4"
+}

@@ -1,0 +1,19 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running tests\api_freeze.rs (target\debug\deps\api_freeze-044af61b8c411799.exe)
+
+running 12 tests
+test negative_missing_frozen_symbol_is_reported ... ok
+test negative_loosened_classification_is_reported ... ok
+test negative_non_exhaustive_on_frozen_symbol_is_reported ... ok
+test negative_stable_additive_without_non_exhaustive_is_reported ... ok
+test finish_reason_variant_set_is_frozen ... ok
+test chat_response_shape_is_frozen ... ok
+test proxy_module_is_unstable ... ok
+test real_inventory_passes_the_extracted_comparison ... ok
+test stable_additive_symbols_require_non_exhaustive ... ok
+test thinking_config_is_stable_but_not_root_reexported ... ok
+test inventory_is_adjudicated_baseline ... ok
+test stable_symbols_are_not_misclassified ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

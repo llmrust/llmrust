@@ -1,0 +1,2 @@
+   Compiling llmrust v0.1.6 (D:\llmrust-0.1.5)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.69s

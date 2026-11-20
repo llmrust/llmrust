@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests\response_freeze.rs (target\debug\deps\response_freeze-03e224d62f75f4cb.exe)
+
+running 14 tests
+test negative_added_field_is_detected ... ok
+test finish_reason_unknown_round_trips_through_other ... ok
+test chat_response_serializes_known_shape ... ok
+test none_options_are_not_reported_as_drift ... ok
+test usage_option_token_counters_distinguish_none_from_some_zero ... ok
+test real_response_matches_frozen_shape_under_shape_diff ... ok
+test usage_serializes_known_shape ... ok
+test negative_array_length_change_is_detected ... ok
+test negative_nested_removal_is_detected_with_path ... ok
+test stream_chunk_serializes_known_shape ... ok
+test negative_removed_field_is_detected ... ok
+test negative_renamed_key_is_detected ... ok
+test finish_reason_known_variants_serialize_to_wire_strings ... ok
+test negative_changed_value_is_detected ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

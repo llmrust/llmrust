@@ -1,0 +1,163 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "dev",
+  "agent": "dev-llmrust-pv",
+  "card_id": "C-AUD-PROV",
+  "batch_id": "B-AUD-2",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "written_by": "dev-llmrust-pv",
+  "inputs_seen": [
+    ".workforce/cards/C-AUD-PROV.json",
+    ".workforce/evidence/B-AUD-2/architect-ruling-2026-11-21-P1-ollama-chain.md",
+    ".agents/skills/agent-workforce-loop/assets/evidence.template.json",
+    "src/providers/compat.rs",
+    "docs/CAPABILITIES.md",
+    "llmrust.capabilities.json",
+    "tests/hotspot_ledger.json",
+    "tests/capability_freeze.rs",
+    "tests/architecture_guard.rs"
+  ],
+  "files_changed": [
+    "src/providers/google.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/ollama.rs",
+    "src/providers/openai.rs",
+    "src/lib.rs",
+    "docs/CAPABILITIES.md",
+    "llmrust.capabilities.json",
+    "tests/hotspot_ledger.json"
+  ],
+  "mock_used": false,
+  "artifacts": [
+    {
+      "path": "src/providers/google.rs",
+      "sha256": "a0c158dbfc73c535b3208c6bf47379c2131e2e08701bb9bb888043a48e06b402"
+    },
+    {
+      "path": "src/providers/anthropic.rs",
+      "sha256": "32e9668a9da49dc370bd6ee40b9b5048ab4ad696514e37add6a5df11c27938d7"
+    },
+    {
+      "path": "src/providers/ollama.rs",
+      "sha256": "ade072f4f82bffa9f99824bf2d767f04cef8c241ba0e346680c59c7ea99bd65c"
+    },
+    {
+      "path": "src/providers/openai.rs",
+      "sha256": "a321eed5e9cc0115080bbb9c36e7a27130056efe0952dd1d567b8e76132a4b60"
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "ff7ba5ef2cc568d26b7151e760a96d10696c0d602bc49e0464d286908ac2dbe3"
+    },
+    {
+      "path": "docs/CAPABILITIES.md",
+      "sha256": "bab4f3028abac1a8d3c2e9572496c2d6ee71671bc2e076a1e26a52f1434974c3"
+    },
+    {
+      "path": "llmrust.capabilities.json",
+      "sha256": "5e59031e50dae775d26019378e03383c4bef693efa5ee850299d36a8faec3e74"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "39e63f659c1e9656e4e8674934b98abfc5dc8b59e4c007f00198e117cd7f00d3"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "c1-1 python -c \"src=open('src/providers/ollama.rs',encoding='utf-8').read(); assert src.count('unwrap_or(FinishReason::Stop)')==0\" (b008185 baseline had exactly 1 at L184-188)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "c1-2 python -c \"src=open('src/providers/google.rs',encoding='utf-8').read(); assert src.count('promptFeedback')>=1 and (src.count('block_reason')>=1 or src.count('blockReason')>=1)\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "c1-3 python -c \"src=open('src/providers/openai.rs',encoding='utf-8').read(); assert src.count('fn new_compatible')>=1\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "c1-4 python -c \"src=open('src/lib.rs',encoding='utf-8').read(); assert src.count('OpenAIProvider::new(')==1\" (b008185 baseline had 2: set_openai + set_openai_compatible)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "c1-5 python -c \"g=open('src/providers/google.rs',...); a=open('src/providers/anthropic.rs',...); assert 'stream_clean_eof_flushes_accumulated_tool_calls_and_marks_done' in g and in a\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "c1-6 python -c \"assert 'set_openai_compatible' in json['providers']['openai']['reasoning']['notes'] and 'set_openai_compatible' in docs/CAPABILITIES.md\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::google::tests::stream_prompt_feedback_block_reason_surfaces_error",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::google::tests::stream_clean_eof_flushes_accumulated_tool_calls_and_marks_done",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::anthropic::tests::stream_clean_eof_flushes_accumulated_tool_calls_and_marks_done",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::ollama::tests::stream_done_finish_reason_reflects_done_reason_only",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --lib providers::openai::tests::compatible_construction_does_not_declare_reasoning",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace --features proxy",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test architecture_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test package_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test capability_freeze",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test api_freeze",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test cap002_contract",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --test response_freeze",
+      "exit_code": 0
+    },
+    {
+      "cmd": "c6 card-verbatim one-liner python -c (baseline==measured + last-adjustment six-fields/old/new/'Boss 2026-11-20'/date 2026-11-20/'C-AUD-PROV' for google/anthropic/ollama/lib)",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "四个缺陷的修复位置：AUD#4 google.rs —— GeminiStreamEvent 新增 promptFeedback 反序列化（GeminiPromptFeedback.blockReason，serde rename 'promptFeedback'/'blockReason'，L359-376 一带），parse_sse_line 在空 candidates keepalive 判定之前检查 blockReason 并上抛 LlmError::Stream（L766-780 一带）；stream() 装配层由 scan/flatten 换成新增的 sse_chunk_stream（compat.rs L434-519 范式的移植，L955 一带）：净 EOF 冲刷已累积 tool_calls 为单个 done 终态、finish_reason=None（ERR-003/K-06）、错误后永不冲刷。AUD#5 anthropic.rs —— 同范式 sse_chunk_stream 移植到 stream() 装配层（L968 一带），净 EOF（无 message_delta/message_stop）冲刷 tool_use 增量重构的 tool_calls、finish_reason=None、错误后不冲刷；message_stop/ping 忽略与 message_delta 终态语义不变。AUD#6 ollama.rs —— parse_ndjson_line done 臂改为 parsed.done_reason.map(FinishReason::from) 直通（去掉 .unwrap_or(FinishReason::Stop)，L181-197 一带）；done=true 无 done_reason → finish_reason=None；From 实现与未知串 Other 语义不动。AUD#8 openai.rs + lib.rs —— 新增 pub fn new_compatible(config)（不 with_reasoning(true)），OpenAIProvider 带 reasoning_official 实例标志，capabilities().reasoning 按构造器实例级诚实（官方 verified / 兼容 unsupported）；lib.rs set_openai_compatible 改用 new_compatible（L217 一带），set_openai 不动（OpenAIProvider::new( 全 lib.rs 恰一次）；openai.rs 77→160 行低于 threshold=500 未入台账（卡面裁定）。三载体：docs/CAPABILITIES.md OpenAI reasoning 一节注明 set_openai_compatible 端点不继承 official-endpoint reasoning；llmrust.capabilities.json providers.openai.reasoning.notes 追加同样说明；tests/capability_freeze.rs 未改（freeze 用官方构造器，观测面不变，16 passed）。台账（tests/hotspot_ledger.json，本卡是 B-AUD-2 唯一台账写入卡）：追加五条 —— ①P1 补链 src/providers/ollama.rs 829→830（architect-ruling-2026-11-21 逐字规范，authorized_by='architect-llmrust ruling 2026-11-21（SPCC §11.1.4 truth correction；授权链：Boss 2026-11-20 决策 A → architect-llmrust 2026-11-21）'，date=2026-11-21，reason 首段 'appended 2026-11-21（B-AUD-2 台账写入窗口）'）；②google.rs 1614→1813；③anthropic.rs 1539→1684；④ollama.rs 830→855；⑤lib.rs 839→847（四条 date=2026-11-20 授权日语义 per ruling【E】，authorized_by='Boss 2026-11-20 决策 A'，reason 首段披露 appended 2026-11-21、含卡 id 与审计项编号）。baseline_lines 同步更新四键（google 1813 / anthropic 1684 / ollama 855 / lib 847）。R1-R4 自检：R1 PASS（补链条目 index 53，卡自身 ollama 条目 index 56，补链在前）；R2 PASS（补链 new 恰 830，本卡 ollama 变化由独立 830→855 条目承载）；R3 PASS（补链 reason 不含字符串 C-AUD-PROV，机判确认）；R4 PASS（date=2026-11-21，真实追加日 appended 2026-11-21 于 reason 首段披露）。链收敛自验（全台账 12 文件）：每文件 (new_i==old_{i+1}) 无缺口、末条 new==baseline_lines、baseline==Python splitlines 实测（google 0→…→1614→1813；anthropic …→1539→1684；ollama 0→805→829→829→830 补链→830→855 卡条目，全程连续到新基线 855；lib …→839→847）——逐文件 PASS，唯一不收敛链（ollama，B-AUD-1 P1）已翻身。c3 注入验红（预期红，不进 command_exit_codes）：h0=sha256(ollama.rs)=ade072f4f82bffa9f99824bf2d767f04cef8c241ba0e346680c59c7ea99bd65c → 把 done 臂回退为 .unwrap_or(FinishReason::Stop) 伪造形态 → cargo test --lib providers::ollama::tests::stream_done_finish_reason_reflects_done_reason_only FAILED（exit 101，断言 'an absent done_reason must stay absent, never fabricated as a completion claim'）→ 字节级还原 → h1==h0（IDENTICAL）→ 同命令 exit 0（1 passed）。过程事实披露：还原后第一次重跑因 Copy-Item 保留了快照旧 mtime，cargo 判定无需重编跑了过期注入版二进制而仍红（exit 101）——刷 mtime 强制重编后即绿（哈希全程未变）；该次红为构建缓存假象非代码状态。b008185 基线 ollama.rs sha256=c8784443...（卡面对账值）；本卡终态 ade072f4...（h0==h1）。c7 零放宽：①五文件 assert 行集合 基线-当前 为空（google 74→78、anthropic 74→75、ollama 24→26、openai 0→2、lib 7→7，只增不减）；②c2 所列既有用例函数体断言原文保留；③全仓 #[ignore]/#[should_panic] 位置集合与 b008185 双向差集为空（基线仅 src/proxy/mod.rs:3292/:3300）；④workspace 默认口径 doc-tests ignored=2（src/lib.rs:57 + src/providers/retry.rs:19）、--features proxy 口径 ignored=4，均在基线上限内。行尾策略（ledger 工种工程附注）：工作区五个 src 文件原呈 CRLF 而其 committed blob 为 LF（autocrlf 环境史残留；mtime 一动即整文件 1660 行 diff 假象），本卡按其 committed blob 形态（LF）落盘，git diff 为纯内容差异（google 217 行 / anthropic 163 行 / ollama 37 行 / lib 12 行）；tests/hotspot_ledger.json 保持其 CRLF 形态追加（445→485 行，除 4 行 baseline 值与追加块外其余字节不变）。cargo fmt 在行数定盘前执行（google +6 / anthropic +6 重排），台账 new 值取 fmt 后终值。全部门禁在台账写入后的终态复跑：cargo test --workspace（默认口径 19 组 test result 全 0 failed 0 ignored）与 --features proxy（20 组，392 lib tests）均 exit 0。本卡 four adjustments 待 architect-llmrust 在 spec-review 阶段追认（authorized_by 口径 per 卡面 c6：Boss 2026-11-20 决策 A）。"
+}

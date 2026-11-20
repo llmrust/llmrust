@@ -2,7 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "qa",
   "agent": "qa-llmrust",
-  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
   "agreed": true,
-  "signedAt": "2026-11-20T09:25:40.475Z"
+  "comments": "同意签署：实测核对基线 b008185（spec sha256、8 文件台账行数、should_panic 2 处/ignore 0、Doc-tests ignored 2+4 锚点、全部缺陷旧形态锚点）后确认五卡 c1–c7 判据独立可测（机判命令+命名测试+注入验红 h1==h0+零放宽），proxy wire 判据全部 --features proxy 口径，测试名与既有风格一致且无冲突；注入验红为每卡一条代表性验红（沿 C-DELTA-NULL 先例），其余修复以对现行代码可复核的否定性断言钉住不构成阻断。",
+  "signedAt": "2026-11-20T23:10:58+08:00"
 }

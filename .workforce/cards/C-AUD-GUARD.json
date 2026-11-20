@@ -1,0 +1,61 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-AUD-GUARD",
+  "phase": "PH-0.1.7",
+  "story": "VS-2",
+  "priority": "P1",
+  "parallel": "[P]",
+  "owner_agent": "dev-llmrust-gv",
+  "qa_agent": "qa-llmrust-gv",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "tests/architecture_guard.rs",
+    "tests/cap002_contract.rs"
+  ],
+  "exact_file_paths": [
+    "tests/architecture_guard.rs",
+    "tests/cap002_contract.rs"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-2",
+    "PH-0.1.7",
+    "B-AUD-1",
+    "T-AUD-GUARD"
+  ],
+  "requirement_refs": [
+    "AUD#15（high：architecture_guard 自身两处 fail-open——dependency_edges_are_respected 的 `if let Ok(src)` 读失败静默跳过该文件；hotspot_ledger_is_consistent 末尾 `_checked` HashMap 死代码（插入后从未使用），守卫失去「守卫自己也要被守卫」的防线）",
+    "AUD#16（high：tests/cap002_contract.rs default_warn_is_idempotent 百次循环零断言，测试空转）",
+    "K-02",
+    "K-04",
+    "K-05",
+    "docs/SPCC-0.1.4.md §9.2 第 1 条（守卫判门 fail-closed）"
+  ],
+  "ruling_refs": [
+    "Boss 2026-11-20 决策 A：以全量审计 backlog 为需求开新战役，severe + high 必修",
+    "architect 裁定（2026-11-20）#15 修复口径：fail-closed 化为**行为级**要求，不锁实现形态——依赖边守卫在「边引用的文件不可读/不存在」时必须产出 violation（而不是静默跳过），由新增纯函数负例测试钉住；`_checked` 死代码直接删除，其注释声明的意图（edge 文件被移动/改名后守卫不得静默跳过）由 fail-closed 化之后的依赖边守卫真正承载；hotspot_files_do_not_grow 的 `unwrap_or_default()` **不要求**改动——不存在的文件计 0 行、0 != baseline（baseline ≥ threshold 500）必然判红，机制上已是 fail-closed",
+    "architect 裁定（2026-11-20）#16 修复口径：default_warn_is_idempotent **保留原名**（避免测试名漂移），在既有循环体内/后补真实断言（多次调用 capabilities() 的返回值稳定性：level/protocol/coherence_problems 逐次一致），不引入 tracing-subscriber 新依赖、不改 src/；测试从「零断言空转」变为「断言幂等观测面」",
+    "architect 裁定（2026-11-20）本卡判定口径：architecture_guard 的 pass 总数在 B-AUD-1 交付时点由本卡净增负例改变，**不锁定具体 pass 数**（K-02 的 enforced_by 已同步写成 count-agnostic）；grd004_* 十个既有用例与 hotspot_* 四个既有用例的名字与断言不得触碰"
+  ],
+  "acceptance_criteria": [
+    "c1 结构判据（机判，python 正则读源码，对两文件逐条 exit 0）：① tests/architecture_guard.rs 中 `if let Ok(src)` 出现 0 次（b008185 基线恰 1 次，位于 dependency_edges_are_respected 的 fail-open 读；hotspot 侧 unwrap_or_default 不在本判据范围）；② tests/architecture_guard.rs 含 fail-closed 语义标记：正则 `(unreadable|not readable|missing edge|cannot be read)` 至少命中 1 次（violation 文案由 dev 定形，但必须含上述词根之一以便审计检索）；③ tests/architecture_guard.rs 中 `_checked` 标识符出现 0 次（死代码删除的不可抵赖证据）；④ tests/cap002_contract.rs 的 default_warn_is_idempotent 函数体（自 `fn default_warn_is_idempotent` 起至其配对闭括号）内 `assert` 出现 ≥ 1 次（且不得是恒真断言：机判要求 assert 后非空括号内的比较表达式存在——正则 `assert(!?\\s*(eq\\()?\\s*\\w` 命中即可）；⑤ 两组既有用例名保持：grd004_plain_use_is_caught / hotspot_files_do_not_grow / hotspot_ledger_is_consistent / hotspot_coverage_is_complete / hotspot_coverage_detects_unlisted_oversized_file / default_warn_is_idempotent 在文件中各出现 ≥ 1 次且均为 #[test] 函数名。机判命令逐条 python -c 断言，全部 exit 0。",
+
+    "c2 命名测试存在且绿（三条独立命令，各自 exit 0 且 stdout 含 `test result: ok. 1 passed; 0 failed; 0 ignored`）：① cargo test --test architecture_guard dependency_edge_guard_fails_closed_on_missing_edge_file——新增负例：构造包含一个不存在文件（如 `src/does_not_exist_renamed_module.rs`）的依赖边清单，走与修复后 dependency_edges_are_respected 相同的判定路径（纯函数或等价路径），断言产出的 violations/problems 非空且含该文件名（守卫必须会红，#15 核心钉子）；② cargo test --test cap002_contract default_warn_is_idempotent——补断言后仍绿：循环内多次调用 MinimalProvider::capabilities()，断言逐次返回的 protocol / chat.level / coherence_problems() 稳定一致（幂等观测面，#16 钉子）；③ cargo test --test architecture_guard hotspot_coverage_is_complete——既有覆盖守卫仍绿（回归确认：本卡改动不削弱双向覆盖判定）。另机判：cargo test --workspace -- --list 输出中 dependency_edge_guard_fails_closed_on_missing_edge_file 出现恰好 1 次且无 `: ignored` 后缀；architecture_guard 全量 `test result:` 行 0 failed、0 ignored（pass 数不锁定——本卡净增负例后总数由交付时点决定）。",
+
+    "c3 注入验红（#15 反向证明）：把 tests/architecture_guard.rs 的依赖边 fail-closed 逻辑回退（恢复 `if let Ok(src)` 静默跳过形态或等价让不可读文件不产 violation 的实现）后，`cargo test --test architecture_guard dependency_edge_guard_fails_closed_on_missing_edge_file` 必须 FAILED（exit 非 0）；恢复后同命令 exit 0，且 tests/architecture_guard.rs 恢复后 sha256 等于注入前实测值（h1 == h0）。机判流程：注入前记 h0（python hashlib）→ 注入 → 命令 exit≠0 → 恢复 → h1==h0 且命令转绿。b008185 基线上该文件 sha256 = db1d8789a1078baddc71166d439b71d37cd374c33919cb99cf0c6daaccf177e9（仅对账用，h0 以注入时刻实测为准）。",
+
+    "c4 四条门禁命令逐条 exit 0：`cargo test --workspace`、`cargo build --workspace`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`（本卡只改 tests/**/*.rs，默认 feature 集即可全覆盖）。机判：gate 回执 command_exit_codes 四条全 0。",
+
+    "c5 守卫绿（count-agnostic，B-AUD-1 交付时点同批三卡改动已合并的口径）：① `cargo test --test architecture_guard` exit 0 且全部 `test result:` 行 `0 failed; 0 ignored`（pass 数不锁）；② `cargo test --test cap002_contract` exit 0 且全部 `test result:` 行 `0 failed; 0 ignored`；③ `cargo test --test package_guard` exit 0 且 stdout 含 `test result: ok. 4 passed; 0 failed; 0 ignored`（该文件无卡改动，pass 数锁 4）；④ `cargo test --test capability_freeze` exit 0 且 `0 failed; 0 ignored`（同批 C-AUD-DOCS 会净增其用例，pass 数不锁，只锁双零与退出码）。",
+
+    "c6 本卡零台账动作（负向证明）：① 本卡 write_scopes 与 exact_file_paths 均不含 `tests/hotspot_ledger.json`，也不含任何 `src/` 路径（机判：读本卡 JSON 断言）；② tests/hotspot_ledger.json 的 adjustments[] 中不存在提及 `C-AUD-GUARD` 的条目（机判：python 遍历断言）；③ 本卡产出的改动文件清单（qa 回执载明）与 write_scopes 完全一致——tests/*.rs 不在热点台账覆盖范围（台账只覆盖 src/**/*.rs），故本卡新增守卫用例不产生台账义务。",
+
+    "c7 零放宽（机判，与基线 commit `b008185` 比对本卡两文件）：① 断言只增不减：对 tests/architecture_guard.rs 与 tests/cap002_contract.rs 各取 `git show b008185:<path>` 与当前工作版的 `assert!` / `assert_eq!` / `assert_ne!` 行集合做差，`基线集合 - 当前集合` 必须为空（新增断言不受限——default_warn_is_idempotent 的空转→实断言属新增，非删改）；② `#[ignore]` / `#[should_panic]` 位置集合全仓（src/** 与 tests/**）与 b008185 完全一致（双向差集为空；基线 `#[should_panic]` 仅 src/proxy/mod.rs:3292 与 :3300，`#[ignore]` 0 处）；③ `cargo test --workspace` 各 unit/integration `test result:` 行 ignored 全 0，Doc-tests 行 ignored ≤ 2（默认 feature 基线）；④ 既有 grd004_* 十用例与 hotspot_files_do_not_grow / hotspot_ledger_is_consistent / hotspot_coverage_is_complete / hotspot_coverage_detects_unlisted_oversized_file 的函数体内断言不得被弱化：机判取既有各函数体的 assert 行数 ≥ 基线同函数体的 assert 行数（只增不减的函数级强化口径）。"
+  ],
+  "independent_test": "cargo test --workspace",
+  "needs_clarification": [],
+  "blocked_by": [],
+  "checkpoint": "c1–c7 全绿且 dev/qa/gate/ci 回执齐全；本卡与 C-AUD-COMPAT、C-AUD-DOCS 同批（B-AUD-1）并行，dev 写入范围两两不交，不触碰 src/** 与 tests/hotspot_ledger.json；判定口径为 count-agnostic（pass 总数不锁），交付以 exit 0 + failed/ignored 双零 + 命名用例 ok 为准；B-AUD-2/B-AUD-3 的 blocked_by 不含本卡（台账与载体重叠均系 COMPAT/DOCS），但 B-AUD-1 整批交付前 B-AUD-2/B-AUD-3 不得开工。",
+  "status": "pending"
+}

@@ -1,0 +1,64 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-AUD-COMPAT",
+  "phase": "PH-0.1.7",
+  "story": "VS-2",
+  "priority": "P0",
+  "parallel": "[P]",
+  "owner_agent": "dev-llmrust-cs",
+  "qa_agent": "qa-llmrust-cs",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "src/providers/compat.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "exact_file_paths": [
+    "src/providers/compat.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-2",
+    "PH-0.1.7",
+    "B-AUD-1",
+    "T-AUD-COMPAT"
+  ],
+  "requirement_refs": [
+    "AUD#1（severe：OpenAI 兼容流 thinking_done 同帧假设）",
+    "AUD#3（high：空 choices + error 帧被静默丢弃）",
+    "AUD#7（high：ToolCallAccumulator::ingest 无界 resize_with）",
+    "K-01",
+    "K-02",
+    "K-04",
+    "K-05",
+    "docs/CONTRACTS.md Provider contract 第 6 条 / stream 合约 No silent drops",
+    "AGENTS.md Providers 节（Streaming must surface parse errors and upstream errors）"
+  ],
+  "ruling_refs": [
+    "Boss 2026-11-20 决策 A：以全量审计 backlog 为需求开新战役，severe + high 必修，medium/low 登记 known_issues",
+    "docs/SPCC-0.1.4.md §11.1.4：热点台账 baseline 调整属 architect 专属 truth correction 权限；本卡该项由 dev 代写（authorized_by 记 Boss 2026-11-20 决策 A、date=2026-11-20、file=src/providers/compat.rs），须 architect-llmrust 在 spec-review 阶段追认后方可 accept（v2 C-DELTA-NULL 先例）",
+    "docs/SPCC-0.1.4.md §9.2 第 1 条：数值门禁一律双向（current != expected），缩水与膨胀同等对待",
+    "docs/SPCC-0.1.4.md §4.4：tests/hotspot_ledger.json 为热点台账唯一事实源，threshold=500；本卡是 B-AUD-1 唯一台账写入卡（每批至多一卡的集中台账策略，见 spec v3 revision_note 第 ⑤ 条）",
+    "architect 裁定（2026-11-20）：#1 的修复口径为 sticky 终态——终帧的 thinking_done 取「本流此前是否出现过 thinking 增量」，实现落点为流状态载体（ToolCallAccumulator 或其改造形态）上的 saw_thinking 标志；既有用例 stream_reasoning_terminal_chunk_marks_thinking_done（同帧 reasoning+finish_reason 输入）在新语义下仍为 Some(true)，属语义超集，不需要也不得改写其断言（K-04）"
+  ],
+  "acceptance_criteria": [
+    "c1 类型/结构判据（机判，python 正则读源码，对 src/providers/compat.rs 逐条 exit 0）：① 旧的同帧表达式必须消失：`done.then_some(thinking.is_some())` 在文件中出现 0 次；② sticky 状态标志存在：标识符 `saw_thinking` 在文件中出现 ≥ 3 次（声明 + 观测置位 + 终态读取三处用途）；③ #3 错误字段存在：`struct CompStreamChunk` 的 derive 列表之后结构体内含 `#[serde(default)]` 修饰的 `error` 字段且类型为 `Option<` 开头（形如 `error: Option<CompStreamError>`，具体结构体名由 dev 定，字段名必须叫 error，上游 wire 即该名）；④ #7 有界化：`ToolCallAccumulator::ingest`（或其改造等价物）在 resize 之前存在上限判定（`delta.index` 与某常量或 `MAX_TOOL_CALL_INDEX` 之类上限的比较或 deny 路径），且旧的无条件 `resize_with(delta.index + 1` 模式不再以无卫兵形式出现。机判命令（四条各自独立）：python -c \"import re;s=open('src/providers/compat.rs',encoding='utf-8').read();assert 'done.then_some(thinking.is_some())' not in s,'old same-frame expr still present'\"；python -c \"import re;s=open('src/providers/compat.rs',encoding='utf-8').read();assert len(re.findall(r'\\bsaw_thinking\\b',s))>=3,'sticky flag missing'\"；python -c \"import re;s=open('src/providers/compat.rs',encoding='utf-8').read();m=re.search(r'struct CompStreamChunk\\s*\\{(.*?)\\n\\}',s,re.S);assert m and re.search(r'#\\[serde\\(default\\)\\]\\s*\\n\\s*pub?\\s*error:\\s*Option<',m.group(1)),'CompStreamChunk lacks error field'\"；上限判据允许两种等价形态之一：文件含 `MAX_TOOL_CALL_INDEX`（或 `MAX_TOOL_INDEX`）常量名，或 ingest 内出现 `index` 与上限的比较分支——机判为 python -c \"import re;s=open('src/providers/compat.rs',encoding='utf-8').read();m=re.search(r'fn ingest\\s*\\([^)]*\\)\\s*\\{(.*?)\\n    \\}',s,re.S);blk=m.group(1) if m else '';assert bool(re.search(r'MAX_TOOL_(CALL_)?INDEX',s)) or bool(re.search(r'index\\s*[<>=]{1,2}\\s*\\d+',blk)) or bool(re.search(r'\\bif\\b[^\\n]*index[^\\n]*(too large|exceed|limit|bound)',blk)),'ingest unbounded'\"。类型合法性另由 c4 编译通过反向证明。",
+
+    "c2 五条命名回归测试存在且绿（机判：五条独立命令，各自 exit 0 且 stdout 含 `test result: ok. 1 passed; 0 failed; 0 ignored`；全部落在 src/providers/compat.rs 的 tests 模块，走既有 parse_sse_line 夹具路径）：① cargo test --lib providers::compat::tests::stream_terminal_after_thinking_marks_sticky_done——对同一个共享状态载体先喂 `data: {\"choices\":[{\"delta\":{\"reasoning\":\"hmm\"}}]}` 再喂 `data: {\"choices\":[{\"delta\":null,\"finish_reason\":\"stop\"}]}`，断言第二帧产出的终态 chunk `thinking_done == Some(true)`（这是 #1 的核心：终帧本身不再携带 thinking，旧实现会给出 Some(false)）；② cargo test --lib providers::compat::tests::stream_no_thinking_terminal_done_is_false——只喂 content 帧 + 终帧，断言终帧 `thinking_done == Some(false)`（钉住另一侧语义不回归）；③ cargo test --lib providers::compat::tests::stream_error_frame_surfaces_llm_error——喂 `data: {\"error\":{\"message\":\"quota exceeded\",\"type\":\"insufficient_quota\",\"code\":429},\"choices\":[]}`，断言结果为 Err 且匹配 `LlmError::Api { status: 429, .. }` 且 message 含 `quota exceeded`（#3：流内错误帧必须暴露，不再 Vec::new() 静默丢弃）；④ cargo test --lib providers::compat::tests::stream_tool_call_delta_with_huge_index_is_rejected——喂携带 `tool_calls:[{\"index\":1000000,\"id\":\"x\",\"function\":{\"name\":\"f\",\"arguments\":\"\"}}]` 的帧，断言结果为 Err（LlmError::Parse 或 Api，不允许 ok、不允许 panic、不允许 OOM：进程正常退出即证明有界化生效）（#7）；⑤ cargo test --lib providers::compat::tests::stream_empty_choices_without_usage_stays_keepalive——喂 `data: {\"choices\":[],\"created\":1}`，断言结果为空 Vec 且无 Err（钉住 keepalive 语义不因 #3 改动被误伤）。另机判：cargo test --workspace -- --list 输出中五个测试名各出现恰好 1 次且均无 `: ignored` 后缀。语义要求：除上述断言外测试不得删除或改写既有用例（含 stream_reasoning_terminal_chunk_marks_thinking_done / stream_delta_content_still_parses_with_option / stream_terminal_chunk_with_null_delta_parses / stream_terminal_chunk_with_absent_delta_parses / stream_done_without_finish_reason_flushes_tool_calls）。",
+
+    "c3 注入验红（反向证明 #1 测试真能抓回退）：把 src/providers/compat.rs 中 sticky 终态逻辑回退为旧同帧形式（`let thinking_done = done.then_some(thinking.is_some());` 并使 saw_thinking 标志不被终态读取）后，`cargo test --lib providers::compat::tests::stream_terminal_after_thinking_marks_sticky_done` 必须 FAILED（exit 非 0）；恢复后同命令 exit 0，且恢复后文件 sha256 与注入前实测 sha256 逐字节相同（h1 == h0），另 `stream_no_thinking_terminal_done_is_false` 在注入态下仍应 ok（证明该注入只击穿 sticky 语义、不影响其他语义）。机判流程：注入前 python -c \"import hashlib;print(hashlib.sha256(open('src/providers/compat.rs','rb').read()).hexdigest())\" 记 h0 → 注入 → 跑①记 exit≠0 且恢复 → 同命令记 h1 → 断言 h1==h0 且测试转绿。当前实测 h0（b008185 基线上该文件 sha256）= af45c94e95405860d450db454c74d46fdb3addfb55e321c394644f9d1cb08d5b（开工后文件会增长，h0 以注入时刻实测为准，此处数字仅供对账）。",
+    "c4 四条门禁命令逐条 exit 0：`cargo test --workspace`、`cargo build --workspace`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`。机判：gate 回执 command_exit_codes 中这四条命令的 exit_code 全为 0，且每条命令的 stdout/stderr 原文入库存档可比对；任一条非 0 即本卡 FAIL。",
+
+    "c5 两个专项守卫绿（count-agnostic 口径，因为同批 C-AUD-GUARD 会给 architecture_guard 净增用例，pass 总数在本批交付时点不可预知）：① `cargo test --test architecture_guard` exit 0，stdout 的全部 `test result:` 行均为 `0 failed; 0 ignored`，且 stdout 含 `test architecture_guard::hotspot_files_do_not_grow ... ok`（或等价测试名行，含 hotspot_files_do_not_grow 字样且结尾 ok）与 `hotspot_ledger_is_consistent ... ok`；② `cargo test --test package_guard` exit 0，且 stdout 含 `test result: ok. 4 passed; 0 failed; 0 ignored`（package_guard 无卡改动，pass 数锁 4）。机判：解析 stdout 的 `test result:` 行做字符串比对，failed 数与 ignored 数必须精确为 0。",
+
+    "c6 台账与实测一致（SPCC §4.4 / §11.1.4 口径，本卡是 B-AUD-1 唯一台账写入卡）：`tests/hotspot_ledger.json` 的 `baseline_lines[\"src/providers/compat.rs\"]` 必须等于 `src/providers/compat.rs` 的实测行数（口径：Python `len(open(p,encoding='utf-8').read().splitlines())` 与守卫 `fs::read_to_string(p).lines().count()` 在该文件上同值）；`adjustments[]` 末条必须六字段齐备（`file`、`old`、`new`、`reason`、`authorized_by`、`date`），其中 `file` == `src/providers/compat.rs`，`old` == 1899（当前基线），`new` == 上述实测行数，`authorized_by` 含 `Boss 2026-11-20`，`date` == `2026-11-20`，`reason` 含 `C-AUD-COMPAT` 与修复要点（sticky thinking_done / 错误帧暴露 / 工具索引有界化）且声明增长为真实修复 + 测试而非注水；台账其余 11 个文件的 baseline 不得变动（机判：与注入前相比 baseline_lines 的 diff 仅 compat.rs 一项）。机判命令（exit 0 即 PASS）：python -c \"import json;n=len(open('src/providers/compat.rs',encoding='utf-8').read().splitlines());l=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));a=l['adjustments'][-1];assert l['baseline_lines']['src/providers/compat.rs']==n,'baseline!=actual';assert all(k in a and a[k] not in (None,'') for k in ['file','old','new','reason','authorized_by','date']);assert a['file']=='src/providers/compat.rs';assert a['old']==1899;assert a['new']==n;assert 'C-AUD-COMPAT' in a['reason'];assert 'Boss 2026-11-20' in a['authorized_by'];assert a['date']=='2026-11-20'\"。",
+
+    "c7 零放宽（机判，与基线 commit `b008185` 逐项比对，不与工作区空 diff 比对）：① 不得删除或改写任何既有测试断言 —— 对 src/providers/compat.rs 取 `git show b008185:src/providers/compat.rs` 与当前工作版的 `assert!` / `assert_eq!` / `assert_ne!` 行集合做差，`基线集合 - 当前集合` 必须为空（基线实测 118 行 assert 类断言；新增断言不受限）；② `#[ignore]` / `#[should_panic]` 口径为「出现位置集合与基线完全一致」：对 `src/**/*.rs` 与 `tests/**/*.rs` 全树比对 b008185 与当前的 `#[ignore]` 与 `#[should_panic]` 命中位置集合，要求两个方向差集均为空（基线实测 `#[should_panic]` 2 处：src/proxy/mod.rs:3292 与 :3300；`#[ignore]` 0 处——本卡与同批各卡均不得引入新的，也不得删除既有的）；③ 不得标 SKIP：`cargo test --workspace` 输出中每个 unit / integration 测试二进制的 `test result:` 行 ignored 计数全为 0；Doc-tests 行单独判定为「当前 ignored 数 ≤ 既有基线 2」（基线来源 src/lib.rs:57 与 src/providers/retry.rs:19 的既有 `rust,ignore` 文档块；本命令默认 feature 集，proxy 门控文档块不计入）。机判：上述各用 python 读 git 对象 + 工作区文本 + 解析 cargo 输出断言，全部 exit 0。"
+  ],
+  "independent_test": "cargo test --workspace",
+  "needs_clarification": [],
+  "blocked_by": [],
+  "checkpoint": "c1–c7 全绿且 dev/qa/gate/ci/ledger 回执齐全、注入验红证据入库，B-AUD-1 三卡全部交付后方可进 B-AUD-2/B-AUD-3（后两卡 blocked_by 本卡与 C-AUD-DOCS）；台账 adjustment 的 architect 追认须在 spec-review 前完成；本卡是 B-AUD-1 唯一台账写入卡，C-AUD-DOCS / C-AUD-GUARD 不得触碰 tests/hotspot_ledger.json 与任何 src/**/*.rs。",
+  "status": "pending"
+}

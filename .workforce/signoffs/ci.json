@@ -2,12 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "ci",
   "agent": "ci-llmrust",
-  "spec_sha256": "f31889df63f6419e9d78d9c58121b1e093e31ccb1ac75af6a62cb767e9f0b33c",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
   "agreed": true,
-  "ci_repo": "llmrust/llmrust",
-  "pr": 251,
-  "evidence": {
-    "ci_jobs": "7 pass / 0 fail（API-002 semver 196 checks pass；Test stable 382 passed；architecture_guard 15 passed；package_guard 4 passed）"
-  },
-  "signedAt": "2026-11-20T09:25:40.475Z"
+  "comments": "同意签署：五卡全部 CI 承接面经实测成立——gitleaks 锚定由 security.yml secrets job（detect --no-git --config .gitleaks.toml）闭环，proxy 口径测试由 ci.yml cargo test --all-features（proxy 为唯一非默认 feature，等价 --features proxy）每次 push/PR 全量覆盖，architecture_guard/package_guard 有 architecture 专项 job，回执所需 pushed.head_sha 与 workflow_runs conclusion/URL 可经已认证 gh 实测拉取（b008185 双 workflow 均 push/success：CI 44723526976、Security Gates 44723526852），无判据引用 CI 上不存在的 job/命令，CRLF（splitlines/lines() 双口径同值、PROXY 卡不锚行号）与正斜杠路径差异不构成阻塞缺口。",
+  "signedAt": "2026-11-20T23:10:48+08:00"
 }

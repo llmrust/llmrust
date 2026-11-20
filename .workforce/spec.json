@@ -8,13 +8,43 @@
     "docs/CONTRACTS.md",
     "docs/CAPABILITIES.md",
     "docs/SPCC-0.1.4.md",
+    "README.md",
+    "README.zh-CN.md",
+    "llmrust.capabilities.json",
+    ".gitleaks.toml",
+    ".github/workflows/security.yml",
+    "Cargo.toml",
+    "src/types.rs",
+    "src/lib.rs",
+    "src/providers/mod.rs",
+    "src/providers/compat.rs",
+    "src/providers/openai.rs",
+    "src/providers/google.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/ollama.rs",
+    "src/providers/capabilities.rs",
+    "src/providers/stream_state.rs",
+    "src/proxy/mod.rs",
+    "src/proxy/anthropic_proxy.rs",
+    "src/proxy/responses_proxy.rs",
     "tests/hotspot_ledger.json",
     "tests/architecture_guard.rs",
+    "tests/guard_registry.json",
     "tests/package_guard.rs",
+    "tests/capability_freeze.rs",
+    "tests/cap002_contract.rs",
+    "tests/cap003_dispatch.rs",
+    "tests/contract_tests.rs",
+    "tests/response_freeze.rs",
+    "tests/responses_proxy_tests.rs",
+    "tests/api_freeze.rs",
+    ".workforce/config.json",
+    ".workforce/spec.json",
+    ".workforce/cards/C-DELTA-NULL.json",
     ".agents/skills/agent-workforce-loop/SKILL.md",
     ".agents/skills/agent-workforce-loop/references/spec-structure.md",
     ".agents/skills/agent-workforce-loop/references/roles.md",
-    ".workforce/config.json"
+    ".agents/skills/agent-workforce-loop/assets/signoff.template.json"
   ],
   "constitution": {
     "priority": "highest",
@@ -27,12 +57,12 @@
       {
         "id": "K-02",
         "text": "热点台账是数值门禁的唯一事实源，且双向（current != expected）：tests/hotspot_ledger.json 的 baseline_lines 必须等于文件实测行数，任何基线变更只能以追加 adjustments[] 的 truth correction 形式发生，且该项属架构师专属权限（SPCC-0.1.4 §4.4 / §9.2 第 1 条 / §11.1.4）。",
-        "enforced_by": "cargo test --test architecture_guard exit 0（15 passed, 0 failed），其中 hotspot_files_do_not_grow 与 hotspot_coverage_is_complete 覆盖双向判定"
+        "enforced_by": "cargo test --test architecture_guard exit 0 且 0 failed / 0 ignored（pass 数不锁死：PH-0.1.7 的 C-AUD-GUARD 会对该文件净增负例，判据锁定退出码与 failed/ignored 双零，不锁定具体 pass 数），其中 hotspot_files_do_not_grow 与 hotspot_coverage_is_complete 两用例为 ok，覆盖双向判定"
       },
       {
         "id": "K-03",
         "text": "发布包必须干净：.workforce 运行态与日志不得进入 cargo 包（否则 package_guard 红）。",
-        "enforced_by": "cargo test --test package_guard exit 0（4 passed, 0 failed）"
+        "enforced_by": "cargo test --test package_guard exit 0（4 passed, 0 failed, 0 ignored）"
       },
       {
         "id": "K-04",
@@ -43,13 +73,18 @@
         "id": "K-05",
         "text": "不虚报：完成口径只认机器实测的 exit code 与 sha256，不认叙述性文档、回执自述或「我准备做」。",
         "enforced_by": "gate 回执逐条记录 config.gates.required_commands 的 exit code 原文；accept 时重跑比对"
+      },
+      {
+        "id": "K-06",
+        "text": "代理 wire 零伪造（PH-0.1.7 新增，汇总 AGENTS.md Proxy 规则、docs/CONTRACTS.md §stream 与 ERR-003/H-3 先例）：上游流错误与静默截断必须以协议化错误事件暴露（OpenAI 兼容端点的 SSE error 事件、Responses 端点的 response.failed、Anthropic 端点的 error 事件），不得伪造成成功终态（completed / [DONE] 合成 finish_reason）；未经上游声明的 finish_reason 不得合成——「无理由」不得写成 Stop（Gemini FINISH_REASON_UNSPECIFIED 与 Ollama 缺失 done_reason 同属此类）；LlmError::Unsupported 在 OpenAI 兼容端点一律 400；错误文案走统一截断与固定措辞，不得回显 URL。",
+        "enforced_by": "PH-0.1.7 卡 C-AUD-PROXY 与 C-AUD-PROV 的 c2 命名 wire 测试组（用例名见对应卡，各自以 cargo test 按 --features proxy 或普通口径跑）全部 `test result: ok` 且 0 failed / 0 ignored，配合两卡的 c4 门禁命令 exit 0；既有先例占位：anthropic_proxy.rs 侧 normalize_stop_reason 三态矩阵与 PRX-003/PRX-004 回归在当前 HEAD 已绿（b008185 实测）"
       }
     ]
   },
   "total_vertical_slice": {
     "id": "VS-0",
-    "goal": "llmrust 0.1.5 对下游（beeli 纵切 S3）可用：用户一句任务 → 客户端经 OpenAI 兼容端点完成一次带工具调用的流式回合，末帧不再把整条流打成 LlmError::Parse /「Invalid response」。",
-    "acceptance": "cargo test --workspace / cargo build --workspace / cargo fmt --all --check / cargo clippy --workspace --all-targets -- -D warnings 四条均 exit 0；architecture_guard 与 package_guard 双绿；tests/hotspot_ledger.json 的 baseline_lines 与实测行数一致；注入回退（delta 改回非 Option）必须验红。",
+    "goal": "llmrust 0.1.x 审计清障战役（Boss 2026-11-20 决策 A）：以全量审计 backlog 为需求，把全部 severe + high 级缺陷修完并逐条用机器可判判据钉住——OpenAI 兼容流的思考段生命周期、空 choices 帧口径与工具索引有界化（#1/#3/#7），三个代理端点的 wire 语义、裁决旁路与响应伪造（#2/#9–#14），三个 provider 的终态诚实性与推理声明隔离（#4/#5/#6/#8），文档/能力三载体一致性与安全扫描锚定（#17–#22）；medium / low 级缺陷全部登记 known_issues 交 Lead 排期，不静默、不虚报。",
+    "acceptance": "① PH-0.1.7 三个批次全部 delivered，每张卡 c1–c7 机判全绿；② cargo build --workspace 与 cargo test --workspace exit 0（两卡另加 cargo test --workspace --features proxy、逐卡另加 cargo fmt --all --check 与 cargo clippy --workspace --all-targets -- -D warnings）；③ architecture_guard / package_guard / capability_freeze / response_freeze 与各组代理 wire 测试双绿；④ tests/hotspot_ledger.json 与实测行数逐文件一致（K-02 双向），台账调整只以授权 adjustment 落账；⑤ 审计 backlog 的 severe + high 项逐项可对账：要么被某张卡的 requirement_refs 命中，要么出现在 known_issues 并写明理由；⑥ 零放宽（K-04）：不新增 #[ignore]/#[should_panic]、不删改既有断言、Doc-tests ignored ≤ 既有基线（普通口径 2，proxy 口径 4）。",
     "serves_all_modules": true
   },
   "known_issues": [
@@ -59,12 +94,228 @@
       "found_at": "2026-11-20",
       "severity": "resolved",
       "statement": "`cargo test --test package_guard` 当前为红（实测 `test result: FAILED. 3 passed; 1 failed`），失败用例 `package_list_contains_only_allowed_files` 报 4 个禁止条目：`.workforce/evidence/DELTA-NULL/{api002,ci003,msrv,test-stable}.log`。根因：`dc1e754` 追加的忽略规则写成单星 `.workforce/evidence/*.log`，只匹配 `evidence/` 根层，不匹配 `evidence/DELTA-NULL/` 子目录；这 4 个文件既未被跟踪、也未被忽略，故被 `cargo package --list --allow-dirty` 收进产物。",
-      "impact": "VS-0 验收口径要求 package_guard 绿，但该缺陷的修复落点（`.gitignore` 改为 `.workforce/evidence/**/*.log`，或删除这 4 个未跟踪文件）不在 C-DELTA-NULL 的 write_scopes（`src/providers/compat.rs`、`tests/hotspot_ledger.json`）内，dev 不得代改。",
+      "impact": "VS-0 验收口径要求 package_guard 绿，但该缺陷的修复落点不在 C-DELTA-NULL 的 write_scopes 内，dev 不得代改。",
       "resolution_owner": "lead",
-      "resolution": "已由 5084e93 修复：.gitignore 追加 .workforce/evidence/**/*.log 与 .workforce/**/*.log 递归 glob。实测 cargo test --test package_guard = ok. 4 passed; 0 failed; 0 ignored；cargo package --list --allow-dirty 中 *.log 条目数为 0。C-DELTA-NULL 的 c5 第 ② 项因此可转绿。",
+      "resolution": "已由 5084e93 修复：.gitignore 追加 .workforce/evidence/**/*.log 与 .workforce/**/*.log 递归 glob。实测 cargo test --test package_guard = ok. 4 passed; 0 failed; 0 ignored；cargo package --list --allow-dirty 中 *.log 条目数为 0。",
       "verification": "修复后 `cargo test --test package_guard` 须 exit 0 且 stdout 含 `test result: ok. 4 passed; 0 failed; 0 ignored`；同时 `cargo package --list --allow-dirty` 输出中 `*.log` 条目数为 0。",
       "resolved_at": "2026-11-20",
       "resolved_by_commit": "5084e93"
+    },
+    {
+      "id": "KI-GEM-FINISH-OVERWRITE",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "src/providers/google.rs 流组装层（约 L790-792）在任意帧带 tool_calls 时无条件把 finish_reason 改写为 ToolCalls：上游已经给出 length/max_tokens/safety 等真实终态时也会被覆盖，终态语义失真（与 ERR-003「不虚构 reason」同族的反向问题：真实 reason 被吞）。",
+      "impact": "依赖 finish_reason 做计费/截断处理判断的下游拿到错误终态；不影响正常 Stop 文本流的表层行为，故列 medium。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-GEM-PARALLEL-TOOL-MERGE",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "Gemini 多工具结果（parallel tool results）在请求侧的合并/映射策略未实现或未覆盖测试：并行 tool_result 的组装路径缺少契约级用例，行为未钉住。",
+      "impact": "并行工具调用回合的行为无回归保护，改动易引入静默行为漂移。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-GEM-CHAT-EMPTY-OK",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "src/providers/google.rs chat 路径（约 L940）对 candidate 为 None 的 200 响应返回 Ok(空 content)：上游异常形态被折叠成「成功的空回复」，违反 CONTRACTS.md §6「error 上不得返回 Ok」。流式侧 promptFeedback 拦截（#4）修复后非流式侧仍留此洞。",
+      "impact": "上游安全拦截/异常 200 被吞成空成功，调用方无法区分「模型就是没说话」与「上游出问题」。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-GEM-SYSTEM-TOOL-IMAGE",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "Gemini 请求组装对 system / tool 角色消息中的 image 内容做丢弃处理（或未验证不丢）：多模态 system 消息的图片在该 provider 无显式契约说明。",
+      "impact": "多模态 + system/tool 组合请求的行为未定义、未测试；实际效果可能是静默丢内容。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-ANT-PROXY-THINKING-CLOSE",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "Anthropic 代理流（src/proxy/anthropic_proxy.rs）在异常/截断路径上可能不闭合思考内容块（缺 content_block_stop 类终态事件）；PRX-004 已处理干净截断的 error 化，thinking 块的闭合口径未钉测试。",
+      "impact": "以块为单位的 Anthropic 客户端在思考块未闭合时可能挂起或丢整段 thinking。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-ANT-BLOCK-TYPES",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "src/proxy/anthropic_proxy.rs 的 AnthropicContentBlock（或等价响应组装结构）缺 thinking / redacted_thinking 块类型：上游思考块无法以原生 wire 形态回给 Anthropic 协议客户端。",
+      "impact": "Anthropic 协议客户端拿不到思考块或拿到降级文本；与 REA-002 供应商侧实现不对齐。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-ANT-PREV-RESPONSE",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "Anthropic 端点请求中的 previous_response_id / store 字段在转换层被直接丢弃，无任何警告或 400 告知。",
+      "impact": "启用服务端会话续接的客户端行为静默偏离预期，无诊断线索。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-OLLAMA-STREAM-ERROR-LINE",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "src/providers/ollama.rs 流解析对 error 形态 NDJSON 行缺乏显式契约处理：错误行可能被当普通行解析失败（Parse）而非按协议报 LlmError::Stream 或 Api，错误降级路径未钉测试。",
+      "impact": "Ollama 流错误的语义与 AGENTS.md「流错误必须暴露」口径不完全对齐，行为对上游错误体形态敏感。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-OLLAMA-TOP-P-DOC",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "Ollama 的 top_p 支持在代码与文档两侧口径不一致（一侧声明支持、另一侧声明不支持）：docs/CAPABILITIES.md 采样表 Ollama 列 `top_p` 为 ➖，但请求组装是否透传 top_p 未被三载体对账覆盖。",
+      "impact": "用户按文档决定带不带 top_p，可能与实际行为相反；三载体一致性存疑。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-OLLAMA-SAMPLING-DROP",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "Ollama 路径对其不支持的其他采样参数（seed / penalties / stop / metadata 等）为静默丢弃：无警告日志、无 Unsupported 拒绝，与 CAP-003「大声拒绝或显式透传」的口径不符。",
+      "impact": "参数静默失效难排查；与 docs/CAPABILITIES.md「不支持清单」声明的方式（拒绝）不一致。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-COMPAT-CHAT-EMPTY",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "src/providers/compat.rs chat 路径对 200 空 choices 响应返回 Ok：上游异常形态折叠为「成功的空回复」（与 KI-GEM-CHAT-EMPTY-OK 同族，共享 OpenAI 兼容路径的所有 provider 均受影响）。",
+      "impact": "DeepSeek/Moonshot/OpenRouter 等兼容 provider 的异常 200 无法与正常空回复区分。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-COMPAT-INCLUDE-USAGE",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "OpenAI 兼容流请求无条件携带 stream_options.include_usage：部分严格网关/兼容端点（尤其非官方实现）会因为不认识 stream_options 而拒绝或行为异常，且用户无法关闭。",
+      "impact": "第三方 OpenAI 兼容端点（本仓的主打场景之一）兼容性受损；无逃生开关。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-COMPAT-EXTRA-FLATTEN",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "compat 请求组装的 extra 字段展开存在遮蔽（shadow）问题：调用方经 extra 显式传入的键可能被默认映射静默覆盖，或与固定字段的优先级未定义。",
+      "impact": "高级用户用 extra 定制请求会踩到静默覆盖，行为反直觉且难调试。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-COMPAT-NONJSON-ERROR",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "上游返回非 JSON 错误体（HTML 错误页 / 纯文本 502）时，兼容路径的错误归一化不确定：可能产生误导性的 Parse 错误而非保留上游 status 与原文摘要（truncate），与 anthropic_proxy 已有的「non-JSON error body 固定措辞」先例不一致。",
+      "impact": "网关类故障排障困难；错误分类（transient vs fatal）消费方判断失真。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-REQWEST-URL-DISPLAY",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "reqwest::Error 的 Display 实现自带 URL：凡是直接把 reqwest 错误 to_string() 的路径（provider 层、代理层残留点）都会把完整 URL（含 path/query）透出；key 虽在 header 不在 URL，但内网拓扑与 deployment path 属敏感信息（AGENTS.md Logging「不 log full URLs」的同类义务）。",
+      "impact": "错误信息外发（代理转发给客户端）时泄漏内部部署形态；#13 修代理层主路径后，provider 层残留点仍在。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-RETRY-EMBED-RETRY-AFTER",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "ERR-004 的 Retry-After 捕获只布线在 chat/stream 共享路径；embed 路径的 429/503 Retry-After 未被消费（last_retry_after 不覆盖 embed 调用链）。",
+      "impact": "embedding 限流场景退回本地指数退避，无视上游给的等待窗口，恶化限流。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-RETRY-JITTER-RANGE",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "重试抖动（jitter）的取值区间实现与设计口径存在偏差（区间端点开闭/比例因子），且缺边界值单测。",
+      "impact": "极端情况下多个客户端重试同步（jitter 失效），或退避超出设计上限；影响面小但属契约漂移。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-STREAMUTIL-LINE-CAP",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "src/providers/stream_util.rs 行缓冲对超长单行（无换行的巨型 SSE 行）的上限行为未定义/未测：恶意或故障上游可能造成内存放大。",
+      "impact": "DoS 面：上游发送无界单行时可撑爆内存；与 #7 的 provider 侧有界化属同一纵深防御层的缺口。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-SSE-DATA-NOSPACE",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "SSE 解析对 `data:` 后无空格的形态（data:payload，规范允许）兼容性未钉测试：部分上游/网关重写器会去掉空格，解析层若严格要求 `data: ` 会静默丢帧。",
+      "impact": "与 B-DELTA-NULL 同族的「上游形态差异导致整流失败/丢帧」风险，但触发面窄（非标准网关），列 medium。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-BASEURL-TRAILING-SLASH",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "ProviderConfig.base_url 带尾斜杠时与内部 path 拼接会产生双斜杠（`https://host/v1//chat`）：部分严格上游 404。未做归一化，也未在文档警示。",
+      "impact": "用户自配 base_url 高频踩坑（一个字符差异导致全 provider 不可用），报错与根因距离远。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-ZH-RESPONSES-DOC",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "README.zh-CN.md 全文对 /v1/responses 端点零提及：中文读者无法发现该端点存在（英文 README 有说明）。属文档完整性缺陷，非行为缺陷。",
+      "impact": "中文用户的端点可发现性缺口；不改代码不影响行为，故列 medium 而不进本轮卡。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-REEXPORTS",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "ThinkingConfig / CachePolicy 等 0.1.2+ 引入的公开类型未在 crate root re-export：用户必须写 llmrust::types::ThinkingConfig 深层路径，与 README 主示例的扁平导入风格不一致。",
+      "impact": "API 人机工学问题：无行为破坏，但新类型用起来像二等公民，容易猜错导入路径。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-SAMPLING-COLUMN-OVERCLAIM",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "medium",
+      "statement": "docs/CAPABILITIES.md 采样表以「OpenAI-compat」单列合并 OpenAI/DeepSeek/Moonshot/OpenRouter 四家providers 的声明：四家实际支持面不完全一致（如 seed / stop 支持、json_schema/logprobs 差异），合并列存在过度声明（说 ✅ 而某家实为 ➖）。C-AUD-DOCS 修复的是矩阵行与 JSON 载体的不一致（L16-17），合并采样列本身的结构性过度声明留待后续。",
+      "impact": "用户按合并列选参会对个别 provider 产生错误预期；属文档精度问题。",
+      "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-LOW-BACKLOG",
+      "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
+      "found_at": "2026-11-20",
+      "severity": "low",
+      "statement": "审计 backlog 另有约 45 条 low 级项（Lead 汇报口径：「完整清单可后续向 Lead 索取」），多为措辞、命名、小范围可读性与轻微性能项。按 Boss 决策 A「severe+high 必修、medium/low 登记」处理：low 级不逐条展开登记（避免凭记忆转述失真），由 Lead 持有完整清单并择机开后续战役。",
+      "impact": "low 级项继续存在但已获可见性与归属；不影响本轮 VS-0 验收。",
+      "resolution_owner": "lead"
     }
   ],
   "phases": [
@@ -88,7 +339,60 @@
           ]
         }
       ]
+    },
+    {
+      "id": "PH-0.1.7",
+      "phase_vertical_slice": {
+        "id": "VS-2",
+        "goal": "审计 severe + high 全部清零且机器钉住：compat 思考段生命周期/帧口径/工具索引有界化（C-AUD-COMPAT）、文档与能力三载体一致（C-AUD-DOCS）、守卫自身去 fail-open 与空断言（C-AUD-GUARD）、三个 provider 终态诚实与推理声明隔离（C-AUD-PROV）、三个代理端点 wire 零伪造（C-AUD-PROXY）；每批至多一个台账写入卡，B-AUD-2 与 B-AUD-3 因台账唯一性显式串行。",
+        "serves": "VS-0"
+      },
+      "batches": [
+        {
+          "id": "B-AUD-1",
+          "goal": "审计清障第一批（三卡并行，dev 写入范围两两不交）：C-AUD-COMPAT（#1 severe 思考段生命周期、#3 空 choices 帧口径、#7 工具索引有界化，本批唯一台账写入卡）；C-AUD-DOCS（#17–#22 组：三载体一致性、FACES 盲区扩面、README 可编译性与 gemini 前缀、CONTRACTS.md 虚假覆盖声称、gitleaks 锚定）；C-AUD-GUARD（#15 architecture_guard 依赖边检查 fail-open 与死代码、#16 cap002 零断言循环）。",
+          "tasks": [
+            {
+              "id": "T-AUD-COMPAT",
+              "role": "dev",
+              "card": "C-AUD-COMPAT"
+            },
+            {
+              "id": "T-AUD-DOCS",
+              "role": "dev",
+              "card": "C-AUD-DOCS"
+            },
+            {
+              "id": "T-AUD-GUARD",
+              "role": "dev",
+              "card": "C-AUD-GUARD"
+            }
+          ]
+        },
+        {
+          "id": "B-AUD-2",
+          "goal": "审计清障第二批（单卡，blocked_by C-AUD-COMPAT 与 C-AUD-DOCS，须待 B-AUD-1 交付）：C-AUD-PROV 修 Gemini 流终态与 flush/promptFeedback（#4）、Anthropic 流终态与 EOF flush（#5）、Ollama Stop 伪造（#6，docs/CONTRACTS.md §8 已预定修复方向：缺 done_reason → finish_reason=None，不得写 Stop）、openai 兼容包装的 reasoning 隔离（#8，REA-003 口径：第三方包装不继承官方端点的推理声明），并携带本批台账调整。",
+          "tasks": [
+            {
+              "id": "T-AUD-PROV",
+              "role": "dev",
+              "card": "C-AUD-PROV"
+            }
+          ]
+        },
+        {
+          "id": "B-AUD-3",
+          "goal": "审计清障第三批（单卡，blocked_by C-AUD-COMPAT；与 B-AUD-2 都持有 tests/hotspot_ledger.json，两者并发会触发 PARALLEL_SCOPE_CONFLICT，故实际串行，先后顺序由 Lead 视 B-AUD-1 交付后的现场决定）：C-AUD-PROXY 修三个代理端点的 wire 语义——handle_stream 绕过 stream_with 造成裁决与 unify_terminal 缺失（#2 severe）、Responses 流的思考内容丢弃（#9，裁定按 Responses wire 原生形态落地）、bare done 合成 finish_reason（#10）、两处 None=>emit_completed 截断伪造成功（#11）、embeddings 缺 split_model 预检（#12）、三端点流错误事件裸 e.to_string() 的文案与 URL 泄漏（#13）、convert_request role 未钳制（#14）、responses 错误映射 _ 兜底 502 违反 Unsupported→400（#14 关联），并携带本批台账调整。",
+          "tasks": [
+            {
+              "id": "T-AUD-PROXY",
+              "role": "dev",
+              "card": "C-AUD-PROXY"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "revision_note": "v2（2026-11-20）：① KI-PKG-GLOB 由 blocking 改为 resolved（5084e93 已修，实测 package_guard 4 passed）；② 卡 C-DELTA-NULL 的四个 agent 席位名改为 <role>-llmrust 形式（dev-llmrust / qa-llmrust / gate-llmrust / ledger-llmrust），以同时满足 lib.mjs agentMatchesSeat 的精确匹配分支与 checkEvidence 的 ^<role>- 前缀校验；原 llmrust-dev 含连字符故只能走精确匹配，必然与 ^dev- 冲突，属无解写法。"
+  "revision_note": "v3（2026-11-20，architect-llmrust）：① 依据 Boss 2026-11-20 决策 A（以全量审计 backlog 为需求开新战役）把 VS-0 重写为战役级总切片，新增 PH-0.1.7（B-AUD-1 三卡并行 / B-AUD-2 / B-AUD-3 各单卡，共五卡）；② 宪法 K-01–K-05 原文沿用（仍为真且各有机器 enforcement），仅 K-02 的 enforced_by 改为不锁定 pass 数的写法——C-AUD-GUARD 会给 architecture_guard 净增负例，写死 15 会在交付时变成假判据（K-02 的机器锚是 exit 0 + failed/ignored 双零 + 两个双向用例，不是数字 15）；新增 K-06「代理 wire 零伪造」，把 AGENTS.md Proxy 规则与 ERR-003/H-3 先例升格为战役总纲，承载 #2/#6/#9–#14 组；③ PH-0.1.5 / B-DELTA-NULL / T-DELTA-NULL 与 C-DELTA-NULL 卡文件逐字保留不动：init 的 sameCards 判定（card_id 与 card sha256 不变）会把该批续判 delivered，既有回执与 handoff 历史保留；④ 席位命名沿用 v2 修订口径并按卡细分：五张卡各自使用独立 dev/qa 席位（dev-llmrust-cs/-dt/-gv/-pv/-px 与 qa-llmrust-cs/-dt/-gv/-pv/-px；带连字符的具体名走 agentMatchesSeat 的前缀分支 ^<role>-，五卡互不占用）；批次级 gate/ledger/ci 席位沿用 gate-llmrust / ledger-llmrust / ci-llmrust；⑤ 台账集中策略（SPCC §4.4 / §9.2 第 1 条 / §11.1.4）：每批至多一张卡持有 tests/hotspot_ledger.json 写入范围（B-AUD-1=C-AUD-COMPAT、B-AUD-2=C-AUD-PROV、B-AUD-3=C-AUD-PROXY）；B-AUD-2 与 B-AUD-3 都持有台账故显式串行（并发即 PARALLEL_SCOPE_CONFLICT，loop 也会拦）；台账 adjustment 沿用 v2 先例由 dev 代写（authorized_by 记 Boss 2026-11-20 决策 A，date=2026-11-20，reason 记卡 id 与审计项），architect 在 spec-review 前追认；非台账卡（C-AUD-DOCS / C-AUD-GUARD）机判禁止改动任何 src/**/*.rs；⑥ 审计 medium 项 23 条逐条登记 known_issues（owner=lead），low 项以 KI-LOW-BACKLOG 打包登记（完整清单 Lead 持有），已解决的 KI-PKG-GLOB 原样留痕；⑦ 零放宽基线改为 b008185（当前 main；v2 的 33a8e3e^ 只覆盖其当时范围），且 #[should_panic] 口径改为「位置集合与基线完全一致」（既不增也不删）；⑧ proxy wire 测试因其 #[cfg(feature=\"proxy\")] 门控，命令一律用 cargo test --workspace --features proxy 口径（普通 cargo test --workspace 编译不到代理用例，不能作 wire 判据）；Doc-tests ignored 基线按 feature 口径分列：普通 2（src/lib.rs:57、src/providers/retry.rs:19），--features proxy 4（另含 src/proxy/mod.rs:396、:595）。"
 }

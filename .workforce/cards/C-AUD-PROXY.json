@@ -1,0 +1,82 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-AUD-PROXY",
+  "phase": "PH-0.1.7",
+  "story": "VS-2",
+  "priority": "P0",
+  "parallel": "[NP]",
+  "owner_agent": "dev-llmrust-px",
+  "qa_agent": "qa-llmrust-px",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "src/proxy/mod.rs",
+    "src/proxy/anthropic_proxy.rs",
+    "src/proxy/responses_proxy.rs",
+    "tests/responses_proxy_tests.rs",
+    "llmrust.capabilities.json",
+    "tests/hotspot_ledger.json"
+  ],
+  "exact_file_paths": [
+    "src/proxy/mod.rs",
+    "src/proxy/anthropic_proxy.rs",
+    "src/proxy/responses_proxy.rs",
+    "tests/responses_proxy_tests.rs",
+    "llmrust.capabilities.json",
+    "tests/hotspot_ledger.json"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-2",
+    "PH-0.1.7",
+    "B-AUD-3",
+    "T-AUD-PROXY"
+  ],
+  "requirement_refs": [
+    "AUD#2（severe：三个代理端点 handle_stream 全部绕过 stream_with——无 CAP-003 能力裁决、无 unify_terminal 终态兜底）",
+    "AUD#9（high：Responses 端点对流内 chunk.thinking / thinking_done 零处理，思考内容静默丢弃）",
+    "AUD#10（high：OpenAI 端点对 bare-done 终态合成 finish_reason ToolCalls/Stop，伪造上游未声明的终态理由）",
+    "AUD#11（high：Responses 端点两处 None=>emit_completed 在净截断时伪造成功终态 complete）",
+    "AUD#12（high：/v1/embeddings 缺 split_model 预检，无 provider 前缀的模型非法直达 provider 层）",
+    "AUD#13（high：三端点流错误事件回显裸 e.to_string()——长文案、上游原文、reqwest Display 自带 URL 泄漏）",
+    "AUD#14（high：convert_request 「Unknown role: {}」未钳制的用户可控内容直入错误 + responses 错误映射 `_` 兜底 502 违反 Unsupported→400）",
+    "K-04",
+    "K-05",
+    "K-06",
+    "AGENTS.md Proxy 规则（Unsupported→400、错误以 error SSE 暴露、wire 改动必须配测试）",
+    "docs/CONTRACTS.md CAP-003（裁决在 stream_with/chat_with 大一统入口——代理绕过即违约）"
+  ],
+  "ruling_refs": [
+    "Boss 2026-11-20 决策 A：以全量审计 backlog 为需求开新战役，severe + high 必修",
+    "architect 裁定（2026-11-20）#2 修复口径：三端点的流路径统一改走客户端大一统流入口（stream_with 家族，lib.rs L487-514——含 CAP-003 裁决与 unify_terminal），代理层不再自建「解析-转发」旁路；wire 语义不变（响应事件形态照旧），新增的是入口义务：不支持的能力先拒（400 Unsupported），无终态的流由 unify_terminal 兜底出 done 终态（而非代理各自伪造）",
+    "architect 裁定（2026-11-20）#9 修复方向（Lead 遗留的开放项，本卡裁定）：**原生承载**——StreamChunk.thinking 映射为 Responses wire 的 reasoning 输出（summary 形态），thinking_done 闭合该输出项；思考是合法内容不是错误，伪造 response.failed 违反 K-06 精神，请求侧一刀切拒绝则阉割已付费的推理流量（convert 侧 reasoning.effort→chat.thinking L361-369 已在造数据，接收侧丢弃即断链）；判据按语义断言（thinking 文本必须到达客户端 wire、流仍正常终结），具体事件形态由 dev 按 Responses 规范落地并在测试注释中注明依据",
+    "architect 裁定（2026-11-20）#10 口径：上游终端帧未携带 finish_reason 时（unify_terminal 的兜底终态），OpenAI 端点 SSE 的 finish_reason 序列化为 null——「无理由=缺信息」，绝不合成 ToolCalls/Stop（ERR-003 同源）；有理由时照常透传",
+    "architect 裁定（2026-11-20）#11 口径：镜像 anthropic_proxy flush() 的 PRX-004 先例——净 EOF 无终态（截断）时 Responses 端点出 response.failed（incomplete 类错误事件），不出 completed；错误路径（Err）行为照旧 response.failed；两处 None 臂（drain-loop L613-617 / 主循环 L772-776 一带）都按此收敛",
+    "architect 裁定（2026-11-20）#13 口径：三端点流错误事件统一走各自的 normalize 函数（mod.rs proxy_error_from_llm_error / anthropic_error_from_llm_error 已经是正确先例：固定措辞 + 单次截断 + Unsupported→400；responses_error_from_llm_error 修掉 `_`→502 兜底改 400），错误 Message 不得包含 URL 子串（reqwest Display 自带 URL，须剥离），长度有上限；判据为 wire 级断言：错误事件文案非裸原文、≤ 截断上限、不含 http://或 https://",
+    "architect 裁定（2026-11-20）#14 口径：convert_request 的 Unknown role 错误消息对 role 值钳制（入模前截断到与既有错误文案一致的截断上限）；responses 错误映射的 Unsupported 分支出 400（AGENTS.md 硬规则），其余真服务器错误维持 502",
+    "docs/SPCC-0.1.4.md §11.1.4：本卡是 B-AUD-3 唯一台账写入卡，dev 代写三条 adjustment（src/proxy/mod.rs old=3770 / src/proxy/anthropic_proxy.rs old=2053 / src/proxy/responses_proxy.rs old=964——三文件在 B-AUD-1/B-AUD-2 中无人触碰，基线即 b008185 值），authorized_by 记 Boss 2026-11-20 决策 A、date=2026-11-20、reason 记 C-AUD-PROXY 与审计项，architect 在 spec-review 前追认；tests/responses_proxy_tests.rs 与新增 wire 测试不计入台账（台账只覆盖 src/**/*.rs）",
+    "architect 裁定（2026-11-20）测试口径：全部代理 wire 测试跑 `--features proxy`（默认 feature 集不编译代理代码，普通 cargo test --workspace 看不到这些用例；C-DELTA-NULL 验证过的口径：unit 测试在 src/proxy/*/tests 模块、Responses wire 测试在 tests/responses_proxy_tests.rs 走 MockProvider+router+oneshot 夹具）"
+  ],
+  "acceptance_criteria": [
+    "c1 结构判据（机判，python 正则读源码，逐条 exit 0）：① src/proxy/mod.rs、src/proxy/anthropic_proxy.rs、src/proxy/responses_proxy.rs 三文件各含标识符 `stream_with` ≥ 1 次（#2：三个 handle_stream 不再绕过大一统入口）；② src/proxy/responses_proxy.rs 的 responses_error_from_llm_error 函数体内含 `Unsupported` ≥ 1 次且含 `400` ≥ 1 次（#14b：Unsupported→400 落位）；③ llmrust.capabilities.json 的 proxy.responses_endpoint 一节（或其 conversion 字段）含 `reasoning` 或 `thinking` 字样（#9 载体同步：JSON 声明 Responses 转换承载思考映射）；④ 三文件的流错误路径接入统一截断：mod.rs 含 `MAX_ERROR_MESSAGE_CHARS` ≥ 1 次（既有常量），responses_proxy.rs 含 `truncate` ≥ 1 次（既有 anthropic 先例同款）。机判命令逐条 python -c 断言，全部 exit 0。",
+
+    "c2 十条命名 wire 测试全部绿（每条独立命令 exit 0 且 stdout 含 `test result: ok. 1 passed; 0 failed; 0 ignored`；openai/embeddings/convert 五条在 src/proxy/mod.rs tests 模块走 `cargo test --features proxy --lib proxy::tests::<name>`，anthropic 一条在 anthropic_proxy.rs 走 `cargo test --features proxy --lib proxy::anthropic_proxy::tests::<name>`，Responses 四条在 tests/responses_proxy_tests.rs 走 `cargo test --features proxy --test responses_proxy_tests <name>`）：① proxy_chat_completions_rejects_unsupported_thinking_with_400——向 capability 不含 reasoning 的注册 provider 发起带 thinking/reasoning 的 chat/completions 请求，断言 HTTP 400 且错误体 type 为 invalid_request_error 族（CAP-003 裁决生效，#2）；② proxy_chat_completions_stream_without_terminal_emits_done——上游流无终态净 EOF，断言 SSE 仍恰出一个 done 终态（unify_terminal 兜底，#2）；③ proxy_chat_completions_bare_done_does_not_fabricate_finish_reason——上游终帧无 finish_reason，断言转发 SSE chunk 的 finish_reason 为 null/缺失而非 \"stop\"/\"tool_calls\"（#10）；④ proxy_embeddings_missing_provider_prefix_yields_400——model 无 `provider/` 前缀的 /v1/embeddings 请求断言 400（#12）；⑤ proxy_stream_error_event_is_sanitized——上游流 Err 后的 OpenAI 端点 SSE error 事件：文案为固定措辞而非裸上游原文、长度 ≤ 截断上限、不含 `http://` 与 `https://` 子串（#13）；⑥ anthropic_messages_stream_error_is_sanitized——Anthropic 端点同 ⑤ 三断言（#13）；⑦ convert_request_unknown_role_is_clamped——超长未知 role（如 10 万字符）触发 Unknown role 错误，断言错误消息长度有界（≤ 截断上限）（#14a）；⑧ responses_stream_carries_thinking_not_dropped——MockProvider 出 thinking 增量 + thinking_done，断言客户端收到的 SSE 事件流中该思考文本可检索（不被丢弃）、流正常终结（#9，方向见 ruling_refs）；⑨ responses_stream_truncation_without_terminal_fails_not_completed——上游净 EOF 无终态，断言出 response.failed 类失败事件且无 completed 成功终态（#11）；⑩ responses_unsupported_error_maps_to_400_not_502——LlmError::Unsupported 经 Responses 端点映射为 400（真上游 5xx 路径维持 502 不回归，可同测两臂）（#14b）。语义要求：既有 36 个 anthropic_proxy 测试与 responses_proxy_tests.rs 既有用例断言不得删改（若修复使其红，说明修复面越界，收敛修复而不是改测试）。",
+    "c3 注入验红（#11 反向证明）：把 src/proxy/responses_proxy.rs 主循环的净 EOF 分支回退为 `emit_completed`（伪造成功）后，`cargo test --features proxy --test responses_proxy_tests responses_stream_truncation_without_terminal_fails_not_completed` 必须 FAILED（exit 非 0）；恢复后同命令 exit 0，且 responses_proxy.rs 恢复后 sha256 等于注入前实测值（h1 == h0）。机判流程：注入前 python hashlib 记 h0 → 注入 → 命令 exit≠0 → 恢复 → h1==h0 且转绿。b008185 基线上该文件 sha256 = 972bef608ad23bd9822cc62670173f9688a6d6e659bc3c1c7f603a32dffd3126（仅对账用）。",
+
+    "c4 五条门禁命令逐条 exit 0：`cargo test --workspace`、`cargo test --workspace --features proxy`（代理判据的主口径，普通口径编译不到代理用例）、`cargo build --workspace`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`。机判：gate 回执 command_exit_codes 五条全 0。",
+
+    "c5 守卫与冻结门绿（count-agnostic，proxy 口径）：① `cargo test --features proxy --test architecture_guard` exit 0 且全部 `test result:` 行 `0 failed; 0 ignored`（pass 数不锁——B-AUD-1 已净增负例）；② `cargo test --features proxy --test package_guard` exit 0 且含 `test result: ok. 4 passed; 0 failed; 0 ignored`；③ `cargo test --features proxy --test responses_proxy_tests` exit 0 且 `0 failed; 0 ignored`（既有用例 + 新增四条全绿）；④ `cargo test --features proxy --lib` exit 0（src 内单测含三代理模块全部编译执行，含既有 mod.rs tests 与 anthropic_proxy 36 用例）；⑤ `cargo test --features proxy --test contract_tests` exit 0 且 `0 failed; 0 ignored`（proxy_n_policy_contracts 等契约负例不回归）。",
+
+    "c6 台账与实测一致（本卡是 B-AUD-3 唯一台账写入卡，三文件三条 adjustment）：对 src/proxy/mod.rs、src/proxy/anthropic_proxy.rs、src/proxy/responses_proxy.rs 逐文件判定：tests/hotspot_ledger.json 的 baseline_lines[<file>] == 实测行数；adjustments[] 中 file==<file> 的最后一条六字段齐备（file/old/new/reason/authorized_by/date）、old == 3770 / 2053 / 964（三文件基线即 b008185 值——B-AUD-1/B-AUD-2 均不触碰代理文件）、new == 实测行数、`authorized_by` 含 `Boss 2026-11-20`、`date` == `2026-11-20`、`reason` 含 `C-AUD-PROXY`。反向约束：adjustments[] 中不存在 reason 含 `C-AUD-PROXY` 而非上述三文件的条目；其余文件的 baseline 与其 adjustment 归各自批次卡所有，本卡不得再动；tests/responses_proxy_tests.rs 不在台账覆盖面（台账仅 src/**/*.rs），不得为其新增条目。机判命令（单行，exit 0 即 PASS，模式与 C-AUD-PROV c6 相同）：python -c \"import json;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));base={'src/proxy/mod.rs':3770,'src/proxy/anthropic_proxy.rs':2053,'src/proxy/responses_proxy.rs':964};N=lambda f: len(open(f,encoding='utf-8').read().splitlines());ok=all(L['baseline_lines'][f]==N(f) and (lambda a,old: all(k in a and a[k] not in (None,'') for k in ['file','old','new','reason','authorized_by','date']) and a['old']==old and a['new']==N(f) and 'Boss 2026-11-20' in a['authorized_by'] and a['date']=='2026-11-20' and 'C-AUD-PROV' in a['reason'])([x for x in L['adjustments'] if x['file']==f][-1],old) for f,old in base.items());assert ok, [f for f in base if L['baseline_lines'][f]!=N(f)]\"。",
+
+    "c7 零放宽（机判，与基线 commit `b008185` 比对本卡 write_scopes 内四个代码/测试文件）：① 断言只增不减：对 src/proxy/mod.rs、src/proxy/anthropic_proxy.rs、src/proxy/responses_proxy.rs、tests/responses_proxy_tests.rs 各取 `git show b008185:<path>` 与当前工作版的 `assert!` / `assert_eq!` / `assert_ne!` 行集合做差，`基线集合 - 当前集合` 必须为空（新增不受限）；② `#[should_panic]` 全仓仍恰 2 处且均在 src/proxy/mod.rs、expected 消息与基线一致（`must not be empty or whitespace-only`），`#[ignore]` 全仓 0 处（双向差集为空，按 文件×出现次数×expected 文案 口径比对，不锚定行号——文件增长会移位）；③ 两口径 `cargo test --workspace` 与 `cargo test --workspace --features proxy` 各 unit/integration `test result:` 行 ignored 全 0；Doc-tests ignored：默认口径 ≤ 2、proxy 口径 ≤ 4（基线：默认 2 = src/lib.rs:57 + src/providers/retry.rs:19；proxy 口径 4 = 另含 src/proxy/mod.rs:396、:595 的既有 rust,ignore 文档块，本卡不得新增）。"
+  ],
+  "independent_test": "cargo test --workspace --features proxy",
+  "needs_clarification": [],
+  "blocked_by": [
+    "C-AUD-COMPAT",
+    "C-AUD-PROV"
+  ],
+  "checkpoint": "c1–c7 全绿且 dev/qa/gate/ci/ledger 回执齐全；本卡是 B-AUD-3 唯一台账写入卡（三条 adjustment 待 architect 追认）；blocked_by C-AUD-COMPAT 与 C-AUD-PROV（台账文件互斥：B-AUD-2 同持 tests/hotspot_ledger.json，并发即 PARALLEL_SCOPE_CONFLICT，故 B-AUD-2 交付后本卡才开工；#2 的流入口范式与 C-AUD-COMPAT/PROV 的 flush 状态机同源）；llmrust.capabilities.json 与 C-AUD-DOCS/C-AUD-PROV 的 scope 重叠同样由批次串行化解；全部 wire 判据必须 --features proxy 口径跑（默认 feature 集不编译代理）。",
+  "status": "pending"
+}

@@ -1,0 +1,76 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-AUD-DOCS",
+  "phase": "PH-0.1.7",
+  "story": "VS-2",
+  "priority": "P1",
+  "parallel": "[P]",
+  "owner_agent": "dev-llmrust-dt",
+  "qa_agent": "qa-llmrust-dt",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "docs/CAPABILITIES.md",
+    "docs/CONTRACTS.md",
+    "llmrust.capabilities.json",
+    "tests/capability_freeze.rs",
+    "README.md",
+    "README.zh-CN.md",
+    ".gitleaks.toml"
+  ],
+  "exact_file_paths": [
+    "docs/CAPABILITIES.md",
+    "docs/CONTRACTS.md",
+    "llmrust.capabilities.json",
+    "tests/capability_freeze.rs",
+    "README.md",
+    "README.zh-CN.md",
+    ".gitleaks.toml"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-2",
+    "PH-0.1.7",
+    "B-AUD-1",
+    "T-AUD-DOCS"
+  ],
+  "requirement_refs": [
+    "AUD#17（high：能力三载体一致性盲区——openrouter json_schema/logprobs 文档矩阵 ➖ vs JSON true，capability_freeze 从不比对这两行）",
+    "AUD#18（high：README Usage 字面量缺 3 字段，按 README 敲即 E0063 编译失败）",
+    "AUD#19（high：README 示例模型名用 gemini/ 前缀，正确为 google/）",
+    "AUD#20（high：docs/CONTRACTS.md L5 声称合约由 tests/contract_tests.rs 覆盖，Retry/CAP-003 等实际由别处承载，覆盖声称失真）",
+    "AUD#21（high：capability_freeze FACES 只含 6 个运行时面，embeddings/prompt_cache 两个运行时可验证面从未被运行时↔JSON 门覆盖）",
+    "AUD#22（high：.gitleaks.toml allowlist 四条 regex 无锚定，超集真密钥形如 dev-secret-hunter2 会被放行）",
+    "K-02",
+    "K-04",
+    "K-05"
+  ],
+  "ruling_refs": [
+    "Boss 2026-11-20 决策 A：以全量审计 backlog 为需求开新战役，severe + high 必修",
+    "docs/CONTRACTS.md §Provider contract 与 CAP-004（三处一致门）；docs/CAPABILITIES.md L48-51 的「Any drift … fails CI」声称在本卡完成后由过度声明变为真话——修复方式是扩面让声称成立，不是改写免责句",
+    "architect 裁定（2026-11-20）#17 修复方向：openrouter 的 json_schema/logprobs 以 JSON=true 为准（运行时证据：compat.rs L655/L661-662 对全部 OpenAiCompatibleProvider 透传 response_format/logprobs/top_logprobs，openrouter.rs 是其薄包装），docs 矩阵两格 ➖ 改 ✅；deepseek/moonshot 的 ➖ 与 JSON false 一致，不动",
+    "architect 裁定（2026-11-20）#21 修复边界：FACES 仅扩到运行时可验证面 `embeddings` 与 `prompt_cache`（Capabilities 结构体已含这两字段，src/providers/capabilities.rs L152/L156）；JSON 需为全部 7 家 provider 补上 per-provider 的 `embeddings`、`prompt_cache` 布尔位（fail-closed 门会强制要求）；json_schema/logprobs 不进 FACES（Capabilities 无此面、不为文档对账反向加结构体字段），它们的 docs↔JSON 对账靠 doc_row_to_face 扩面（json mode / JSON schema / logprobs / embeddings / system message / multi-turn 六行全部纳入门内）；prompt_cache 只做运行时↔JSON 对账，不新增 docs 矩阵行（本卡不开新行，避免矩阵膨胀）；custom base URL 行是无载体行，必须显式白名单化而不是被静默跳过——「未映射行静默跳过」本身就是 #21 的漏洞形态，修复后未知行必须判红",
+    "architect 裁定（2026-11-20）#22 验证口径：本机无 gitleaks CLI，锚定改动的最终验证落在 CI（.github/workflows/security.yml 的 gitleaks job，github provider 回执）；若锚定形态（^…$）反致 CI 红（gitleaks 对该规则的 allowlist regex 匹配的是整行而非捕获值），dev 须退回仍不可超集匹配的上下文边界形态并把原因记入卡内 comments，同时升级 Lead 转 architect 复核——不得以「删掉 allowlist 条目」或「目录级 paths 豁免」方式解决",
+    "docs/SPCC-0.1.4.md §9.2 第 1 条（fail-closed：解析失败/缺字段即红，不静默跳过）——capability_freeze.rs 模块头已声明此口径，本卡把它贯彻到矩阵行收集处"
+  ],
+  "acceptance_criteria": [
+    "c1 载体一致性与内容修复判据（机判，python 读文件，逐条 exit 0）：① tests/capability_freeze.rs 的 FACES 常量包含 \"embeddings\" 与 \"prompt_cache\"（在 const FACES 数组体内逐字出现）；② tests/capability_freeze.rs 含 \"json_mode\"、\"json_schema\"、\"logprobs\"、\"system_message\"、\"multi_turn\"、\"embeddings\" 六个面名字符串（doc_row_to_face 扩面后用于行映射）；③ llmrust.capabilities.json 的 7 家 provider（openai/deepseek/moonshot/openrouter/anthropic/google/ollama）各自含布尔型 `embeddings` 与 `prompt_cache` 键；④ docs/CAPABILITIES.md 矩阵：`JSON schema` 行与 `logprobs` 行的 OpenRouter 列均为 ✅ 开头（truth-sync 落地，方向见 ruling_refs）；⑤ docs/CAPABILITIES.md 未映射行的显式白名单存在且仅含 custom base URL 类无载体行（tests/capability_freeze.rs 中存在含 `custom base URL` 字样的白名单常量/集合）；⑥ README.md 与 README.zh-CN.md：含 `Usage {` 的代码块内含 `..Default::default()`（编译修复），全文件不含 `gemini/gemini-` 模型前缀且含 `google/gemini-1.5-pro`；⑦ docs/CONTRACTS.md L5 的虚假覆盖声称必须改写：原句「These contracts are covered by local contract tests in `tests/contract_tests.rs`」（以 tests/contract_tests.rs 单一文件名义覆盖全部合约）不得原样存在，改为按节指名真实载体，且全文出现 `cap002_contract` 与 `cap003_dispatch` 字样——机判：python -c \"s=open('docs/CONTRACTS.md',encoding='utf-8').read();assert 'covered by local contract tests' not in s,'stale blanket coverage claim';assert 'cap002_contract' in s and 'cap003_dispatch' in s,'real carriers not named'\"；⑧ .gitleaks.toml：四个占位 token（AKIAIOSFODNN7EXAMPLE、dev-secret、sk-e2e-test-secret-0123456789abcdef、some-shared-secret）各自出现于形如 `\"^…$\"` 的锚定正则中（或经 ruling_refs 规定的回退理由 + 边界形态 + comments 记录），且文件不含任何 `paths =` 目录级豁免。机判命令逐项 python -c 断言（示例：python -c \"import json;j=json.load(open('llmrust.capabilities.json',encoding='utf-8'))['providers'];assert all(isinstance(p.get('embeddings'),bool) and isinstance(p.get('prompt_cache'),bool) for p in j.values())\"）。",
+
+    "c2 命名测试存在且绿（落在 tests/capability_freeze.rs；四条独立命令各自 exit 0 且 stdout 含 `test result: ok. 1 passed; 0 failed; 0 ignored`）：① cargo test --test capability_freeze negative_unmapped_matrix_row_is_reported——构造含未知行（如 `telepathy`）的矩阵输入，断言 doc_vs_json_problems（或等价门函数）报告该行（未知行不得静默逃逸），同时 `custom base URL` 类白名单行不报告；② cargo test --test capability_freeze negative_json_schema_cell_drift_is_reported——构造 JSON schema 行 openrouter 格 ✅ 而 JSON 为 false 的输入，断言问题输出含 `openrouter.json_schema`（#17 的门必须会红）；③ cargo test --test capability_freeze negative_missing_embeddings_or_prompt_cache_keys_are_reported——运行时七家 provider 对缺 `embeddings`/`prompt_cache` 键的 JSON 副本报漂移（fail-closed 强制键存在）；④ cargo test --test capability_freeze openrouter_json_schema_and_logprobs_are_true_in_json_and_documented——读真实两载体文件，断言 JSON openrouter.json_schema==true、logprobs==true 且 docs 矩阵对应格 ✅（方向裁定的正向钉子）。另机判：cargo test --test capability_freeze exit 0 且全部 `test result:` 行 0 failed、0 ignored（含既有的 runtime_declaration_matches_the_json_inventory / documentation_matrix_matches_the_json_inventory / all_three_carriers_cover_the_same_providers / verification_levels_are_visible_in_the_documentation 四门，它们因 doc_row_to_face 扩面自动覆盖到新行）；cargo test --workspace -- --list 中四个新测试名各出现恰好 1 次。",
+
+    "c3 注入验红（#17 反向证明）：临时把 llmrust.capabilities.json 的 openrouter.json_schema 由 true 改为 false → `cargo test --test capability_freeze openrouter_json_schema_and_logprobs_are_true_in_json_and_documented` 必须 FAILED（exit 非 0）；恢复后同命令 exit 0，且 llmrust.capabilities.json 恢复后 sha256 等于注入前实测值（h1 == h0，含本卡对该文件的全部合法编辑后的终态）。机判流程：注入前记 h0 → 注入 → 命令 exit≠0 → 恢复（h1==h0）→ 命令转绿。b008185 基线上该文件 sha256 = 67e205aafb9d9adc59f6d0aa096f0836a32d08745a2812b745cfd2b8f5cf8eee（仅对账用，h0 以注入时刻实测为准）。",
+
+    "c4 四条门禁命令逐条 exit 0：`cargo test --workspace`、`cargo build --workspace`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`（本卡改动 tests/capability_freeze.rs，编译与 lint 覆盖默认 feature 集即可；本卡不触碰 proxy 门控代码）。机判：gate 回执 command_exit_codes 四条全 0。",
+
+    "c5 守卫绿（count-agnostic）：① `cargo test --test architecture_guard` exit 0 且全部 `test result:` 行 `0 failed; 0 ignored`（本卡不改 src/**，台账基线不受影响，pass 总数不锁定——同批 C-AUD-GUARD 会动该文件）；② `cargo test --test package_guard` exit 0 且 stdout 含 `test result: ok. 4 passed; 0 failed; 0 ignored`；③ `cargo test --test capability_freeze` 已在 c2 判定，此处不重复。",
+
+    "c6 本卡零台账动作（负向证明，与同批 C-AUD-COMPAT 的台账写入互不干扰）：① 本卡 write_scopes 与 exact_file_paths 均不含 `tests/hotspot_ledger.json`，也不含任何 `src/` 路径（机判：读本卡 JSON 断言）；② tests/hotspot_ledger.json 的 adjustments[] 中不存在 `reason` 或其他字段提及 `C-AUD-DOCS` 的条目（机判：python 遍历断言）；③ 本卡全程不修改任何 `src/**/*.rs`（由 ①② + qa 复核 + git diff 名单佐证：qa 回执须列出本卡产出的改动文件清单，与 write_scopes 完全一致）。",
+
+    "c7 零放宽（机判，与基线 commit `b008185` 比对）：① `#[ignore]` / `#[should_panic]` 位置集合全仓（src/** 与 tests/**）与 b008185 完全一致（双向差集为空；基线 `#[should_panic]` 仅 src/proxy/mod.rs:3292 与 :3300，`#[ignore]` 0 处）；② `cargo test --workspace` 各 `test result:` 行 ignored 全 0，Doc-tests 行 ignored ≤ 2（默认 feature 基线）；③ tests/capability_freeze.rs 四个既有正向门测试（runtime_declaration_matches_the_json_inventory / documentation_matrix_matches_the_json_inventory / all_three_carriers_cover_the_same_providers / verification_levels_are_visible_in_the_documentation）仍在（按名 grep）且其中 `problems.is_empty()` 断言不得被弱化为允许非空；④ 唯一允许的断言调整范围：既有 negative_* 负例测试因 FACES 扩面而需要机械更新期望计数（如 problems.len() 由 1 变 3），调整后断言右值必须 ≥ 1（负例仍须报出问题），机判：negative_* 函数体内 `.len()` 断言右值为 ≥1 的字面量且不出现 `assert!(problems.is_empty())`（正向门内的 is_empty 断言不受此限）。"
+  ],
+  "independent_test": "cargo test --workspace",
+  "needs_clarification": [],
+  "blocked_by": [],
+  "checkpoint": "c1–c7 全绿且 dev/qa/gate/ci 回执齐全；gitleaks 锚定改动的 CI 口径验证（github workflow security.yml 该提交运行 success）由 ci 层回执承载，若锚定形态反致 CI 红，按 ruling_refs 的回退裁定处理并升级 Lead 转 architect；本卡与 C-AUD-COMPAT、C-AUD-GUARD 同批（B-AUD-1）并行，dev 写入范围两两不交，本卡不触碰 src/** 与 tests/hotspot_ledger.json；B-AUD-2 的 C-AUD-PROV blocked_by 本卡（三载体与 carrier 重叠文件 docs/CAPABILITIES.md / llmrust.capabilities.json / tests/capability_freeze.rs），须本卡交付后才开工。",
+  "status": "pending"
+}

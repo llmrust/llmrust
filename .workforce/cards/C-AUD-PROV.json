@@ -1,0 +1,85 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-AUD-PROV",
+  "phase": "PH-0.1.7",
+  "story": "VS-2",
+  "priority": "P0",
+  "parallel": "[NP]",
+  "owner_agent": "dev-llmrust-pv",
+  "qa_agent": "qa-llmrust-pv",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "src/providers/google.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/ollama.rs",
+    "src/providers/openai.rs",
+    "src/lib.rs",
+    "docs/CAPABILITIES.md",
+    "llmrust.capabilities.json",
+    "tests/capability_freeze.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "exact_file_paths": [
+    "src/providers/google.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/ollama.rs",
+    "src/providers/openai.rs",
+    "src/lib.rs",
+    "docs/CAPABILITIES.md",
+    "llmrust.capabilities.json",
+    "tests/capability_freeze.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-2",
+    "PH-0.1.7",
+    "B-AUD-2",
+    "T-AUD-PROV"
+  ],
+  "requirement_refs": [
+    "AUD#4（high：Gemini 流式 promptFeedback 拦截被静默丢弃 + 无终帧净 EOF 不冲刷已累积 tool_calls、终态缺失）",
+    "AUD#5（high：Anthropic 流式无 message_stop 的净 EOF 不冲刷已累积 tool_calls、缺 done 终态）",
+    "AUD#6（high：Ollama done=true 而缺 done_reason 时伪造 FinishReason::Stop，违反 ERR-003「缺失即缺信息，不得断言为 Stop」）",
+    "AUD#8（high：OpenAIProvider::new 无条件 with_reasoning(true)，set_openai_compatible 第三方包装继承官方端点推理声明，违反其自身 REA-003 注释）",
+    "K-01",
+    "K-02",
+    "K-04",
+    "K-05",
+    "K-06",
+    "docs/CONTRACTS.md §Finish-reason（ERR-003：缺失 done_reason → finish_reason=None）与 §stream 合约（No silent drops）",
+    "docs/CONTRACTS.md CAP-003（能力裁决在大一统入口，provider 层声明必须真实）"
+  ],
+  "ruling_refs": [
+    "Boss 2026-11-20 决策 A：以全量审计 backlog 为需求开新战役，severe + high 必修",
+    "architect 裁定（2026-11-20）#4/#5 修复范式：移植 compat.rs sse_chunk_stream（L434-519）的 flush 状态机语义——`errored`/`ended` 双标志、净 EOF 冲刷一次 done 终态（finish_reason=None，ERR-003：缺失即缺信息，绝不合成 Stop）、错误后永不冲刷；冲刷的载体为 stream() 层的状态折叠（google.rs stream() L955 / anthropic.rs stream() L968 一带），不改变 parse_sse_line 的逐行语义与既有 keepalive 行为",
+    "architect 裁定（2026-11-20）#4 边界：promptFeedback 仅在携带 blockReason（安全拦截）时按错误暴露（LlmError 族），无 blockReason 的空 candidates 帧维持 keepalive 静默（现有用例 stream_empty_candidates_without_usage_is_ignored 不得红）；**chat 非流式路径本卡不动**——None candidate → Ok(空) 已登记 KI-GEM-CHAT-EMPTY-OK（medium，owner=lead），本卡修流式侧，若顺手修 chat 侧将使该 KI 失真，禁止",
+    "architect 裁定（2026-11-20）#6 修复口径：OLLAMA done 臂改为 `parsed.done_reason.map(FinishReason::from)` 直通（Option），去掉 `.unwrap_or(FinishReason::Stop)`；未知 done_reason 字符串继续走 FinishReason::From 的既有映射/Other 语义，不改 From 实现本身（CONTRACTS.md §Finish-reason 已预定的方向）",
+    "architect 裁定（2026-11-20）#8 API 形态（为机器可判性定名）：openai.rs 新增 `pub fn new_compatible(config: ProviderConfig) -> Self` 构造函数——不调用 with_reasoning(true)（第三方包装不继承官方端点推理声明，openai.rs L28-29 自身注释即此义务），其 capabilities() 实例级诚实：reasoning 面 = Unsupported；`OpenAIProvider::new`（官方端点）保持 with_reasoning(true) 与 verified 声明不变；lib.rs set_openai_compatible 改用 new_compatible，set_openai 不动；三载体同步（Boss 交付要求）：docs/CAPABILITIES.md 与 llmrust.capabilities.json（openai 条目 reasoning notes 或 client 一节）须注明 set_openai_compatible 注册的第三方端点不继承 official-endpoint reasoning——JSON 侧 `providers.openai.reasoning.notes` 追加该说明，docs 出现 `set_openai_compatible` 字样并说明差异；capability_freeze 矩阵的 openai 行不变（freeze 用官方构造器实例，两构造器对 freeze 的观测面一致：官方 true/true）",
+    "architect 裁定（2026-11-20）#8 与 api_freeze 的关系：api_freeze 为 inventory 驱动（固定符号清单 + docs/api-inventory.json 比对），新增 pub 构造函数不触发其红；本卡不改 docs/api-inventory.json（additive API 不需要新分类入册），c5 仍把 api_freeze 列入判定以留痕",
+    "docs/SPCC-0.1.4.md §11.1.4：本卡是 B-AUD-2 唯一台账写入卡，dev 代写四条 adjustment（google.rs old=1614 / anthropic.rs old=1539 / ollama.rs old=830 / lib.rs old=839，各文件 old 值为 B-AUD-1 交付后仍不变的既有基线），authorized_by 记 Boss 2026-11-20 决策 A、date=2026-11-20、reason 记 C-AUD-PROV 与审计项，architect 在 spec-review 前追认；src/providers/openai.rs（77 行）低于 threshold=500 且不在台账，**不得**为其新增台账条目（hotspot_ledger_is_consistent 会判 < threshold 为红）"
+  ],
+  "acceptance_criteria": [
+    "c1 结构判据（机判，python 正则读源码，逐条 exit 0）：① src/providers/ollama.rs 含 `unwrap_or(FinishReason::Stop)` 0 次（b008185 基线恰 1 次，L184-188 伪造位消失的不可抵赖证据）；② src/providers/google.rs 含 `promptFeedback` ≥ 1 次（serde rename）且含 `block_reason` 或 `blockReason` ≥ 1 次；③ src/providers/openai.rs 含 `fn new_compatible` ≥ 1 次；④ src/lib.rs 中 `OpenAIProvider::new(` 恰出现 1 次（b008185 为 2 次：set_openai L195 与 set_openai_compatible L217；修复后仅 set_openai 保留，set_openai_compatible 改走 new_compatible）；⑤ src/providers/google.rs 与 src/providers/anthropic.rs 各含 `stream_clean_eof_flushes_accumulated_tool_calls_and_marks_done` ≥ 1 次（EOF 冲刷测试名在位）；⑥ 载体同步：llmrust.capabilities.json 的 providers.openai.reasoning.notes 含 `set_openai_compatible`，docs/CAPABILITIES.md 含 `set_openai_compatible` ≥ 1 次。机判命令逐条 python -c 断言，全部 exit 0。",
+
+    "c2 五条命名测试全部绿（机判：五条独立命令各自 exit 0 且 stdout 含 `test result: ok. 1 passed; 0 failed; 0 ignored`）：① cargo test --lib providers::google::tests::stream_prompt_feedback_block_reason_surfaces_error——喂携带 `promptFeedback:{blockReason:...}` 且 candidates 为空的流帧，断言产出 Err（LlmError 族，非静默空；#4a 钉子）；② cargo test --lib providers::google::tests::stream_clean_eof_flushes_accumulated_tool_calls_and_marks_done——喂 tool-call 增量片段后以净 EOF 结束（无 finishReason 帧），断言末 chunk：done==true、tool_calls 为已完成集合、finish_reason==None（不伪造 Stop，K-06）；③ cargo test --lib providers::anthropic::tests::stream_clean_eof_flushes_accumulated_tool_calls_and_marks_done——同②的 Anthropic 形态（tool_use 增量片段后无 message_delta/message_stop 净 EOF）：末 chunk done==true、tool_calls 冲刷、finish_reason==None；④ cargo test --lib providers::ollama::tests::stream_done_finish_reason_reflects_done_reason_only——done=true 无 done_reason 的 NDJSON 行 → done==true 且 finish_reason==None；done_reason 在场（如 \"length\"）→ 照常 From 映射（断言两臂，#6 钉子）；⑤ cargo test --lib providers::openai::tests::compatible_construction_does_not_declare_reasoning——new_compatible 构造的实例 capabilities().reasoning.level == Unsupported，且 OpenAIProvider::new 构造的实例 reasoning.level != Unsupported（官方不回归，#8 钉子）。语义要求：不得改写既有用例断言——google 的 stream_empty_candidates_without_usage_is_ignored / stream_thought_marks_thinking_done_on_terminal、anthropic 的 stream_message_stop_and_unknown_events_are_ignored、ollama 与 openai 既有用例一律保持原断言（改动若触发既有断言红，说明修复面越界，须收敛修复而不是改测试）。",
+    "c3 注入验红（#6 反向证明）：把 src/providers/ollama.rs 的 done 臂回退为 `.unwrap_or(FinishReason::Stop)` 伪造形态后，`cargo test --lib providers::ollama::tests::stream_done_finish_reason_reflects_done_reason_only` 必须 FAILED（exit 非 0）；恢复后同命令 exit 0，且 ollama.rs 恢复后 sha256 等于注入前实测值（h1 == h0）。机判流程：注入前 python hashlib 记 h0 → 注入 → 命令 exit≠0 → 恢复 → h1==h0 且转绿。b008185 基线上该文件 sha256 = c8784443495dff3aea780170c2466879b9b7c556d163bbcbbf2802d4c31a358a（仅对账用）。",
+
+    "c4 五条门禁命令逐条 exit 0：`cargo test --workspace`、`cargo test --workspace --features proxy`（本卡动 lib.rs 与 providers，proxy 门控的代理用例同样引用这些路径，两口径都必须绿）、`cargo build --workspace`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`。机判：gate 回执 command_exit_codes 五条全 0（CLIPPY 覆盖默认 feature 集；如 ci 层另跑 --all-features 口径，其结果一并入回执）。",
+
+    "c5 守卫与冻结门绿（count-agnostic）：① `cargo test --test architecture_guard` exit 0 且全部 `test result:` 行 `0 failed; 0 ignored`；② `cargo test --test package_guard` exit 0 且 stdout 含 `test result: ok. 4 passed; 0 failed; 0 ignored`；③ `cargo test --test capability_freeze` exit 0 且 `0 failed; 0 ignored`（B-AUD-1 已扩面，pass 数不锁；本卡 openai 官方构造器观侧面不变，两构造器对 freeze 一致）；④ `cargo test --test api_freeze` exit 0 且 `0 failed; 0 ignored`（inventory 驱动，新增 pub 构造函数不触发红——本判据留痕）；⑤ `cargo test --test cap002_contract` 与 `cargo test --test response_freeze` exit 0 且 `0 failed; 0 ignored`（types.rs 与 CAP-002 面不动，回归确认）。",
+
+    "c6 台账与实测一致（本卡是 B-AUD-2 唯一台账写入卡，四文件四条 adjustment）：对 src/providers/google.rs、src/providers/anthropic.rs、src/providers/ollama.rs、src/lib.rs 逐文件判定：tests/hotspot_ledger.json 的 baseline_lines[<file>] == 实测行数（口径：Python splitlines 与守卫 lines().count() 同值）；adjustments[] 中 file==<file> 的**最后一条**须六字段齐备（file/old/new/reason/authorized_by/date）、old == 该文件 B-AUD-1 交付后的既有基线（google=1614 / anthropic=1539 / ollama=830 / lib=839）、new == 实测行数、`authorized_by` 含 `Boss 2026-11-20`、`date` == `2026-11-20`、`reason` 含 `C-AUD-PROV`。反向约束：adjustments[] 中不存在 reason 含 `C-AUD-PROV` 而非上述四文件的条目；baseline_lines 不得新增 `src/providers/openai.rs`（77 行 < threshold 500，hotspot_ledger_is_consistent 判红）；compat.rs 的 baseline 与其最后 adjustment 归 C-AUD-COMPAT（B-AUD-1）所有，本卡不得再动。机判命令（单行，exit 0 即 PASS）：python -c \"import json;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));base={'src/providers/google.rs':1614,'src/providers/anthropic.rs':1539,'src/providers/ollama.rs':830,'src/lib.rs':839};N=lambda f: len(open(f,encoding='utf-8').read().splitlines());ok=all(L['baseline_lines'][f]==N(f) and (lambda a,old: all(k in a and a[k] not in (None,'') for k in ['file','old','new','reason','authorized_by','date']) and a['old']==old and a['new']==N(f) and 'Boss 2026-11-20' in a['authorized_by'] and a['date']=='2026-11-20' and 'C-AUD-PROV' in a['reason'])([x for x in L['adjustments'] if x['file']==f][-1],old) for f,old in base.items());assert ok, [f for f in base if L['baseline_lines'][f]!=N(f)]\"。",
+
+    "c7 零放宽（机判，与基线 commit `b008185` 比对本卡 write_scopes 内的五个 src 文件）：① 断言只增不减：对 google.rs / anthropic.rs / ollama.rs / openai.rs / lib.rs 各取 `git show b008185:<path>` 与当前工作版的 `assert!` / `assert_eq!` / `assert_ne!` 行集合做差，`基线集合 - 当前集合` 必须为空（新增断言不受限）；② 修复不得以改既有断言为代价：c2 列出的全部既有用例（stream_empty_candidates_without_usage_is_ignored、stream_thought_marks_thinking_done_on_terminal、stream_message_stop_and_unknown_events_are_ignored 等）原断言原文保留（机判：基线各用例函数体内的 assert 行集合 ⊆ 当前同函数体）；③ `#[ignore]` / `#[should_panic]` 位置集合全仓与 b008185 完全一致（双向差集为空；基线 `#[should_panic]` 仅 src/proxy/mod.rs:3292 与 :3300）；④ `cargo test --workspace` 与 `cargo test --workspace --features proxy` 各 unit/integration `test result:` 行 ignored 全 0；Doc-tests ignored：默认口径 ≤ 2、--features proxy 口径 ≤ 4（基线：默认 2 = src/lib.rs:57 + src/providers/retry.rs:19；proxy 口径 4 = 另含 src/proxy/mod.rs:396、:595）。"
+  ],
+  "independent_test": "cargo test --workspace",
+  "needs_clarification": [],
+  "blocked_by": [
+    "C-AUD-COMPAT",
+    "C-AUD-DOCS"
+  ],
+  "checkpoint": "c1–c7 全绿且 dev/qa/gate/ci/ledger 回执齐全；本卡是 B-AUD-2 唯一台账写入卡（四条 adjustment 待 architect 追认）；blocked_by C-AUD-COMPAT（flush 范式同源 + 台账文件互斥）与 C-AUD-DOCS（三载体文件 scope 重叠：docs/CAPABILITIES.md / llmrust.capabilities.json / tests/capability_freeze.rs），B-AUD-1 整批交付后方可开工；本卡不动 compat.rs / types.rs / proxy / chat 非流式路径（KI-GEM-FINISH-OVERWRITE、KI-GEM-CHAT-EMPTY-OK、KI-OLLAMA-* 等边界见 ruling_refs 与 known_issues）。",
+  "status": "pending"
+}

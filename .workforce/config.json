@@ -15,8 +15,12 @@
   ],
   "gates": {
     "required_commands": [
-      "cargo build --workspace",
-      "cargo test --workspace"
+      "cargo build --locked --workspace --all-targets --all-features",
+      "cargo test --locked --workspace",
+      "cargo test --locked --workspace --all-features",
+      "cargo fmt --all --check",
+      "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "cargo rustdoc --locked --no-deps --all-features -- -D warnings"
     ],
     "require_no_mock": true
   },

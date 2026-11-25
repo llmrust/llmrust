@@ -576,7 +576,7 @@
         },
         {
           "id": "B-AUD-3",
-          "goal": "审计清障第三批（单卡，执行以 C-AUD-PROXY 卡 blocked_by=[C-AUD-COMPAT,C-AUD-PROV] 为准；与 B-AUD-2 同持 tests/hotspot_ledger.json，故串行）：C-AUD-PROXY 新增共享 pub(crate) LmrsClient::stream_raw_with，完成 model 解析、provider 获取与 CAP-003 adjudication，但不调用 unify_terminal；三代理使用 raw stream 后各自维护协议 terminal/truncation，从而 Responses 区分 bare done 与净 EOF、Chat 输出 done+finish_reason=None、Anthropic 对净 EOF 报 error；同时修 Responses thinking 承载、截断不伪造成功、embeddings split_model、三端点错误脱敏/Unknown role 钳制/Unsupported→400，并携带本批台账调整。",
+          "goal": "审计清障第三批（单卡，执行以 C-AUD-PROXY 卡 blocked_by=[C-AUD-COMPAT,C-AUD-PROV] 为准；与 B-AUD-2 同持 tests/hotspot_ledger.json，故串行）：C-AUD-PROXY 保留已完成的 stream_raw_with/代理 wire 实现，并将 url 2.5.8→>=2.5.9 的 P1-13 依赖安全升级前移以解除远端 Security Gates/release 死锁；Cargo.lock 纳入本卡 scope 且 cargo deny --locked check 设为门。回流后保留实现、重跑 QA/Gate/CI；PH-0.1.8 RELEASE 卡仍负责其余发布门，不重复 url 升级。",
           "tasks": [
             {
               "id": "T-AUD-PROXY",
@@ -687,7 +687,7 @@
       ]
     }
   ],
-  "revision_note": "v7.1（2026-11-24，architect-llmrust，Lead 最终轮汇总）：① C-AUD-PROXY 纳入 src/lib.rs，台账扩为 proxy 三文件+lib 四文件并补 old/new/前驱/authorization 机判，授权为 architect-llmrust v7.1 2026-11-24；#10 改 raw-stream/协议各自 terminal；PROXY-RESIDUAL 全文 stream_raw_with，回归数 17；② 六张 source 卡 c5 的 F 并入 planned_file_paths，新增 newly-oversized old=0/无前驱分支，API-DOC 因无 src 写入改为零台账机判；③ rustdoc 统一 cargo rustdoc --locked --all-features -- -D warnings，RELEASE 去重复 locked，PROXY semver 补默认口径，config 同步；④ ThinkingConfig 根/prelude re-export 移入 0.2.0 候选，API-DOC 删除实现/注入/旧断言修改，仅保留 api_freeze 新增 deferred 断言；KI-REEXPORTS/roadmap/version_decisions 同步；⑤ KI-HIST-DELTA-INJECTION 补归档 C-DELTA c6 五字段/缺 file/old 链历史缺口，历史卡不改；全部 v7 历史交付、审计对账与未迁移口径保留。",
+  "revision_note": "v8（2026-11-25，architect-llmrust，Lead 依赖死锁解除）：① C-AUD-PROXY scope 增加 Cargo.lock 与 P1-13，c1/c2 断言 url>=2.5.9，c4 增加 cargo deny --locked check；c5/c6 仍只覆盖 proxy 三文件+lib 四个 src 台账文件，Cargo.lock 不入热点台账；② config gates 增加 cargo deny --locked check 并提交 config-only commit；③ B-AUD-3 记录依赖安全升级前移、已完成代理实现保留、回流后重跑 QA/Gate/CI；PH-0.1.8 RELEASE 卡不重复 url 升级；④ 其它卡、历史卡与业务源码不改，v7.1 全部口径保留。",
   "audit_dispositions": {
     "P1-02": [
       "C-018-HTTP-SAFE",

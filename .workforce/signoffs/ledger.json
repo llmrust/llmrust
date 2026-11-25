@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "ledger",
   "agent": "ledger-llmrust",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
-  "comments": "同意 spec v7.1：11 个台账写入卡分布于 11 个批次，每批至多一个；相位顺序与 blocked_by 构成无冲突串行链。六张 source 卡 c5 均纳入 planned_file_paths，并具备 batch_base old、前驱 new==old、new==实测==baseline、六字段含 file、reason/authorized/date、threshold 与 newly-oversized old=0/无前驱分支；API-DOC 改为零台账机判。实际抽跑 HTTP/CAPABILITY/PROXY 三条 c5 Python：语法编译、当前基线分支、planned 缺失分支及 newly-oversized old=0 分支均 PASS。C-AUD-PROXY c6 已覆盖 proxy 三文件+lib.rs 四文件并校验 C-AUD-PROXY 归属。KI-HIST-DELTA-INJECTION 已明确归档 C-DELTA c6 五字段/缺 file/old 链历史缺口。现行台账 58 条 adjustment、12 条文件链零断链且全收敛；threshold=500，25 个 src/**/*.rs 中 12 个达到阈值且全部登记，无 baseline mismatch 或未登记超限；台账 sha256=39e63f659c1e9656e4e8674934b98abfc5dc8b59e4c007f00198e117cd7f00d3。本次未运行 cargo，未修改台账/spec/cards/业务文件。",
-  "signedAt": "2026-11-24T20:41:35.8596967+08:00"
+  "comments": "同意 spec v8：Cargo.lock 已纳入 C-AUD-PROXY scope 但明确不属于热点台账；C-AUD-PROXY c6 四文件（proxy 三文件+lib.rs）判据与 v7.1 HEAD 逐字不变，并已对当前交付态实际执行 PASS。新增 cargo deny --locked check 已同时进入 config.gates.required_commands 与 C-AUD-PROXY c4，只增加 dependency 门，不改台账链口径。现行台账 62 条 adjustment，末尾四条均为 C-AUD-PROXY；12 条文件链零断链且全收敛。threshold=500，25 个 src/**/*.rs 中 12 个达到阈值且全部登记，无 baseline mismatch 或未登记超限；Cargo.lock 未出现在 baseline_lines/adjustments。台账 sha256=24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc。本次未运行 cargo，未修改台账/spec/cards/业务文件。",
+  "signedAt": "2026-11-25T10:56:45.3390331+08:00"
 }

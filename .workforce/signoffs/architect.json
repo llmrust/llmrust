@@ -2,10 +2,10 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "architect",
   "agent": "architect-llmrust",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
   "approved": null,
   "confirmed": null,
-  "comments": "最终 spec v7.1 已由 Lead 接受。v7.1 汇总四方最后阻断：C-AUD-PROXY 四文件台账与 raw-stream 口径、planned/newly-oversized 台账分支、跨平台 rustdoc 与 semver 默认口径、ThinkingConfig re-export 延期 0.2.0、历史台账缺口归档。RELEASE-GATE c5 单点命令已修正为 cargo package --list --locked --allow-dirty；card sha256=d0d53a6005281d3f80c5100a39701a77af597ae3fcd52a168839918b03110b8f。config sha256=8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f。validate-spec/check-criteria/check-card-scopes/validate-skill/config-check/selftest/git diff --check 均 PASS。未运行状态迁移。",
-  "signedAt": "2026-11-24T20:36:50.2678635+08:00"
+  "comments": "最终 spec v8 已由 Lead 接受。url 2.5.8→>=2.5.9 的 P1-13 依赖安全升级前移到 C-AUD-PROXY/B-AUD-3，以解除远端 Security Gates 与 loop release 死锁；已完成代理实现保留，回流后重跑 QA/Gate/CI。Cargo.lock 纳入 C-AUD-PROXY scope，cargo deny --locked check 纳入卡门与 config gates；Cargo.lock 不入热点台账，PH-0.1.8 RELEASE 卡不重复 url 升级。config-only commit=7948e6a，config sha256=d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08。validate-spec/check-criteria/check-card-scopes/validate-skill/config-check/selftest/git diff --check 均 PASS。未运行状态迁移。",
+  "signedAt": "2026-11-25T10:55:20.8447109+08:00"
 }

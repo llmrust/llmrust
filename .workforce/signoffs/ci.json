@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "ci",
   "agent": "ci-llmrust",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
-  "comments": "最终复核 spec v7.1 与 config 提交 6bfe9d7 后同意签署，无新增 CI 阻断。validate-spec 与 check-criteria 均 PASS（3 phases/12 batches/14 cards/90 criteria）；6bfe9d7 将 rustdoc 门修正为受支持的 cargo rustdoc --locked --all-features -- -D warnings，六条 config gates 保持 locked、默认/全特性、all-targets/all-features 的完整基线。RELEASE-GATE c2/c5 可承接 publish 的 quality/security/semver/MSRV/rustdoc 完整依赖图、tag/main ancestry、required checks、精确版本产物与 --locked/set -euo pipefail；semver 在 spec、各 C-018 卡及 RELEASE-GATE c4 固定 baseline=0.1.6，默认 --default-features 与 --all-features 双口径。C-AUD-PROXY v7.1 已把 src/lib.rs 纳入写域与四文件台账链，c1 明确 pub(crate) stream_raw_with 不调用 unify_terminal，c2/c3 以十七项 wire 测试、三端点×Ollama tools/image 零 provider 调用及 handler 回退注入钉住；PROXY-RESIDUAL 已同步 stream_raw_with 与十七项回归。RELEASE-GATE 的 ruling_refs 明确 MSRV all-features、Windows/macOS 编译测试矩阵、gitleaks history+worktree 双扫，E2E strict 以零 provider/JoinError/未消费终态失败、完整 stream 与 terminal/tool_calls/thinking 断言形成门，相关 workflow、脚本、示例与文档均在释放卡写域内。注意 6bfe9d7 尚未推到 origin/main（远端仍为 eb07c7c），故该配置提交暂无远端 run；本次签署只确认方案可承接，新实现提交后必须重新取得对应 head_sha 的远端 CI 证据。",
-  "signedAt": "2026-11-24T20:38:42+08:00"
+  "comments": "复核 spec v8 与 config 提交 7948e6a 后同意签署，无新增 CI 阻断。validate-spec 与 check-criteria 均 PASS（3 phases/12 batches/14 cards/90 criteria）；7948e6a 将 cargo deny --locked check 纳入七条 config gates，使供应链公告成为每批必跑门。v8 把 P1-13 的 url 2.5.8→>=2.5.9 升级前移到 C-AUD-PROXY：Cargo.lock 已纳入写域，c1/c2 有机判版本断言，c4 增加 cargo deny --locked check，且 Cargo.lock 不进入热点台账；B-AUD-3 保留已完成的 stream_raw_with/代理 wire 实现，回流后重跑 QA/Gate/CI，RELEASE-GATE 保留 url>=2.5.9 断言及其余完整发布门，不重复执行升级。该安排可解除“先要 CI 绿才能发布、但安全公告只在后期发布卡修复”的死锁。当前事实边界：工作区 Cargo.lock 仍为 url 2.5.8，远端代理分支 HEAD 93f8a94 的 Security Gates run 45535179134 为 failure（CI run 45535179019 为 success），7948e6a 本身也尚未推送；因此本次签署只确认前移方案可承接，必须完成锁文件升级并取得新 head_sha 的 Security Gates/CI 双绿后，才能把依赖阻断视为实际关闭。",
+  "signedAt": "2026-11-25T10:55:55+08:00"
 }

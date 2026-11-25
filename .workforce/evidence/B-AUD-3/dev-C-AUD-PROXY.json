@@ -5,7 +5,7 @@
   "written_by": "dev-llmrust-px",
   "card_id": "C-AUD-PROXY",
   "batch_id": "B-AUD-3",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "inputs_seen": [
     ".workforce/cards/C-AUD-PROXY.json",
     ".agents/skills/agent-workforce-loop/SKILL.md",
@@ -26,19 +26,18 @@
     "src/proxy/responses_proxy.rs",
     "tests/responses_proxy_tests.rs",
     "tests/hotspot_ledger.json",
-    "llmrust.capabilities.json"
+    "llmrust.capabilities.json",
+    "Cargo.lock"
   ],
   "files_changed": [
-    "src/proxy/mod.rs",
-    "src/proxy/anthropic_proxy.rs",
-    "src/proxy/responses_proxy.rs",
-    "tests/responses_proxy_tests.rs",
-    "llmrust.capabilities.json",
-    "tests/hotspot_ledger.json",
-    "src/lib.rs"
+    "Cargo.lock"
   ],
   "mock_used": false,
   "artifacts": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "97819f2cde8c258af1e848114a7112e8c76e082c82f209c90eb94089822d2547"
+    },
     {
       "path": "src/proxy/mod.rs",
       "sha256": "72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d"
@@ -82,6 +81,10 @@
       "exit_code": 0
     },
     {
+      "cmd": "cargo update -p url --precise 2.5.9",
+      "exit_code": 0
+    },
+    {
       "cmd": "python -c \"import pathlib; ps=['src/proxy/mod.rs','src/proxy/anthropic_proxy.rs','src/proxy/responses_proxy.rs']; assert all('stream_raw_with' in pathlib.Path(p).read_text(encoding='utf-8') for p in ps); print('c1.1 PASS')\"",
       "exit_code": 0
     },
@@ -99,6 +102,10 @@
     },
     {
       "cmd": "python -c \"import pathlib,re; s=pathlib.Path('src/lib.rs').read_text(encoding='utf-8'); m=re.search(r'pub\\(crate\\) async fn stream_raw_with.*?\\n    }',s,re.S); assert m and 'unify_terminal' not in m.group(); print('c1.5 PASS')\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import tomllib;d=tomllib.load(open('Cargo.lock','rb'));v=[p['version'] for p in d['package'] if p['name']=='url'];assert v and tuple(map(int,v[-1].split('.')[:3]))>=(2,5,9);print('c1.6 PASS',v)\"",
       "exit_code": 0
     },
     {
@@ -170,6 +177,10 @@
       "exit_code": 0
     },
     {
+      "cmd": "python -c \"import tomllib;d=tomllib.load(open('Cargo.lock','rb'));v=[p['version'] for p in d['package'] if p['name']=='url'];assert v and tuple(map(int,v[-1].split('.')[:3]))>=(2,5,9)\"",
+      "exit_code": 0
+    },
+    {
       "cmd": "cargo test --features proxy --test responses_proxy_tests responses_stream_truncation_without_terminal_fails_not_completed",
       "exit_code": 0
     },
@@ -198,6 +209,10 @@
       "exit_code": 0
     },
     {
+      "cmd": "cargo deny --locked check",
+      "exit_code": 0
+    },
+    {
       "cmd": "cargo test --features proxy --test architecture_guard",
       "exit_code": 0
     },
@@ -218,6 +233,10 @@
       "exit_code": 0
     },
     {
+      "cmd": "python -c 'import os,re,pathlib\nfor label in [\"architecture\",\"package\",\"responses\",\"lib\",\"contract\"]:\n    text=(pathlib.Path(os.environ[\"TEMP\"])/f\"C-AUD-PROXY-v8-{label}.log\").read_text(encoding=\"utf-8-sig\")\n    rows=[tuple(map(int,m.groups())) for m in re.finditer(r\"test result: ok\\. (\\d+) passed; (\\d+) failed; (\\d+) ignored\",text)]\n    assert rows and all(f==0 and i==0 for _,f,i in rows),(label,rows)\n    if label==\"package\": assert rows==[(4,0,0)],rows\n    print(label,rows)\nprint(\"c5 PASS\")'",
+      "exit_code": 0
+    },
+    {
       "cmd": "python -c \"import json,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));base={'src/proxy/mod.rs':3770,'src/proxy/anthropic_proxy.rs':2053,'src/proxy/responses_proxy.rs':964,'src/lib.rs':847};R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());assert all(L['baseline_lines'][f]==N(f) and a and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and a[-1]['old']==old and (len(a)<2 or a[-2]['new']==old) and a[-1]['new']==N(f) and 'C-AUD-PROXY' in a[-1]['reason'] and 'architect-llmrust v7.1' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24' for f,old in base.items() for a in [[x for x in L['adjustments'] if x.get('file')==f]])\"",
       "exit_code": 0
     },
@@ -234,16 +253,16 @@
       "exit_code": 0
     },
     {
-      "cmd": "python -c 'import os,re,pathlib\nfor label,limit in [(\"default\",2),(\"proxy\",4)]:\n    lines=(pathlib.Path(os.environ[\"TEMP\"])/f\"C-AUD-PROXY-{label}-tests.txt\").read_text(encoding=\"utf-8-sig\").splitlines()\n    unit=doc=0; in_doc=False\n    for line in lines:\n        if \"Doc-tests\" in line: in_doc=True\n        m=re.search(r\"test result:.* (\\d+) ignored\",line)\n        if m:\n            if in_doc: doc+=int(m.group(1))\n            else: unit+=int(m.group(1))\n    print(label,\"unit\",unit,\"doc\",doc,\"limit\",limit)\n    assert unit==0 and doc<=limit\nprint(\"c7.3 PASS\")'",
+      "cmd": "python -c 'import os,re,pathlib\nfor label,limit in [(\"default\",2),(\"proxy\",4)]:\n    lines=(pathlib.Path(os.environ[\"TEMP\"])/f\"C-AUD-PROXY-v8-test-{label}.log\").read_text(encoding=\"utf-8-sig\").splitlines()\n    unit=doc=0; in_doc=False\n    for line in lines:\n        if \"Doc-tests\" in line: in_doc=True\n        m=re.search(r\"test result:.* (\\d+) ignored\",line)\n        if m:\n            if in_doc: doc+=int(m.group(1))\n            else: unit+=int(m.group(1))\n    print(label,\"unit\",unit,\"doc\",doc,\"limit\",limit)\n    assert unit==0 and doc<=limit\nprint(\"c7.3 PASS\")'",
       "exit_code": 0
     },
     {
-      "cmd": "git -c core.whitespace=cr-at-eol diff --check",
+      "cmd": "git diff --check",
       "exit_code": 0
     }
   ],
   "verdict": "PASS",
   "independent": true,
   "declared_by_lead": false,
-  "notes": "c1–c7 全绿。实现：LmrsClient 新增 pub(crate) stream_raw_with（model 解析、provider 获取、CAP-003 adjudication，不调用 unify_terminal），公共 stream_with 继续 STR-001 收敛；Chat/Anthropic/Responses 三代理改走 raw stream。Chat bare done 的 finish_reason 保持 null，净 EOF 仍发协议 [DONE] 但不合成理由；Anthropic 沿用 flush() 对净 EOF 报 error；Responses 原生 reasoning output item + reasoning_summary_* 事件承载 thinking，主循环净 EOF 发 response.failed/incomplete，真实 done 后的 trailing usage EOF 仍 completed。embeddings 增加 split_model 预检；三端点流错误固定措辞并截断，HTTP 错误体去 URL；Unknown role 钳制；Responses Unsupported→400。17 条命名 wire 测试逐条独立运行，均 exit 0 且 stdout 为 1 passed/0 failed/0 ignored；Ollama tools/image 六项均 400 + invalid_request_error/Unsupported + provider 调用计数 0。c4 五门、c5 五门全 exit 0；默认/proxy workspace 的 unit/integration ignored 均为 0，doc ignored 分别 2/4；c7 断言只增不减、should_panic 恰 2 且均在 src/proxy/mod.rs、ignore 0。注入验红（预期红不列入 command_exit_codes）：① 将 Responses 主循环净 EOF 的 emit_failed_truncation 改为 emit_completed，指定测试 exit 101；恢复后 exit 0，sha256 h0=h1=a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5。② 将 Chat handle_stream 的 stream_raw_with 改回 get_provider().stream() 绕过 CAP-003，指定测试 exit 101（502≠400）；恢复后 exit 0，sha256 h0=h1=72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d。两次均从注入前字节备份恢复。台账四文件 new 为实测 4138/2225/1177/951，old=3770/2053/964/847，authorized_by 含 architect-llmrust v7.1，date=2026-11-24。行尾按 HEAD 原风格保留：Rust/tests/capabilities 为 LF，hotspot_ledger.json 原为 CRLF 故保持 CRLF；git -c core.whitespace=cr-at-eol diff --check exit 0。未 git commit；交卷后停止修改，等待 QA。"
+  "notes": "spec v8 回流轮，batch_base=7948e6a。本轮唯一业务 delta 为 Cargo.lock：执行 cargo update -p url --precise 2.5.9，url 2.5.8→2.5.9，并按 url 2.5.9 的最小依赖要求将 form_urlencoded 1.2.2→1.2.3；未改 Cargo.toml、任何源码/测试/能力 JSON 或台账。files_changed 仅列 Cargo.lock；artifacts 同时钉住该 delta 与七个未改的 scope 基线文件，便于 QA 冻结完整证据面。Cargo.lock 不入热点台账；既有四条 C-AUD-PROXY adjustment 全部保持且 c6 机判通过（4138/2225/1177/951）。c1–c7 本轮完整重跑全绿：c1 六条结构断言含 url>=2.5.9；c2 十七条命名 wire 逐条 1 passed/0 failed/0 ignored，六项 Ollama tools/image 均 400 + Unsupported/invalid_request_error + provider 调用 0；c3 两项注入均 exit 101，字节恢复后各 exit 0，h0=h1（responses a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5，mod 72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d），预期红不列入 command_exit_codes；c4 六门全 exit 0，其中 cargo deny --locked check 为 advisories ok/bans ok/licenses ok/sources ok，仅有 core-foundation、wit-bindgen duplicate 与未命中 license allowance 警告；c5 architecture 16、package 4、responses 16、lib 405、contract 16 全绿且 ignored 0；c6 台账通过；c7 断言只增不减、should_panic 恰 2 且均在 mod.rs、ignore 0，默认/proxy unit ignored 0、doc ignored 2/4。git diff --check exit 0；未 git commit；停止修改等待 QA。"
 }

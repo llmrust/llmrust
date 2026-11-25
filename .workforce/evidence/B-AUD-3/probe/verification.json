@@ -2,84 +2,106 @@
   "schema": "gate-verification/v1",
   "role": "gate",
   "agent": "gate-llmrust",
+  "written_by": "gate-llmrust",
   "batch_id": "B-AUD-3",
   "card_id": "C-AUD-PROXY",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
-  "command_count": 16,
-  "all_exit_codes_zero": true,
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "handoff_id": "79b1a1c78436c5d212c854a3",
+  "expected_command_count": 18,
+  "recorded_command_count": 18,
+  "all_recorded_exit_codes_zero": true,
+  "all_expected_exit_codes_zero": true,
   "protected_files_unchanged": true,
   "protected_files": [
     {
       "path": ".workforce/cards/C-AUD-PROXY.json",
       "unchanged": true,
-      "before": "45a6805f3487e9e12788348f34a53e4d2d8729c1e743bbbfc826bfc4666175c3",
-      "after": "45a6805f3487e9e12788348f34a53e4d2d8729c1e743bbbfc826bfc4666175c3"
+      "before": "e95626968541ce6d0e01905a8ce5b725e9820024c2a395ddadfeeead4f37d9a1",
+      "after": "e95626968541ce6d0e01905a8ce5b725e9820024c2a395ddadfeeead4f37d9a1"
     },
     {
       "path": ".workforce/config.json",
       "unchanged": true,
-      "before": "8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f",
-      "after": "8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f"
+      "before": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      "after": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08"
     },
     {
       "path": ".workforce/loop-state.json",
       "unchanged": true,
-      "before": "da3c21dab5162a25408d96446cd2bc45785c8ed6fe013770b849ee67263bbff3",
-      "after": "da3c21dab5162a25408d96446cd2bc45785c8ed6fe013770b849ee67263bbff3"
+      "before": "20f1e117e93d575c1a7a8141a9c45522e7b470e086b6582767bfd2be7f530356",
+      "after": "20f1e117e93d575c1a7a8141a9c45522e7b470e086b6582767bfd2be7f530356"
     },
     {
       "path": ".workforce/signoffs/architect.json",
       "unchanged": true,
-      "before": "d9228772663f070d943e2b93d7e3fe85cfebbed0a8993ac67267dfd88b1685fe",
-      "after": "d9228772663f070d943e2b93d7e3fe85cfebbed0a8993ac67267dfd88b1685fe"
+      "before": "bc711bc94075a9ed904f27d5652b4f78bf733a81b8fe0da10842009ae34ee3ac",
+      "after": "bc711bc94075a9ed904f27d5652b4f78bf733a81b8fe0da10842009ae34ee3ac"
     },
     {
       "path": ".workforce/signoffs/ci.json",
       "unchanged": true,
-      "before": "2308f2946596de2365926773551eeaeb2e0a08c987f0ea89fc400e9452dab979",
-      "after": "2308f2946596de2365926773551eeaeb2e0a08c987f0ea89fc400e9452dab979"
+      "before": "031d0ffc060a15623dda7c51ff25456d733ec730398d355fe4ace45ba2d5070a",
+      "after": "031d0ffc060a15623dda7c51ff25456d733ec730398d355fe4ace45ba2d5070a"
     },
     {
       "path": ".workforce/signoffs/dev.json",
       "unchanged": true,
-      "before": "7c3d0002ba228b9f22396f81f5aeb4d96f228ae0e2cdbd59b19fc7e5eb6a69c1",
-      "after": "7c3d0002ba228b9f22396f81f5aeb4d96f228ae0e2cdbd59b19fc7e5eb6a69c1"
+      "before": "2973235b654220cd19442234552440f4ed7de7aa1f71dfbbffc35fb1fb079943",
+      "after": "2973235b654220cd19442234552440f4ed7de7aa1f71dfbbffc35fb1fb079943"
     },
     {
       "path": ".workforce/signoffs/gate.json",
       "unchanged": true,
-      "before": "be2ca8fa8fcaf11550af39fb45624c1be0972b68380cbe72938a46e6563a096f",
-      "after": "be2ca8fa8fcaf11550af39fb45624c1be0972b68380cbe72938a46e6563a096f"
+      "before": "2553240ceb9c97ea4655e5122b7d173a20fee325f7d710444e1c319d6bc96dd1",
+      "after": "2553240ceb9c97ea4655e5122b7d173a20fee325f7d710444e1c319d6bc96dd1"
     },
     {
       "path": ".workforce/signoffs/lead.json",
       "unchanged": true,
-      "before": "e0865eb6cc01a461ced13ff1ca8192c8c73b68ef4591ca4bd52e39c52e56345a",
-      "after": "e0865eb6cc01a461ced13ff1ca8192c8c73b68ef4591ca4bd52e39c52e56345a"
+      "before": "65241f78059fe8b2a54a72831ece6b6aafc057d4828709781daf64b494f2375a",
+      "after": "65241f78059fe8b2a54a72831ece6b6aafc057d4828709781daf64b494f2375a"
     },
     {
       "path": ".workforce/signoffs/ledger.json",
       "unchanged": true,
-      "before": "46f8df0c15626fb19cf76b4eecbd75e95295298dad9f38c2b72ad5c60bc0e1d4",
-      "after": "46f8df0c15626fb19cf76b4eecbd75e95295298dad9f38c2b72ad5c60bc0e1d4"
+      "before": "1fa47443c4bbb8f3cc884ab5ac3d96408ae6ed602a78dc55cf20f476fdf5a8de",
+      "after": "1fa47443c4bbb8f3cc884ab5ac3d96408ae6ed602a78dc55cf20f476fdf5a8de"
     },
     {
       "path": ".workforce/signoffs/qa.json",
       "unchanged": true,
-      "before": "d544673af36490c3d7d01c98ef205c181302441a1fff6f9ab67a9b67087b2536",
-      "after": "d544673af36490c3d7d01c98ef205c181302441a1fff6f9ab67a9b67087b2536"
+      "before": "93817f949b37a24264ff138cff210b7bdf6c85e1cabd1e9c053378667fb85f0e",
+      "after": "93817f949b37a24264ff138cff210b7bdf6c85e1cabd1e9c053378667fb85f0e"
     },
     {
       "path": ".workforce/spec.json",
       "unchanged": true,
-      "before": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
-      "after": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80"
+      "before": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      "after": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7"
     },
     {
       "path": "Cargo.lock",
       "unchanged": true,
-      "before": "ca9a833c96a22ff16c109959f8ffab0ceb8b26606c294aad88c42c6098e37791",
-      "after": "ca9a833c96a22ff16c109959f8ffab0ceb8b26606c294aad88c42c6098e37791"
+      "before": "97819f2cde8c258af1e848114a7112e8c76e082c82f209c90eb94089822d2547",
+      "after": "97819f2cde8c258af1e848114a7112e8c76e082c82f209c90eb94089822d2547"
+    },
+    {
+      "path": "Cargo.toml",
+      "unchanged": true,
+      "before": "e3e966c9fd0eeb241797a39872f735484b6517513eb49ffa186011666438d09a",
+      "after": "e3e966c9fd0eeb241797a39872f735484b6517513eb49ffa186011666438d09a"
+    },
+    {
+      "path": "deny.toml",
+      "unchanged": true,
+      "before": "6958bd4fe07e5f3371757f6e28e1fa5c496032921f46d10c1300efa38878aa47",
+      "after": "6958bd4fe07e5f3371757f6e28e1fa5c496032921f46d10c1300efa38878aa47"
+    },
+    {
+      "path": "llmrust.capabilities.json",
+      "unchanged": true,
+      "before": "2b960bee8ebc5d85cbbdeeb3dc931f91a9860cfd4f47b14c80b0813baa281a38",
+      "after": "2b960bee8ebc5d85cbbdeeb3dc931f91a9860cfd4f47b14c80b0813baa281a38"
     },
     {
       "path": "src/lib.rs",
@@ -124,7 +146,7 @@
       "cmd": "cargo test --features proxy --test architecture_guard",
       "exit_code": 0,
       "test_results": [
-        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s"
       ],
       "pass": true
     },
@@ -133,7 +155,7 @@
       "cmd": "cargo test --features proxy --test package_guard",
       "exit_code": 0,
       "test_results": [
-        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s"
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s"
       ],
       "pass": true
     },
@@ -142,7 +164,7 @@
       "cmd": "cargo test --features proxy --test responses_proxy_tests",
       "exit_code": 0,
       "test_results": [
-        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
       ],
       "pass": true
     },
@@ -151,7 +173,7 @@
       "cmd": "cargo test --features proxy --lib",
       "exit_code": 0,
       "test_results": [
-        "test result: ok. 405 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.53s"
+        "test result: ok. 405 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.12s"
       ],
       "pass": true
     },
@@ -160,7 +182,7 @@
       "cmd": "cargo test --features proxy --test contract_tests",
       "exit_code": 0,
       "test_results": [
-        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s"
       ],
       "pass": true
     }
@@ -195,6 +217,8 @@
       "pass": true
     }
   ],
+  "missing_commands": [],
+  "unrecorded_outputs": [],
   "errors": [],
   "verdict": "PASS"
 }

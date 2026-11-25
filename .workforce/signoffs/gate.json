@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "gate",
   "agent": "gate-llmrust",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
-  "comments": "最终只读复核通过：spec 哈希匹配；C-018-API-DOC 卡哈希 36e831aa4190ec6700dc3cb8809f168f69a2cd317da03dc3bbe105444303176c，其 c1/c3 三条命名 cargo test 均已显式 --locked，并通过 --help 解析。此前 rustdoc、package 重复 locked、PROXY 默认 semver 与 config 六条门禁命令的语法复核均已通过；未运行 cargo build/test。",
-  "signedAt": "2026-11-24T12:55:21.9557343Z"
+  "comments": "v8 只读复核通过：spec 哈希匹配；config gates 已新增 cargo deny --locked check，C-AUD-PROXY c4 已同步该命令；本机 cargo deny --locked check --help 解析 exit 0。未运行 cargo build/test/deny 实门。",
+  "signedAt": "2026-11-25T02:55:48.5595536Z"
 }

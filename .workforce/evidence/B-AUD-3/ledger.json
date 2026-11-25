@@ -5,7 +5,7 @@
   "written_by": "ledger-llmrust",
   "card_id": null,
   "batch_id": "B-AUD-3",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "independent": true,
   "declared_by_lead": false,
   "mock_used": false,
@@ -29,25 +29,19 @@
     "threshold": 500,
     "line_count_metric": "Python raw UTF-8 bytes decode 后 len(splitlines())；另机扫 25 个 src/**/*.rs 无 VT/FF/FS/GS/RS/NEL/LS/PS 与孤立 CR，故与 Rust fs::read_to_string(...).lines().count() 同口径",
     "freeze": {
-      "batch_base": "6bfe9d7e2212a0317662807618c40ff1d9ddf57e",
-      "base_head": "6bfe9d7e2212a0317662807618c40ff1d9ddf57e",
-      "handoff_id": "de96c50dc2d523aa5117e27e",
-      "handoff_at": "2026-11-24T15:16:43.508Z",
+      "batch_base": "7948e6a709aa4e3b988f650ccce83147c31941ff",
+      "base_head": "7948e6a709aa4e3b988f650ccce83147c31941ff",
+      "handoff_id": "79b1a1c78436c5d212c854a3",
+      "handoff_at": "2026-11-25T03:10:57.107Z",
       "receipt_file": ".workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json",
-      "receipt_sha256": "aa506984727bdc18f001b73e44b5e6c1ac578b0a35eb7d73aab025da440bcc8c",
+      "receipt_sha256": "5a7acca448fc313dc3ac38a462e03d650e20723d45e87270e1cd0a6e551d9e21",
+      "qa_receipt_sha256": "d02906da23ba46256754463f7ed9007d5ce1cff455532514903bb03fc2e77584",
       "frozen_files": {
-        "src/proxy/mod.rs": "72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d",
-        "src/proxy/anthropic_proxy.rs": "0c3e928df67acd3e183b5d8440595e6ae0ea64cbc499a387fc1bfcc1a774c893",
-        "src/proxy/responses_proxy.rs": "a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5",
-        "tests/responses_proxy_tests.rs": "cc7ef211bf4bb0763d487fc370766c556cdcdb7c6eaf47936939d80151bb8f23",
-        "llmrust.capabilities.json": "2b960bee8ebc5d85cbbdeeb3dc931f91a9860cfd4f47b14c80b0813baa281a38",
-        "tests/hotspot_ledger.json": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc",
-        "src/lib.rs": "bc6e4620b7f05209184104edd470177368e2430de716abdf325b329a6336791d"
+        "Cargo.lock": "97819f2cde8c258af1e848114a7112e8c76e082c82f209c90eb94089822d2547"
       },
-      "frozen_files_total": 7,
+      "frozen_files_total": 1,
       "drift_after_handoff": [],
-      "zero_drift": true,
-      "qa_receipt_sha256": "701ff09f90fbb793401e662315dc408c9cda2c96c6741b2e9ae8b1310586d6bf"
+      "zero_drift": true
     },
     "c6": {
       "expected_files": 4,
@@ -127,7 +121,8 @@
       ],
       "stray_card_entries": 0,
       "responses_test_file_excluded": true,
-      "verdict": "PASS"
+      "verdict": "PASS",
+      "unchanged_in_v8": true
     },
     "baseline_files": [
       {
@@ -355,39 +350,52 @@
       }
     },
     "append_only_vs_batch_base": {
-      "base_commit": "6bfe9d7e2212a0317662807618c40ff1d9ddf57e",
-      "base_adjustments": 58,
+      "base_commit": "7948e6a709aa4e3b988f650ccce83147c31941ff",
+      "base_adjustments": 62,
       "current_adjustments": 62,
       "base_prefix_parsed_identical": true,
-      "appended_indices": [
-        58,
-        59,
-        60,
-        61
-      ],
+      "ledger_bytes_equal": true,
+      "appended_indices": [],
       "top_level_keyset_unchanged": true,
       "description_unchanged": true,
       "threshold_unchanged": true,
-      "baseline_delta": {
-        "src/proxy/mod.rs": {
-          "old": 3770,
-          "new": 4138
-        },
-        "src/proxy/anthropic_proxy.rs": {
-          "old": 2053,
-          "new": 2225
-        },
-        "src/proxy/responses_proxy.rs": {
-          "old": 964,
-          "new": 1177
-        },
-        "src/lib.rs": {
-          "old": 847,
-          "new": 951
-        }
-      },
+      "baseline_delta": {},
       "other_baselines_unchanged": true,
-      "old_eq_base_baseline_and_base_file_measured": true
+      "historical_original_b_aud_3_append_only": {
+        "base_commit": "6bfe9d7e2212a0317662807618c40ff1d9ddf57e",
+        "base_adjustments": 58,
+        "current_adjustments": 62,
+        "base_prefix_parsed_identical": true,
+        "appended_indices": [
+          58,
+          59,
+          60,
+          61
+        ],
+        "top_level_keyset_unchanged": true,
+        "description_unchanged": true,
+        "threshold_unchanged": true,
+        "baseline_delta": {
+          "src/proxy/mod.rs": {
+            "old": 3770,
+            "new": 4138
+          },
+          "src/proxy/anthropic_proxy.rs": {
+            "old": 2053,
+            "new": 2225
+          },
+          "src/proxy/responses_proxy.rs": {
+            "old": 964,
+            "new": 1177
+          },
+          "src/lib.rs": {
+            "old": 847,
+            "new": 951
+          }
+        },
+        "other_baselines_unchanged": true,
+        "old_eq_base_baseline_and_base_file_measured": true
+      }
     },
     "cross_check_receipts": {
       "fields_read": [
@@ -395,39 +403,33 @@
         "files_changed"
       ],
       "method": "只读 dev/qa 的 artifacts(path+sha256) 与 dev files_changed；未读 verdict/notes/解释",
-      "dev_artifacts_total": 7,
-      "qa_artifacts_total": 7,
+      "dev_artifacts_total": 8,
+      "qa_artifacts_total": 8,
       "artifact_sha_mismatches": 0,
       "artifact_missing": 0,
       "dev_files_changed": [
-        "src/proxy/mod.rs",
-        "src/proxy/anthropic_proxy.rs",
-        "src/proxy/responses_proxy.rs",
-        "tests/responses_proxy_tests.rs",
-        "llmrust.capabilities.json",
-        "tests/hotspot_ledger.json",
-        "src/lib.rs"
+        "Cargo.lock"
       ],
-      "dev_files_changed_eq_card_scopes": true,
       "dev_qa_artifact_paths_equal": true,
-      "git_diff_names_eq_files_changed": true,
-      "dev_receipt_sha256": "aa506984727bdc18f001b73e44b5e6c1ac578b0a35eb7d73aab025da440bcc8c",
-      "qa_receipt_sha256": "701ff09f90fbb793401e662315dc408c9cda2c96c6741b2e9ae8b1310586d6bf"
+      "dev_receipt_sha256": "5a7acca448fc313dc3ac38a462e03d650e20723d45e87270e1cd0a6e551d9e21",
+      "qa_receipt_sha256": "d02906da23ba46256754463f7ed9007d5ce1cff455532514903bb03fc2e77584",
+      "dev_files_changed_within_card_scopes": true
     },
     "protected_inputs_unchanged_by_writer": true,
     "protected_inputs_sha256_before": {
-      ".workforce/config.json": "8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f",
-      ".workforce/cards/C-AUD-PROXY.json": "45a6805f3487e9e12788348f34a53e4d2d8729c1e743bbbfc826bfc4666175c3",
-      ".workforce/spec.json": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+      ".workforce/config.json": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      ".workforce/cards/C-AUD-PROXY.json": "e95626968541ce6d0e01905a8ce5b725e9820024c2a395ddadfeeead4f37d9a1",
+      ".workforce/spec.json": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
       "tests/hotspot_ledger.json": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc",
-      ".workforce/loop-state.json": "9fd25d11aabc630fac6b6557ab8dbeab99c60f1bcc237acd3049525a0cafe7f7",
-      ".workforce/signoffs/architect.json": "d9228772663f070d943e2b93d7e3fe85cfebbed0a8993ac67267dfd88b1685fe",
-      ".workforce/signoffs/ci.json": "2308f2946596de2365926773551eeaeb2e0a08c987f0ea89fc400e9452dab979",
-      ".workforce/signoffs/dev.json": "7c3d0002ba228b9f22396f81f5aeb4d96f228ae0e2cdbd59b19fc7e5eb6a69c1",
-      ".workforce/signoffs/gate.json": "be2ca8fa8fcaf11550af39fb45624c1be0972b68380cbe72938a46e6563a096f",
-      ".workforce/signoffs/lead.json": "e0865eb6cc01a461ced13ff1ca8192c8c73b68ef4591ca4bd52e39c52e56345a",
-      ".workforce/signoffs/ledger.json": "46f8df0c15626fb19cf76b4eecbd75e95295298dad9f38c2b72ad5c60bc0e1d4",
-      ".workforce/signoffs/qa.json": "d544673af36490c3d7d01c98ef205c181302441a1fff6f9ab67a9b67087b2536"
+      ".workforce/loop-state.json": "20f1e117e93d575c1a7a8141a9c45522e7b470e086b6582767bfd2be7f530356",
+      "Cargo.lock": "97819f2cde8c258af1e848114a7112e8c76e082c82f209c90eb94089822d2547",
+      ".workforce/signoffs/architect.json": "bc711bc94075a9ed904f27d5652b4f78bf733a81b8fe0da10842009ae34ee3ac",
+      ".workforce/signoffs/ci.json": "031d0ffc060a15623dda7c51ff25456d733ec730398d355fe4ace45ba2d5070a",
+      ".workforce/signoffs/dev.json": "2973235b654220cd19442234552440f4ed7de7aa1f71dfbbffc35fb1fb079943",
+      ".workforce/signoffs/gate.json": "2553240ceb9c97ea4655e5122b7d173a20fee325f7d710444e1c319d6bc96dd1",
+      ".workforce/signoffs/lead.json": "65241f78059fe8b2a54a72831ece6b6aafc057d4828709781daf64b494f2375a",
+      ".workforce/signoffs/ledger.json": "1fa47443c4bbb8f3cc884ab5ac3d96408ae6ed602a78dc55cf20f476fdf5a8de",
+      ".workforce/signoffs/qa.json": "93817f949b37a24264ff138cff210b7bdf6c85e1cabd1e9c053378667fb85f0e"
     },
     "problems": [],
     "observations_non_blocking": [
@@ -441,12 +443,15 @@
       }
     ],
     "revalidation": {
-      "trigger": "B-AUD-3 重新交接后 QA 重做",
+      "trigger": "B-AUD-3 v8 重新 QA PASS",
       "scope": [
+        "handoff/spec/receipt 冻结校验",
         "dev/qa artifacts 对账",
-        "handoff 冻结校验"
+        "Cargo.lock 台账排除确认"
       ],
-      "ledger_and_business_files_unchanged": true,
+      "hotspot_ledger_and_four_file_chains_unchanged": true,
+      "cargo_lock_excluded_from_hotspot_ledger": true,
+      "business_access": "read_only",
       "unrelated_verification_commands_rerun": false
     }
   },
@@ -459,37 +464,42 @@
     {
       "path": "tests/hotspot_ledger.json",
       "sha256": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc",
-      "desc": "被核验台账实物；与 B-AUD-3 handoff 冻结 sha 一致"
+      "desc": "被核验台账实物；v8 相对新 batch_base 逐字节未变"
     },
     {
       "path": ".workforce/spec.json",
-      "sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
-      "desc": "已确认 spec；sha256 与批次指定值一致"
+      "sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      "desc": "v8 已确认 spec；sha256 与批次指定值一致"
     },
     {
       "path": ".workforce/cards/C-AUD-PROXY.json",
-      "sha256": "45a6805f3487e9e12788348f34a53e4d2d8729c1e743bbbfc826bfc4666175c3",
-      "desc": "本批唯一台账写入卡；sha256 与 loop-state 当前 B-AUD-3 card_sha256 一致"
+      "sha256": "e95626968541ce6d0e01905a8ce5b725e9820024c2a395ddadfeeead4f37d9a1",
+      "desc": "v8 任务卡；sha256 与 loop-state 当前 card_sha256 一致"
     },
     {
       "path": ".workforce/config.json",
-      "sha256": "8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f",
-      "desc": "ledger.command=null 的配置依据"
+      "sha256": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      "desc": "v8 配置；ledger.command=null"
     },
     {
       "path": ".workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json",
-      "sha256": "aa506984727bdc18f001b73e44b5e6c1ac578b0a35eb7d73aab025da440bcc8c",
-      "desc": "重新交接后的 dev 回执；只读 artifacts/files_changed 用于对账"
+      "sha256": "5a7acca448fc313dc3ac38a462e03d650e20723d45e87270e1cd0a6e551d9e21",
+      "desc": "v8 dev 回执；只读 artifacts/files_changed 用于对账"
     },
     {
       "path": ".workforce/evidence/B-AUD-3/qa-C-AUD-PROXY.json",
-      "sha256": "701ff09f90fbb793401e662315dc408c9cda2c96c6741b2e9ae8b1310586d6bf",
-      "desc": "重新交接后重做的 QA 回执；只读 artifacts 用于对账"
+      "sha256": "d02906da23ba46256754463f7ed9007d5ce1cff455532514903bb03fc2e77584",
+      "desc": "v8 重做 QA 回执；只读 artifacts 用于对账"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "97819f2cde8c258af1e848114a7112e8c76e082c82f209c90eb94089822d2547",
+      "desc": "v8 唯一冻结业务文件；只读核验，不进入热点台账"
     }
   ],
   "command_exit_codes": [
     {
-      "cmd": "python -c \"import json,pathlib,hashlib;P=pathlib.Path;sha=lambda p:hashlib.sha256(P(p).read_bytes()).hexdigest();S=json.loads(P('.workforce/loop-state.json').read_text(encoding='utf-8'));b=next(b for b in S['batches'] if b['id']=='B-AUD-3' and b.get('handoffs',{}).get('C-AUD-PROXY',{}).get('handoff_id')=='de96c50dc2d523aa5117e27e');h=b['handoffs']['C-AUD-PROXY'];dev='.workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json';qa='.workforce/evidence/B-AUD-3/qa-C-AUD-PROXY.json';assert sha(dev)==h['receipt_sha256']=='aa506984727bdc18f001b73e44b5e6c1ac578b0a35eb7d73aab025da440bcc8c';assert sha(qa)=='701ff09f90fbb793401e662315dc408c9cda2c96c6741b2e9ae8b1310586d6bf';drift=[f for f,s in h['files'].items() if sha(f)!=s];assert not drift,drift;print(json.dumps({'batch_base':b['batch_base'],'handoff_id':h['handoff_id'],'handoff_at':h['at'],'dev_receipt_sha256':sha(dev),'qa_receipt_sha256':sha(qa),'frozen_files_total':len(h['files']),'drift':drift},ensure_ascii=False,indent=2))\"",
+      "cmd": "python -c \"import json,pathlib,hashlib;P=pathlib.Path;sha=lambda p:hashlib.sha256(P(p).read_bytes()).hexdigest();S=json.loads(P('.workforce/loop-state.json').read_text(encoding='utf-8'));b=next(b for b in S['batches'] if b['id']=='B-AUD-3' and b.get('handoffs',{}).get('C-AUD-PROXY',{}).get('handoff_id')=='79b1a1c78436c5d212c854a3');h=b['handoffs']['C-AUD-PROXY'];spec='.workforce/spec.json';card='.workforce/cards/C-AUD-PROXY.json';dev='.workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json';qa='.workforce/evidence/B-AUD-3/qa-C-AUD-PROXY.json';new_spec='f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7';assert sha(spec)==S['spec_sha256']==new_spec;assert sha(card)==b['tasks'][0]['card_sha256'];assert sha(dev)==h['receipt_sha256']=='5a7acca448fc313dc3ac38a462e03d650e20723d45e87270e1cd0a6e551d9e21';assert sha(qa)=='d02906da23ba46256754463f7ed9007d5ce1cff455532514903bb03fc2e77584';drift=[f for f,s in h['files'].items() if sha(f)!=s];assert not drift,drift;L=json.loads(P('tests/hotspot_ledger.json').read_text(encoding='utf-8'));assert sha('tests/hotspot_ledger.json')=='24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc';assert 'Cargo.lock' not in L['baseline_lines'] and not any(a.get('file')=='Cargo.lock' for a in L['adjustments']);print(json.dumps({'batch_base':b['batch_base'],'handoff_id':h['handoff_id'],'handoff_at':h['at'],'spec_sha256':new_spec,'card_sha256':sha(card),'dev_receipt_sha256':sha(dev),'qa_receipt_sha256':sha(qa),'frozen_files':h['files'],'drift':drift,'ledger_sha256_unchanged':True,'cargo_lock_excluded_from_hotspot_ledger':True},ensure_ascii=False,indent=2))\"",
       "exit_code": 0
     },
     {
@@ -505,11 +515,11 @@
       "exit_code": 0
     },
     {
-      "cmd": "python -c \"import json,pathlib,subprocess;P=pathlib.Path;L=json.loads(P('tests/hotspot_ledger.json').read_text(encoding='utf-8'));S=json.loads(P('.workforce/loop-state.json').read_text(encoding='utf-8'));base=next(b['batch_base'] for b in S['batches'] if b['id']=='B-AUD-3' and 'C-AUD-PROXY' in b.get('handoffs',{}));O=json.loads(subprocess.check_output(['git','show',base+':tests/hotspot_ledger.json'],text=True,encoding='utf-8'));expected={'src/proxy/mod.rs':(3770,4138),'src/proxy/anthropic_proxy.rs':(2053,2225),'src/proxy/responses_proxy.rs':(964,1177),'src/lib.rs':(847,951)};assert L['adjustments'][:len(O['adjustments'])]==O['adjustments'];assert len(L['adjustments'])-len(O['adjustments'])==4;assert set(L)==set(O) and L['description']==O['description'] and L['threshold']==O['threshold'];delta={f:(O['baseline_lines'][f],L['baseline_lines'][f]) for f in set(O['baseline_lines'])|set(L['baseline_lines']) if O['baseline_lines'].get(f)!=L['baseline_lines'].get(f)};assert delta==expected,delta;assert [a['file'] for a in L['adjustments'][len(O['adjustments']):]]==list(expected);assert all(O['baseline_lines'][f]==old==len(subprocess.check_output(['git','show',base+':'+f],text=True,encoding='utf-8').splitlines()) for f,(old,new) in expected.items());print(json.dumps({'batch_base':base,'base_adjustments':len(O['adjustments']),'current_adjustments':len(L['adjustments']),'prefix_identical':True,'top_level_keyset_unchanged':True,'description_unchanged':True,'threshold_unchanged':True,'baseline_delta':delta,'appended_files':list(expected),'old_eq_base_baseline_and_measured':True},ensure_ascii=False,indent=2))\"",
+      "cmd": "python -c \"import json,pathlib,subprocess,hashlib;base='7948e6a709aa4e3b988f650ccce83147c31941ff';blob=subprocess.check_output(['git','show',base+':tests/hotspot_ledger.json']);cur=pathlib.Path('tests/hotspot_ledger.json').read_bytes();assert blob==cur;print(json.dumps({'batch_base':base,'ledger_bytes_equal':True,'sha256':hashlib.sha256(cur).hexdigest()},indent=2))\"",
       "exit_code": 0
     },
     {
-      "cmd": "python -c \"import json,pathlib,hashlib;P=pathlib.Path;sha=lambda p:hashlib.sha256(P(p).read_bytes()).hexdigest();D=json.loads(P('.workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json').read_text(encoding='utf-8'));Q=json.loads(P('.workforce/evidence/B-AUD-3/qa-C-AUD-PROXY.json').read_text(encoding='utf-8'));C=json.loads(P('.workforce/cards/C-AUD-PROXY.json').read_text(encoding='utf-8'));bad=lambda j:[a for a in j['artifacts'] if not P(a['path']).is_file() or sha(a['path'])!=a.get('sha256')];assert not bad(D) and not bad(Q);assert set(D['files_changed'])==set(C['write_scopes'])==set(C['exact_file_paths']);assert {a['path'] for a in D['artifacts']}==set(D['files_changed'])=={a['path'] for a in Q['artifacts']};print(json.dumps({'fields_read':['artifacts','files_changed'],'dev_artifacts':len(D['artifacts']),'qa_artifacts':len(Q['artifacts']),'sha_mismatches':0,'missing':0,'files_changed':D['files_changed'],'files_changed_eq_card_scopes':True,'dev_qa_artifact_paths_equal':True},ensure_ascii=False,indent=2))\"",
+      "cmd": "python -c \"import json,pathlib,hashlib;P=pathlib.Path;sha=lambda p:hashlib.sha256(P(p).read_bytes()).hexdigest();D=json.loads(P('.workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json').read_text(encoding='utf-8'));Q=json.loads(P('.workforce/evidence/B-AUD-3/qa-C-AUD-PROXY.json').read_text(encoding='utf-8'));C=json.loads(P('.workforce/cards/C-AUD-PROXY.json').read_text(encoding='utf-8'));bad=lambda j:[a for a in j['artifacts'] if not P(a['path']).is_file() or sha(a['path'])!=a.get('sha256')];assert not bad(D) and not bad(Q);assert set(D['files_changed'])<=set(C['write_scopes']) and set(C['write_scopes'])==set(C['exact_file_paths']);assert {a['path'] for a in D['artifacts']}=={a['path'] for a in Q['artifacts']};print(json.dumps({'fields_read':['artifacts','files_changed'],'dev_artifacts':len(D['artifacts']),'qa_artifacts':len(Q['artifacts']),'sha_mismatches':0,'missing':0,'files_changed':D['files_changed'],'files_changed_within_card_scopes':True,'dev_qa_artifact_paths_equal':True},ensure_ascii=False,indent=2))\"",
       "exit_code": 0
     },
     {
@@ -526,7 +536,7 @@
     }
   ],
   "verdict": "PASS",
-  "notes": "B-AUD-3 台账层独立核验 PASS：c6 四条 adjustment（mod 3770→4138、anthropic_proxy 2053→2225、responses_proxy 964→1177、lib 847→951）六字段/前驱/授权/date/实测全绿；threshold=500 双向覆盖 12/12；62/62 adjustments 六字段齐备且 12/12 文件链收敛；相对 batch_base 6bfe9d7e 前 58 条逐字相同、仅追加 4 条且基线变化恰为四文件。重新交接后 handoff=de96c50dc2d523aa5117e27e 冻结 7 文件零漂移；dev receipt sha=aa506984…bcc8c、qa receipt sha=701ff09f…6d6bf，仅按 artifacts/files_changed 重做对账 0 mismatch/0 missing。台账与业务文件未变；未重复无关核验；未改台账/业务/spec/card/signoffs/loop-state。",
-  "generatedAt": "2026-11-24T15:28:41Z",
-  "self_sha256": "1c85182ba0640004a9a5ef6a628f4e4d7662f5832a5ee1a744abd131e50fb0b3"
+  "notes": "B-AUD-3 v8 台账层独立核验 PASS：新 spec=f068a5a4…dcf7、handoff=79b1a1c78436c5d212c854a3；dev receipt sha=5a7acca4…9e21、qa receipt sha=d02906da…7584。handoff 仅冻结 Cargo.lock，实测 sha=97819f2c…2547、零漂移；dev/qa artifacts 各 8 项，0 mismatch/0 missing，dev files_changed=[Cargo.lock] 落在 v8 card scope。Cargo.lock 不进入热点台账；tests/hotspot_ledger.json 相对 v8 batch_base=7948e6a7 逐字节未变（sha=24c60f45…b6afc），四文件 adjustment 链与既有 c6/threshold/全链结论保持不变。只读业务，未重复无关核验，未改台账/业务/spec/card/signoffs/loop-state。",
+  "generatedAt": "2026-11-25T03:20:37Z",
+  "self_sha256": "30250b29f3dff325f487fee10026e29d66915ded65247d0b5a29928d2250832c"
 }

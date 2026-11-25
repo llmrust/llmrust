@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "qa",
   "agent": "qa-llmrust",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
-  "comments": "同意签署 spec v7.1：实测 SHA256 与 Lead 提供值一致；K-04/api_freeze 冲突已通过将 ThinkingConfig 根/prelude re-export 延期至 0.2.0 解决，既有 stable-but-not-root-reexported 断言原样保留；stream_raw_with、17 条代理回归、三端点 tools/image 零调用、Responses 流错误脱敏、base URL 校验、Router 并发、config 六条 feature gates 与两项历史归档均已落卡。validate-spec、check-criteria、check-card-scopes 均 PASS（14 卡、90 条判据、0 dead/undeclared/ghost scope）。未运行 cargo；本轮仅更新本 QA 签署文件。",
-  "signedAt": "2026-11-24T20:42:16+08:00"
+  "comments": "同意签署 spec v8：实测 SHA256 与 Lead 提供值一致。P1-13 依赖安全升级已前移至 C-AUD-PROXY，Cargo.lock 纳入 scope，c1/c2 提供离线 tomllib 版本>=2.5.9 断言，c4 与 config gates 均明确要求 cargo deny --locked check，可独立验收且无 SKIP 通道。当前 Cargo.lock 仍为 url 2.5.8，属待实施状态，版本断言与 deny 门会强制其在交付前转绿，不构成本次 spec 签署阻断。C-AUD-PROXY c2 的 17 条命名代理回归完整保留，C-018-PROXY-RESIDUAL c6 继续要求 17 条全部 ok。validate-spec、check-criteria、check-card-scopes 均 PASS（14 卡、90 条判据、0 scope 异常）。未运行 cargo；本轮仅更新本 QA 签署文件。",
+  "signedAt": "2026-11-25T10:57:31+08:00"
 }

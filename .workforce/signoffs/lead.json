@@ -2,9 +2,9 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "lead",
   "agent": "lead",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
   "approved": true,
-  "comments": "批准 spec v7.1：PH-0.1.7 收口与 PH-0.1.8 新版本规划共 3 phases / 12 batches / 14 cards；51 项审计发现逐项有处置，8 张新卡覆盖剩余 P1/高风险 P2 与附加 API，破坏性项明确转 0.2.0。Lead 已复核四方阻断全部关闭：stream_raw_with 范围与台账、17 条代理回归、planned/newly-oversized 台账链、跨平台 locked 命令、semver 0.1.6 双口径、K-04 历史归档与 ThinkingConfig 延期。config sha=8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f，config-only 提交 6bfe9d7。architect/dev/qa/gate/ci/ledger 六角色独立签署 ALL_AGREED；validate-spec/check-criteria/check-card-scopes/validate-skill/config-check/selftest 全 PASS。授权先重派 B-AUD-3，再按 blocked_by 推进 PH-0.1.8；未通过五层验收与远端 CI 前不得声称完成或发布。",
-  "signedAt": "2026-11-24T20:57:21.5853817+08:00"
+  "comments": "批准 spec v8：将 url>=2.5.9 安全升级前移至 C-AUD-PROXY，并把 cargo deny --locked check 加入七条全局门，解除 B-AUD-3 accepted 后 Security Gates 失败造成的发布死锁。C-AUD-PROXY 增加 Cargo.lock 写域但热点台账仍限四个 src 文件；既有 stream_raw_with/17 条代理回归保留，回流后只新增依赖升级并重跑 QA/Gate/CI。config sha=d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08，config-only commit=7948e6a。六角色 ALL_AGREED，validate-spec/check-criteria/check-card-scopes/validate-skill/config-check/selftest 全 PASS。非阻塞文档注记：audit_dispositions.P1-13 文本仍列旧 RELEASE 卡，实际执行以 C-AUD-PROXY 卡为准。授权回流 B-AUD-3，未取得新 HEAD 的 CI+Security Gates 双绿前不得 release。",
+  "signedAt": "2026-11-25T11:00:43.7466643+08:00"
 }

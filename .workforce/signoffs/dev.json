@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "dev",
   "agent": "dev-llmrust",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
-  "comments": "同意 spec v7.1：C-AUD-PROXY 已将 src/lib.rs 纳入 scope，stream_raw_with 不调用 unify_terminal，四文件台账 old/前驱/new/授权机判闭合；PROXY-RESIDUAL 已统一 stream_raw_with 并锁 17 条回归；六张 source 卡 c5 均并入 planned_file_paths 且具备 newly-oversized old=0/无前驱分支，API-DOC 改为零台账；ThinkingConfig 根/prelude re-export 已 deferred 0.2.0，0.1.8 保留既有 api_freeze 断言，仅新增 deferred 断言；API/semver 保持 0.1.x 附加修复、FinishReason 冻结、默认 feature=[]。validate-spec/check-card-scopes/check-criteria/git diff --check 均 PASS，未运行 cargo。非阻塞文案注记：C-AUD-PROXY checkpoint 仍写“三条 adjustment”，ruling/c6 已为四条，建议后续归一，不影响机判。",
-  "signedAt": "2026-11-24T20:41:41.6654492+08:00"
+  "comments": "同意 spec v8：C-AUD-PROXY 已将 Cargo.lock 纳入 write_scopes/exact_file_paths，c1/c2 以版本元组机检 url>=2.5.9，c4 与 config gates 均包含 cargo deny --locked check；Cargo.lock 明确不入热点台账，c6 仍保持 proxy 三文件+lib 四文件的 old/前驱/new/授权链；RELEASE 保留 url/deny 复验但不重复升级。validate-spec/check-card-scopes/check-criteria/git diff --check 均 PASS，未运行 cargo。非阻塞注记：audit_dispositions.P1-13 仍只列 C-018-RELEASE-GATE，建议补入 C-AUD-PROXY 以反映前移归属，不影响卡面实现与验收。",
+  "signedAt": "2026-11-25T10:58:55.1419230+08:00"
 }

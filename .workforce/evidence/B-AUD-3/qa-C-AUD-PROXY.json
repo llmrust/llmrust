@@ -5,15 +5,15 @@
   "written_by": "qa-llmrust-px",
   "card_id": "C-AUD-PROXY",
   "batch_id": "B-AUD-3",
-  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
-  "handoff_id": "de96c50dc2d523aa5117e27e",
-  "supersedes_handoff_id": "7b50196dbd694140cc6450b4",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "handoff_id": "79b1a1c78436c5d212c854a3",
+  "supersedes_handoff_id": "de96c50dc2d523aa5117e27e",
   "previous_receipt_void": true,
   "rerun_from_scratch": true,
   "independent": true,
   "declared_by_lead": false,
   "mock_used": false,
-  "generated_at": "2026-11-24T23:23:06.8528895+08:00",
+  "generated_at": "2026-11-25T11:14:18.7980955+08:00",
   "inputs_seen": [
     ".workforce/cards/C-AUD-PROXY.json",
     ".workforce/spec.json",
@@ -32,6 +32,7 @@
     "tests/responses_proxy_tests.rs",
     "llmrust.capabilities.json",
     "tests/hotspot_ledger.json",
+    "Cargo.lock",
     "git: b008185281072619f24dba37d13c59d42762c1db (c7 baseline)"
   ],
   "excluded_inputs": [
@@ -54,6 +55,7 @@
     "AUD#12",
     "AUD#13",
     "AUD#14",
+    "P1-13",
     "K-04",
     "K-05",
     "K-06",
@@ -129,24 +131,48 @@
       "bytes": 34947,
       "lines": 951,
       "unchanged": true
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "97819f2cde8c258af1e848114a7112e8c76e082c82f209c90eb94089822d2547",
+      "h0_sha256": "97819f2cde8c258af1e848114a7112e8c76e082c82f209c90eb94089822d2547",
+      "h1_sha256": "97819f2cde8c258af1e848114a7112e8c76e082c82f209c90eb94089822d2547",
+      "bytes": 47572,
+      "lines": 1922,
+      "unchanged": true
     }
   ],
   "reference_artifacts": [
     {
       "path": ".workforce/spec.json",
-      "sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+      "sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
       "matches_declared_spec_sha256": true,
-      "bytes": 45736,
+      "bytes": 45143,
       "lines": 929
     },
     {
       "path": ".workforce/cards/C-AUD-PROXY.json",
-      "sha256": "45a6805f3487e9e12788348f34a53e4d2d8729c1e743bbbfc826bfc4666175c3",
-      "bytes": 13614,
-      "lines": 80
+      "sha256": "e95626968541ce6d0e01905a8ce5b725e9820024c2a395ddadfeeead4f37d9a1",
+      "bytes": 14010,
+      "lines": 83
     }
   ],
+  "dependency_security": {
+    "cargo_lock_url_versions": ["2.5.9"],
+    "required_floor": "2.5.9",
+    "floor_check_exit_code": 0,
+    "cargo_deny_version": "0.19.9",
+    "cargo_deny_command": "cargo deny --locked check",
+    "cargo_deny_exit_code": 0,
+    "cargo_deny_summary": "advisories ok, bans ok, licenses ok, sources ok",
+    "warnings_non_blocking": [
+      "deny.toml 中若干 license allowance 未在依赖图出现（license-not-encountered）",
+      "Cargo.lock 中 core-foundation 与 wit-bindgen 存在双版本条目（duplicate）"
+    ]
+  },
   "command_exit_codes": [
+    { "id": "cargo_lock_url_floor", "cmd": "python -c tomllib parse Cargo.lock; assert url package version >= 2.5.9", "exit_code": 0 },
+    { "id": "cargo_deny_locked_check", "cmd": "cargo deny --locked check", "exit_code": 0 },
     { "id": "c1.1a", "cmd": "python -c assert stream_raw_with count >= 1 in src/proxy/mod.rs", "exit_code": 0 },
     { "id": "c1.1b", "cmd": "python -c assert stream_raw_with count >= 1 in src/proxy/anthropic_proxy.rs", "exit_code": 0 },
     { "id": "c1.1c", "cmd": "python -c assert stream_raw_with count >= 1 in src/proxy/responses_proxy.rs", "exit_code": 0 },
@@ -157,6 +183,7 @@
     { "id": "c1.5a", "cmd": "python -c assert pub(crate) async fn stream_raw_with declaration in src/lib.rs", "exit_code": 0 },
     { "id": "c1.5b", "cmd": "python -c assert stream_raw_with body adjudicates and dispatches without unify_terminal", "exit_code": 0 },
     { "id": "c1.5c", "cmd": "python -c assert two named raw-stream unit tests exist in src/lib.rs", "exit_code": 0 },
+    { "id": "c1.6", "cmd": "python -c tomllib parse Cargo.lock; assert url package version >= 2.5.9", "exit_code": 0 },
     { "id": "c1.handle_stream_raw_only", "cmd": "python -c assert all three executable handle_stream bodies use stream_raw_with and contain no get_provider/unify_terminal/direct .stream call", "exit_code": 0 },
     { "id": "c2.01", "cmd": "cargo test --features proxy --lib proxy::tests::proxy_chat_completions_rejects_unsupported_thinking_with_400 -- --exact", "exit_code": 0 },
     { "id": "c2.02", "cmd": "cargo test --features proxy --lib proxy::tests::proxy_chat_completions_stream_without_terminal_emits_done -- --exact", "exit_code": 0 },
@@ -175,6 +202,7 @@
     { "id": "c2.15", "cmd": "cargo test --features proxy --lib proxy::anthropic_proxy::tests::anthropic_messages_ollama_image_rejected_before_provider -- --exact", "exit_code": 0 },
     { "id": "c2.16", "cmd": "cargo test --features proxy --test responses_proxy_tests responses_ollama_tools_rejected_before_provider -- --exact", "exit_code": 0 },
     { "id": "c2.17", "cmd": "cargo test --features proxy --test responses_proxy_tests responses_ollama_image_rejected_before_provider -- --exact", "exit_code": 0 },
+    { "id": "c2.url_floor", "cmd": "python -c tomllib parse Cargo.lock; assert url package version >= 2.5.9", "exit_code": 0 },
     { "id": "c2.ollama_zero_call_static", "cmd": "python -c assert six named Ollama tools/image tests and helpers require HTTP 400, Unsupported/invalid_request_error, provider calls == 0", "exit_code": 0 },
     { "id": "c2.existing_test_names", "cmd": "python -c assert b008185 Anthropic 35 and Responses 10 existing test-name sets are subsets of current", "exit_code": 0 },
     { "id": "c3.1.restored_green", "cmd": "cargo test --features proxy --test responses_proxy_tests responses_stream_truncation_without_terminal_fails_not_completed -- --exact (after byte restore)", "exit_code": 0 },
@@ -184,26 +212,27 @@
     { "id": "c4.3", "cmd": "cargo build --workspace", "exit_code": 0 },
     { "id": "c4.4", "cmd": "cargo fmt --all --check", "exit_code": 0 },
     { "id": "c4.5", "cmd": "cargo clippy --workspace --all-targets -- -D warnings", "exit_code": 0 },
+    { "id": "c4.6", "cmd": "cargo deny --locked check", "exit_code": 0 },
     { "id": "c5.1", "cmd": "cargo test --features proxy --test architecture_guard", "exit_code": 0 },
     { "id": "c5.2", "cmd": "cargo test --features proxy --test package_guard", "exit_code": 0 },
     { "id": "c5.3", "cmd": "cargo test --features proxy --test responses_proxy_tests", "exit_code": 0 },
     { "id": "c5.4", "cmd": "cargo test --features proxy --lib", "exit_code": 0 },
     { "id": "c5.5", "cmd": "cargo test --features proxy --test contract_tests", "exit_code": 0 },
     { "id": "c6.card_command", "cmd": "python -c card-verbatim c6 four-file baseline/measured, six-field, old, predecessor, authorization and date assertions", "exit_code": 0 },
-    { "id": "c6.exact_four", "cmd": "python -c assert exactly four C-AUD-PROXY adjustments, one per scoped file, all six fields nonempty", "exit_code": 0 },
+    { "id": "c6.exact_four", "cmd": "python -c assert exactly four C-AUD-PROXY adjustments, one per scoped src file, all six fields nonempty", "exit_code": 0 },
     { "id": "c7.1_assertions", "cmd": "python -c compare b008185 vs current assert!/assert_eq!/assert_ne! line sets for five code/test files; baseline minus current empty", "exit_code": 0 },
     { "id": "c7.2_should_panic", "cmd": "python -c compare tracked Rust should_panic file x count x expected tuples; exactly two, both proxy/mod.rs, baseline-identical", "exit_code": 0 },
     { "id": "c7.2_ignore", "cmd": "python -c compare tracked Rust ignore occurrences; baseline and current both zero", "exit_code": 0 },
     { "id": "c7.3_test_ignored", "cmd": "python -c parse fresh c4.1/c4.2 logs; unit/integration ignored zero, Doc-tests ignored 2/4", "exit_code": 0 },
-    { "id": "cleanup.verify", "cmd": "PowerShell resolve/check/delete E:\\Temp\\qa-llmrust-px-B-AUD-3-de96c50d and re-hash all seven frozen files", "exit_code": 0 }
+    { "id": "cleanup.verify", "cmd": "PowerShell resolve/check/delete E:\\Temp\\qa-llmrust-px-B-AUD-3-79b1a1c7 and re-hash all eight frozen files", "exit_code": 0 }
   ],
   "criteria_results": {
-    "c1": "PASS — 新 handoff 下结构机判全部重跑且逐条 exit 0：三代理 stream_raw_with 各 1 次；三个可执行 handle_stream 均只走 raw 入口，无 get_provider/unify_terminal/直接 provider.stream；Responses 错误函数体含 Unsupported 与 400；capabilities 的 responses_endpoint 含 reasoning 原生承载；mod.rs 的 MAX_ERROR_MESSAGE_CHARS 17 次、responses_proxy.rs 的 truncate 4 次；lib.rs 声明 pub(crate) stream_raw_with，函数体不调用 unify_terminal，两个 raw-stream 单测在位。",
-    "c2": "PASS — 新 handoff 下 17 条命名 wire 测试全部重新独立实跑，均 exit 0 且 stdout 为 test result: ok. 1 passed; 0 failed; 0 ignored。三端点 Ollama tools/image 六项均断言 HTTP 400、Unsupported/invalid_request_error 族、provider 调用计数 0；Anthropic 既有 35 个测试名与 Responses 既有 10 个测试名全部保留。",
+    "c1": "PASS — 新 handoff/spec v8 下结构机判全部重跑且逐条 exit 0：三代理 stream_raw_with 各 1 次；三个可执行 handle_stream 均只走 raw 入口，无 get_provider/unify_terminal/直接 provider.stream；Responses 错误函数体含 Unsupported 与 400；capabilities 的 responses_endpoint 含 reasoning 原生承载；mod.rs 的 MAX_ERROR_MESSAGE_CHARS 17 次、responses_proxy.rs 的 truncate 4 次；lib.rs 声明 pub(crate) stream_raw_with，函数体不调用 unify_terminal，两个 raw-stream 单测在位；tomllib 解析 Cargo.lock 得到 url=2.5.9，满足 >=2.5.9。",
+    "c2": "PASS — 新 handoff 下 17 条命名 wire 测试全部重新独立实跑，均 exit 0 且 stdout 为 test result: ok. 1 passed; 0 failed; 0 ignored。三端点 Ollama tools/image 六项均断言 HTTP 400、Unsupported/invalid_request_error 族、provider 调用计数 0；Anthropic 既有 35 个测试名与 Responses 既有 10 个测试名全部保留；Cargo.lock url 下限断言再次 exit 0。",
     "c3": "PASS — 新 handoff 下两项反向注入全部重新执行：Responses 净 EOF 改 emit_completed 后目标测试预期 exit 101，在 clean EOF without done must fail 处失败；OpenAI Chat 绕过 stream_raw_with 直调 get_provider().stream() 后目标测试预期 exit 101，命中 left: 502 / right: 400。两项均字节级还原，恢复后同命令 exit 0，目标文件 sha256 等于注入前 h0。预期红只记录在 observations/adversarial_layer。",
-    "c4": "PASS — 新 handoff 下五条门禁全部重跑且逐条 exit 0：cargo test --workspace、cargo test --workspace --features proxy、cargo build --workspace、cargo fmt --all --check、cargo clippy --workspace --all-targets -- -D warnings。默认口径 unit/integration 全绿、Doc-tests 6 passed/2 ignored；proxy 口径 unit/integration 全绿、Doc-tests 7 passed/4 ignored。",
+    "c4": "PASS — 新 handoff 下六条门禁全部重跑且逐条 exit 0：cargo test --workspace、cargo test --workspace --features proxy、cargo build --workspace、cargo fmt --all --check、cargo clippy --workspace --all-targets -- -D warnings、cargo deny --locked check。cargo deny 输出 advisories ok, bans ok, licenses ok, sources ok；默认口径 Doc-tests 6 passed/2 ignored，proxy 口径 7 passed/4 ignored。",
     "c5": "PASS — 新 handoff 下五条守卫全部重跑：architecture_guard 16 passed/0 failed/0 ignored（count-agnostic）；package_guard 恰 4 passed/0 failed/0 ignored；responses_proxy_tests 16/0/0；--features proxy --lib 405/0/0；contract_tests 16/0/0。",
-    "c6": "PASS — 新 handoff 下卡面 c6 单行命令与四条目增强检查均重跑 exit 0。mod.rs 3770→4138、anthropic_proxy.rs 2053→2225、responses_proxy.rs 964→1177、lib.rs 847→951；前驱 new==old、末条 new==baseline==splitlines 实测、六字段非空、reason 含 C-AUD-PROXY、authorized_by 含 architect-llmrust v7.1、date==2026-11-24，且无越卡条目。",
+    "c6": "PASS — 新 handoff 下卡面 c6 单行命令与四条目增强检查均重跑 exit 0。mod.rs 3770→4138、anthropic_proxy.rs 2053→2225、responses_proxy.rs 964→1177、lib.rs 847→951；前驱 new==old、末条 new==baseline==splitlines 实测、六字段非空、reason 含 C-AUD-PROXY、authorized_by 含 architect-llmrust v7.1、date==2026-11-24，且无越卡条目。Cargo.lock 按卡面不进入热点台账。",
     "c7": "PASS — 新 handoff 下零放宽全部重跑：五文件 assert!/assert_eq!/assert_ne! 基线行集合均为当前子集；Rust should_panic 恰 2 处且均在 src/proxy/mod.rs、expected 文案为 must not be empty or whitespace-only，与基线逐元组一致；Rust ignore 基线/当前均 0；默认与 proxy 口径各 18 条 unit/integration test result 的 ignored 全 0，Doc-tests ignored 分别 2 和 4。"
   },
   "wire_tests": [
@@ -245,7 +274,8 @@
       { "id": "c4.2", "cmd": "cargo test --workspace --features proxy", "exit_code": 0, "unit_integration_failed": 0, "unit_integration_ignored": 0, "doc_tests": "7 passed; 0 failed; 4 ignored" },
       { "id": "c4.3", "cmd": "cargo build --workspace", "exit_code": 0 },
       { "id": "c4.4", "cmd": "cargo fmt --all --check", "exit_code": 0 },
-      { "id": "c4.5", "cmd": "cargo clippy --workspace --all-targets -- -D warnings", "exit_code": 0 }
+      { "id": "c4.5", "cmd": "cargo clippy --workspace --all-targets -- -D warnings", "exit_code": 0 },
+      { "id": "c4.6", "cmd": "cargo deny --locked check", "exit_code": 0, "summary": "advisories ok, bans ok, licenses ok, sources ok" }
     ],
     "c5": [
       { "id": "c5.1", "cmd": "cargo test --features proxy --test architecture_guard", "exit_code": 0, "result": "16 passed; 0 failed; 0 ignored" },
@@ -282,7 +312,7 @@
     }
   },
   "adversarial_layer": {
-    "method": "新 handoff 下重新执行两项卡面反向注入：临时改写冻结源码字节，运行指定目标测试验红，finally 字节级还原并复跑转绿。临时脚本、字节备份与日志共 19 个文件存放在 E:\\Temp\\qa-llmrust-px-B-AUD-3-de96c50d，完成后整目录删除并验证不存在。",
+    "method": "新 handoff/spec v8 下重新执行两项卡面反向注入：临时改写冻结源码字节，运行指定目标测试验红，finally 字节级还原并复跑转绿。临时脚本、字节备份与日志共 20 个文件存放在 E:\\Temp\\qa-llmrust-px-B-AUD-3-79b1a1c7，完成后整目录删除并验证不存在。",
     "c3.1": {
       "mutation": "Responses 主循环净 EOF 分支 emit_failed_truncation(&mut st) 回退为 emit_completed(&mut st)",
       "expected_red_exit_code": 101,
@@ -312,21 +342,22 @@
       "sha256_equals_h0": true
     },
     "cleanup": {
-      "temporary_file_count": 19,
-      "directory": "E:\\Temp\\qa-llmrust-px-B-AUD-3-de96c50d",
+      "temporary_file_count": 20,
+      "directory": "E:\\Temp\\qa-llmrust-px-B-AUD-3-79b1a1c7",
       "deleted": true,
       "directory_exists_after_cleanup": false,
-      "frozen_7_sha256_unchanged_after_cleanup": true
+      "frozen_8_sha256_unchanged_after_cleanup": true
     }
   },
   "observations": [
-    "本次为新 handoff de96c50dc2d523aa5117e27e 的从零完整重跑；未复用旧 QA 回执结果，旧 handoff 7b50196dbd694140cc6450b4 的回执已作废。",
+    "本次为新 handoff 79b1a1c78436c5d212c854a3、spec v8 f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7 的从零完整重跑；未复用旧 QA 回执结果。",
+    "Cargo.lock 独立解析得到 url=2.5.9，满足 >=2.5.9；cargo deny --locked check exit 0，advisories/bans/licenses/sources 四项均 ok。cargo-deny 输出的未命中 license allowance 与 core-foundation/wit-bindgen 双版本 warning 不改变 ok 判定，未发现阻断。",
     "预期红纪律：c3.1 与 c3.2 的 exit 101 及失败摘录只记录在 observations/adversarial_layer；command_exit_codes 中没有任何注入红命令，全部条目均为新 handoff 下实跑 exit 0 的验收面或恢复后验证命令。",
     "mock_used=false 表示未用 mock 或伪造命令结果替代独立实跑；卡面规定的 MockProvider + router + oneshot wire 夹具本身按 spec 正常使用。",
     "未读取 .workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json 的 notes/解释/结论；未修改永久业务代码、spec、card、signoffs 或 loop-state。",
-    "19 个临时 QA 文件已整目录删除，目录不存在；清理后再次实测 7 个冻结文件 sha256 与本次注入前 h0 完全一致。"
+    "20 个临时 QA 文件已整目录删除，目录不存在；清理后再次实测 8 个冻结文件 sha256 与本次注入前 h0 完全一致。"
   ],
   "blocking_findings": [],
   "verdict": "PASS",
-  "notes": "新 handoff 下独立 QA 完整重跑 C-AUD-PROXY c1-c7 全绿；event/logic/interface 三层均覆盖；两项注入验红闭环成立；未发现阻断。"
+  "notes": "新 handoff/spec v8 下独立 QA 完整重跑 C-AUD-PROXY c1-c7 全绿；event/logic/interface 三层均覆盖；依赖安全门、两项注入验红闭环、四文件台账与零放宽均成立；未发现阻断。"
 }

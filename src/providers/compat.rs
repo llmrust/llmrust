@@ -12,7 +12,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
+use crate::providers::http::{self, build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
@@ -645,11 +645,6 @@ pub struct OpenAiCompatibleProvider {
     /// REA-003: only the verified OpenAI endpoint may send reasoning fields.
     /// Third-party OpenAI-compatible wrappers must NOT inherit this capability.
     reasoning_supported: bool,
-    /// `ERR-004`：最近一次失败响应里上游给出的 `Retry-After` 窗口（已解析、已截顶）。
-    ///
-    /// 用 `Mutex` 是因为 `Provider` 的方法取 `&self`；写入点是 [`Self::parse_error`]，
-    /// 读取点是 [`crate::RetryProvider`]（经 `Provider::last_retry_after`）。
-    last_retry_after: std::sync::Mutex<Option<std::time::Duration>>,
 }
 
 impl OpenAiCompatibleProvider {
@@ -670,7 +665,6 @@ impl OpenAiCompatibleProvider {
             base_url,
             extra_headers: extra_headers.into_iter().collect(),
             reasoning_supported: false,
-            last_retry_after: std::sync::Mutex::new(None),
         }
     }
 
@@ -768,39 +762,31 @@ impl OpenAiCompatibleProvider {
 
     /// Send a fully-built request body and return the raw HTTP response.
     async fn send(&self, body: &CompChatRequest<'_>) -> Result<reqwest::Response> {
+        let url = http::redirect::endpoint_url(&self.base_url, "chat/completions")?;
         let mut rb = self
             .client
-            .post(format!("{}/chat/completions", self.base_url))
+            .post(url)
             .header("Authorization", format!("Bearer {}", self.api_key));
 
         for (k, v) in &self.extra_headers {
             rb = rb.header(k.as_str(), v.as_str());
         }
 
-        let resp = rb.json(body).send().await?;
+        let resp = rb
+            .json(body)
+            .send()
+            .await
+            .map_err(http::error::http_error)?;
         Ok(resp)
     }
 
     /// Common HTTP error -> LlmError conversion.
     ///
-    /// `ERR-004`：顺带**捕获上游的 `Retry-After`**（在 `resp.text()` 消费 body 之前读头），
-    /// 解析后存入 [`Self::last_retry_after`]，供 `RetryProvider` 决定等待窗口。
-    /// 解析失败/无头 → `None`（调用方回落本地退避），**不猜**。
-    async fn parse_error(&self, resp: reqwest::Response) -> LlmError {
+    /// `ERR-004`：捕获当前响应头并绑定到外层单次调用 scope；成功、无头或网络错误
+    /// 都不会继承其它请求的提示。
+    async fn parse_error(resp: reqwest::Response) -> LlmError {
         let status = resp.status().as_u16();
-        let hint = resp
-            .headers()
-            .get(reqwest::header::RETRY_AFTER)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| {
-                crate::providers::retry::parse_retry_after(
-                    v,
-                    crate::providers::retry::now_unix_secs(),
-                )
-            });
-        if let Ok(mut slot) = self.last_retry_after.lock() {
-            *slot = hint;
-        }
+        http::retry_hint::capture_response(&resp);
         let text = resp.text().await.unwrap_or_default();
         let msg = serde_json::from_str::<CompErrorBody>(&text)
             .map(|e| e.error.message)
@@ -813,16 +799,21 @@ impl OpenAiCompatibleProvider {
 
     /// Send an embeddings request and return the raw HTTP response.
     async fn send_embed(&self, body: &CompEmbeddingRequest<'_>) -> Result<reqwest::Response> {
+        let url = http::redirect::endpoint_url(&self.base_url, "embeddings")?;
         let mut rb = self
             .client
-            .post(format!("{}/embeddings", self.base_url))
+            .post(url)
             .header("Authorization", format!("Bearer {}", self.api_key));
 
         for (k, v) in &self.extra_headers {
             rb = rb.header(k.as_str(), v.as_str());
         }
 
-        let resp = rb.json(body).send().await?;
+        let resp = rb
+            .json(body)
+            .send()
+            .await
+            .map_err(http::error::http_error)?;
         Ok(resp)
     }
 
@@ -861,6 +852,7 @@ impl OpenAiCompatibleProvider {
 #[async_trait]
 impl Provider for OpenAiCompatibleProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
+        http::retry_hint::clear_response();
         // REA-003: reasoning gate (Unsupported before any network call).
         let reasoning_effort = self.reasoning_effort(req, false)?;
         let messages: Vec<CompMessage> = req.messages.iter().map(CompMessage::from).collect();
@@ -876,7 +868,7 @@ impl Provider for OpenAiCompatibleProvider {
 
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
-            let err = self.parse_error(resp).await;
+            let err = Self::parse_error(resp).await;
             tracing::error!(
                 provider = "openai-compatible",
                 status,
@@ -886,10 +878,12 @@ impl Provider for OpenAiCompatibleProvider {
             return Err(err);
         }
 
-        let parsed: CompResponse = resp
-            .json()
-            .await
-            .map_err(|e| LlmError::Parse(format!("OpenAI-compatible parse: {e}")))?;
+        let parsed: CompResponse = resp.json().await.map_err(|e| {
+            LlmError::Parse(format!(
+                "OpenAI-compatible parse: {}",
+                http::error::error_message(e)
+            ))
+        })?;
 
         let result = Self::parse_response(parsed);
         tracing::debug!(provider = "openai-compatible", model = &result.model, finish_reason = ?result.finish_reason, "chat response received");
@@ -897,6 +891,7 @@ impl Provider for OpenAiCompatibleProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+        http::retry_hint::clear_response();
         // REA-003: reasoning gate (Unsupported before any network call).
         let reasoning_effort = self.reasoning_effort(req, true)?;
         let messages: Vec<CompMessage> = req.messages.iter().map(CompMessage::from).collect();
@@ -912,7 +907,7 @@ impl Provider for OpenAiCompatibleProvider {
 
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
-            let err = self.parse_error(resp).await;
+            let err = Self::parse_error(resp).await;
             tracing::error!(
                 provider = "openai-compatible",
                 status,
@@ -924,7 +919,7 @@ impl Provider for OpenAiCompatibleProvider {
 
         let byte_stream = resp
             .bytes_stream()
-            .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
+            .map(|r| r.map_err(|e| LlmError::Stream(http::error::error_message(e))));
 
         let stream = sse_chunk_stream(line_stream(byte_stream));
 
@@ -932,6 +927,7 @@ impl Provider for OpenAiCompatibleProvider {
     }
 
     async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+        http::retry_hint::clear_response();
         tracing::debug!(
             provider = "openai-compatible",
             model = %req.model,
@@ -951,7 +947,7 @@ impl Provider for OpenAiCompatibleProvider {
 
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
-            let err = self.parse_error(resp).await;
+            let err = Self::parse_error(resp).await;
             tracing::error!(
                 provider = "openai-compatible",
                 status,
@@ -961,10 +957,12 @@ impl Provider for OpenAiCompatibleProvider {
             return Err(err);
         }
 
-        let parsed: CompEmbeddingResponse = resp
-            .json()
-            .await
-            .map_err(|e| LlmError::Parse(format!("OpenAI-compatible embeddings parse: {e}")))?;
+        let parsed: CompEmbeddingResponse = resp.json().await.map_err(|e| {
+            LlmError::Parse(format!(
+                "OpenAI-compatible embeddings parse: {}",
+                http::error::error_message(e)
+            ))
+        })?;
 
         let data: Vec<Embedding> = parsed
             .data
@@ -991,11 +989,6 @@ impl Provider for OpenAiCompatibleProvider {
             "embedding response received"
         );
         Ok(result)
-    }
-
-    /// `ERR-004`：把最近一次失败响应里捕获的 `Retry-After` 交给 `RetryProvider`。
-    fn last_retry_after(&self) -> Option<std::time::Duration> {
-        self.last_retry_after.lock().ok().and_then(|slot| *slot)
     }
 }
 

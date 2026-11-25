@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use crate::cache_control::{AnthropicCacheControl, AnthropicSystem};
-use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
+use crate::providers::http::{self, build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
@@ -943,14 +943,16 @@ impl Provider for AnthropicProvider {
             model = &req.model,
             "sending chat request"
         );
+        let url = http::redirect::endpoint_url(&self.base_url, "messages")?;
         let resp = self
             .client
-            .post(format!("{}/messages", self.base_url))
+            .post(url)
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
             .json(&body)
             .send()
-            .await?;
+            .await
+            .map_err(http::error::http_error)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -974,7 +976,7 @@ impl Provider for AnthropicProvider {
         let parsed: AnthropicResponse = resp
             .json()
             .await
-            .map_err(|e| LlmError::Parse(e.to_string()))?;
+            .map_err(|e| LlmError::Parse(http::error::error_message(e)))?;
 
         let content = parsed
             .content
@@ -1040,14 +1042,16 @@ impl Provider for AnthropicProvider {
             model = &req.model,
             "sending stream request"
         );
+        let url = http::redirect::endpoint_url(&self.base_url, "messages")?;
         let resp = self
             .client
-            .post(format!("{}/messages", self.base_url))
+            .post(url)
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
             .json(&body)
             .send()
-            .await?;
+            .await
+            .map_err(http::error::http_error)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -1070,7 +1074,7 @@ impl Provider for AnthropicProvider {
 
         let byte_stream = resp
             .bytes_stream()
-            .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
+            .map(|r| r.map_err(|e| LlmError::Stream(http::error::error_message(e))));
 
         // AUD#5 (C-AUD-PROV): the stream assembly carries the flush state
         // machine (`sse_chunk_stream`); per-line semantics stay in

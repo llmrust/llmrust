@@ -23,6 +23,9 @@ impl OpenAIProvider {
     /// Create a new OpenAI provider. Uses the default `api.openai.com` base
     /// URL unless overridden via `config.base_url`.
     pub fn new(config: ProviderConfig) -> Self {
+        // Any caller-supplied base URL uses the compatible profile, even when
+        // it happens to point at OpenAI; only the built-in origin is verified.
+        let reasoning_official = config.base_url.is_none();
         let config = ProviderConfig {
             base_url: Some(
                 config
@@ -34,8 +37,8 @@ impl OpenAIProvider {
         // REA-003: the verified OpenAI endpoint opts into reasoning support;
         // third-party OpenAI-compatible wrappers must NOT inherit this.
         Self {
-            inner: OpenAiCompatibleProvider::new(config, []).with_reasoning(true),
-            reasoning_official: true,
+            inner: OpenAiCompatibleProvider::new(config, []).with_reasoning(reasoning_official),
+            reasoning_official,
         }
     }
 

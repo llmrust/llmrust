@@ -380,3 +380,640 @@ async fn real_retry_behaviour_satisfies_the_extracted_policy() {
         "5xx retry budget violated: {problems:?} (obs = {obs:?})"
     );
 }
+
+// ── B-018-HTTP: local transport / request-scope audit ───────────────────────
+
+mod audit_2026_http_tests {
+    use super::*;
+    use futures::StreamExt;
+    use llmrust::providers::anthropic::AnthropicProvider;
+    use llmrust::providers::compat::OpenAiCompatibleProvider;
+    use llmrust::providers::google::GoogleProvider;
+    use llmrust::providers::ollama::OllamaProvider;
+    use llmrust::providers::openai::OpenAIProvider;
+    use llmrust::providers::retry::parse_retry_after;
+    use llmrust::{CapabilityLevel, ProviderConfig};
+    use std::io::{ErrorKind, Read, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::{Barrier, Mutex};
+    use std::time::{Duration, Instant};
+
+    #[derive(Debug, Clone)]
+    struct CapturedRequest {
+        target: String,
+        headers: String,
+        body: String,
+    }
+
+    type ResponseSpec = (u16, Vec<(String, String)>, String);
+
+    fn read_request(stream: &mut TcpStream) -> std::io::Result<CapturedRequest> {
+        stream.set_read_timeout(Some(Duration::from_secs(30)))?;
+        let mut bytes = Vec::new();
+        let header_end = loop {
+            if let Some(index) = bytes.windows(4).position(|window| window == b"\r\n\r\n") {
+                break index + 4;
+            }
+            let mut buffer = [0_u8; 4096];
+            let count = stream.read(&mut buffer)?;
+            if count == 0 {
+                return Err(std::io::Error::new(
+                    ErrorKind::UnexpectedEof,
+                    "request headers ended early",
+                ));
+            }
+            bytes.extend_from_slice(&buffer[..count]);
+        };
+        let headers = String::from_utf8_lossy(&bytes[..header_end]).to_string();
+        let content_length = headers
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse::<usize>().unwrap_or(0))
+            })
+            .unwrap_or(0);
+        while bytes.len() < header_end + content_length {
+            let mut buffer = [0_u8; 4096];
+            let count = stream.read(&mut buffer)?;
+            if count == 0 {
+                return Err(std::io::Error::new(
+                    ErrorKind::UnexpectedEof,
+                    "request body ended early",
+                ));
+            }
+            bytes.extend_from_slice(&buffer[..count]);
+        }
+        let request_line = headers.lines().next().unwrap_or_default();
+        let target = request_line
+            .split_whitespace()
+            .nth(1)
+            .unwrap_or_default()
+            .to_string();
+        Ok(CapturedRequest {
+            target,
+            headers,
+            body: String::from_utf8_lossy(&bytes[header_end..header_end + content_length])
+                .to_string(),
+        })
+    }
+
+    fn write_response(
+        stream: &mut TcpStream,
+        status: u16,
+        headers: &[(String, String)],
+        body: &str,
+    ) {
+        let reason = match status {
+            200 => "OK",
+            307 => "Temporary Redirect",
+            503 => "Service Unavailable",
+            _ => "Test",
+        };
+        let mut response = format!(
+            "HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nConnection: close\r\n",
+            body.len()
+        );
+        for (name, value) in headers {
+            response.push_str(name);
+            response.push_str(": ");
+            response.push_str(value);
+            response.push_str("\r\n");
+        }
+        response.push_str("\r\n");
+        response.push_str(body);
+        stream.write_all(response.as_bytes()).ok();
+        stream.flush().ok();
+    }
+
+    fn serve_n<H>(
+        listener: TcpListener,
+        count: usize,
+        mut handler: H,
+    ) -> std::thread::JoinHandle<Vec<CapturedRequest>>
+    where
+        H: FnMut(CapturedRequest) -> Option<ResponseSpec> + Send + 'static,
+    {
+        std::thread::spawn(move || {
+            let mut captured = Vec::with_capacity(count);
+            for _ in 0..count {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    break;
+                };
+                let Ok(request) = read_request(&mut stream) else {
+                    continue;
+                };
+                captured.push(request.clone());
+                if let Some((status, headers, body)) = handler(request) {
+                    write_response(&mut stream, status, &headers, &body);
+                }
+            }
+            captured
+        })
+    }
+
+    fn serve_concurrent_n<H>(
+        listener: TcpListener,
+        count: usize,
+        handler: H,
+    ) -> std::thread::JoinHandle<Vec<CapturedRequest>>
+    where
+        H: Fn(CapturedRequest) -> Option<ResponseSpec> + Send + Sync + 'static,
+    {
+        std::thread::spawn(move || {
+            let handler = Arc::new(handler);
+            let captured = Arc::new(Mutex::new(Vec::with_capacity(count)));
+            let mut workers = Vec::with_capacity(count);
+            for _ in 0..count {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    break;
+                };
+                let handler = Arc::clone(&handler);
+                let captured = Arc::clone(&captured);
+                workers.push(std::thread::spawn(move || {
+                    let Ok(request) = read_request(&mut stream) else {
+                        return;
+                    };
+                    captured.lock().unwrap().push(request.clone());
+                    if let Some((status, headers, body)) = handler(request) {
+                        write_response(&mut stream, status, &headers, &body);
+                    }
+                }));
+            }
+            for worker in workers {
+                worker.join().unwrap();
+            }
+            let captured = captured.lock().unwrap().clone();
+            captured
+        })
+    }
+
+    fn openai_chat_response() -> String {
+        r#"{"model":"test","choices":[{"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}"#.into()
+    }
+
+    #[tokio::test]
+    async fn audit_2026_http_error_redacts_url_and_userinfo() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        drop(listener);
+        let url = format!(
+            "http://alice:topsecret@{}/private?api_key=hidden#fragment",
+            address
+        );
+        let error = reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .unwrap()
+            .get(&url)
+            .send()
+            .await
+            .unwrap_err();
+        assert!(
+            error.url().is_some(),
+            "fixture must start with a located reqwest error"
+        );
+        let converted: LlmError = error.into();
+        let LlmError::Http(error) = &converted else {
+            panic!("expected an HTTP error");
+        };
+        assert!(
+            error.url().is_none(),
+            "without_url must clear the located URL"
+        );
+        let shown = format!("{converted:?}");
+        for secret in [&url, "alice", "topsecret", "private", "hidden", "fragment"] {
+            assert!(!shown.contains(secret), "error leaked {secret}: {shown}");
+        }
+
+        let provider = OpenAiCompatibleProvider::new(
+            ProviderConfig::new("k")
+                .with_base_url(format!("http://{address}/v1"))
+                .with_timeout_secs(1),
+            [],
+        );
+        let error = provider.chat(&req()).await.unwrap_err();
+        assert!(matches!(error, LlmError::Http(_)));
+        let shown = error.to_string();
+        assert!(
+            !shown.contains(&address.to_string()),
+            "provider error leaked its URL: {shown}"
+        );
+    }
+
+    #[tokio::test]
+    async fn audit_2026_http_cross_origin_redirect_replays_nothing() {
+        let target_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let target_address = target_listener.local_addr().unwrap();
+        target_listener.set_nonblocking(true).unwrap();
+        let target = std::thread::spawn(move || {
+            let mut captured = Vec::new();
+            let deadline = Instant::now() + Duration::from_millis(600);
+            while Instant::now() < deadline {
+                match target_listener.accept() {
+                    Ok((mut stream, _)) => {
+                        if let Ok(request) = read_request(&mut stream) {
+                            captured.push(request);
+                            write_response(&mut stream, 200, &[], &openai_chat_response());
+                        }
+                        break;
+                    }
+                    Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(_) => break,
+                }
+            }
+            captured
+        });
+
+        let origin_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin_address = origin_listener.local_addr().unwrap();
+        let origin = serve_n(origin_listener, 1, move |_request| {
+            Some((
+                307,
+                vec![(
+                    "Location".into(),
+                    format!("http://{target_address}/replayed"),
+                )],
+                String::new(),
+            ))
+        });
+        let provider = OpenAIProvider::new(
+            ProviderConfig::new("credential")
+                .with_base_url(format!("http://{origin_address}/v1"))
+                .with_header("X-Audit-Secret", "header-sentinel")
+                .with_timeout_secs(2),
+        );
+        let result = provider
+            .chat(&ChatRequest::new("test", "body-sentinel"))
+            .await;
+        let origin_requests = origin.join().unwrap();
+        let target_requests = target.join().unwrap();
+
+        assert!(
+            target_requests.is_empty(),
+            "redirect target received requests: {target_requests:?}"
+        );
+        assert_eq!(origin_requests.len(), 1);
+        assert!(origin_requests[0].body.contains("body-sentinel"));
+        assert!(origin_requests[0]
+            .headers
+            .to_ascii_lowercase()
+            .contains("header-sentinel"));
+        match result {
+            Err(LlmError::Api { status, .. }) => assert_eq!(status, 307),
+            other => panic!("a cross-origin 307 must remain an error, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn audit_2026_http_concurrent_retry_hints_are_request_scoped() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let barrier = Arc::new(Barrier::new(3));
+        let sequence = Arc::new(AtomicUsize::new(0));
+        let server_barrier = Arc::clone(&barrier);
+        let server_sequence = Arc::clone(&sequence);
+        let server = serve_concurrent_n(listener, 4, move |request| {
+            let index = server_sequence.fetch_add(1, Ordering::SeqCst);
+            if index < 3 {
+                server_barrier.wait();
+            }
+            let model = serde_json::from_str::<serde_json::Value>(&request.body)
+                .ok()
+                .and_then(|body| body["model"].as_str().map(str::to_string))
+                .unwrap_or_default();
+            match model.as_str() {
+                "hinted" => Some((
+                    503,
+                    vec![("Retry-After".into(), "60".into())],
+                    r#"{"error":{"message":"busy"}}"#.into(),
+                )),
+                "no-hint" => Some((503, Vec::new(), r#"{"error":{"message":"busy"}}"#.into())),
+                "network-error" => {
+                    // The connection was already read by the fixture. Closing it
+                    // without a response produces a transport error for this call.
+                    None
+                }
+                "success" => Some((200, Vec::new(), openai_chat_response())),
+                other => panic!("unexpected model {other}"),
+            }
+        });
+        // serve_n owns the stream, so a None response must really close it.
+        // Replace the helper's behavior by using a dedicated shutdown in the
+        // handler is not possible through ResponseSpec; the loop drops it on None.
+        let provider = OpenAiCompatibleProvider::new(
+            ProviderConfig::new("k")
+                .with_base_url(format!("http://{address}/v1"))
+                .with_timeout_secs(2),
+            [],
+        );
+        let hinted_request = ChatRequest::new("hinted", "one");
+        let no_hint_request = ChatRequest::new("no-hint", "two");
+        let network_request = ChatRequest::new("network-error", "three");
+        let (hinted, no_hint, network_error) = tokio::join!(
+            provider.chat_with_retry_after(&hinted_request),
+            provider.chat_with_retry_after(&no_hint_request),
+            provider.chat_with_retry_after(&network_request),
+        );
+        let success = provider
+            .chat_with_retry_after(&ChatRequest::new("success", "four"))
+            .await;
+        let captured = server.join().unwrap();
+        assert!(
+            matches!(hinted.0, Err(LlmError::Api { status: 503, .. })),
+            "hinted call returned {hinted:?}; captured={captured:?}"
+        );
+        assert_eq!(hinted.1, Some(Duration::from_secs(60)));
+        assert!(matches!(no_hint.0, Err(LlmError::Api { status: 503, .. })));
+        assert_eq!(no_hint.1, None);
+        assert!(matches!(network_error.0, Err(LlmError::Http(_))));
+        assert_eq!(
+            network_error.1, None,
+            "a network error must not reuse another request's hint"
+        );
+        assert_eq!(
+            provider.last_retry_after(),
+            None,
+            "no instance hint slot may remain"
+        );
+        assert!(success.0.is_ok());
+        assert_eq!(
+            success.1, None,
+            "a successful call must carry no stale hint"
+        );
+        assert_eq!(captured.len(), 4);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_http_embedding_honors_retry_after() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let server_attempts = Arc::clone(&attempts);
+        let server = serve_n(listener, 2, move |_request| {
+            if server_attempts.fetch_add(1, Ordering::SeqCst) == 0 {
+                Some((
+                    503,
+                    vec![("Retry-After".into(), "0".into())],
+                    r#"{"error":{"message":"busy"}}"#.into(),
+                ))
+            } else {
+                Some((
+                    200,
+                    Vec::new(),
+                    r#"{"model":"m","data":[{"index":0,"embedding":[0.5]}]}"#.into(),
+                ))
+            }
+        });
+        let provider = OpenAiCompatibleProvider::new(
+            ProviderConfig::new("k").with_base_url(format!("http://{address}/v1")),
+            [],
+        );
+        let retry = llmrust::RetryProvider::new(Arc::new(provider), 1)
+            .with_base_delay(30_000)
+            .with_max_delay(30_000);
+        let started = Instant::now();
+        let response = retry
+            .embed(&EmbeddingRequest::new("m", "hello"))
+            .await
+            .unwrap();
+        let elapsed = started.elapsed();
+        assert_eq!(response.data[0].embedding, vec![0.5]);
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "embedding retry must use the 1ms hint floor, not 30s local backoff: {elapsed:?}"
+        );
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+        assert_eq!(server.join().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn audit_2026_http_retry_after_rejects_invalid_calendar_and_signed_seconds() {
+        for malformed in [
+            "+5",
+            "-5",
+            "Wed, 31 Feb 2015 07:28:00 GMT",
+            "Wed, 29 Feb 2015 07:28:00 GMT",
+            "Wed, 31 Apr 2015 07:28:00 GMT",
+            "Wed, 21 Oct 2015 07:28:60 GMT",
+            "wed, 21 Oct 2015 07:28:00 GMT",
+            "Wed, 21 oct 2015 07:28:00 GMT",
+        ] {
+            assert_eq!(parse_retry_after(malformed, 0), None, "{malformed}");
+        }
+        let base = 1_445_412_480_i64;
+        assert_eq!(
+            parse_retry_after("Wed, 21 Oct 2015 07:28:20 GMT", base),
+            Some(Duration::from_secs(20))
+        );
+        assert!(parse_retry_after("Mon, 29 Feb 2016 00:00:00 GMT", 0).is_some());
+    }
+
+    struct AlwaysFailProvider {
+        attempts: Arc<AtomicU32>,
+    }
+
+    #[async_trait]
+    impl Provider for AlwaysFailProvider {
+        async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+            self.attempts.fetch_add(1, Ordering::SeqCst);
+            Err(LlmError::Api {
+                status: 502,
+                message: "transient".into(),
+            })
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            Ok(Box::pin(stream::empty()))
+        }
+    }
+
+    #[tokio::test]
+    async fn audit_2026_http_with_retry_is_idempotent() {
+        let attempts = Arc::new(AtomicU32::new(0));
+        let client = llmrust::LmrsClient::new();
+        client
+            .set_custom(
+                "count",
+                Arc::new(AlwaysFailProvider {
+                    attempts: Arc::clone(&attempts),
+                }),
+            )
+            .await;
+        client.with_retry(1).await;
+        client.with_retry(3).await;
+        let error = client.chat("count/m", "hello").await.unwrap_err();
+        assert!(matches!(error, LlmError::Api { status: 502, .. }));
+        assert_eq!(
+            attempts.load(Ordering::SeqCst),
+            2,
+            "repeated wrapping multiplied retry loops"
+        );
+        assert!(client
+            .get_provider("count")
+            .await
+            .unwrap()
+            .is_retry_provider());
+    }
+
+    #[tokio::test]
+    async fn audit_2026_http_custom_openai_url_is_not_official_reasoning() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let provider = OpenAIProvider::new(
+            ProviderConfig::new("k")
+                .with_base_url(format!("http://{address}/v1"))
+                .with_timeout_secs(1),
+        );
+        assert_eq!(
+            provider.capabilities().reasoning.level,
+            CapabilityLevel::Unsupported
+        );
+        let request = ChatRequest::new("o3", "hello").with_thinking(
+            llmrust::types::ThinkingConfig::Enabled {
+                budget_tokens: None,
+            },
+        );
+        assert!(matches!(
+            provider.stream(&request).await,
+            Err(LlmError::Unsupported { .. })
+        ));
+        assert_eq!(listener.accept().unwrap_err().kind(), ErrorKind::WouldBlock);
+
+        let custom_official_origin = OpenAIProvider::new(
+            ProviderConfig::new("k").with_base_url("https://api.openai.com/v1"),
+        );
+        assert_eq!(
+            custom_official_origin.capabilities().reasoning.level,
+            CapabilityLevel::Unsupported
+        );
+        let official = OpenAIProvider::new(ProviderConfig::new("k"));
+        assert_ne!(
+            official.capabilities().reasoning.level,
+            CapabilityLevel::Unsupported
+        );
+    }
+
+    #[tokio::test]
+    async fn audit_2026_http_google_model_is_path_segment_encoded() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let server_attempts = Arc::clone(&attempts);
+        let server = serve_n(listener, 2, move |_request| {
+            if server_attempts.fetch_add(1, Ordering::SeqCst) == 0 {
+                Some((
+                    200,
+                    Vec::new(),
+                    r#"{"modelVersion":"gemini-test","candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}"#.into(),
+                ))
+            } else {
+                Some((
+                    200,
+                    vec![("Content-Type".into(), "text/event-stream".into())],
+                    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\"}]}\n\n".into(),
+                ))
+            }
+        });
+        let provider = GoogleProvider::new(
+            ProviderConfig::new("AIza-secret").with_base_url(format!("http://{address}/v1beta/")),
+        );
+        let model = "gemini/proxy?x=1#frag name";
+        provider
+            .chat(&ChatRequest::new(model, "hello"))
+            .await
+            .unwrap();
+        let mut stream = provider
+            .stream(&ChatRequest::new(model, "hello"))
+            .await
+            .unwrap();
+        while let Some(chunk) = stream.next().await {
+            chunk.unwrap();
+        }
+        let captured = server.join().unwrap();
+        let encoded = "gemini%2Fproxy%3Fx=1%23frag%20name";
+        assert_eq!(
+            captured[0].target,
+            format!("/v1beta/models/{encoded}:generateContent")
+        );
+        assert_eq!(
+            captured[1].target,
+            format!("/v1beta/models/{encoded}:streamGenerateContent?alt=sse")
+        );
+        assert!(!captured[0].target.contains("AIza-secret"));
+        assert!(captured[0]
+            .headers
+            .to_ascii_lowercase()
+            .contains("aiza-secret"));
+    }
+
+    #[tokio::test]
+    async fn audit_2026_http_base_url_rejects_userinfo_query_fragment() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let mut invalid = Vec::new();
+        for provider_kind in 0..4 {
+            invalid.push((
+                provider_kind,
+                format!("http://alice:topsecret@{address}/v1"),
+            ));
+            for suffix in ["?token=query-secret", "#fragment-secret", "?", "#"] {
+                invalid.push((provider_kind, format!("http://{address}{suffix}")));
+            }
+        }
+        for (provider_kind, base_url) in invalid {
+            let config = ProviderConfig::new("k")
+                .with_base_url(base_url)
+                .with_timeout_secs(1);
+            let provider: Arc<dyn Provider> = match provider_kind {
+                0 => Arc::new(OpenAiCompatibleProvider::new(config, [])),
+                1 => Arc::new(AnthropicProvider::new(config)),
+                2 => Arc::new(GoogleProvider::new(config)),
+                _ => Arc::new(OllamaProvider::new(config)),
+            };
+            let error = provider.chat(&req()).await.unwrap_err();
+            assert!(
+                matches!(error, LlmError::Parse(_)),
+                "{provider_kind}: {error:?}"
+            );
+            let shown = error.to_string();
+            for secret in ["alice", "topsecret", "query-secret", "fragment-secret"] {
+                assert!(
+                    !shown.contains(secret),
+                    "base URL error leaked {secret}: {shown}"
+                );
+            }
+        }
+        assert_eq!(listener.accept().unwrap_err().kind(), ErrorKind::WouldBlock);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_http_base_url_trailing_slash_normalized() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = serve_n(listener, 2, |_request| {
+            Some((200, Vec::new(), openai_chat_response()))
+        });
+        for base_url in [
+            format!("http://{address}/v1/"),
+            format!("http://{address}/v1///"),
+        ] {
+            let provider =
+                OpenAiCompatibleProvider::new(ProviderConfig::new("k").with_base_url(base_url), []);
+            provider.chat(&req()).await.unwrap();
+        }
+        let captured = server.join().unwrap();
+        assert_eq!(captured.len(), 2);
+        assert!(captured
+            .iter()
+            .all(|request| request.target == "/v1/chat/completions"));
+    }
+}

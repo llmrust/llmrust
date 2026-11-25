@@ -361,6 +361,12 @@ impl LmrsClient {
         let keys: Vec<String> = map.keys().cloned().collect();
         for key in keys {
             if let Some(provider) = map.remove(&key) {
+                // First wrapping wins: repeated calls must not multiply retry
+                // loops or replace the caller's original retry budget.
+                if provider.is_retry_provider() {
+                    map.insert(key, provider);
+                    continue;
+                }
                 let wrapped =
                     Arc::new(RetryProvider::new(provider, max_retries)) as Arc<dyn Provider>;
                 map.insert(key, wrapped);

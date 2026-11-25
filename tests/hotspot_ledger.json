@@ -5,14 +5,14 @@
     "src/proxy/mod.rs": 4138,
     "src/proxy/anthropic_proxy.rs": 2225,
     "src/proxy/responses_proxy.rs": 1177,
-    "src/providers/compat.rs": 2136,
-    "src/providers/google.rs": 1813,
+    "src/providers/compat.rs": 2129,
+    "src/providers/google.rs": 1812,
     "src/types.rs": 1136,
-    "src/providers/anthropic.rs": 1684,
+    "src/providers/anthropic.rs": 1688,
     "src/router.rs": 1231,
-    "src/providers/ollama.rs": 855,
-    "src/lib.rs": 951,
-    "src/providers/retry.rs": 970,
+    "src/providers/ollama.rs": 860,
+    "src/lib.rs": 957,
+    "src/providers/retry.rs": 863,
     "src/providers/capabilities.rs": 712
   },
   "adjustments": [
@@ -511,6 +511,54 @@
       "new": 951,
       "reason": "appended 2026-11-24（B-AUD-3 唯一台账写入窗口）。C-AUD-PROXY（PH-0.1.7 审计清障，AUD#2）：新增 pub(crate) LmrsClient::stream_raw_with，统一完成 model 解析、provider 获取、model 改写与 CAP-003 adjudication，但不调用 unify_terminal；公共 stream_with 复用该入口后继续执行 STR-001 单终态收敛。新增 2 条 raw-stream 单测，证明净 EOF 不被合成终态且能力拒绝早于 provider 调用。+104 行（847→951）全部为真实实现/文档与回归测试。",
       "authorized_by": "architect-llmrust v7.1 2026-11-24（上游授权：Boss 2026-11-20 决策 A）",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 2136,
+      "new": 2129,
+      "reason": "C-018-HTTP-SAFE: request-scoped Retry-After capture replaces the instance Mutex; fixed endpoints validate base URL and reqwest errors are sanitized. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/retry.rs",
+      "old": 970,
+      "new": 863,
+      "reason": "C-018-HTTP-SAFE: Retry-After parser moved to http/retry_hint.rs; chat/stream/embedding consume per-call tuples through backoff_with_hint with delay_source; decorator marker added. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1684,
+      "new": 1688,
+      "reason": "C-018-HTTP-SAFE: network requests validate base URL and use the shared redirect/error boundary. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1813,
+      "new": 1812,
+      "reason": "C-018-HTTP-SAFE: Gemini model is encoded through URL path-segment API; base URL and reqwest errors use shared boundaries. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 855,
+      "new": 860,
+      "reason": "C-018-HTTP-SAFE: chat/embed requests validate base URL and use the shared redirect/error boundary. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/lib.rs",
+      "old": 951,
+      "new": 957,
+      "reason": "C-018-HTTP-SAFE: with_retry skips already wrapped providers so retry loops cannot multiply. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
       "date": "2026-11-24"
     }
   ]

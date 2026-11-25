@@ -6,7 +6,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
+use crate::providers::http::{self, build_http_client, REQUEST_TIMEOUT};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
@@ -987,7 +987,7 @@ impl Provider for GoogleProvider {
         let (contents, system_instruction) = build_contents(req);
         let body = build_body(req, &contents, system_instruction);
 
-        let url = format!("{}/models/{}:generateContent", self.base_url, req.model);
+        let url = http::redirect::gemini_endpoint_url(&self.base_url, &req.model, false)?;
 
         tracing::debug!(
             provider = "google",
@@ -996,11 +996,12 @@ impl Provider for GoogleProvider {
         );
         let resp = self
             .client
-            .post(&url)
+            .post(url)
             .header("x-goog-api-key", &self.api_key)
             .json(&body)
             .send()
-            .await?;
+            .await
+            .map_err(http::error::http_error)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -1024,7 +1025,7 @@ impl Provider for GoogleProvider {
         let parsed: GeminiResponse = resp
             .json()
             .await
-            .map_err(|e| LlmError::Parse(e.to_string()))?;
+            .map_err(|e| LlmError::Parse(http::error::error_message(e)))?;
 
         let usage = parsed.usage_metadata.map(|u| Usage {
             prompt_tokens: u.prompt_token_count,
@@ -1090,10 +1091,7 @@ impl Provider for GoogleProvider {
         let (contents, system_instruction) = build_contents(req);
         let body = build_body(req, &contents, system_instruction);
 
-        let url = format!(
-            "{}/models/{}:streamGenerateContent?alt=sse",
-            self.base_url, req.model
-        );
+        let url = http::redirect::gemini_endpoint_url(&self.base_url, &req.model, true)?;
 
         tracing::debug!(
             provider = "google",
@@ -1102,11 +1100,12 @@ impl Provider for GoogleProvider {
         );
         let resp = self
             .client
-            .post(&url)
+            .post(url)
             .header("x-goog-api-key", &self.api_key)
             .json(&body)
             .send()
-            .await?;
+            .await
+            .map_err(http::error::http_error)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -1129,7 +1128,7 @@ impl Provider for GoogleProvider {
 
         let byte_stream = resp
             .bytes_stream()
-            .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
+            .map(|r| r.map_err(|e| LlmError::Stream(http::error::error_message(e))));
 
         // AUD#4 (C-AUD-PROV): the stream assembly carries the flush state
         // machine (`sse_chunk_stream`); per-line semantics stay in

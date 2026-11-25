@@ -67,127 +67,10 @@ fn should_retry(e: &LlmError) -> bool {
     }
 }
 
-// ── ERR-004：消费上游 `Retry-After` ────────────────────────────────────────
-//
-// 0.1.3 期**从不读取**上游的 `Retry-After`（全仓 `retry.?after` 零命中）：
-// `backoff()` 是纯本地指数 + jitter。上游明说"等 30 秒再来"时，本地可能 500ms 就重试——
-// 既白撞墙（会被继续限流），也把服务端压力叠加回去。
-//
-// 处置：**有上游指示时优先采用**，但**必须设上限**（卡内禁止"无上限等待"）——
-// 恶意或错误的上游可以回一个夸张值（甚至 HTTP-date 在遥远的未来）来钉死客户端。
+// ── ERR-004：消费上游 Retry-After ────────────────────────────────────────
 
-/// 上游指示的等待窗口**上限**（防恶意/异常的超长值）。
-pub const MAX_RETRY_AFTER: Duration = Duration::from_secs(60);
-
-/// 当前 Unix 秒（HTTP-date 形态的 `Retry-After` 需要"现在"作基准）。
-///
-/// 抽出来是为了让 [`parse_retry_after`] 保持**纯函数**：基准由调用方传入，测试可复现。
-pub(crate) fn now_unix_secs() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
-}
-
-/// `Retry-After` 的两种合法格式（RFC 9110 §10.2.3）：
-/// **delay-seconds**（非负整数秒）与 **HTTP-date**（IMF-fixdate）。
-///
-/// `now_unix_secs` 由调用方传入，使本函数**纯粹可测**。
-///
-/// 返回：
-/// - `None` —— 值缺失、为空、或**无法解析**（畸形）：调用方回落到本地退避；
-/// - `Some(d)` —— 解析出的等待窗口，**已按 [`MAX_RETRY_AFTER`] 截顶**；
-///   HTTP-date 已过去时返回 `Some(0)`（= 立刻可重试，而非负数）。
-pub fn parse_retry_after(value: &str, now_unix_secs: i64) -> Option<Duration> {
-    let v = value.trim();
-    if v.is_empty() {
-        return None;
-    }
-    // ① delay-seconds
-    if let Ok(secs) = v.parse::<u64>() {
-        return Some(Duration::from_secs(secs).min(MAX_RETRY_AFTER));
-    }
-    // ② HTTP-date（IMF-fixdate，如 `Wed, 21 Oct 2015 07:28:00 GMT`）
-    let target = http_date_to_unix(v)?;
-    let delta = target.saturating_sub(now_unix_secs);
-    if delta <= 0 {
-        return Some(Duration::ZERO);
-    }
-    Some(Duration::from_secs(delta as u64).min(MAX_RETRY_AFTER))
-}
-
-/// 解析 IMF-fixdate 为 Unix 秒（纯函数；不引入日期库依赖）。
-///
-/// 只接受 RFC 9110 要求的 **GMT** 形态；星期几不参与换算（仅作装饰，故不校验其正确性）。
-fn http_date_to_unix(s: &str) -> Option<i64> {
-    // "Wed, 21 Oct 2015 07:28:00 GMT" → ["Wed","21","Oct","2015","07:28:00","GMT"]
-    let cleaned = s.replace(',', " ");
-    let parts: Vec<&str> = cleaned.split_whitespace().collect();
-    if parts.len() != 6 || !parts[5].eq_ignore_ascii_case("GMT") {
-        return None;
-    }
-    let day: u32 = parts[1].parse().ok()?;
-    let month = match parts[2].to_ascii_lowercase().as_str() {
-        "jan" => 1,
-        "feb" => 2,
-        "mar" => 3,
-        "apr" => 4,
-        "may" => 5,
-        "jun" => 6,
-        "jul" => 7,
-        "aug" => 8,
-        "sep" => 9,
-        "oct" => 10,
-        "nov" => 11,
-        "dec" => 12,
-        _ => return None,
-    };
-    let year: i64 = parts[3].parse().ok()?;
-    let hms: Vec<&str> = parts[4].split(':').collect();
-    if hms.len() != 3 {
-        return None;
-    }
-    let h: i64 = hms[0].parse().ok()?;
-    let mi: i64 = hms[1].parse().ok()?;
-    let sec: i64 = hms[2].parse().ok()?;
-    if !(1..=31).contains(&day)
-        || !(0..24).contains(&h)
-        || !(0..60).contains(&mi)
-        || !(0..61).contains(&sec)
-    {
-        return None;
-    }
-    // H-2：**年份必须有界**。IMF-fixdate 定的是 4 位年（RFC 9110 §5.6.7 `year = 4DIGIT`），
-    // 此前只解析不校验，于是巨年份会让 `days_from_civil` 里的 `era * 146_097` **i64 溢出**——
-    // debug 下直接 panic（实测：`year = i64::MAX` → `attempt to multiply with overflow`），
-    // release 下回绕出垃圾值。
-    //
-    // 为什么是 `None` 而不是"钳到某个日期"：一个**畸形**日期并不表达"立刻重试"，
-    // 把它降级成 `0`（= 马上重发）等于**凭空造出一个语义**——与 `ERR-003` 同类错误。
-    // 故：年份不在 4 位范围内 ⇒ 视为**不可解析**，交由调用方回落本地退避。
-    if !(1000..=9999).contains(&year) {
-        return None;
-    }
-    // 兜底：即便上面的范围断言将来被放宽，也不允许回绕（用饱和算术而非裸乘加）。
-    let days = days_from_civil(year, month, day);
-    let secs = days
-        .saturating_mul(86_400)
-        .saturating_add(h.saturating_mul(3_600))
-        .saturating_add(mi.saturating_mul(60))
-        .saturating_add(sec);
-    Some(secs)
-}
-
-/// Howard Hinnant 的 `days_from_civil`（公历 → 自 1970-01-01 起的天数）。
-fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
-    let y = if m <= 2 { y - 1 } else { y };
-    let era = if y >= 0 { y } else { y - 399 } / 400;
-    let yoe = y - era * 400;
-    let mp = ((m + 9) % 12) as i64;
-    let doy = (153 * mp + 2) / 5 + d as i64 - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
-}
+// 解析与请求作用域承载拆到 http/retry_hint.rs；公开路径保持兼容。
+pub use crate::providers::http::retry_hint::{parse_retry_after, MAX_RETRY_AFTER};
 
 /// 退避决策：**有上游指示时优先采用**，否则本地指数退避。
 ///
@@ -281,7 +164,8 @@ impl RetryProvider {
 impl Provider for RetryProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
         for attempt in 0..=self.max_retries {
-            match self.inner.chat(req).await {
+            let (result, upstream_hint) = self.inner.chat_with_retry_after(req).await;
+            match result {
                 Ok(resp) => {
                     if attempt > 0 {
                         tracing::info!(attempt, "retry succeeded");
@@ -299,7 +183,7 @@ impl Provider for RetryProvider {
                         attempt,
                         self.base_delay_ms,
                         self.max_delay_ms,
-                        self.inner.last_retry_after(),
+                        upstream_hint,
                     );
                     tracing::warn!(
                         attempt = attempt + 1,
@@ -320,7 +204,8 @@ impl Provider for RetryProvider {
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         for attempt in 0..=self.max_retries {
-            match self.inner.stream(req).await {
+            let (result, upstream_hint) = self.inner.stream_with_retry_after(req).await;
+            match result {
                 Ok(stream) => {
                     if attempt > 0 {
                         tracing::info!(attempt, "retry succeeded (stream)");
@@ -336,7 +221,7 @@ impl Provider for RetryProvider {
                         attempt,
                         self.base_delay_ms,
                         self.max_delay_ms,
-                        self.inner.last_retry_after(),
+                        upstream_hint,
                     );
                     tracing::warn!(
                         attempt = attempt + 1,
@@ -355,7 +240,8 @@ impl Provider for RetryProvider {
 
     async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
         for attempt in 0..=self.max_retries {
-            match self.inner.embed(req).await {
+            let (result, upstream_hint) = self.inner.embed_with_retry_after(req).await;
+            match result {
                 Ok(resp) => {
                     if attempt > 0 {
                         tracing::info!(attempt, "retry succeeded (embeddings)");
@@ -366,11 +252,17 @@ impl Provider for RetryProvider {
                     if !(should_retry(&e) && attempt < self.max_retries) {
                         return Err(e);
                     }
-                    let delay = backoff(attempt, self.base_delay_ms, self.max_delay_ms);
+                    let (delay, delay_source) = backoff_with_hint(
+                        attempt,
+                        self.base_delay_ms,
+                        self.max_delay_ms,
+                        upstream_hint,
+                    );
                     tracing::warn!(
                         attempt = attempt + 1,
                         max_retries = self.max_retries,
                         delay_ms = delay.as_millis() as u64,
+                        delay_source,
                         error_kind = "transient",
                         "retrying transient failure (embeddings)"
                     );
@@ -396,19 +288,20 @@ impl Provider for RetryProvider {
         self.inner.protocol_name()
     }
 
-    /// `H-1`：转发上游 `Retry-After` 提示。
-    ///
-    /// `RetryProvider` 自己的重试循环读的是 `self.inner.last_retry_after()`（见上），
-    /// 但**嵌套包装**（retry 套 retry）或**外层还要读它**时，本方法必须把内层的值透出去，
-    /// 否则链断在装饰器这一层。
+    /// `H-1`：兼容转发旧提示钩子；重试决策本身只消费每次调用的返回值。
     fn last_retry_after(&self) -> Option<std::time::Duration> {
         self.inner.last_retry_after()
+    }
+
+    fn is_retry_provider(&self) -> bool {
+        true
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::http::retry_hint::days_from_civil;
     use async_trait::async_trait;
     use futures::stream;
     use futures::StreamExt;

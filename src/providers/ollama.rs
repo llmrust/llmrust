@@ -6,7 +6,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-use crate::providers::http::build_http_client;
+use crate::providers::http::{self, build_http_client};
 use crate::providers::stream_util::line_stream;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
@@ -237,10 +237,11 @@ impl Provider for OllamaProvider {
         );
         let resp = self
             .client
-            .post(format!("{}/api/chat", self.base_url))
+            .post(http::redirect::endpoint_url(&self.base_url, "api/chat")?)
             .json(&body)
             .send()
-            .await?;
+            .await
+            .map_err(http::error::http_error)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -264,7 +265,7 @@ impl Provider for OllamaProvider {
         let parsed: OllamaResponse = resp
             .json()
             .await
-            .map_err(|e| LlmError::Parse(e.to_string()))?;
+            .map_err(|e| LlmError::Parse(http::error::error_message(e)))?;
 
         let result = ChatResponse {
             content: parsed.message.content,
@@ -312,10 +313,11 @@ impl Provider for OllamaProvider {
         );
         let resp = self
             .client
-            .post(format!("{}/api/chat", self.base_url))
+            .post(http::redirect::endpoint_url(&self.base_url, "api/chat")?)
             .json(&body)
             .send()
-            .await?;
+            .await
+            .map_err(http::error::http_error)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -338,7 +340,7 @@ impl Provider for OllamaProvider {
 
         let byte_stream = resp
             .bytes_stream()
-            .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
+            .map(|r| r.map_err(|e| LlmError::Stream(http::error::error_message(e))));
 
         let stream = line_stream(byte_stream).flat_map(|line_result| {
             let chunks = match line_result {
@@ -375,10 +377,11 @@ impl Provider for OllamaProvider {
 
         let resp = self
             .client
-            .post(format!("{}/api/embed", self.base_url))
+            .post(http::redirect::endpoint_url(&self.base_url, "api/embed")?)
             .json(&body)
             .send()
-            .await?;
+            .await
+            .map_err(http::error::http_error)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -399,10 +402,12 @@ impl Provider for OllamaProvider {
             return Err(err);
         }
 
-        let parsed: OllamaEmbedResponse = resp
-            .json()
-            .await
-            .map_err(|e| LlmError::Parse(format!("Ollama embed parse: {e}")))?;
+        let parsed: OllamaEmbedResponse = resp.json().await.map_err(|e| {
+            LlmError::Parse(format!(
+                "Ollama embed parse: {}",
+                http::error::error_message(e)
+            ))
+        })?;
 
         let data: Vec<Embedding> = parsed
             .embeddings

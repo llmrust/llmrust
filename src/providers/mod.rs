@@ -25,7 +25,7 @@ use crate::types::{ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingRespons
 #[derive(Debug, thiserror::Error)]
 pub enum LlmError {
     #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
+    Http(reqwest::Error),
 
     #[error("API error ({status}): {message}")]
     Api { status: u16, message: String },
@@ -46,6 +46,12 @@ pub enum LlmError {
 
 pub type Result<T> = std::result::Result<T, LlmError>;
 
+impl From<reqwest::Error> for LlmError {
+    fn from(error: reqwest::Error) -> Self {
+        http::error::http_error(error)
+    }
+}
+
 /// The core trait that all LLM providers must implement.
 #[async_trait]
 pub trait Provider: Send + Sync {
@@ -64,6 +70,37 @@ pub trait Provider: Send + Sync {
             feature: "embeddings".to_string(),
             message: "provider does not implement embeddings".to_string(),
         })
+    }
+
+    /// Send chat and bind any upstream `Retry-After` hint to this call's result.
+    ///
+    /// The default implementation preserves downstream provider signatures and
+    /// establishes a fresh request scope. Retry decorators consume the returned
+    /// tuple directly; they never read a provider instance's mutable hint slot.
+    async fn chat_with_retry_after(
+        &self,
+        req: &ChatRequest,
+    ) -> (Result<ChatResponse>, Option<std::time::Duration>) {
+        http::retry_hint::scoped_call(self.chat(req)).await
+    }
+
+    /// Streaming counterpart of [`Provider::chat_with_retry_after`].
+    async fn stream_with_retry_after(
+        &self,
+        req: &ChatRequest,
+    ) -> (
+        Result<BoxStream<'static, Result<StreamChunk>>>,
+        Option<std::time::Duration>,
+    ) {
+        http::retry_hint::scoped_call(self.stream(req)).await
+    }
+
+    /// Embedding counterpart of [`Provider::chat_with_retry_after`].
+    async fn embed_with_retry_after(
+        &self,
+        req: &EmbeddingRequest,
+    ) -> (Result<EmbeddingResponse>, Option<std::time::Duration>) {
+        http::retry_hint::scoped_call(self.embed(req)).await
     }
 
     /// Machine-readable capability declaration (`CNT-001` / `CAP-002`).
@@ -89,6 +126,14 @@ pub trait Provider: Send + Sync {
         "unknown"
     }
 
+    /// Whether this instance is already a retry decorator.
+    ///
+    /// Defaults to `false` for downstream providers. [`crate::RetryProvider`]
+    /// overrides it so repeated client wrapping cannot multiply retry loops.
+    fn is_retry_provider(&self) -> bool {
+        false
+    }
+
     /// `ERR-004`：**最近一次上游响应**给出的等待窗口（来自 `Retry-After` 头），已解析。
     ///
     /// **为什么走 trait 方法，而不是往 `LlmError` 里加字段**：`LlmError` 及其 `Api` 变体
@@ -96,11 +141,9 @@ pub trait Provider: Send + Sync {
     /// （穷尽匹配失效 / 字面量构造失效）——而本卡明禁"破坏错误类型形状"。
     /// **带默认实现的 trait 方法则是纯附加**（`CAP-002` 的 `capabilities()` 已由 semver 门实测通过）。
     ///
-    /// 语义约定：
-    /// - `None` = 没有可用指示（无响应头 / 解析失败 / 尚未发生失败）→ 调用方走本地退避；
-    /// - `Some(d)` = 上游明示的等待窗口（**已按 `retry::MAX_RETRY_AFTER` 截顶**）。
-    ///
-    /// 默认返回 `None`，故**下游自定义 Provider 不实现也不受影响**。
+    /// 兼容性说明：新重试路径使用上面的 `*_with_retry_after` 返回值，不再读取
+    /// 本方法或任何实例级共享槽。本方法保留以维持 0.1.x 的公开 trait 表面；
+    /// 默认返回 `None`，下游自定义 Provider 不实现也不受影响。
     fn last_retry_after(&self) -> Option<std::time::Duration> {
         None
     }

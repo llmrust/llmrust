@@ -1,0 +1,250 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "dev",
+  "agent": "dev-llmrust-018http",
+  "written_by": "dev-llmrust-018http",
+  "card_id": "C-018-HTTP-SAFE",
+  "batch_id": "B-018-HTTP",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "inputs_seen": [
+    ".workforce/cards/C-018-HTTP-SAFE.json",
+    ".agents/skills/agent-workforce-loop/SKILL.md",
+    ".agents/skills/agent-workforce-loop/references/roles.md",
+    ".agents/skills/agent-workforce-loop/assets/evidence.template.json",
+    "AGENTS.md",
+    "AGENT_MANIFESTO.md",
+    "docs/PROJECT_MAP.md",
+    "docs/CONTRACTS.md",
+    "docs/CAPABILITIES.md",
+    "docs/audit-2026-11-24.md",
+    "src/types.rs",
+    "src/providers/mod.rs",
+    "src/providers/http.rs",
+    "src/providers/compat.rs",
+    "src/providers/retry.rs",
+    "src/providers/openai.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/google.rs",
+    "src/providers/ollama.rs",
+    "src/providers/deepseek.rs",
+    "src/providers/moonshot.rs",
+    "src/providers/openrouter.rs",
+    "src/lib.rs",
+    "tests/provider_contract_freeze.rs",
+    "tests/hotspot_ledger.json",
+    "tests/architecture_guard.rs",
+    "tests/test_hygiene_guard.rs",
+    "examples/README.md",
+    "Cargo.toml",
+    ".workforce/loop-state.json"
+  ],
+  "files_changed": [
+    "src/providers/http.rs",
+    "src/providers/http/redirect.rs",
+    "src/providers/http/error.rs",
+    "src/providers/http/retry_hint.rs",
+    "src/providers/mod.rs",
+    "src/providers/compat.rs",
+    "src/providers/retry.rs",
+    "src/providers/openai.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/google.rs",
+    "src/providers/ollama.rs",
+    "src/lib.rs",
+    "tests/provider_contract_freeze.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "mock_used": false,
+  "artifacts": [
+    {
+      "path": "src/providers/http.rs",
+      "sha256": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78"
+    },
+    {
+      "path": "src/providers/http/redirect.rs",
+      "sha256": "10613bc8ff610764b79732cc6c57068a3fcc1bd76711ddce2d0b2789198bad07"
+    },
+    {
+      "path": "src/providers/http/error.rs",
+      "sha256": "08a2b9465f83f9772dfc502128805176f3c91a4426e0d20cef164eebc10a2d4b"
+    },
+    {
+      "path": "src/providers/http/retry_hint.rs",
+      "sha256": "25414b5dcad31607b395bd8aa263f4fccb58edc0228831602d00957c8bc8db10"
+    },
+    {
+      "path": "src/providers/mod.rs",
+      "sha256": "0ff54f99f3a4ae76f4a56d8a3886f38151a4f8229b8b9b3b3cf13b21b2b2cf19"
+    },
+    {
+      "path": "src/providers/compat.rs",
+      "sha256": "3f1248a86c071e470617b9f13e441b00e5e575b98bf160e1f9f02816984586a4"
+    },
+    {
+      "path": "src/providers/retry.rs",
+      "sha256": "f7192fc1c82a5afde7b58cdfa999db961953b66ffd7bda74a3bc747f82e19f83"
+    },
+    {
+      "path": "src/providers/openai.rs",
+      "sha256": "becffa8c01561f22ab9f17499d65d0cdd2c21e48fdf5ba2cc53644c0bede800c"
+    },
+    {
+      "path": "src/providers/anthropic.rs",
+      "sha256": "d465f0e2896b0ba722fae1bedbe7f8059f4a191c5fe068f05c7bc59918ea1a3d"
+    },
+    {
+      "path": "src/providers/google.rs",
+      "sha256": "d2050e96b3bc303c47a4c139fd5b755dc98927b9aaa296d72d232ef96f35fe40"
+    },
+    {
+      "path": "src/providers/ollama.rs",
+      "sha256": "c8be53e6c1deca93cd03f7fddb4849045a5f66c223066341656317fb534a48b2"
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "913a19bfd4d4d5dbc04696abe49ec2b085ac26a0c924810086b38aa9097717ce"
+    },
+    {
+      "path": "tests/provider_contract_freeze.rs",
+      "sha256": "d309e38e04fc57620a55595f8ca34fa7cff063067ba0c10c20840d47a997a361"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "node .agents/skills/agent-workforce-loop/scripts/validate-skill.mjs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node .agents/skills/agent-workforce-loop/scripts/selftest.mjs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node .agents/skills/agent-workforce-loop/scripts/loop.mjs status --repo D:\\llmrust-0.1.5",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo check --locked",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test provider_contract_freeze audit_2026_http_",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c2.1 unified reqwest without_url boundary probe>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c2.2 Policy::none probe>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c2.3 no instance Mutex and call-result hint probe>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c2.4 embedding backoff_with_hint and delay_source probe>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c2.5 with_retry idempotence probe>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c2.6 custom OpenAI reasoning isolation probe>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c2.7 Gemini path-segment API probe>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c2.8 shared base URL validation and four provider call-site probe>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test provider_contract_freeze audit_2026_http_cross_origin_redirect_replays_nothing",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo rustdoc --locked --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <exact C-018-HTTP-SAFE acceptance_criteria[4] ledger-chain command extracted from the card>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <assert/assert_eq/assert_ne line-set difference vs eb07c7cb118a0b289df50a581173d01a158b4bb6>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <ignore/should_panic stable file+function+attribute position comparison vs eb07c7cb118a0b289df50a581173d01a158b4bb6>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test test_hygiene_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git -c core.whitespace=cr-at-eol diff --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <HEAD-blob vs working-file line-ending style verification>",
+      "exit_code": 0
+    }
+  ],
+  "observations": [
+    {
+      "kind": "expected_injection_red",
+      "cmd": "cargo test --locked --test provider_contract_freeze audit_2026_http_cross_origin_redirect_replays_nothing",
+      "injected_change": "first reqwest::redirect::Policy::none() in src/providers/http.rs temporarily changed to Policy::limited(10)",
+      "exit_code": 101,
+      "observed": "The second server received POST /replayed with x-audit-secret: header-sentinel and the body-sentinel JSON body, proving the test detects credential/body replay.",
+      "restored_exit_code": 0,
+      "h0": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78",
+      "h1": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78"
+    },
+    {
+      "kind": "baseline_line_number_note",
+      "detail": "The two should_panic attributes are unchanged in file, owning test functions, and attribute text. Their literal line numbers were already 3292/3300 at eb07c7cb and 3346/3354 at the B-018-HTTP batch base because the earlier C-AUD-PROXY card inserted 54 lines in the untouched proxy file. This card has no src/proxy diff; stable item-position comparison passes with exactly the same two attributes."
+    }
+  ],
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "c1: ten named local TCP/pure-function tests pass 10/0/0. c2: eight independent structure probes pass. c3: final redirect injection exits 101 with observed body/header replay, restoration exits 0 and h0=h1. c4: all six locked gates exit 0; default workspace has unit/integration ignored=0 and existing doc ignored=2, all-features has unit/integration ignored=0 and existing doc ignored=4. c5: exact card ledger-chain command passes; six measured adjustments record compat 2136->2129, retry 970->863, anthropic 1684->1688, google 1813->1812, ollama 855->860, lib 951->957; all three planned http/ files and http.rs/mod.rs/openai.rs remain below threshold and unlisted. c6: existing assert line sets only grew across 42 baseline Rust files; stable ignore/should_panic item positions are unchanged; semver default/all-features each report 196 checks pass. Retry-After is carried by the returned (Result<T>, Option<Duration>) from new defaulted Provider methods under nested task-local single-call scopes; compat has no instance Mutex hint, and embedding shares backoff_with_hint plus delay_source. reqwest From<Error> retains its public conversion while routing through without_url. All edited existing Rust files are LF like their HEAD blobs; hotspot_ledger.json remains CRLF; new Rust files are LF. Local TCP fixtures only, no external network or gate mock. No spec/card/signoff/loop-state edits and no git commit. Development-only diagnostic failures were fixed before the recorded final gates; the only red command listed as an observation is the required injection."
+}

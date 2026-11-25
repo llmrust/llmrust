@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "qa",
   "agent": "qa-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
   "agreed": true,
-  "comments": "同意签署：实测核对基线 b008185（spec sha256、8 文件台账行数、should_panic 2 处/ignore 0、Doc-tests ignored 2+4 锚点、全部缺陷旧形态锚点）后确认五卡 c1–c7 判据独立可测（机判命令+命名测试+注入验红 h1==h0+零放宽），proxy wire 判据全部 --features proxy 口径，测试名与既有风格一致且无冲突；注入验红为每卡一条代表性验红（沿 C-DELTA-NULL 先例），其余修复以对现行代码可复核的否定性断言钉住不构成阻断。",
-  "signedAt": "2026-11-20T23:10:58+08:00"
+  "comments": "同意签署 spec v7.1：实测 SHA256 与 Lead 提供值一致；K-04/api_freeze 冲突已通过将 ThinkingConfig 根/prelude re-export 延期至 0.2.0 解决，既有 stable-but-not-root-reexported 断言原样保留；stream_raw_with、17 条代理回归、三端点 tools/image 零调用、Responses 流错误脱敏、base URL 校验、Router 并发、config 六条 feature gates 与两项历史归档均已落卡。validate-spec、check-criteria、check-card-scopes 均 PASS（14 卡、90 条判据、0 dead/undeclared/ghost scope）。未运行 cargo；本轮仅更新本 QA 签署文件。",
+  "signedAt": "2026-11-24T20:42:16+08:00"
 }

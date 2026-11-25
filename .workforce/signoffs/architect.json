@@ -2,10 +2,10 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "architect",
   "agent": "architect-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
   "agreed": true,
   "approved": null,
   "confirmed": null,
-  "comments": "spec v3 signoff（Boss 2026-11-20 决策 A：以全量审计 backlog 为需求开新战役）。产出：VS-0 改写为战役级总切片；新增 PH-0.1.7 三批次（B-AUD-1 三卡并行 / B-AUD-2 / B-AUD-3 单卡串行）共五卡 C-AUD-{COMPAT,DOCS,GUARD,PROV,PROXY}；PH-0.1.5/B-DELTA-NULL 逐字保留（init sameCards 续判 delivered）。宪法 K-01–K-05 沿用（K-02 enforced_by 改 count-agnostic，pass 数不锁定）+ 新增 K-06 代理 wire 零伪造。台账集中策略（SPCC §4.4/§9.2-1/§11.1.4）：每批至多一卡持有 tests/hotspot_ledger.json，B-AUD-2/B-AUD-3 因台账唯一性显式串行，adjustment 由 dev 代写、authorized_by 记 Boss 2026-11-20 决策 A、date=2026-11-20，本人将在 spec-review 前逐条追认。审计 6 severe/high 项（#1-#14）全部入卡（requirement_refs 可对账），23 条 medium + low 打包登记 known_issues（owner=lead），KI-PKG-GLOB 已解决留痕。每卡 c1–c7 机器可判（正则结构、命名测试、注入验红 sha256 对账、门禁 exit code、守卫 count-agnostic、台账五字段、零放宽对 b008185 基线）；代理判据全带 --features proxy（默认口径编译不到代理代码）。遗留裁定已载入卡内 ruling_refs：#9 原生承载方向、#8 三载体同步、#21 FACES 扩面边界、#22 CI 口径回退路径。signoff 基于 validate-spec PASS（结构+六卡）与 spec-revise PASS（SPEC_DRAFT）的机器输出。",
-  "signedAt": "2026-11-20T22:51:23+08:00"
+  "comments": "最终 spec v7.1 已由 Lead 接受。v7.1 汇总四方最后阻断：C-AUD-PROXY 四文件台账与 raw-stream 口径、planned/newly-oversized 台账分支、跨平台 rustdoc 与 semver 默认口径、ThinkingConfig re-export 延期 0.2.0、历史台账缺口归档。RELEASE-GATE c5 单点命令已修正为 cargo package --list --locked --allow-dirty；card sha256=d0d53a6005281d3f80c5100a39701a77af597ae3fcd52a168839918b03110b8f。config sha256=8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f。validate-spec/check-criteria/check-card-scopes/validate-skill/config-check/selftest/git diff --check 均 PASS。未运行状态迁移。",
+  "signedAt": "2026-11-24T20:36:50.2678635+08:00"
 }

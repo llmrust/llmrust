@@ -1,0 +1,200 @@
+{
+  "schema": "gate-verification/v1",
+  "role": "gate",
+  "agent": "gate-llmrust",
+  "batch_id": "B-AUD-3",
+  "card_id": "C-AUD-PROXY",
+  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "command_count": 16,
+  "all_exit_codes_zero": true,
+  "protected_files_unchanged": true,
+  "protected_files": [
+    {
+      "path": ".workforce/cards/C-AUD-PROXY.json",
+      "unchanged": true,
+      "before": "45a6805f3487e9e12788348f34a53e4d2d8729c1e743bbbfc826bfc4666175c3",
+      "after": "45a6805f3487e9e12788348f34a53e4d2d8729c1e743bbbfc826bfc4666175c3"
+    },
+    {
+      "path": ".workforce/config.json",
+      "unchanged": true,
+      "before": "8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f",
+      "after": "8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f"
+    },
+    {
+      "path": ".workforce/loop-state.json",
+      "unchanged": true,
+      "before": "da3c21dab5162a25408d96446cd2bc45785c8ed6fe013770b849ee67263bbff3",
+      "after": "da3c21dab5162a25408d96446cd2bc45785c8ed6fe013770b849ee67263bbff3"
+    },
+    {
+      "path": ".workforce/signoffs/architect.json",
+      "unchanged": true,
+      "before": "d9228772663f070d943e2b93d7e3fe85cfebbed0a8993ac67267dfd88b1685fe",
+      "after": "d9228772663f070d943e2b93d7e3fe85cfebbed0a8993ac67267dfd88b1685fe"
+    },
+    {
+      "path": ".workforce/signoffs/ci.json",
+      "unchanged": true,
+      "before": "2308f2946596de2365926773551eeaeb2e0a08c987f0ea89fc400e9452dab979",
+      "after": "2308f2946596de2365926773551eeaeb2e0a08c987f0ea89fc400e9452dab979"
+    },
+    {
+      "path": ".workforce/signoffs/dev.json",
+      "unchanged": true,
+      "before": "7c3d0002ba228b9f22396f81f5aeb4d96f228ae0e2cdbd59b19fc7e5eb6a69c1",
+      "after": "7c3d0002ba228b9f22396f81f5aeb4d96f228ae0e2cdbd59b19fc7e5eb6a69c1"
+    },
+    {
+      "path": ".workforce/signoffs/gate.json",
+      "unchanged": true,
+      "before": "be2ca8fa8fcaf11550af39fb45624c1be0972b68380cbe72938a46e6563a096f",
+      "after": "be2ca8fa8fcaf11550af39fb45624c1be0972b68380cbe72938a46e6563a096f"
+    },
+    {
+      "path": ".workforce/signoffs/lead.json",
+      "unchanged": true,
+      "before": "e0865eb6cc01a461ced13ff1ca8192c8c73b68ef4591ca4bd52e39c52e56345a",
+      "after": "e0865eb6cc01a461ced13ff1ca8192c8c73b68ef4591ca4bd52e39c52e56345a"
+    },
+    {
+      "path": ".workforce/signoffs/ledger.json",
+      "unchanged": true,
+      "before": "46f8df0c15626fb19cf76b4eecbd75e95295298dad9f38c2b72ad5c60bc0e1d4",
+      "after": "46f8df0c15626fb19cf76b4eecbd75e95295298dad9f38c2b72ad5c60bc0e1d4"
+    },
+    {
+      "path": ".workforce/signoffs/qa.json",
+      "unchanged": true,
+      "before": "d544673af36490c3d7d01c98ef205c181302441a1fff6f9ab67a9b67087b2536",
+      "after": "d544673af36490c3d7d01c98ef205c181302441a1fff6f9ab67a9b67087b2536"
+    },
+    {
+      "path": ".workforce/spec.json",
+      "unchanged": true,
+      "before": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+      "after": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80"
+    },
+    {
+      "path": "Cargo.lock",
+      "unchanged": true,
+      "before": "ca9a833c96a22ff16c109959f8ffab0ceb8b26606c294aad88c42c6098e37791",
+      "after": "ca9a833c96a22ff16c109959f8ffab0ceb8b26606c294aad88c42c6098e37791"
+    },
+    {
+      "path": "src/lib.rs",
+      "unchanged": true,
+      "before": "bc6e4620b7f05209184104edd470177368e2430de716abdf325b329a6336791d",
+      "after": "bc6e4620b7f05209184104edd470177368e2430de716abdf325b329a6336791d"
+    },
+    {
+      "path": "src/proxy/anthropic_proxy.rs",
+      "unchanged": true,
+      "before": "0c3e928df67acd3e183b5d8440595e6ae0ea64cbc499a387fc1bfcc1a774c893",
+      "after": "0c3e928df67acd3e183b5d8440595e6ae0ea64cbc499a387fc1bfcc1a774c893"
+    },
+    {
+      "path": "src/proxy/mod.rs",
+      "unchanged": true,
+      "before": "72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d",
+      "after": "72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d"
+    },
+    {
+      "path": "src/proxy/responses_proxy.rs",
+      "unchanged": true,
+      "before": "a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5",
+      "after": "a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "unchanged": true,
+      "before": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc",
+      "after": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc"
+    },
+    {
+      "path": "tests/responses_proxy_tests.rs",
+      "unchanged": true,
+      "before": "cc7ef211bf4bb0763d487fc370766c556cdcdb7c6eaf47936939d80151bb8f23",
+      "after": "cc7ef211bf4bb0763d487fc370766c556cdcdb7c6eaf47936939d80151bb8f23"
+    }
+  ],
+  "c5": [
+    {
+      "id": "c5-01-architecture-guard",
+      "cmd": "cargo test --features proxy --test architecture_guard",
+      "exit_code": 0,
+      "test_results": [
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ],
+      "pass": true
+    },
+    {
+      "id": "c5-02-package-guard",
+      "cmd": "cargo test --features proxy --test package_guard",
+      "exit_code": 0,
+      "test_results": [
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s"
+      ],
+      "pass": true
+    },
+    {
+      "id": "c5-03-responses-proxy-tests",
+      "cmd": "cargo test --features proxy --test responses_proxy_tests",
+      "exit_code": 0,
+      "test_results": [
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ],
+      "pass": true
+    },
+    {
+      "id": "c5-04-proxy-lib",
+      "cmd": "cargo test --features proxy --lib",
+      "exit_code": 0,
+      "test_results": [
+        "test result: ok. 405 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.53s"
+      ],
+      "pass": true
+    },
+    {
+      "id": "c5-05-contract-tests",
+      "cmd": "cargo test --features proxy --test contract_tests",
+      "exit_code": 0,
+      "test_results": [
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+      ],
+      "pass": true
+    }
+  ],
+  "ignored_tests": [
+    {
+      "id": "required-02-test-default",
+      "unit_integration_ignored": 0,
+      "doc_tests_ignored": 2,
+      "doc_tests_limit": 2,
+      "pass": true
+    },
+    {
+      "id": "required-03-test-all-features",
+      "unit_integration_ignored": 0,
+      "doc_tests_ignored": 4,
+      "doc_tests_limit": 4,
+      "pass": true
+    },
+    {
+      "id": "c4-01-test-default",
+      "unit_integration_ignored": 0,
+      "doc_tests_ignored": 2,
+      "doc_tests_limit": 2,
+      "pass": true
+    },
+    {
+      "id": "c4-02-test-proxy",
+      "unit_integration_ignored": 0,
+      "doc_tests_ignored": 4,
+      "doc_tests_limit": 4,
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "verdict": "PASS"
+}

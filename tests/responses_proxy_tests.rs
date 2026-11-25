@@ -684,3 +684,308 @@ async fn responses_auth_router_requires_token() {
     let response = app.oneshot(req).await.expect("request failed");
     assert_eq!(response.status(), StatusCode::OK);
 }
+
+// ── C-AUD-PROXY: native reasoning, honest EOF, sanitized errors, CAP-003 ──
+
+struct ThinkingProvider;
+
+#[async_trait::async_trait]
+impl Provider for ThinkingProvider {
+    async fn chat(&self, _req: &ChatRequest) -> llmrust::Result<ChatResponse> {
+        Ok(ChatResponse::default())
+    }
+
+    async fn stream(
+        &self,
+        _req: &ChatRequest,
+    ) -> llmrust::Result<BoxStream<'static, llmrust::Result<StreamChunk>>> {
+        Ok(Box::pin(stream::iter(vec![
+            Ok(StreamChunk {
+                thinking: Some("think aloud".to_string()),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                thinking_done: Some(true),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                delta: "answer".to_string(),
+                ..Default::default()
+            }),
+            Ok(StreamChunk {
+                done: true,
+                finish_reason: Some(FinishReason::Stop),
+                ..Default::default()
+            }),
+        ])))
+    }
+}
+
+struct TruncatedProvider;
+
+#[async_trait::async_trait]
+impl Provider for TruncatedProvider {
+    async fn chat(&self, _req: &ChatRequest) -> llmrust::Result<ChatResponse> {
+        Ok(ChatResponse::default())
+    }
+
+    async fn stream(
+        &self,
+        _req: &ChatRequest,
+    ) -> llmrust::Result<BoxStream<'static, llmrust::Result<StreamChunk>>> {
+        Ok(Box::pin(stream::iter(vec![Ok(StreamChunk {
+            delta: "partial".to_string(),
+            ..Default::default()
+        })])))
+    }
+}
+
+struct SanitizedErrorProvider;
+
+#[async_trait::async_trait]
+impl Provider for SanitizedErrorProvider {
+    async fn chat(&self, _req: &ChatRequest) -> llmrust::Result<ChatResponse> {
+        Ok(ChatResponse::default())
+    }
+
+    async fn stream(
+        &self,
+        _req: &ChatRequest,
+    ) -> llmrust::Result<BoxStream<'static, llmrust::Result<StreamChunk>>> {
+        let message = format!(
+            "raw-secret https://upstream.example/private?token=secret {}",
+            "x".repeat(2_000)
+        );
+        Ok(Box::pin(stream::iter(vec![Err(LlmError::Stream(message))])))
+    }
+}
+
+/// Ollama's real capability declaration plus a dispatch counter. Methods fail
+/// if invoked, so HTTP 400 + zero calls is a pre-provider CAP-003 proof.
+struct CountingOllamaProvider {
+    inner: llmrust::providers::ollama::OllamaProvider,
+    calls: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl CountingOllamaProvider {
+    fn new() -> (Self, Arc<std::sync::atomic::AtomicUsize>) {
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let inner = llmrust::providers::ollama::OllamaProvider::new(
+            llmrust::ProviderConfig::new("").with_base_url("http://127.0.0.1:1"),
+        );
+        (
+            Self {
+                inner,
+                calls: Arc::clone(&calls),
+            },
+            calls,
+        )
+    }
+}
+
+#[async_trait::async_trait]
+impl Provider for CountingOllamaProvider {
+    async fn chat(&self, _req: &ChatRequest) -> llmrust::Result<ChatResponse> {
+        self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Err(LlmError::Stream("provider must not be called".to_string()))
+    }
+
+    async fn stream(
+        &self,
+        _req: &ChatRequest,
+    ) -> llmrust::Result<BoxStream<'static, llmrust::Result<StreamChunk>>> {
+        self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Err(LlmError::Stream("provider must not be called".to_string()))
+    }
+
+    fn capabilities(&self) -> llmrust::Capabilities {
+        self.inner.capabilities()
+    }
+}
+
+async fn stream_events_for(provider: Arc<dyn Provider>, body: serde_json::Value) -> String {
+    let llm = Arc::new(LmrsClient::new());
+    llm.set_custom("mock", provider).await;
+    let app = llmrust::proxy::router(llm);
+    let response = app
+        .oneshot(build_responses_request(&body.to_string()))
+        .await
+        .expect("request failed");
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body read failed");
+    String::from_utf8(bytes.to_vec()).expect("valid UTF-8 SSE")
+}
+
+async fn assert_ollama_stream_rejected_before_provider(body: serde_json::Value) {
+    let (provider, calls) = CountingOllamaProvider::new();
+    let llm = Arc::new(LmrsClient::new());
+    llm.set_custom("ollama", Arc::new(provider)).await;
+    let app = llmrust::proxy::router(llm);
+    let response = app
+        .oneshot(build_responses_request(&body.to_string()))
+        .await
+        .expect("request failed");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let bytes = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body read failed");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("valid JSON error");
+    assert_eq!(json["error"]["type"], "invalid_request_error");
+    assert!(json["error"]["message"]
+        .as_str()
+        .is_some_and(|m| m.to_lowercase().contains("unsupported")));
+    assert_eq!(
+        calls.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "CAP-003 rejection must precede every provider call"
+    );
+}
+
+#[tokio::test]
+async fn responses_stream_carries_thinking_not_dropped() {
+    // OpenAI Responses API native reasoning carrier: a `reasoning` output item
+    // carries summary_text parts streamed by reasoning_summary_* events. This
+    // is lossless for StreamChunk.thinking text (not a fabricated failure).
+    let text = stream_events_for(
+        Arc::new(ThinkingProvider),
+        serde_json::json!({
+            "model": "mock/m",
+            "input": "hi",
+            "stream": true
+        }),
+    )
+    .await;
+    let events = sse_json_events(&text);
+    let reasoning_deltas: Vec<&str> = events
+        .iter()
+        .filter(|event| event["type"] == "response.reasoning_summary_text.delta")
+        .filter_map(|event| event["delta"].as_str())
+        .collect();
+    assert_eq!(reasoning_deltas, vec!["think aloud"]);
+    assert!(events.iter().any(|event| {
+        event["type"] == "response.output_item.done"
+            && event["item"]["type"] == "reasoning"
+            && event["item"]["summary"][0]["text"] == "think aloud"
+    }));
+    let completed = events
+        .iter()
+        .find(|event| event["type"] == "response.completed")
+        .expect("reasoning stream must still complete normally");
+    assert_eq!(completed["response"]["output"][0]["type"], "reasoning");
+    assert_eq!(
+        completed["response"]["output"][0]["summary"][0]["text"],
+        "think aloud"
+    );
+    assert!(!events
+        .iter()
+        .any(|event| event["type"] == "response.failed"));
+    assert!(text.contains("[DONE]"));
+}
+
+#[tokio::test]
+async fn responses_stream_truncation_without_terminal_fails_not_completed() {
+    let text = stream_events_for(
+        Arc::new(TruncatedProvider),
+        serde_json::json!({
+            "model": "mock/m",
+            "input": "hi",
+            "stream": true
+        }),
+    )
+    .await;
+    let events = sse_json_events(&text);
+    let failed = events
+        .iter()
+        .find(|event| event["type"] == "response.failed")
+        .expect("clean EOF without done must fail");
+    assert_eq!(failed["response"]["status"], "failed");
+    assert_eq!(failed["response"]["error"]["code"], "incomplete");
+    assert!(!events
+        .iter()
+        .any(|event| event["type"] == "response.completed"));
+    assert!(text.contains("[DONE]"));
+}
+
+#[tokio::test]
+async fn responses_unsupported_error_maps_to_400_not_502() {
+    let (provider, calls) = CountingOllamaProvider::new();
+    let llm = Arc::new(LmrsClient::new());
+    llm.set_custom("ollama", Arc::new(provider)).await;
+    let app = llmrust::proxy::router(llm);
+    let body = serde_json::json!({
+        "model": "ollama/llama3",
+        "input": "hi",
+        "tools": [{"type": "function", "name": "f", "parameters": {"type": "object"}}]
+    });
+    let response = app
+        .oneshot(build_responses_request(&body.to_string()))
+        .await
+        .expect("request failed");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let bytes = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body read failed");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("valid JSON error");
+    assert_eq!(json["error"]["type"], "invalid_request_error");
+    assert_eq!(
+        calls.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "Unsupported must be rejected before provider dispatch"
+    );
+}
+
+#[tokio::test]
+async fn responses_stream_error_event_is_sanitized() {
+    let text = stream_events_for(
+        Arc::new(SanitizedErrorProvider),
+        serde_json::json!({
+            "model": "mock/m",
+            "input": "hi",
+            "stream": true
+        }),
+    )
+    .await;
+    let events = sse_json_events(&text);
+    let failed = events
+        .iter()
+        .find(|event| event["type"] == "response.failed")
+        .expect("stream error must fail the response");
+    let message = failed["response"]["error"]["message"]
+        .as_str()
+        .expect("error message");
+    assert_eq!(message, "upstream stream failed");
+    assert!(message.chars().count() <= 200);
+    assert!(!text.contains("http://"));
+    assert!(!text.contains("https://"));
+    assert!(!text.contains("raw-secret"));
+    assert!(!events
+        .iter()
+        .any(|event| event["type"] == "response.completed"));
+}
+
+#[tokio::test]
+async fn responses_ollama_tools_rejected_before_provider() {
+    assert_ollama_stream_rejected_before_provider(serde_json::json!({
+        "model": "ollama/llama3",
+        "input": "hi",
+        "stream": true,
+        "tools": [{"type": "function", "name": "f", "parameters": {"type": "object"}}]
+    }))
+    .await;
+}
+
+#[tokio::test]
+async fn responses_ollama_image_rejected_before_provider() {
+    assert_ollama_stream_rejected_before_provider(serde_json::json!({
+        "model": "ollama/llava",
+        "input": [{
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_image", "image_url": "data:image/png;base64,AAAA"}]
+        }],
+        "stream": true
+    }))
+    .await;
+}

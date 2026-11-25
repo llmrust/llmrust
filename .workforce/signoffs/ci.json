@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "ci",
   "agent": "ci-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
   "agreed": true,
-  "comments": "同意签署：五卡全部 CI 承接面经实测成立——gitleaks 锚定由 security.yml secrets job（detect --no-git --config .gitleaks.toml）闭环，proxy 口径测试由 ci.yml cargo test --all-features（proxy 为唯一非默认 feature，等价 --features proxy）每次 push/PR 全量覆盖，architecture_guard/package_guard 有 architecture 专项 job，回执所需 pushed.head_sha 与 workflow_runs conclusion/URL 可经已认证 gh 实测拉取（b008185 双 workflow 均 push/success：CI 44723526976、Security Gates 44723526852），无判据引用 CI 上不存在的 job/命令，CRLF（splitlines/lines() 双口径同值、PROXY 卡不锚行号）与正斜杠路径差异不构成阻塞缺口。",
-  "signedAt": "2026-11-20T23:10:48+08:00"
+  "comments": "最终复核 spec v7.1 与 config 提交 6bfe9d7 后同意签署，无新增 CI 阻断。validate-spec 与 check-criteria 均 PASS（3 phases/12 batches/14 cards/90 criteria）；6bfe9d7 将 rustdoc 门修正为受支持的 cargo rustdoc --locked --all-features -- -D warnings，六条 config gates 保持 locked、默认/全特性、all-targets/all-features 的完整基线。RELEASE-GATE c2/c5 可承接 publish 的 quality/security/semver/MSRV/rustdoc 完整依赖图、tag/main ancestry、required checks、精确版本产物与 --locked/set -euo pipefail；semver 在 spec、各 C-018 卡及 RELEASE-GATE c4 固定 baseline=0.1.6，默认 --default-features 与 --all-features 双口径。C-AUD-PROXY v7.1 已把 src/lib.rs 纳入写域与四文件台账链，c1 明确 pub(crate) stream_raw_with 不调用 unify_terminal，c2/c3 以十七项 wire 测试、三端点×Ollama tools/image 零 provider 调用及 handler 回退注入钉住；PROXY-RESIDUAL 已同步 stream_raw_with 与十七项回归。RELEASE-GATE 的 ruling_refs 明确 MSRV all-features、Windows/macOS 编译测试矩阵、gitleaks history+worktree 双扫，E2E strict 以零 provider/JoinError/未消费终态失败、完整 stream 与 terminal/tool_calls/thinking 断言形成门，相关 workflow、脚本、示例与文档均在释放卡写域内。注意 6bfe9d7 尚未推到 origin/main（远端仍为 eb07c7c），故该配置提交暂无远端 run；本次签署只确认方案可承接，新实现提交后必须重新取得对应 head_sha 的远端 CI 证据。",
+  "signedAt": "2026-11-24T20:38:42+08:00"
 }

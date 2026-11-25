@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "ledger",
   "agent": "ledger-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
   "agreed": true,
-  "comments": "同意：三张台账卡 adjustments 六字段格式与现台账结构逐字段一致且机判命令齐备，8 old 值与 b008185 实测基线逐一对账成立，Python splitlines 与守卫 lines().count() 在全部 12 个基线文件上实测同值且双口径判据互为闭环，台账/capabilities.json 全部跨批重叠均由 blocked_by 显式串行化解，ledger 回执口径（command=null 台账层只验 self_sha256 自洽）可产。",
-  "signedAt": "2026-11-20T23:07:27+08:00"
+  "comments": "同意 spec v7.1：11 个台账写入卡分布于 11 个批次，每批至多一个；相位顺序与 blocked_by 构成无冲突串行链。六张 source 卡 c5 均纳入 planned_file_paths，并具备 batch_base old、前驱 new==old、new==实测==baseline、六字段含 file、reason/authorized/date、threshold 与 newly-oversized old=0/无前驱分支；API-DOC 改为零台账机判。实际抽跑 HTTP/CAPABILITY/PROXY 三条 c5 Python：语法编译、当前基线分支、planned 缺失分支及 newly-oversized old=0 分支均 PASS。C-AUD-PROXY c6 已覆盖 proxy 三文件+lib.rs 四文件并校验 C-AUD-PROXY 归属。KI-HIST-DELTA-INJECTION 已明确归档 C-DELTA c6 五字段/缺 file/old 链历史缺口。现行台账 58 条 adjustment、12 条文件链零断链且全收敛；threshold=500，25 个 src/**/*.rs 中 12 个达到阈值且全部登记，无 baseline mismatch 或未登记超限；台账 sha256=39e63f659c1e9656e4e8674934b98abfc5dc8b59e4c007f00198e117cd7f00d3。本次未运行 cargo，未修改台账/spec/cards/业务文件。",
+  "signedAt": "2026-11-24T20:41:35.8596967+08:00"
 }

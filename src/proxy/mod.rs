@@ -852,6 +852,15 @@ async fn handle_embeddings(
         );
     }
 
+    // AUD#12: validate routing at the proxy boundary. Without this preflight
+    // `embed_with` returns LlmError::Parse, which the upstream-error normalizer
+    // correctly maps to 502 even though a malformed client model is a 400.
+    let (_, model_name) = match split_model(&req.model) {
+        Ok(pair) => pair,
+        Err(e) => return error_response(StatusCode::BAD_REQUEST, e),
+    };
+    let model_name = model_name.to_string();
+
     tracing::info!(
         model = %req.model,
         input_count = inputs.len(),
@@ -859,7 +868,7 @@ async fn handle_embeddings(
     );
 
     // Build EmbeddingRequest
-    let mut embed_req = EmbeddingRequest::batch("", inputs);
+    let mut embed_req = EmbeddingRequest::batch(model_name, inputs);
     if let Some(dim) = req.dimensions {
         embed_req = embed_req.with_dimensions(dim);
     }
@@ -957,14 +966,9 @@ fn build_openai_sse_response(
                         return Some((event, state));
                     }
                     let has_tool_calls = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
-                    let mut finish_reason = chunk.finish_reason;
-                    if finish_reason.is_none() && chunk.done {
-                        finish_reason = Some(if has_tool_calls {
-                            FinishReason::ToolCalls
-                        } else {
-                            FinishReason::Stop
-                        });
-                    }
+                    // AUD#10 / ERR-003: a real terminal with no reason is
+                    // missing information, not evidence for Stop/ToolCalls.
+                    let finish_reason = chunk.finish_reason;
                     let has_usage = chunk.usage.is_some();
                     let usage = if state.include_usage {
                         chunk.usage.map(ProxyUsage::from)
@@ -1028,8 +1032,8 @@ fn build_openai_sse_response(
                     state.terminated = true;
                     let error_payload = ProxyError {
                         error: ProxyErrorDetail {
-                            message: e.to_string(),
-                            error_type: "stream_error".to_string(),
+                            message: truncate_message(stream_error_message(&e)),
+                            error_type: stream_error_type(&e).to_string(),
                             param: None,
                             code: None,
                         },
@@ -1067,7 +1071,7 @@ async fn handle_stream(
     mut req: ChatRequest,
     include_usage: bool,
 ) -> Response {
-    let (provider_name, model_name) = match split_model(model) {
+    let (_, model_name) = match split_model(model) {
         Ok(pair) => pair,
         Err(e) => return error_response(StatusCode::BAD_REQUEST, e),
     };
@@ -1075,12 +1079,10 @@ async fn handle_stream(
     req.model = model_name.to_string();
     req.stream = true;
 
-    let provider = match state.llm.get_provider(provider_name).await {
-        Ok(p) => p,
-        Err(e) => return proxy_error_from_llm_error(e),
-    };
-
-    let stream_result = provider.stream(&req).await;
+    // AUD#2: keep CAP-003/model routing at the client boundary, but do not
+    // apply unify_terminal here — the OpenAI wire owns its `[DONE]` marker and
+    // must be able to emit a real bare terminal with finish_reason=null.
+    let stream_result = state.llm.stream_raw_with(model, req).await;
 
     match stream_result {
         Ok(inner_stream) => {
@@ -1124,7 +1126,11 @@ fn convert_request(req: &ProxyChatRequest) -> Result<ChatRequest, String> {
                 "user" => Role::User,
                 "assistant" => Role::Assistant,
                 "tool" => Role::Tool,
-                other => return Err(format!("Unknown role: {}", other)),
+                other => {
+                    return Err(truncate_message(&sanitize_error_text(&format!(
+                        "Unknown role: {other}"
+                    ))))
+                }
             };
             Ok(Message {
                 role,
@@ -1209,6 +1215,54 @@ pub(crate) fn truncate_message(s: &str) -> String {
     s.chars().take(MAX_ERROR_MESSAGE_CHARS).collect()
 }
 
+/// Remove URL substrings from an upstream-controlled error before it crosses
+/// the proxy wire. `reqwest` errors include the request URL in their `Display`
+/// form; truncation alone does not remove that credential/location leak.
+pub(crate) fn sanitize_error_text(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some((offset, scheme_len)) = ["http://", "https://"]
+        .into_iter()
+        .filter_map(|scheme| rest.find(scheme).map(|at| (at, scheme.len())))
+        .min_by_key(|(at, _)| *at)
+    {
+        out.push_str(&rest[..offset]);
+        out.push_str("[redacted-url]");
+        rest = &rest[offset + scheme_len..];
+        // Consume the URL body but retain punctuation that terminates it.
+        let end = rest
+            .find(|c: char| {
+                c.is_whitespace() || matches!(c, '"' | '\'' | '<' | '>' | ')' | ']' | '}' | ',')
+            })
+            .unwrap_or(rest.len());
+        rest = &rest[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Fixed, protocol-safe wording for an error raised inside an SSE stream.
+/// Raw upstream text can contain prompts, credentials, or a request URL, so
+/// stream errors expose only the error category plus the shared length bound.
+pub(crate) fn stream_error_message(e: &LlmError) -> &'static str {
+    match e {
+        LlmError::Api { .. } => "upstream stream API request failed",
+        LlmError::Http(_) => "upstream connection failed while streaming",
+        LlmError::Parse(_) => "upstream returned an invalid streaming response",
+        LlmError::Stream(_) => "upstream stream failed",
+        LlmError::UnknownProvider(_) => "unknown provider",
+        LlmError::Unsupported { .. } => "requested feature is unsupported for this stream",
+    }
+}
+
+pub(crate) fn stream_error_type(e: &LlmError) -> &'static str {
+    if matches!(e, LlmError::Unsupported { .. }) {
+        "invalid_request_error"
+    } else {
+        "stream_error"
+    }
+}
+
 /// Convert an `LlmError` into an HTTP error response.
 fn proxy_error_from_llm_error(e: LlmError) -> Response {
     // PRX-005 (SPCC §11.6) + ERR-002 (SPCC §6.3): normalize upstream errors to
@@ -1253,9 +1307,9 @@ fn proxy_error_from_llm_error(e: LlmError) -> Response {
         ),
         LlmError::Stream(msg) => (StatusCode::BAD_GATEWAY, msg.clone(), "api_error"),
     };
-    // ERR-002 / FND-R3: 截断在**所有**路径生效——只在这一处，故"漏掉某条分支"不再可能。
-    let message = truncate_message(&raw_message);
-    error_response_with_type(status, &message, error_type)
+    // ERR-002 / FND-R3: the response constructor applies URL stripping and the
+    // length bound exactly once, after every arm has produced its raw message.
+    error_response_with_type(status, &raw_message, error_type)
 }
 
 fn api_error_type(status: StatusCode) -> &'static str {
@@ -1318,7 +1372,7 @@ fn error_response(status: StatusCode, message: &str) -> Response {
 fn error_response_with_type(status: StatusCode, message: &str, error_type: &str) -> Response {
     let body = ProxyError {
         error: ProxyErrorDetail {
-            message: message.to_string(),
+            message: truncate_message(&sanitize_error_text(message)),
             error_type: error_type.to_string(),
             param: None,
             code: None,
@@ -3766,5 +3820,319 @@ mod tests {
             json["error"]["type"], "invalid_request_error",
             "chunked 413 must be a protocol-shaped JSON error body, got: {json}"
         );
+    }
+
+    // ── C-AUD-PROXY: raw-stream routing, honest terminals, sanitized errors ──
+
+    struct ChunkProvider {
+        chunks: Arc<Vec<StreamChunk>>,
+        error: Option<String>,
+    }
+
+    #[async_trait]
+    impl Provider for ChunkProvider {
+        async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+            Ok(ChatResponse::default())
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            let mut chunks: Vec<Result<StreamChunk>> =
+                self.chunks.iter().cloned().map(Ok).collect();
+            if let Some(message) = &self.error {
+                chunks.push(Err(LlmError::Stream(message.clone())));
+            }
+            Ok(Box::pin(stream::iter(chunks)))
+        }
+    }
+
+    /// Uses Ollama's real capability declaration while counting dispatch. The
+    /// methods deliberately fail if called: a 400 plus zero calls proves the
+    /// proxy refusal happened in CAP-003, before any provider/network work.
+    struct CountingOllamaProvider {
+        inner: crate::providers::ollama::OllamaProvider,
+        calls: Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    impl CountingOllamaProvider {
+        fn new() -> (Self, Arc<std::sync::atomic::AtomicUsize>) {
+            let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let inner = crate::providers::ollama::OllamaProvider::new(
+                crate::ProviderConfig::new("").with_base_url("http://127.0.0.1:1"),
+            );
+            (
+                Self {
+                    inner,
+                    calls: Arc::clone(&calls),
+                },
+                calls,
+            )
+        }
+    }
+
+    #[async_trait]
+    impl Provider for CountingOllamaProvider {
+        async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Err(LlmError::Stream("provider must not be called".to_string()))
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Err(LlmError::Stream("provider must not be called".to_string()))
+        }
+
+        fn capabilities(&self) -> crate::Capabilities {
+            self.inner.capabilities()
+        }
+    }
+
+    async fn assert_ollama_request_rejected_before_provider(body: serde_json::Value) {
+        let (provider, calls) = CountingOllamaProvider::new();
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("ollama", Arc::new(provider)).await;
+        let app = router(llm);
+
+        let response = app
+            .oneshot(build_request(&body.to_string()))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let json: serde_json::Value = serde_json::from_slice(&bytes).expect("valid JSON error");
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert!(json["error"]["message"]
+            .as_str()
+            .is_some_and(|m| m.to_lowercase().contains("unsupported")));
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "CAP-003 rejection must precede every provider call"
+        );
+    }
+
+    #[tokio::test]
+    async fn proxy_chat_completions_rejects_unsupported_thinking_with_400() {
+        let (provider, calls) = CountingOllamaProvider::new();
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("ollama", Arc::new(provider)).await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "ollama/llama3",
+            "messages": [{"role": "user", "content": "hi"}],
+            "reasoning_effort": "high"
+        });
+
+        let response = app
+            .oneshot(build_request(&body.to_string()))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let json: serde_json::Value = serde_json::from_slice(&bytes).expect("valid JSON error");
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "reasoning rejection must happen before provider dispatch"
+        );
+    }
+
+    #[tokio::test]
+    async fn proxy_chat_completions_stream_without_terminal_emits_done() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom(
+            "raw",
+            Arc::new(ChunkProvider {
+                chunks: Arc::new(vec![StreamChunk {
+                    delta: "partial".to_string(),
+                    ..Default::default()
+                }]),
+                error: None,
+            }),
+        )
+        .await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "raw/m",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": true
+        });
+
+        let response = app
+            .oneshot(build_request(&body.to_string()))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+        let text = collect_sse(response).await;
+        assert!(text.contains("partial"));
+        assert!(text.contains("[DONE]"));
+        let events = sse_json_events(&text);
+        assert!(events
+            .iter()
+            .all(|event| { event["choices"][0]["finish_reason"].is_null() }));
+    }
+
+    #[tokio::test]
+    async fn proxy_chat_completions_bare_done_does_not_fabricate_finish_reason() {
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom(
+            "raw",
+            Arc::new(ChunkProvider {
+                chunks: Arc::new(vec![StreamChunk {
+                    done: true,
+                    tool_calls: Some(vec![ToolCall {
+                        id: "call_1".to_string(),
+                        call_type: "function".to_string(),
+                        function: FunctionCall {
+                            name: "f".to_string(),
+                            arguments: "{}".to_string(),
+                        },
+                    }]),
+                    ..Default::default()
+                }]),
+                error: None,
+            }),
+        )
+        .await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "raw/m",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": true
+        });
+
+        let response = app
+            .oneshot(build_request(&body.to_string()))
+            .await
+            .expect("request failed");
+        let text = collect_sse(response).await;
+        let events = sse_json_events(&text);
+        let terminal = events
+            .iter()
+            .find(|event| event["choices"][0]["delta"].get("tool_calls").is_some())
+            .expect("bare terminal must be forwarded");
+        assert!(
+            terminal["choices"][0]["finish_reason"].is_null(),
+            "missing upstream reason must stay null, got: {terminal}"
+        );
+        assert!(text.contains("[DONE]"));
+    }
+
+    #[tokio::test]
+    async fn proxy_embeddings_missing_provider_prefix_yields_400() {
+        let captured = Arc::new(Mutex::new(None));
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom(
+            "fake",
+            Arc::new(EmbedMockProvider {
+                captured: Arc::clone(&captured),
+            }),
+        )
+        .await;
+        let app = router(llm);
+
+        let response = app
+            .oneshot(embed_body("no-provider-prefix", serde_json::json!("hi")))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let json: serde_json::Value = serde_json::from_slice(&bytes).expect("valid JSON error");
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert!(captured.lock().unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn proxy_stream_error_event_is_sanitized() {
+        let raw = format!(
+            "raw-secret https://upstream.example/private?token=secret {}",
+            "x".repeat(2_000)
+        );
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom(
+            "raw",
+            Arc::new(ChunkProvider {
+                chunks: Arc::new(Vec::new()),
+                error: Some(raw),
+            }),
+        )
+        .await;
+        let app = router(llm);
+        let body = serde_json::json!({
+            "model": "raw/m",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": true
+        });
+
+        let response = app
+            .oneshot(build_request(&body.to_string()))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+        let text = collect_sse(response).await;
+        let events = sse_json_events(&text);
+        let error = events
+            .iter()
+            .find(|event| event.get("error").is_some())
+            .expect("stream error event");
+        let message = error["error"]["message"].as_str().expect("error message");
+        assert_eq!(message, "upstream stream failed");
+        assert!(message.chars().count() <= MAX_ERROR_MESSAGE_CHARS);
+        assert!(!text.contains("http://"));
+        assert!(!text.contains("https://"));
+        assert!(!text.contains("raw-secret"));
+        assert!(text.contains("[DONE]"));
+    }
+
+    #[test]
+    fn convert_request_unknown_role_is_clamped() {
+        let role = format!("https://role.example/{}", "x".repeat(2_000));
+        let req: ProxyChatRequest = serde_json::from_value(serde_json::json!({
+            "model": "mock/m",
+            "messages": [{"role": role, "content": "hi"}]
+        }))
+        .unwrap();
+        let error = convert_request(&req).expect_err("unknown role must fail");
+        assert!(error.starts_with("Unknown role: "));
+        assert!(error.chars().count() <= MAX_ERROR_MESSAGE_CHARS);
+        assert!(!error.contains("http://"));
+        assert!(!error.contains("https://"));
+        assert!(!error.contains(&"x".repeat(500)));
+    }
+
+    #[tokio::test]
+    async fn proxy_chat_completions_ollama_tools_rejected_before_provider() {
+        assert_ollama_request_rejected_before_provider(serde_json::json!({
+            "model": "ollama/llama3",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": true,
+            "tools": [{"type": "function", "function": {"name": "f", "parameters": {}}}]
+        }))
+        .await;
+    }
+
+    #[tokio::test]
+    async fn proxy_chat_completions_ollama_image_rejected_before_provider() {
+        assert_ollama_request_rejected_before_provider(serde_json::json!({
+            "model": "ollama/llava",
+            "stream": true,
+            "messages": [{
+                "role": "user",
+                "content": [{"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}}]
+            }]
+        }))
+        .await;
     }
 }

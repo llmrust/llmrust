@@ -495,30 +495,49 @@ impl LmrsClient {
     pub async fn stream_with(
         &self,
         model: &str,
+        req: ChatRequest,
+    ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+        let stream = self.stream_raw_with(model, req).await?;
+        // STR-001: collapse provider's parsed chunks into the single-terminal
+        // shape required by SPCC §6.5/§6.6 at the public `stream()` boundary.
+        Ok(Box::pin(crate::providers::stream_state::unify_terminal(
+            stream,
+        )))
+    }
+
+    /// Open a provider stream through the unified routing/capability boundary
+    /// **without** collapsing its terminal state.
+    ///
+    /// Proxy protocols do not share one terminal representation: Chat uses
+    /// `[DONE]`, Anthropic uses `message_stop`, and Responses distinguishes a
+    /// real `done` chunk from a clean EOF. Applying `unify_terminal` here would
+    /// synthesize a terminal for a truncated stream and erase that distinction.
+    /// Each proxy therefore owns its terminal/truncation handling after this
+    /// raw stream is opened (C-AUD-PROXY / AUD#2).
+    pub(crate) async fn stream_raw_with(
+        &self,
+        model: &str,
         mut req: ChatRequest,
     ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
         let (provider_name, model_name) = Self::parse_model(model)?;
         tracing::debug!(
             provider = provider_name,
             model = model_name,
-            "opening stream"
+            "opening raw stream"
         );
         let provider = self.get_provider(provider_name).await?;
         req.model = model_name.to_string();
         req.stream = true;
-        // CAP-003：流式路径查 `tool_calling_stream` 面（与 `tool_calling` 分别判定）。
+        // CAP-003: the raw entry is still a unified client entry. Skipping this
+        // adjudication would let proxy streams silently drop tools/images.
         Self::adjudicate(provider.as_ref(), &req, true)?;
         let stream = provider.stream(&req).await?;
         tracing::debug!(
             provider = provider_name,
             model = model_name,
-            "stream opened"
+            "raw stream opened"
         );
-        // STR-001: collapse provider's parsed chunks into the single-terminal
-        // shape required by SPCC §6.5/§6.6 at the public `stream()` boundary.
-        Ok(Box::pin(crate::providers::stream_state::unify_terminal(
-            stream,
-        )))
+        Ok(stream)
     }
 
     /// Returns an `Unsupported` error when a chunk carries reasoning that the
@@ -842,6 +861,91 @@ mod tests {
             matches!(err, LlmError::Parse(_)),
             "Parse error must propagate, got: {:?}",
             err
+        );
+    }
+
+    /// Raw-stream fixture: records dispatch and deliberately emits no terminal.
+    struct RawStreamProvider {
+        seen: Arc<std::sync::Mutex<Option<(String, bool)>>>,
+    }
+
+    #[async_trait]
+    impl Provider for RawStreamProvider {
+        async fn chat(&self, _req: &ChatRequest) -> ProviderResult<ChatResponse> {
+            Ok(ChatResponse::default())
+        }
+
+        async fn stream(
+            &self,
+            req: &ChatRequest,
+        ) -> ProviderResult<BoxStream<'static, Result<StreamChunk>>> {
+            *self.seen.lock().unwrap() = Some((req.model.clone(), req.stream));
+            Ok(Box::pin(stream::empty()))
+        }
+
+        fn capabilities(&self) -> Capabilities {
+            let mut caps = Capabilities::unknown("raw-test");
+            caps.declared = true;
+            caps
+        }
+    }
+
+    #[tokio::test]
+    async fn stream_raw_with_preserves_clean_eof_and_strips_model() {
+        let seen = Arc::new(std::sync::Mutex::new(None));
+        let llm = LmrsClient::new();
+        llm.set_custom(
+            "raw",
+            Arc::new(RawStreamProvider {
+                seen: Arc::clone(&seen),
+            }),
+        )
+        .await;
+
+        let mut chunks = llm
+            .stream_raw_with("raw/upstream-model", ChatRequest::new("ignored", "hi"))
+            .await
+            .expect("raw stream opens");
+        assert!(
+            chunks.next().await.is_none(),
+            "raw stream must not synthesize a terminal at clean EOF"
+        );
+        assert_eq!(
+            seen.lock().unwrap().as_ref(),
+            Some(&("upstream-model".to_string(), true)),
+            "raw entry must strip the provider prefix and force streaming"
+        );
+    }
+
+    #[tokio::test]
+    async fn stream_raw_with_adjudicates_before_provider_call() {
+        let seen = Arc::new(std::sync::Mutex::new(None));
+        let llm = LmrsClient::new();
+        llm.set_custom(
+            "raw",
+            Arc::new(RawStreamProvider {
+                seen: Arc::clone(&seen),
+            }),
+        )
+        .await;
+        let req = ChatRequest::new("ignored", "hi").with_tools(vec![crate::Tool::function(
+            "f",
+            None,
+            serde_json::json!({"type": "object"}),
+        )]);
+
+        let err = llm
+            .stream_raw_with("raw/m", req)
+            .await
+            .err()
+            .expect("declared-unsupported streaming tools must be rejected");
+        assert!(
+            matches!(err, LlmError::Unsupported { ref feature, .. } if feature == "tool_calling_stream"),
+            "raw entry must retain CAP-003 stream-face adjudication, got: {err:?}"
+        );
+        assert!(
+            seen.lock().unwrap().is_none(),
+            "capability rejection must happen before the provider call"
         );
     }
 }

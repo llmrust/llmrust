@@ -1,0 +1,85 @@
+{
+  "schema": "gate-preflight/v1",
+  "role": "gate",
+  "agent": "gate-llmrust",
+  "batch_id": "B-AUD-3",
+  "card_id": "C-AUD-PROXY",
+  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "head_sha": "6bfe9d7e2212a0317662807618c40ff1d9ddf57e",
+  "cargo_version": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "rustc_version": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "protected_files": [
+    {
+      "path": ".workforce/cards/C-AUD-PROXY.json",
+      "sha256": "45a6805f3487e9e12788348f34a53e4d2d8729c1e743bbbfc826bfc4666175c3"
+    },
+    {
+      "path": ".workforce/config.json",
+      "sha256": "8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f"
+    },
+    {
+      "path": ".workforce/loop-state.json",
+      "sha256": "da3c21dab5162a25408d96446cd2bc45785c8ed6fe013770b849ee67263bbff3"
+    },
+    {
+      "path": ".workforce/signoffs/architect.json",
+      "sha256": "d9228772663f070d943e2b93d7e3fe85cfebbed0a8993ac67267dfd88b1685fe"
+    },
+    {
+      "path": ".workforce/signoffs/ci.json",
+      "sha256": "2308f2946596de2365926773551eeaeb2e0a08c987f0ea89fc400e9452dab979"
+    },
+    {
+      "path": ".workforce/signoffs/dev.json",
+      "sha256": "7c3d0002ba228b9f22396f81f5aeb4d96f228ae0e2cdbd59b19fc7e5eb6a69c1"
+    },
+    {
+      "path": ".workforce/signoffs/gate.json",
+      "sha256": "be2ca8fa8fcaf11550af39fb45624c1be0972b68380cbe72938a46e6563a096f"
+    },
+    {
+      "path": ".workforce/signoffs/lead.json",
+      "sha256": "e0865eb6cc01a461ced13ff1ca8192c8c73b68ef4591ca4bd52e39c52e56345a"
+    },
+    {
+      "path": ".workforce/signoffs/ledger.json",
+      "sha256": "46f8df0c15626fb19cf76b4eecbd75e95295298dad9f38c2b72ad5c60bc0e1d4"
+    },
+    {
+      "path": ".workforce/signoffs/qa.json",
+      "sha256": "d544673af36490c3d7d01c98ef205c181302441a1fff6f9ab67a9b67087b2536"
+    },
+    {
+      "path": ".workforce/spec.json",
+      "sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "ca9a833c96a22ff16c109959f8ffab0ceb8b26606c294aad88c42c6098e37791"
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "bc6e4620b7f05209184104edd470177368e2430de716abdf325b329a6336791d"
+    },
+    {
+      "path": "src/proxy/anthropic_proxy.rs",
+      "sha256": "0c3e928df67acd3e183b5d8440595e6ae0ea64cbc499a387fc1bfcc1a774c893"
+    },
+    {
+      "path": "src/proxy/mod.rs",
+      "sha256": "72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d"
+    },
+    {
+      "path": "src/proxy/responses_proxy.rs",
+      "sha256": "a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc"
+    },
+    {
+      "path": "tests/responses_proxy_tests.rs",
+      "sha256": "cc7ef211bf4bb0763d487fc370766c556cdcdb7c6eaf47936939d80151bb8f23"
+    }
+  ]
+}

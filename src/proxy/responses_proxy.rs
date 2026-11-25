@@ -29,7 +29,10 @@ use crate::types::{
 };
 use crate::LlmError;
 
-use super::{generate_id, split_model, unix_timestamp, AppState};
+use super::{
+    generate_id, sanitize_error_text, split_model, stream_error_message, truncate_message,
+    unix_timestamp, AppState,
+};
 
 // ── Responses API request types ──────────────
 
@@ -503,11 +506,22 @@ struct SseState {
     tool_item_ids: Vec<String>,
     tool_args_by_item: std::collections::HashMap<String, String>,
     tool_names_by_item: std::collections::HashMap<String, String>,
+    tool_output_indices: std::collections::HashMap<String, usize>,
     full_text: String,
     terminal_usage: Option<Usage>,
     item_sent: bool,
     part_sent: bool,
-    tool_items_sent: usize,
+    /// Responses can carry reasoning natively as a `reasoning` output item
+    /// whose summary is streamed through reasoning_summary_* events.
+    reasoning_id: Option<String>,
+    reasoning_output_index: Option<usize>,
+    reasoning_text: String,
+    reasoning_part_sent: bool,
+    reasoning_done: bool,
+    /// Index zero is reserved for the assistant message unless reasoning
+    /// arrives first; tool/reasoning items then allocate subsequent indices.
+    message_output_index: usize,
+    next_output_index: usize,
     done_seen: bool,
     awaiting_terminal: bool,
     terminated: bool,
@@ -517,6 +531,100 @@ struct SseState {
 impl SseState {
     fn push(&mut self, payload: serde_json::Value) {
         self.queue.push_back(payload.to_string());
+    }
+
+    /// Open the native Responses reasoning item and its summary part. Normal
+    /// providers emit thinking before answer text, so the message moves from
+    /// output index 0 to 1 in that case. Late reasoning still gets a stable
+    /// index without rewriting already-emitted events.
+    fn ensure_reasoning_item(&mut self) {
+        if self.reasoning_id.is_some() {
+            return;
+        }
+        let index = if !self.item_sent && self.tool_item_ids.is_empty() {
+            self.message_output_index = 1;
+            self.next_output_index = 2;
+            0
+        } else {
+            let index = self.next_output_index;
+            self.next_output_index += 1;
+            index
+        };
+        let id = format!("rs_{}", self.id);
+        self.reasoning_id = Some(id.clone());
+        self.reasoning_output_index = Some(index);
+        self.push(serde_json::json!({
+            "type": "response.output_item.added",
+            "output_index": index,
+            "item": {
+                "id": id, "type": "reasoning", "status": "in_progress",
+                "summary": [],
+            }
+        }));
+        if !self.reasoning_part_sent {
+            self.reasoning_part_sent = true;
+            self.push(serde_json::json!({
+                "type": "response.reasoning_summary_part.added",
+                "item_id": id, "output_index": index, "summary_index": 0,
+                "part": {"type": "summary_text", "text": ""},
+            }));
+        }
+    }
+
+    fn process_thinking(&mut self, chunk: &StreamChunk) {
+        let has_thinking = matches!(&chunk.thinking, Some(t) if !t.is_empty());
+        let thinking_done = chunk.thinking_done == Some(true);
+        if !has_thinking && !thinking_done {
+            return;
+        }
+        self.ensure_reasoning_item();
+        if let Some(text) = &chunk.thinking {
+            if !text.is_empty() {
+                self.reasoning_text.push_str(text);
+                let id = self.reasoning_id.clone().unwrap_or_default();
+                let index = self.reasoning_output_index.unwrap_or(0);
+                self.push(serde_json::json!({
+                    "type": "response.reasoning_summary_text.delta",
+                    "item_id": id, "output_index": index, "summary_index": 0,
+                    "delta": text,
+                }));
+            }
+        }
+        let has_text = !chunk.delta.is_empty();
+        let has_tool = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
+        if thinking_done || has_text || has_tool || chunk.done {
+            self.close_reasoning_item();
+        }
+    }
+
+    fn close_reasoning_item(&mut self) {
+        if self.reasoning_done {
+            return;
+        }
+        let Some(id) = self.reasoning_id.clone() else {
+            return;
+        };
+        let index = self.reasoning_output_index.unwrap_or(0);
+        let text = self.reasoning_text.clone();
+        self.push(serde_json::json!({
+            "type": "response.reasoning_summary_text.done",
+            "item_id": id, "output_index": index, "summary_index": 0,
+            "text": text,
+        }));
+        self.push(serde_json::json!({
+            "type": "response.reasoning_summary_part.done",
+            "item_id": id, "output_index": index, "summary_index": 0,
+            "part": {"type": "summary_text", "text": text},
+        }));
+        self.push(serde_json::json!({
+            "type": "response.output_item.done",
+            "output_index": index,
+            "item": {
+                "id": id, "type": "reasoning", "status": "completed",
+                "summary": [{"type": "summary_text", "text": text}],
+            }
+        }));
+        self.reasoning_done = true;
     }
 }
 
@@ -542,11 +650,18 @@ fn build_stream_response(
         tool_item_ids: Vec::new(),
         tool_args_by_item: std::collections::HashMap::new(),
         tool_names_by_item: std::collections::HashMap::new(),
+        tool_output_indices: std::collections::HashMap::new(),
         full_text: String::new(),
         terminal_usage: None,
         item_sent: false,
         part_sent: false,
-        tool_items_sent: 0,
+        reasoning_id: None,
+        reasoning_output_index: None,
+        reasoning_text: String::new(),
+        reasoning_part_sent: false,
+        reasoning_done: false,
+        message_output_index: 0,
+        next_output_index: 1,
         done_seen: false,
         awaiting_terminal: false,
         terminated: false,
@@ -600,18 +715,13 @@ fn build_stream_response(
                     }
                     Some(Err(e)) => {
                         st.terminated = true;
-                        st.push(serde_json::json!({
-                            "type": "response.failed",
-                            "response": {
-                                "id": st.id, "object": "response", "status": "failed",
-                                "model": st.model,
-                                "error": {"message": e.to_string(), "code": "upstream_error"},
-                            }
-                        }));
+                        emit_failed_error(&mut st, &e);
                         continue;
                     }
                     None => {
                         st.terminated = true;
+                        // A real `done` was already observed; EOF here only
+                        // closes the trailing-usage drain window.
                         emit_completed(&mut st);
                         continue;
                     }
@@ -622,6 +732,10 @@ fn build_stream_response(
                 Some(Ok(chunk)) => {
                     let has_tool = chunk.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
 
+                    // AUD#9: reasoning is legal Responses content, not an
+                    // error. Carry it natively before answer/tool output.
+                    st.process_thinking(&chunk);
+
                     // Accumulate text for the completed output snapshot.
                     if !chunk.delta.is_empty() {
                         st.full_text.push_str(&chunk.delta);
@@ -631,7 +745,7 @@ fn build_stream_response(
                         st.item_sent = true;
                         st.push(serde_json::json!({
                             "type": "response.output_item.added",
-                            "output_index": 0,
+                            "output_index": st.message_output_index,
                             "item": {
                                 "id": st.msg_id, "type": "message", "role": "assistant",
                                 "status": "in_progress", "content": [],
@@ -643,30 +757,27 @@ fn build_stream_response(
                         st.part_sent = true;
                         st.push(serde_json::json!({
                             "type": "response.content_part.added",
-                            "item_id": st.msg_id, "output_index": 0, "content_index": 0,
+                            "item_id": st.msg_id,
+                            "output_index": st.message_output_index,
+                            "content_index": 0,
                             "part": {"type": "output_text", "text": "", "annotations": []},
                         }));
                     }
 
                     // Emit one function_call output item per tool call (not
-                    // just the first), with distinct output_index.
+                    // just the first), with a stable allocated output_index.
                     if has_tool {
                         if let Some(tool_calls) = &chunk.tool_calls {
                             for tc in tool_calls {
                                 let already_sent = st.tool_item_ids.contains(&tc.id);
                                 let idx = if already_sent {
-                                    // Real index of this tool among all tool
-                                    // items (arguments deltas on later chunks
-                                    // must keep pointing at the item).
-                                    st.tool_item_ids
-                                        .iter()
-                                        .position(|x| x == &tc.id)
-                                        .map(|p| p + 1)
-                                        .unwrap_or(st.tool_items_sent + 1)
+                                    st.tool_output_indices.get(&tc.id).copied().unwrap_or(0)
                                 } else {
+                                    let idx = st.next_output_index;
+                                    st.next_output_index += 1;
                                     st.tool_item_ids.push(tc.id.clone());
-                                    st.tool_items_sent += 1;
-                                    st.tool_items_sent
+                                    st.tool_output_indices.insert(tc.id.clone(), idx);
+                                    idx
                                 };
                                 if !already_sent {
                                     st.push(serde_json::json!({
@@ -705,7 +816,9 @@ fn build_stream_response(
                     if !chunk.delta.is_empty() {
                         st.push(serde_json::json!({
                             "type": "response.output_text.delta",
-                            "item_id": st.msg_id, "output_index": 0, "content_index": 0,
+                            "item_id": st.msg_id,
+                            "output_index": st.message_output_index,
+                            "content_index": 0,
                             "delta": chunk.delta,
                         }));
                     }
@@ -713,11 +826,14 @@ fn build_stream_response(
                     if chunk.done {
                         // Close the message item now; keep the stream open to
                         // harvest usage, then emit completed when the stream
-                        // ends.
+                        // ends. A real `done` is a terminal even when the
+                        // upstream omitted finish_reason; a clean EOF without
+                        // it is handled as truncation in the None arm below.
+                        st.close_reasoning_item();
                         st.done_seen = true;
                         st.push(serde_json::json!({
                             "type": "response.output_item.done",
-                            "output_index": 0,
+                            "output_index": st.message_output_index,
                             "item": {
                                 "id": st.msg_id, "type": "message", "role": "assistant",
                                 "status": "completed",
@@ -729,12 +845,16 @@ fn build_stream_response(
                             }
                         }));
                         let tool_ids: Vec<String> = st.tool_item_ids.clone();
-                        for (i, tc_id) in tool_ids.iter().enumerate() {
-                            let idx = i + 1;
-                            let args = st.tool_args_by_item.get(tc_id).cloned().unwrap_or_default();
+                        for tc_id in tool_ids {
+                            let idx = st.tool_output_indices.get(&tc_id).copied().unwrap_or(0);
+                            let args = st
+                                .tool_args_by_item
+                                .get(&tc_id)
+                                .cloned()
+                                .unwrap_or_default();
                             let name = st
                                 .tool_names_by_item
-                                .get(tc_id)
+                                .get(&tc_id)
                                 .cloned()
                                 .unwrap_or_default();
                             st.push(serde_json::json!({
@@ -759,19 +879,15 @@ fn build_stream_response(
                 }
                 Some(Err(e)) => {
                     st.terminated = true;
-                    st.push(serde_json::json!({
-                        "type": "response.failed",
-                        "response": {
-                            "id": st.id, "object": "response", "status": "failed",
-                            "model": st.model,
-                            "error": {"message": e.to_string(), "code": "upstream_error"},
-                        }
-                    }));
+                    emit_failed_error(&mut st, &e);
                     continue;
                 }
                 None => {
                     st.terminated = true;
-                    emit_completed(&mut st);
+                    // AUD#11: no upstream terminal means truncation, not
+                    // successful completion. Only the awaiting_terminal arm
+                    // above (which already saw a real done) may complete.
+                    emit_failed_truncation(&mut st);
                     continue;
                 }
             }
@@ -794,21 +910,47 @@ fn build_stream_response(
 }
 
 /// Emit the terminal `response.completed` event with the full output array
-/// (message content plus any function calls) and the harvested usage.
+/// (reasoning summary, message content, and function calls) and harvested usage.
 fn emit_completed(st: &mut SseState) {
-    let mut output: Vec<serde_json::Value> = Vec::new();
-    output.push(serde_json::json!({
-        "id": st.msg_id,
-        "type": "message",
-        "role": "assistant",
-        "status": "completed",
-        "content": [{
-            "type": "output_text",
-            "text": st.full_text,
-            "annotations": [],
-        }],
-    }));
+    let mut indexed_output: Vec<(usize, serde_json::Value)> = Vec::new();
+    if let Some(id) = &st.reasoning_id {
+        indexed_output.push((
+            st.reasoning_output_index.unwrap_or(0),
+            serde_json::json!({
+                "id": id,
+                "type": "reasoning",
+                "status": "completed",
+                "summary": [{
+                    "type": "summary_text",
+                    "text": st.reasoning_text,
+                }],
+            }),
+        ));
+    }
+    indexed_output.push((
+        st.message_output_index,
+        serde_json::json!({
+            "id": st.msg_id,
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": [{
+                "type": "output_text",
+                "text": st.full_text,
+                "annotations": [],
+            }],
+        }),
+    ));
     for tc_id in st.tool_item_ids.clone() {
+        let idx = if let Some(index) = st.tool_output_indices.get(&tc_id).copied() {
+            index
+        } else {
+            // A trailing usage/tool chunk may introduce an id after `done`.
+            let index = st.next_output_index;
+            st.next_output_index += 1;
+            st.tool_output_indices.insert(tc_id.clone(), index);
+            index
+        };
         let args = st
             .tool_args_by_item
             .get(&tc_id)
@@ -819,15 +961,20 @@ fn emit_completed(st: &mut SseState) {
             .get(&tc_id)
             .cloned()
             .unwrap_or_default();
-        output.push(serde_json::json!({
-            "id": tc_id,
-            "type": "function_call",
-            "status": "completed",
-            "call_id": tc_id,
-            "name": name,
-            "arguments": args,
-        }));
+        indexed_output.push((
+            idx,
+            serde_json::json!({
+                "id": tc_id,
+                "type": "function_call",
+                "status": "completed",
+                "call_id": tc_id,
+                "name": name,
+                "arguments": args,
+            }),
+        ));
     }
+    indexed_output.sort_by_key(|(index, _)| *index);
+    let output: Vec<serde_json::Value> = indexed_output.into_iter().map(|(_, item)| item).collect();
     let usage = st.terminal_usage.take().map(|u| {
         serde_json::json!({
             "input_tokens": u.prompt_tokens,
@@ -850,6 +997,43 @@ fn emit_completed(st: &mut SseState) {
             "model": st.model,
             "output": output,
             "usage": usage,
+        }
+    }));
+}
+
+/// Surface an in-stream provider error without echoing upstream text/URLs.
+fn emit_failed_error(st: &mut SseState, e: &LlmError) {
+    st.push(serde_json::json!({
+        "type": "response.failed",
+        "response": {
+            "id": st.id, "object": "response", "status": "failed",
+            "model": st.model,
+            "error": {
+                "message": truncate_message(stream_error_message(e)),
+                "type": if matches!(e, LlmError::Unsupported { .. }) {
+                    "invalid_request_error"
+                } else {
+                    "upstream_error"
+                },
+                "code": "upstream_error",
+            },
+        }
+    }));
+}
+
+/// A clean EOF without a real `done` chunk is truncation, never completion.
+fn emit_failed_truncation(st: &mut SseState) {
+    st.push(serde_json::json!({
+        "type": "response.failed",
+        "response": {
+            "id": st.id, "object": "response", "status": "failed",
+            "model": st.model,
+            "error": {
+                "message": "stream ended without a terminal (done) event; \
+                            truncation is a contract violation",
+                "type": "incomplete",
+                "code": "incomplete",
+            },
         }
     }));
 }
@@ -914,7 +1098,7 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
 
 /// Streaming branch: `StreamChunk` stream → Responses SSE.
 async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Response {
-    let (provider_name, model_name) = match split_model(model) {
+    let (_, model_name) = match split_model(model) {
         Ok(pair) => pair,
         Err(e) => {
             return invalid_json_response(StatusCode::BAD_REQUEST, e);
@@ -924,13 +1108,10 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
     req.model = model_name.to_string();
     req.stream = true;
 
-    let provider = match state.llm.get_provider(provider_name).await {
-        Ok(p) => p,
-        Err(e) => return responses_error_from_llm_error(e),
-    };
-
     let id = generate_id();
-    match provider.stream(&req).await {
+    // AUD#2: retain the raw terminal so this protocol can distinguish a real
+    // done chunk from a clean EOF (truncation -> response.failed).
+    match state.llm.stream_raw_with(model, req).await {
         Ok(inner_stream) => build_stream_response(inner_stream, id, model_name.to_string()),
         Err(e) => responses_error_from_llm_error(e),
     }
@@ -941,24 +1122,56 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
 fn invalid_json_response(status: StatusCode, message: &str) -> Response {
     let payload = serde_json::json!({
         "type": "error",
-        "error": {"message": message, "type": "invalid_request_error"},
+        "error": {
+            "message": truncate_message(&sanitize_error_text(message)),
+            "type": "invalid_request_error"
+        },
     });
     (status, Json(payload)).into_response()
 }
 
 /// Map an llmrust error onto a Responses-shaped error body.
 fn responses_error_from_llm_error(e: LlmError) -> Response {
-    let (status, err_type) = match &e {
-        LlmError::Api { status, .. } => (
+    let (status, err_type, raw_message) = match &e {
+        LlmError::Api { status, message } => (
             StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_GATEWAY),
             "api_error",
+            message.clone(),
         ),
-        LlmError::UnknownProvider(_) => (StatusCode::BAD_REQUEST, "invalid_request_error"),
-        _ => (StatusCode::BAD_GATEWAY, "upstream_error"),
+        LlmError::UnknownProvider(_) => (
+            StatusCode::BAD_REQUEST,
+            "invalid_request_error",
+            e.to_string(),
+        ),
+        // AUD#14b / AGENTS.md: Unsupported is a client request error -> 400,
+        // never the old catch-all 502.
+        LlmError::Unsupported { .. } => (
+            StatusCode::BAD_REQUEST,
+            "invalid_request_error",
+            e.to_string(),
+        ),
+        LlmError::Parse(_) => (
+            StatusCode::BAD_GATEWAY,
+            "upstream_error",
+            "upstream returned a non-JSON error response".to_string(),
+        ),
+        LlmError::Http(_) => (
+            StatusCode::BAD_GATEWAY,
+            "upstream_error",
+            "upstream connection failed".to_string(),
+        ),
+        LlmError::Stream(_) => (
+            StatusCode::BAD_GATEWAY,
+            "upstream_error",
+            "upstream stream failed".to_string(),
+        ),
     };
     let payload = serde_json::json!({
         "type": "error",
-        "error": {"message": e.to_string(), "type": err_type},
+        "error": {
+            "message": truncate_message(&sanitize_error_text(&raw_message)),
+            "type": err_type
+        },
     });
     (status, Json(payload)).into_response()
 }

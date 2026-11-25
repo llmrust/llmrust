@@ -35,7 +35,7 @@
     "scripts/loop.mjs": "e3c466d18d54b3bcb4d8ae05506cca04285c52e9945d771abb6d1798b05f854b",
     "scripts/machine.mjs": "2fb3a8890d98ffe6077fcdf36d4f896275056d2f14cbd161bfb99fa5a28e0851",
     "scripts/merge-pr.mjs": "693244454dbe24dab1a327c7c38828420647f3a803d9bae06599401f58e7a893",
-    "scripts/selftest.mjs": "55f1f2815f105d1a97c9f36a00237117216dd9f21dc632b08849fbd5d58c8e45",
+    "scripts/selftest.mjs": "95f762219fffd93d1693d99fa64285e358862b5b25089e3d73a4f9586e7da3dd",
     "scripts/validate-skill.mjs": "37412c90df27e9f3933e6f7bb2e573784632499d9a154594512516a8cb51b916",
     "scripts/validate-spec.mjs": "a3b08360625c1b917de63beec8054a7c52cd03ac274f373f0c7da0f1e78d273a"
   }

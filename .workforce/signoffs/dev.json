@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "dev",
   "agent": "dev-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
   "agreed": true,
-  "comments": "同意：五卡 write_scopes 全部实测存在且与判据落点一致，机判锚点（旧代码位点/既有用例名/基线 sha256/台账 old 值）与 b008185 工作区逐条吻合，B-AUD-1 三卡写入范围两两不交、跨批 scope 重叠均由 blocked_by 串行化解，每批唯一台账卡且 dev 代写+Boss 授权+architect 追认模式与台账既有先例一致；两条非阻塞注记：C-AUD-PROXY 叙述的 anthropic_proxy 既有测试数实测为 35（卡内写 36，该数字仅为描述性、机判不依赖它），C-AUD-PROV scope 中的 tests/capability_freeze.rs 属防御性预留（无判据强制改动落点）。",
-  "signedAt": "2026-11-20T23:16:08+08:00"
+  "comments": "同意 spec v7.1：C-AUD-PROXY 已将 src/lib.rs 纳入 scope，stream_raw_with 不调用 unify_terminal，四文件台账 old/前驱/new/授权机判闭合；PROXY-RESIDUAL 已统一 stream_raw_with 并锁 17 条回归；六张 source 卡 c5 均并入 planned_file_paths 且具备 newly-oversized old=0/无前驱分支，API-DOC 改为零台账；ThinkingConfig 根/prelude re-export 已 deferred 0.2.0，0.1.8 保留既有 api_freeze 断言，仅新增 deferred 断言；API/semver 保持 0.1.x 附加修复、FinishReason 冻结、默认 feature=[]。validate-spec/check-card-scopes/check-criteria/git diff --check 均 PASS，未运行 cargo。非阻塞文案注记：C-AUD-PROXY checkpoint 仍写“三条 adjustment”，ruling/c6 已为四条，建议后续归一，不影响机判。",
+  "signedAt": "2026-11-24T20:41:41.6654492+08:00"
 }

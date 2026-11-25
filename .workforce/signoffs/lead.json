@@ -2,9 +2,9 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "lead",
   "agent": "lead",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
   "agreed": true,
   "approved": true,
-  "comments": "PH-0.1.7 审计清障战役：Boss 2026-11-20 决策 A 授权。Lead 复核过（六层结构、5 卡 scope 两两不交+blocked_by 串行、台账每批唯一、K-06 新宪法条款合理、known_issues 25 条对账齐全）；dev/qa/gate/ci/ledger 五工种独立审阅签署全过（各有实证记录）。Boss 两项现场裁定：#9 Responses reasoning 原生承载（维持架构师裁定）；B-AUD-1 派发已授权。",
-  "signedAt": "2026-11-20T23:25:00+08:00"
+  "comments": "批准 spec v7.1：PH-0.1.7 收口与 PH-0.1.8 新版本规划共 3 phases / 12 batches / 14 cards；51 项审计发现逐项有处置，8 张新卡覆盖剩余 P1/高风险 P2 与附加 API，破坏性项明确转 0.2.0。Lead 已复核四方阻断全部关闭：stream_raw_with 范围与台账、17 条代理回归、planned/newly-oversized 台账链、跨平台 locked 命令、semver 0.1.6 双口径、K-04 历史归档与 ThinkingConfig 延期。config sha=8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f，config-only 提交 6bfe9d7。architect/dev/qa/gate/ci/ledger 六角色独立签署 ALL_AGREED；validate-spec/check-criteria/check-card-scopes/validate-skill/config-check/selftest 全 PASS。授权先重派 B-AUD-3，再按 blocked_by 推进 PH-0.1.8；未通过五层验收与远端 CI 前不得声称完成或发布。",
+  "signedAt": "2026-11-24T20:57:21.5853817+08:00"
 }

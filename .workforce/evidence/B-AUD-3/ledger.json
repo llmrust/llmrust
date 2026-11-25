@@ -1,0 +1,532 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ledger",
+  "agent": "ledger-llmrust",
+  "written_by": "ledger-llmrust",
+  "card_id": null,
+  "batch_id": "B-AUD-3",
+  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "inputs_seen": [
+    ".workforce/config.json（ledger.command=null；none_reason 已读）",
+    ".workforce/cards/C-AUD-PROXY.json（c6 四文件判据、ruling_refs 授权规范、write_scopes）",
+    "tests/hotspot_ledger.json（被核验台账实物）",
+    ".workforce/loop-state.json（选取含 C-AUD-PROXY handoff 的 B-AUD-3 冻结段：batch_base/handoff_id/files）",
+    ".workforce/spec.json（仅核验 sha256 与指定 spec_sha256 一致）",
+    ".agents/skills/agent-workforce-loop/references/roles.md + assets/evidence.template.json + scripts/lib.mjs（角色、回执结构、selfShaOk/ledgerCheck 口径）",
+    ".workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json + qa-C-AUD-PROXY.json（只访问 artifacts 与 dev files_changed；未读取 verdict/notes/解释）"
+  ],
+  "ledger": {
+    "duty_basis": {
+      "config_ledger": "command=null；按 none_reason 只验 schema/generatedAt/self_sha256 自洽，不重跑生成命令",
+      "role_contract": "ledger-* 独立核验台账；agent=ledger-llmrust，independent=true，declared_by_lead=false",
+      "c6_basis": "C-AUD-PROXY acceptance c6 + ruling_refs：四文件四条 adjustment；old=3770/2053/964/847；authorized_by 含 architect-llmrust v7.1；date=2026-11-24"
+    },
+    "target": "tests/hotspot_ledger.json",
+    "target_sha256_raw_bytes": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc",
+    "threshold": 500,
+    "line_count_metric": "Python raw UTF-8 bytes decode 后 len(splitlines())；另机扫 25 个 src/**/*.rs 无 VT/FF/FS/GS/RS/NEL/LS/PS 与孤立 CR，故与 Rust fs::read_to_string(...).lines().count() 同口径",
+    "freeze": {
+      "batch_base": "6bfe9d7e2212a0317662807618c40ff1d9ddf57e",
+      "base_head": "6bfe9d7e2212a0317662807618c40ff1d9ddf57e",
+      "handoff_id": "de96c50dc2d523aa5117e27e",
+      "handoff_at": "2026-11-24T15:16:43.508Z",
+      "receipt_file": ".workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json",
+      "receipt_sha256": "aa506984727bdc18f001b73e44b5e6c1ac578b0a35eb7d73aab025da440bcc8c",
+      "frozen_files": {
+        "src/proxy/mod.rs": "72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d",
+        "src/proxy/anthropic_proxy.rs": "0c3e928df67acd3e183b5d8440595e6ae0ea64cbc499a387fc1bfcc1a774c893",
+        "src/proxy/responses_proxy.rs": "a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5",
+        "tests/responses_proxy_tests.rs": "cc7ef211bf4bb0763d487fc370766c556cdcdb7c6eaf47936939d80151bb8f23",
+        "llmrust.capabilities.json": "2b960bee8ebc5d85cbbdeeb3dc931f91a9860cfd4f47b14c80b0813baa281a38",
+        "tests/hotspot_ledger.json": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc",
+        "src/lib.rs": "bc6e4620b7f05209184104edd470177368e2430de716abdf325b329a6336791d"
+      },
+      "frozen_files_total": 7,
+      "drift_after_handoff": [],
+      "zero_drift": true,
+      "qa_receipt_sha256": "701ff09f90fbb793401e662315dc408c9cda2c96c6741b2e9ae8b1310586d6bf"
+    },
+    "c6": {
+      "expected_files": 4,
+      "adjustments": [
+        {
+          "file": "src/proxy/mod.rs",
+          "adjustment_index": 58,
+          "old": 3770,
+          "expected_old": 3770,
+          "new": 4138,
+          "expected_new": 4138,
+          "measured_lines": 4138,
+          "baseline_lines": 4138,
+          "predecessor_new": 3770,
+          "six_fields_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust v7.1 2026-11-24（上游授权：Boss 2026-11-20 决策 A）",
+          "authorization_ok": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "pass": true
+        },
+        {
+          "file": "src/proxy/anthropic_proxy.rs",
+          "adjustment_index": 59,
+          "old": 2053,
+          "expected_old": 2053,
+          "new": 2225,
+          "expected_new": 2225,
+          "measured_lines": 2225,
+          "baseline_lines": 2225,
+          "predecessor_new": 2053,
+          "six_fields_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust v7.1 2026-11-24（上游授权：Boss 2026-11-20 决策 A）",
+          "authorization_ok": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "pass": true
+        },
+        {
+          "file": "src/proxy/responses_proxy.rs",
+          "adjustment_index": 60,
+          "old": 964,
+          "expected_old": 964,
+          "new": 1177,
+          "expected_new": 1177,
+          "measured_lines": 1177,
+          "baseline_lines": 1177,
+          "predecessor_new": 964,
+          "six_fields_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust v7.1 2026-11-24（上游授权：Boss 2026-11-20 决策 A）",
+          "authorization_ok": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "pass": true
+        },
+        {
+          "file": "src/lib.rs",
+          "adjustment_index": 61,
+          "old": 847,
+          "expected_old": 847,
+          "new": 951,
+          "expected_new": 951,
+          "measured_lines": 951,
+          "baseline_lines": 951,
+          "predecessor_new": 847,
+          "six_fields_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust v7.1 2026-11-24（上游授权：Boss 2026-11-20 决策 A）",
+          "authorization_ok": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "pass": true
+        }
+      ],
+      "stray_card_entries": 0,
+      "responses_test_file_excluded": true,
+      "verdict": "PASS"
+    },
+    "baseline_files": [
+      {
+        "file": "src/proxy/mod.rs",
+        "baseline_lines": 4138,
+        "measured_lines": 4138,
+        "sha256": "72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/proxy/anthropic_proxy.rs",
+        "baseline_lines": 2225,
+        "measured_lines": 2225,
+        "sha256": "0c3e928df67acd3e183b5d8440595e6ae0ea64cbc499a387fc1bfcc1a774c893",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/proxy/responses_proxy.rs",
+        "baseline_lines": 1177,
+        "measured_lines": 1177,
+        "sha256": "a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/compat.rs",
+        "baseline_lines": 2136,
+        "measured_lines": 2136,
+        "sha256": "6ea3341312aa63a265b807eba2d6f66a45c149a7d15154f54e0009a33b081fb5",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/google.rs",
+        "baseline_lines": 1813,
+        "measured_lines": 1813,
+        "sha256": "a0c158dbfc73c535b3208c6bf47379c2131e2e08701bb9bb888043a48e06b402",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/types.rs",
+        "baseline_lines": 1136,
+        "measured_lines": 1136,
+        "sha256": "b6eaade3f0c8c214f653bde4eaa56673e899f0d172f4b550106de4c208c68c66",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/anthropic.rs",
+        "baseline_lines": 1684,
+        "measured_lines": 1684,
+        "sha256": "32e9668a9da49dc370bd6ee40b9b5048ab4ad696514e37add6a5df11c27938d7",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/router.rs",
+        "baseline_lines": 1231,
+        "measured_lines": 1231,
+        "sha256": "7eca653e5bb38f3316550eaf0790ca70370f04ae12cddde90189ebf8658f374d",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/ollama.rs",
+        "baseline_lines": 855,
+        "measured_lines": 855,
+        "sha256": "ade072f4f82bffa9f99824bf2d767f04cef8c241ba0e346680c59c7ea99bd65c",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/lib.rs",
+        "baseline_lines": 951,
+        "measured_lines": 951,
+        "sha256": "bc6e4620b7f05209184104edd470177368e2430de716abdf325b329a6336791d",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/retry.rs",
+        "baseline_lines": 970,
+        "measured_lines": 970,
+        "sha256": "966535a632c0e45b2145ff575cc1b06cd44d37b6af113127395f5744e95b41a4",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/capabilities.rs",
+        "baseline_lines": 712,
+        "measured_lines": 712,
+        "sha256": "e5aaaedb7092c620e75f9a42e63795ef742213f457d01206a6dfb0d130809929",
+        "baseline_eq_measured": true
+      }
+    ],
+    "threshold_bidirectional": {
+      "src_rs_files_total": 25,
+      "files_ge_threshold": 12,
+      "baseline_entries": 12,
+      "baseline_eq_measured": 12,
+      "unlisted_oversized": [],
+      "listed_below_threshold": [],
+      "baseline_mismatches": [],
+      "verdict": "PASS"
+    },
+    "adjustments": {
+      "count": 62,
+      "six_fields": [
+        "file",
+        "old",
+        "new",
+        "reason",
+        "authorized_by",
+        "date"
+      ],
+      "six_fields_all_present_nonempty": true,
+      "chain_continuity_gaps": [],
+      "chains": {
+        "src/proxy/mod.rs": {
+          "entries": 12,
+          "first_old": 2573,
+          "last_new": 4138,
+          "baseline_now": 4138,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/proxy/anthropic_proxy.rs": {
+          "entries": 5,
+          "first_old": 1520,
+          "last_new": 2225,
+          "baseline_now": 2225,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/proxy/responses_proxy.rs": {
+          "entries": 2,
+          "first_old": 0,
+          "last_new": 1177,
+          "baseline_now": 1177,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/compat.rs": {
+          "entries": 7,
+          "first_old": 1228,
+          "last_new": 2136,
+          "baseline_now": 2136,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/google.rs": {
+          "entries": 7,
+          "first_old": 1221,
+          "last_new": 1813,
+          "baseline_now": 1813,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/types.rs": {
+          "entries": 1,
+          "first_old": 1132,
+          "last_new": 1136,
+          "baseline_now": 1136,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/anthropic.rs": {
+          "entries": 8,
+          "first_old": 972,
+          "last_new": 1684,
+          "baseline_now": 1684,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/router.rs": {
+          "entries": 3,
+          "first_old": 851,
+          "last_new": 1231,
+          "baseline_now": 1231,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/ollama.rs": {
+          "entries": 4,
+          "first_old": 0,
+          "last_new": 855,
+          "baseline_now": 855,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/lib.rs": {
+          "entries": 8,
+          "first_old": 0,
+          "last_new": 951,
+          "baseline_now": 951,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/retry.rs": {
+          "entries": 4,
+          "first_old": 0,
+          "last_new": 970,
+          "baseline_now": 970,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/capabilities.rs": {
+          "entries": 1,
+          "first_old": 0,
+          "last_new": 712,
+          "baseline_now": 712,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        }
+      },
+      "chain_convergence": {
+        "verdict": "PASS",
+        "converged_files": [
+          "src/lib.rs",
+          "src/providers/anthropic.rs",
+          "src/providers/capabilities.rs",
+          "src/providers/compat.rs",
+          "src/providers/google.rs",
+          "src/providers/ollama.rs",
+          "src/providers/retry.rs",
+          "src/proxy/anthropic_proxy.rs",
+          "src/proxy/mod.rs",
+          "src/proxy/responses_proxy.rs",
+          "src/router.rs",
+          "src/types.rs"
+        ],
+        "non_converged_files": []
+      }
+    },
+    "append_only_vs_batch_base": {
+      "base_commit": "6bfe9d7e2212a0317662807618c40ff1d9ddf57e",
+      "base_adjustments": 58,
+      "current_adjustments": 62,
+      "base_prefix_parsed_identical": true,
+      "appended_indices": [
+        58,
+        59,
+        60,
+        61
+      ],
+      "top_level_keyset_unchanged": true,
+      "description_unchanged": true,
+      "threshold_unchanged": true,
+      "baseline_delta": {
+        "src/proxy/mod.rs": {
+          "old": 3770,
+          "new": 4138
+        },
+        "src/proxy/anthropic_proxy.rs": {
+          "old": 2053,
+          "new": 2225
+        },
+        "src/proxy/responses_proxy.rs": {
+          "old": 964,
+          "new": 1177
+        },
+        "src/lib.rs": {
+          "old": 847,
+          "new": 951
+        }
+      },
+      "other_baselines_unchanged": true,
+      "old_eq_base_baseline_and_base_file_measured": true
+    },
+    "cross_check_receipts": {
+      "fields_read": [
+        "artifacts",
+        "files_changed"
+      ],
+      "method": "只读 dev/qa 的 artifacts(path+sha256) 与 dev files_changed；未读 verdict/notes/解释",
+      "dev_artifacts_total": 7,
+      "qa_artifacts_total": 7,
+      "artifact_sha_mismatches": 0,
+      "artifact_missing": 0,
+      "dev_files_changed": [
+        "src/proxy/mod.rs",
+        "src/proxy/anthropic_proxy.rs",
+        "src/proxy/responses_proxy.rs",
+        "tests/responses_proxy_tests.rs",
+        "llmrust.capabilities.json",
+        "tests/hotspot_ledger.json",
+        "src/lib.rs"
+      ],
+      "dev_files_changed_eq_card_scopes": true,
+      "dev_qa_artifact_paths_equal": true,
+      "git_diff_names_eq_files_changed": true,
+      "dev_receipt_sha256": "aa506984727bdc18f001b73e44b5e6c1ac578b0a35eb7d73aab025da440bcc8c",
+      "qa_receipt_sha256": "701ff09f90fbb793401e662315dc408c9cda2c96c6741b2e9ae8b1310586d6bf"
+    },
+    "protected_inputs_unchanged_by_writer": true,
+    "protected_inputs_sha256_before": {
+      ".workforce/config.json": "8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f",
+      ".workforce/cards/C-AUD-PROXY.json": "45a6805f3487e9e12788348f34a53e4d2d8729c1e743bbbfc826bfc4666175c3",
+      ".workforce/spec.json": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+      "tests/hotspot_ledger.json": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc",
+      ".workforce/loop-state.json": "9fd25d11aabc630fac6b6557ab8dbeab99c60f1bcc237acd3049525a0cafe7f7",
+      ".workforce/signoffs/architect.json": "d9228772663f070d943e2b93d7e3fe85cfebbed0a8993ac67267dfd88b1685fe",
+      ".workforce/signoffs/ci.json": "2308f2946596de2365926773551eeaeb2e0a08c987f0ea89fc400e9452dab979",
+      ".workforce/signoffs/dev.json": "7c3d0002ba228b9f22396f81f5aeb4d96f228ae0e2cdbd59b19fc7e5eb6a69c1",
+      ".workforce/signoffs/gate.json": "be2ca8fa8fcaf11550af39fb45624c1be0972b68380cbe72938a46e6563a096f",
+      ".workforce/signoffs/lead.json": "e0865eb6cc01a461ced13ff1ca8192c8c73b68ef4591ca4bd52e39c52e56345a",
+      ".workforce/signoffs/ledger.json": "46f8df0c15626fb19cf76b4eecbd75e95295298dad9f38c2b72ad5c60bc0e1d4",
+      ".workforce/signoffs/qa.json": "d544673af36490c3d7d01c98ef205c181302441a1fff6f9ab67a9b67087b2536"
+    },
+    "problems": [],
+    "observations_non_blocking": [
+      {
+        "note": "首次全扫脚本用 str(Path) 产生 Windows 反斜杠，集合比对假红 exit 1；诊断为脚本路径规范化问题，统一 p.as_posix() 后复跑 exit 0，台账 sha 始终为 24c60f45…b6afc。",
+        "impact": "无台账影响；最终 command_exit_codes 记录的是修正后实际通过的核验命令。"
+      },
+      {
+        "note": "卡 checkpoint 仍写“三条 adjustment”，与 c6/ruling_refs 的“四文件四条”不一致；本次按用户指定与 c6/ruling_refs 执行，四条均已核验。",
+        "impact": "文字遗留，不改变台账事实或本轮 PASS。"
+      }
+    ],
+    "revalidation": {
+      "trigger": "B-AUD-3 重新交接后 QA 重做",
+      "scope": [
+        "dev/qa artifacts 对账",
+        "handoff 冻结校验"
+      ],
+      "ledger_and_business_files_unchanged": true,
+      "unrelated_verification_commands_rerun": false
+    }
+  },
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-AUD-3/ledger.json",
+      "sha256": "SELF-REFERENTIAL：文件级 sha 由同文件 self_sha256 承载；skill 对同批回执 artifact 跳过 sha 比对",
+      "desc": "本回执自身：config.ledger.command=null 下携带 schema/generatedAt/self_sha256 的自洽台账 JSON"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc",
+      "desc": "被核验台账实物；与 B-AUD-3 handoff 冻结 sha 一致"
+    },
+    {
+      "path": ".workforce/spec.json",
+      "sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
+      "desc": "已确认 spec；sha256 与批次指定值一致"
+    },
+    {
+      "path": ".workforce/cards/C-AUD-PROXY.json",
+      "sha256": "45a6805f3487e9e12788348f34a53e4d2d8729c1e743bbbfc826bfc4666175c3",
+      "desc": "本批唯一台账写入卡；sha256 与 loop-state 当前 B-AUD-3 card_sha256 一致"
+    },
+    {
+      "path": ".workforce/config.json",
+      "sha256": "8756f1b225faeb7abdea8ff0b7f5eebb62d5f9917d3d55093d83dd71be6dd12f",
+      "desc": "ledger.command=null 的配置依据"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json",
+      "sha256": "aa506984727bdc18f001b73e44b5e6c1ac578b0a35eb7d73aab025da440bcc8c",
+      "desc": "重新交接后的 dev 回执；只读 artifacts/files_changed 用于对账"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/qa-C-AUD-PROXY.json",
+      "sha256": "701ff09f90fbb793401e662315dc408c9cda2c96c6741b2e9ae8b1310586d6bf",
+      "desc": "重新交接后重做的 QA 回执；只读 artifacts 用于对账"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "python -c \"import json,pathlib,hashlib;P=pathlib.Path;sha=lambda p:hashlib.sha256(P(p).read_bytes()).hexdigest();S=json.loads(P('.workforce/loop-state.json').read_text(encoding='utf-8'));b=next(b for b in S['batches'] if b['id']=='B-AUD-3' and b.get('handoffs',{}).get('C-AUD-PROXY',{}).get('handoff_id')=='de96c50dc2d523aa5117e27e');h=b['handoffs']['C-AUD-PROXY'];dev='.workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json';qa='.workforce/evidence/B-AUD-3/qa-C-AUD-PROXY.json';assert sha(dev)==h['receipt_sha256']=='aa506984727bdc18f001b73e44b5e6c1ac578b0a35eb7d73aab025da440bcc8c';assert sha(qa)=='701ff09f90fbb793401e662315dc408c9cda2c96c6741b2e9ae8b1310586d6bf';drift=[f for f,s in h['files'].items() if sha(f)!=s];assert not drift,drift;print(json.dumps({'batch_base':b['batch_base'],'handoff_id':h['handoff_id'],'handoff_at':h['at'],'dev_receipt_sha256':sha(dev),'qa_receipt_sha256':sha(qa),'frozen_files_total':len(h['files']),'drift':drift},ensure_ascii=False,indent=2))\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));base={'src/proxy/mod.rs':3770,'src/proxy/anthropic_proxy.rs':2053,'src/proxy/responses_proxy.rs':964,'src/lib.rs':847};R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());assert all(L['baseline_lines'][f]==N(f) and a and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and a[-1]['old']==old and (len(a)<2 or a[-2]['new']==old) and a[-1]['new']==N(f) and 'C-AUD-PROXY' in a[-1]['reason'] and 'architect-llmrust v7.1' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24' for f,old in base.items() for a in [[x for x in L['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));F={'src/proxy/mod.rs','src/proxy/anthropic_proxy.rs','src/proxy/responses_proxy.rs','src/lib.rs'};A=L['adjustments'];own=[(i,a) for i,a in enumerate(A) if 'C-AUD-PROXY' in a.get('reason','')];assert {a['file'] for i,a in own}==F and len(own)==4;assert all(a['authorized_by']=='architect-llmrust v7.1 2026-11-24（上游授权：Boss 2026-11-20 决策 A）' and a['date']=='2026-11-24' for i,a in own);assert 'tests/responses_proxy_tests.rs' not in L['baseline_lines'];assert not any(a['file']=='tests/responses_proxy_tests.rs' for a in A);print(json.dumps({'own_adjustment_indices':[i for i,a in own],'files':sorted(F),'stray_own_entries':0,'authorization_exact':True,'test_file_excluded':True},ensure_ascii=False,indent=2))\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,pathlib,re;P=pathlib.Path;L=json.loads(P('tests/hotspot_ledger.json').read_text(encoding='utf-8'));raw=lambda f:P(f).read_bytes().decode('utf-8');N=lambda f:len(raw(f).splitlines());T=L['threshold'];B=L['baseline_lines'];A=L['adjustments'];files=sorted(p.as_posix() for p in P('src').rglob('*.rs'));counts={f:N(f) for f in files};assert type(T) is int and T==500;assert all(type(v) is int and v>=T for v in B.values());assert set(B)=={f for f,n in counts.items() if n>=T};badbase={f:(B[f],counts.get(f)) for f in B if counts.get(f)!=B[f]};assert not badbase,badbase;R=['file','old','new','reason','authorized_by','date'];missing=[(i,k) for i,a in enumerate(A) for k in R if k not in a or a[k] in (None,'')];assert not missing,missing;chains={f:[(i,a) for i,a in enumerate(A) if a['file']==f] for f in B};gaps=[(f,chains[f][i-1][1]['new'],chains[f][i][1]['old']) for f in B for i in range(1,len(chains[f])) if chains[f][i][1]['old']!=chains[f][i-1][1]['new']];badend={f:(chains[f][-1][1]['new'],B[f]) for f in B if chains[f][-1][1]['new']!=B[f]};assert not gaps and not badend,(gaps,badend);assert set(a['file'] for a in A)<=set(B);special=set(map(chr,[11,12,28,29,30,133,8232,8233]));metric=[f for f in files if special.intersection(raw(f)) or re.search(r'\\r(?!\\n)',raw(f))];assert not metric,metric;print(json.dumps({'threshold':T,'src_rs_files_total':len(files),'files_ge_threshold':len(B),'baseline_eq_measured':len(B),'unlisted_oversized':[],'adjustments_total':len(A),'six_fields_ok':len(A),'chain_gaps':gaps,'non_converged':badend,'chains':{f:{'entries':len(aa),'first_old':aa[0][1]['old'],'last_new':aa[-1][1]['new'],'baseline':B[f]} for f,aa in chains.items()},'line_metric_equivalent':True},ensure_ascii=False,indent=2))\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,pathlib,subprocess;P=pathlib.Path;L=json.loads(P('tests/hotspot_ledger.json').read_text(encoding='utf-8'));S=json.loads(P('.workforce/loop-state.json').read_text(encoding='utf-8'));base=next(b['batch_base'] for b in S['batches'] if b['id']=='B-AUD-3' and 'C-AUD-PROXY' in b.get('handoffs',{}));O=json.loads(subprocess.check_output(['git','show',base+':tests/hotspot_ledger.json'],text=True,encoding='utf-8'));expected={'src/proxy/mod.rs':(3770,4138),'src/proxy/anthropic_proxy.rs':(2053,2225),'src/proxy/responses_proxy.rs':(964,1177),'src/lib.rs':(847,951)};assert L['adjustments'][:len(O['adjustments'])]==O['adjustments'];assert len(L['adjustments'])-len(O['adjustments'])==4;assert set(L)==set(O) and L['description']==O['description'] and L['threshold']==O['threshold'];delta={f:(O['baseline_lines'][f],L['baseline_lines'][f]) for f in set(O['baseline_lines'])|set(L['baseline_lines']) if O['baseline_lines'].get(f)!=L['baseline_lines'].get(f)};assert delta==expected,delta;assert [a['file'] for a in L['adjustments'][len(O['adjustments']):]]==list(expected);assert all(O['baseline_lines'][f]==old==len(subprocess.check_output(['git','show',base+':'+f],text=True,encoding='utf-8').splitlines()) for f,(old,new) in expected.items());print(json.dumps({'batch_base':base,'base_adjustments':len(O['adjustments']),'current_adjustments':len(L['adjustments']),'prefix_identical':True,'top_level_keyset_unchanged':True,'description_unchanged':True,'threshold_unchanged':True,'baseline_delta':delta,'appended_files':list(expected),'old_eq_base_baseline_and_measured':True},ensure_ascii=False,indent=2))\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,pathlib,hashlib;P=pathlib.Path;sha=lambda p:hashlib.sha256(P(p).read_bytes()).hexdigest();D=json.loads(P('.workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json').read_text(encoding='utf-8'));Q=json.loads(P('.workforce/evidence/B-AUD-3/qa-C-AUD-PROXY.json').read_text(encoding='utf-8'));C=json.loads(P('.workforce/cards/C-AUD-PROXY.json').read_text(encoding='utf-8'));bad=lambda j:[a for a in j['artifacts'] if not P(a['path']).is_file() or sha(a['path'])!=a.get('sha256')];assert not bad(D) and not bad(Q);assert set(D['files_changed'])==set(C['write_scopes'])==set(C['exact_file_paths']);assert {a['path'] for a in D['artifacts']}==set(D['files_changed'])=={a['path'] for a in Q['artifacts']};print(json.dumps({'fields_read':['artifacts','files_changed'],'dev_artifacts':len(D['artifacts']),'qa_artifacts':len(Q['artifacts']),'sha_mismatches':0,'missing':0,'files_changed':D['files_changed'],'files_changed_eq_card_scopes':True,'dev_qa_artifact_paths_equal':True},ensure_ascii=False,indent=2))\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,pathlib,hashlib;P=pathlib.Path;L=json.loads(P('tests/hotspot_ledger.json').read_text(encoding='utf-8'));rows=[{'file':f,'baseline_lines':n,'measured_lines':len(P(f).read_bytes().decode('utf-8').splitlines()),'sha256':hashlib.sha256(P(f).read_bytes()).hexdigest()} for f,n in L['baseline_lines'].items()];assert all(r['baseline_lines']==r['measured_lines'] for r in rows);print(json.dumps(rows,ensure_ascii=False,indent=2))\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,hashlib;P='.workforce/evidence/B-AUD-3/ledger.json';j=json.load(open(P,encoding='utf-8'));w=j.pop('self_sha256');assert w==hashlib.sha256(json.dumps(j,ensure_ascii=False,separators=(',',':')).encode('utf-8')).hexdigest();print('SELF_SHA_OK '+w)\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"import('./.agents/skills/agent-workforce-loop/scripts/lib.mjs').then(m=>{const fs=require('fs');const p='.workforce/evidence/B-AUD-3/ledger.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const P={repo:process.cwd(),dirRel:'.workforce',config:'.workforce/config.json'};const r=m.ledgerCheck(P,j.artifacts[0],j);if(!m.selfShaOk(j)||!r.ok)throw new Error(JSON.stringify(r));console.log(JSON.stringify({selfShaOk:true,ledgerCheck:r}));})\"",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS",
+  "notes": "B-AUD-3 台账层独立核验 PASS：c6 四条 adjustment（mod 3770→4138、anthropic_proxy 2053→2225、responses_proxy 964→1177、lib 847→951）六字段/前驱/授权/date/实测全绿；threshold=500 双向覆盖 12/12；62/62 adjustments 六字段齐备且 12/12 文件链收敛；相对 batch_base 6bfe9d7e 前 58 条逐字相同、仅追加 4 条且基线变化恰为四文件。重新交接后 handoff=de96c50dc2d523aa5117e27e 冻结 7 文件零漂移；dev receipt sha=aa506984…bcc8c、qa receipt sha=701ff09f…6d6bf，仅按 artifacts/files_changed 重做对账 0 mismatch/0 missing。台账与业务文件未变；未重复无关核验；未改台账/业务/spec/card/signoffs/loop-state。",
+  "generatedAt": "2026-11-24T15:28:41Z",
+  "self_sha256": "1c85182ba0640004a9a5ef6a628f4e4d7662f5832a5ee1a744abd131e50fb0b3"
+}

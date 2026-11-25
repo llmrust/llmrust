@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "gate",
   "agent": "gate-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "0a691cf6a52b048239d6225c76ad1c34bb3729a931ebeced2bf16906d39fcf80",
   "agreed": true,
-  "comments": "五卡 c4 门禁命令组（cargo build/test --workspace、fmt --all --check、clippy --workspace --all-targets -- -D warnings，PROV/PROXY 另加 cargo test --workspace --features proxy，proxy feature 实测存在于 Cargo.toml）均为本机可实跑且逐条 exit 0 可记录的标准 cargo 命令，判据只锚 exit code 与 stdout/stderr 原文存档，与 gate 回执 command_exit_codes逐条记录/mock_used=false 字段结构兼容（B-DELTA-NULL 回执先例已验证同款命令组本机可达），gitleaks 仅落 CI 未压给 gate（本机实测无该 CLI，口径自洽），无不可跑命令与口径冲突，同意 spec v3。",
-  "signedAt": "2026-11-20T15:08:02.089Z"
+  "comments": "最终只读复核通过：spec 哈希匹配；C-018-API-DOC 卡哈希 36e831aa4190ec6700dc3cb8809f168f69a2cd317da03dc3bbe105444303176c，其 c1/c3 三条命名 cargo test 均已显式 --locked，并通过 --help 解析。此前 rustdoc、package 重复 locked、PROXY 默认 semver 与 config 六条门禁命令的语法复核均已通过；未运行 cargo build/test。",
+  "signedAt": "2026-11-24T12:55:21.9557343Z"
 }

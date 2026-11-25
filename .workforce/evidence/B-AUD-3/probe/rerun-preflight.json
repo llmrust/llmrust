@@ -1,0 +1,38 @@
+{
+  "schema": "gate-rerun-preflight/v1",
+  "role": "gate",
+  "agent": "gate-llmrust",
+  "written_by": "gate-llmrust",
+  "batch_id": "B-AUD-3",
+  "card_id": "C-AUD-PROXY",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "handoff_id": "79b1a1c78436c5d212c854a3",
+  "authorization": "Lead authorized rerun of missing 10 only; do not rerun required 7 or c4-01",
+  "base_runs_sha256": "3432449565651150f2e54e3d718f4c8f3f58efadf9ba6e7add0712fe7aca54b5",
+  "base_gate_sha256": "a2186b89bdc879a2874946a8a757bf98d31dd1d3a455231190e61e9476387172",
+  "recorded_ids": [
+    "required-01-build",
+    "required-02-test-default",
+    "required-03-test-all-features",
+    "required-04-fmt",
+    "required-05-clippy",
+    "required-06-rustdoc",
+    "required-07-cargo-deny",
+    "c4-01-test-default"
+  ],
+  "missing_ids": [
+    "c4-02-test-proxy",
+    "c4-03-build-default",
+    "c4-04-fmt",
+    "c4-05-clippy-default",
+    "c4-06-cargo-deny",
+    "c5-01-architecture-guard",
+    "c5-02-package-guard",
+    "c5-03-responses-proxy-tests",
+    "c5-04-proxy-lib",
+    "c5-05-contract-tests"
+  ],
+  "protected_files_unchanged": true,
+  "protected_file_count": 21,
+  "checked_at_utc": "2026-11-25T03:23:46.7203618Z"
+}

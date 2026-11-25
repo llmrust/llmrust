@@ -1,0 +1,80 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-018-PROVIDER-INTEGRITY",
+  "phase": "PH-0.1.8",
+  "story": "VS-3",
+  "priority": "P0",
+  "parallel": "[NP]",
+  "owner_agent": "dev-llmrust-018provider",
+  "qa_agent": "qa-llmrust-018provider",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "src/providers/mod.rs",
+    "src/providers/compat.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/google.rs",
+    "src/providers/ollama.rs",
+    "tests/provider_contract_freeze.rs",
+    "tests/embeddings_contract_tests.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "exact_file_paths": [
+    "src/providers/mod.rs",
+    "src/providers/compat.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/google.rs",
+    "src/providers/ollama.rs",
+    "tests/provider_contract_freeze.rs",
+    "tests/embeddings_contract_tests.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-3",
+    "PH-0.1.8",
+    "B-018-PROVIDER",
+    "T-018-PROVIDER"
+  ],
+  "requirement_refs": [
+    "P2-11",
+    "P2-21",
+    "P2-27",
+    "P2-28",
+    "P2-30",
+    "P2-38",
+    "P2-39",
+    "P2-40",
+    "KI-GEM-FINISH-OVERWRITE",
+    "KI-GEM-PARALLEL-TOOL-MERGE",
+    "KI-GEM-CHAT-EMPTY-OK",
+    "KI-COMPAT-CHAT-EMPTY",
+    "KI-OLLAMA-STREAM-ERROR-LINE",
+    "K-02",
+    "K-04",
+    "K-05",
+    "K-06"
+  ],
+  "ruling_refs": [
+    "architect 裁定 2026-11-24：Anthropic clean EOF 只允许 flush 已闭合且 id/name 非空、arguments 为合法 JSON 的工具；不完整工具返回 Err，绝不 done=true。",
+    "architect 裁定 2026-11-24：Gemini 每次响应生成唯一 tool id；工具结果按最近未匹配 assistant call 的轮次作用域解析并优先 Message::tool.name；真实 finish reason 不得被 tool_calls 覆盖。",
+    "architect 裁定 2026-11-24：Gemini promptFeedback/blockReason 与无合法 candidates 的 200 返回明确错误；thought 不混入 content；bare schema 不重复包 schema；流式 logprobs 不得静默丢失。",
+    "architect 裁定 2026-11-24：compat choices:null 可表示 usage-only，但空 primary choice/refusal 不得返回空成功；embedding 数量与 index 集合必须完整。Ollama embedding 数量/index、非流 finish reason、流 error envelope 同批修复。",
+    "architect 裁定 2026-11-24：provider 请求侧新增严格工具参数解析并停止把非法 JSON 改成 {}；旧降级 helper 暂留给 proxy，C-018-PROXY-RESIDUAL 必须在代理边界改为协议错误。"
+  ],
+  "acceptance_criteria": [
+    "c1 新增并以 `cargo test --locked --test provider_contract_freeze audit_2026_provider_integrity_` 运行 11 条生产 wire 测试，stdout 含 `11 passed; 0 failed; 0 ignored`：audit_2026_provider_integrity_anthropic_incomplete_tool_is_error、audit_2026_provider_integrity_gemini_ids_are_response_scoped、audit_2026_provider_integrity_gemini_blocked_200_is_error、audit_2026_provider_integrity_compat_empty_or_refusal_is_error、audit_2026_provider_integrity_choices_null_usage_is_accepted、audit_2026_provider_integrity_embedding_index_set_is_complete、audit_2026_provider_integrity_ollama_finish_and_error_envelope、audit_2026_provider_integrity_invalid_tool_arguments_are_not_rewritten、audit_2026_provider_integrity_gemini_chat_thought_not_in_content、audit_2026_provider_integrity_gemini_bare_schema_not_double_wrapped、audit_2026_provider_integrity_gemini_stream_logprobs_not_dropped。两轮 Gemini 重复 call_0 必须解析到各自函数名；Anthropic 半截参数后 EOF 必须无成功终态。",
+    "c2 结构判据（python 逐条 exit 0）：① src/providers/anthropic.rs 在 flush 前校验 block 闭合、id/name 与 serde_json 解析；② src/providers/google.rs 的合成 id 包含响应级唯一成分且工具结果解析不是全历史 HashMap 覆盖；③ Gemini chat 建模 promptFeedback/blockReason；④ compat 非流空 primary choice/refusal 分支返回 Err；⑤ Ollama 流 error envelope 映射 LlmError::Stream/Api 而非 Parse；⑥ src/providers/mod.rs 存在严格工具参数解析入口，provider 调用不再把非法参数替换为 {}；⑦ Gemini 非流 thought 与 content 分离；⑧ bare JSON Schema 含 schema 属性时只解包一层；⑨ Gemini 流式 logprobs 真实映射，或在网络前返回 Unsupported，不得静默丢弃。",
+    "c3 注入验红：临时把 Gemini 响应级 id 恢复为每轮 call_0，`cargo test --locked --test provider_contract_freeze audit_2026_provider_integrity_gemini_ids_are_response_scoped` 必须 exit 非 0；恢复后 exit 0 且 src/providers/google.rs sha256 等于注入前 h0。",
+    "c4 门禁逐条 exit 0：cargo test --locked --workspace、cargo test --locked --workspace --all-features、cargo test --locked --test embeddings_contract_tests、cargo build --locked --workspace、cargo fmt --all --check、cargo clippy --locked --all-targets --all-features -- -D warnings。",
+    "c5 台账链机判（单行命令，exit 0 即 PASS；F 自动并入 planned_file_paths）：`python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-PROVIDER');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-PROVIDER-INTEGRITY.json',encoding='utf-8'));F=['src/providers/mod.rs','src/providers/compat.rs','src/providers/anthropic.rs','src/providers/google.rs','src/providers/ollama.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-PROVIDER-INTEGRITY' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"`。断言 scope/真实性或 planned 缺失、六字段含 file、old=batch_base baseline（newly-oversized 允许 batch_base 无 baseline/adjustment 且 old=0/首条）、前驱 new=old、new=splitlines 实测=当前 baseline、reason/authorized/date；当前<threshold 或 planned 文件尚不存在时不得登记 baseline/adjustment。",
+    "c6 零放宽与 semver：基线 eb07c7cb118a0b289df50a581173d01a158b4bb6 的既有断言只增不减；不新增 ignore/should_panic；`cargo semver-checks --baseline-version 0.1.6 --default-features` 与 `cargo semver-checks --baseline-version 0.1.6 --all-features` 均 exit 0。"
+  ],
+  "independent_test": "cargo test --locked --workspace --all-features",
+  "needs_clarification": [],
+  "blocked_by": [
+    "C-018-STREAM-CORE"
+  ],
+  "checkpoint": "c1-c6 全绿且回执齐全；STREAM-CORE 交付后开工以避开 provider/mod/台账重叠；代理侧严格工具参数遗留由下一张 PROXY-RESIDUAL 收口。",
+  "status": "pending"
+}

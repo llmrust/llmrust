@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "qa",
   "agent": "qa-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
-  "comments": "同意签署：实测核对基线 b008185（spec sha256、8 文件台账行数、should_panic 2 处/ignore 0、Doc-tests ignored 2+4 锚点、全部缺陷旧形态锚点）后确认五卡 c1–c7 判据独立可测（机判命令+命名测试+注入验红 h1==h0+零放宽），proxy wire 判据全部 --features proxy 口径，测试名与既有风格一致且无冲突；注入验红为每卡一条代表性验红（沿 C-DELTA-NULL 先例），其余修复以对现行代码可复核的否定性断言钉住不构成阻断。",
-  "signedAt": "2026-11-20T23:10:58+08:00"
+  "comments": "同意签署 spec v8：实测 SHA256 与 Lead 提供值一致。P1-13 依赖安全升级已前移至 C-AUD-PROXY，Cargo.lock 纳入 scope，c1/c2 提供离线 tomllib 版本>=2.5.9 断言，c4 与 config gates 均明确要求 cargo deny --locked check，可独立验收且无 SKIP 通道。当前 Cargo.lock 仍为 url 2.5.8，属待实施状态，版本断言与 deny 门会强制其在交付前转绿，不构成本次 spec 签署阻断。C-AUD-PROXY c2 的 17 条命名代理回归完整保留，C-018-PROXY-RESIDUAL c6 继续要求 17 条全部 ok。validate-spec、check-criteria、check-card-scopes 均 PASS（14 卡、90 条判据、0 scope 异常）。未运行 cargo；本轮仅更新本 QA 签署文件。",
+  "signedAt": "2026-11-25T10:57:31+08:00"
 }

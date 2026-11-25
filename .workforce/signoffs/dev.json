@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "dev",
   "agent": "dev-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
-  "comments": "同意：五卡 write_scopes 全部实测存在且与判据落点一致，机判锚点（旧代码位点/既有用例名/基线 sha256/台账 old 值）与 b008185 工作区逐条吻合，B-AUD-1 三卡写入范围两两不交、跨批 scope 重叠均由 blocked_by 串行化解，每批唯一台账卡且 dev 代写+Boss 授权+architect 追认模式与台账既有先例一致；两条非阻塞注记：C-AUD-PROXY 叙述的 anthropic_proxy 既有测试数实测为 35（卡内写 36，该数字仅为描述性、机判不依赖它），C-AUD-PROV scope 中的 tests/capability_freeze.rs 属防御性预留（无判据强制改动落点）。",
-  "signedAt": "2026-11-20T23:16:08+08:00"
+  "comments": "同意 spec v8：C-AUD-PROXY 已将 Cargo.lock 纳入 write_scopes/exact_file_paths，c1/c2 以版本元组机检 url>=2.5.9，c4 与 config gates 均包含 cargo deny --locked check；Cargo.lock 明确不入热点台账，c6 仍保持 proxy 三文件+lib 四文件的 old/前驱/new/授权链；RELEASE 保留 url/deny 复验但不重复升级。validate-spec/check-card-scopes/check-criteria/git diff --check 均 PASS，未运行 cargo。非阻塞注记：audit_dispositions.P1-13 仍只列 C-018-RELEASE-GATE，建议补入 C-AUD-PROXY 以反映前移归属，不影响卡面实现与验收。",
+  "signedAt": "2026-11-25T10:58:55.1419230+08:00"
 }

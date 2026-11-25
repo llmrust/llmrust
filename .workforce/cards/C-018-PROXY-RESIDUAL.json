@@ -1,0 +1,82 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-018-PROXY-RESIDUAL",
+  "phase": "PH-0.1.8",
+  "story": "VS-3",
+  "priority": "P0",
+  "parallel": "[NP]",
+  "owner_agent": "dev-llmrust-018proxy",
+  "qa_agent": "qa-llmrust-018proxy",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "src/proxy/mod.rs",
+    "src/proxy/anthropic_proxy.rs",
+    "src/proxy/responses_proxy.rs",
+    "src/proxy/wire/",
+    "tests/responses_proxy_tests.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "exact_file_paths": [
+    "src/proxy/mod.rs",
+    "src/proxy/anthropic_proxy.rs",
+    "src/proxy/responses_proxy.rs",
+    "tests/responses_proxy_tests.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "planned_file_paths": [
+    "src/proxy/wire/tool_delta.rs",
+    "src/proxy/wire/finish.rs",
+    "src/proxy/wire/limits.rs"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-3",
+    "PH-0.1.8",
+    "B-018-PROXY",
+    "T-018-PROXY"
+  ],
+  "requirement_refs": [
+    "P1-05-residual",
+    "P1-06-residual",
+    "P2-13",
+    "P2-14",
+    "P2-15",
+    "P2-16",
+    "P2-17",
+    "P2-18",
+    "P2-19",
+    "P2-20",
+    "P2-21-proxy",
+    "KI-ANT-PROXY-THINKING-CLOSE",
+    "KI-ANT-BLOCK-TYPES",
+    "KI-ANT-PREV-RESPONSE",
+    "K-02",
+    "K-04",
+    "K-05",
+    "K-06"
+  ],
+  "ruling_refs": [
+    "architect 裁定 2026-11-24：本卡只修 C-AUD-PROXY 未覆盖的残余；stream_raw_with 裁决、Responses thinking 承载、净 EOF response.failed、bare done finish_reason=null、embeddings split_model、Unsupported→400 与既有 URL 脱敏不得重开或回退。",
+    "architect 裁定 2026-11-24：OpenAI Chat 使用私有 ProxyToolCallDelta{index,id?,name?,arguments?}；各目标协议有自己的 finish 映射，缺失保持 null，不把 Anthropic/Gemini 原生值直接写进 OpenAI wire。",
+    "architect 裁定 2026-11-24：Responses 对无法无损表达的 include/parallel_tool_calls/text.format/prompt_cache_key/previous_response_id、非 medium reasoning effort、未知 content part/tool_choice 一律在网络前 400；可表达字段才映射。finish reason 映射 completed/incomplete/failed；补 sequence_number/结束事件，tool-only 不伪造空 message。",
+    "architect 裁定 2026-11-24：Anthropic terminal 补最终 input/cache usage；user tool_use 等非法 role/block 拒绝，tool_result.is_error=true 在共享 Message 无字段时明确 400，不得当成功；交错工具按 id→index 重组，terminal 后内容关闭。",
+    "architect 裁定 2026-11-24：三协议认证错误按 path 生成协议 schema；统一 Bytes/JSON extractor；区分请求体超限 413 与上游 413；文本/工具参数/事件队列有上限；代理侧非法工具参数返回协议错误，不再替换 {}。"
+  ],
+  "acceptance_criteria": [
+    "c1 新增并以 `cargo test --locked --features proxy --test responses_proxy_tests audit_2026_proxy_residual_` 与 `cargo test --locked --features proxy --lib audit_2026_proxy_residual_` 运行以下 9 条测试，合计 `9 passed; 0 failed; 0 ignored`：audit_2026_proxy_residual_chat_tool_index_and_finish_map、audit_2026_proxy_residual_responses_unsupported_field_400、audit_2026_proxy_residual_responses_length_is_incomplete、audit_2026_proxy_residual_responses_sequence_and_tool_only、audit_2026_proxy_residual_anthropic_final_usage、audit_2026_proxy_residual_anthropic_order_and_tool_error、audit_2026_proxy_residual_protocol_auth_and_413、audit_2026_proxy_residual_output_bounds、audit_2026_proxy_residual_invalid_tool_args_are_protocol_error。",
+    "c2 结构判据（python 逐条 exit 0）：① src/proxy/wire/ 含私有 ProxyToolCallDelta 且序列化含 index；② OpenAI finish 映射不是直接 FinishReason::as_str；③ Responses 含 sequence_number 与 response.output_item.done/completed/failed 对应终态；④ Anthropic 工具重组使用 id→index 映射且 terminal_seen 后不再发内容；⑤ 三协议错误函数按 path/协议生成 schema；⑥ 输出/工具/事件上限常量存在并在写入队列前检查。",
+    "c3 注入验红：临时让 Responses 的 Length/MaxTokens 仍映射 completed，`cargo test --locked --features proxy --test responses_proxy_tests audit_2026_proxy_residual_responses_length_is_incomplete` 必须 exit 非 0；恢复后 exit 0 且 src/proxy/responses_proxy.rs sha256 等于注入前 h0。",
+    "c4 门禁逐条 exit 0：cargo test --locked --workspace、cargo test --locked --workspace --features proxy、cargo test --locked --workspace --all-features、cargo build --locked --workspace、cargo fmt --all --check、cargo clippy --locked --all-targets --all-features -- -D warnings。",
+    "c5 台账链机判（单行命令，exit 0 即 PASS；F 自动并入 planned_file_paths）：`python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-PROXY');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-PROXY-RESIDUAL.json',encoding='utf-8'));F=['src/proxy/mod.rs','src/proxy/anthropic_proxy.rs','src/proxy/responses_proxy.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-PROXY-RESIDUAL' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"`。断言 scope/真实性或 planned 缺失、六字段含 file、old=batch_base baseline（newly-oversized 允许 batch_base 无 baseline/adjustment 且 old=0/首条）、前驱 new=old、new=splitlines 实测=当前 baseline、reason/authorized/date；当前<threshold 或 planned 文件尚不存在时不得登记 baseline/adjustment。",
+    "c6 不回归与 semver：C-AUD-PROXY 的 17 条命名 wire 测试仍全部 ok；既有 35 个 anthropic_proxy 测试与 responses_proxy_tests 既有断言不删改；基线 eb07c7cb118a0b289df50a581173d01a158b4bb6 的 assert 行只增不减；#[ignore]/#[should_panic] 位置集合不变；`cargo semver-checks --baseline-version 0.1.6 --default-features` 与 `cargo semver-checks --baseline-version 0.1.6 --all-features` 均 exit 0。"
+  ],
+  "independent_test": "cargo test --locked --workspace --features proxy",
+  "needs_clarification": [],
+  "blocked_by": [
+    "C-018-PROVIDER-INTEGRITY",
+    "C-018-CAPABILITY-WIRE"
+  ],
+  "checkpoint": "c1-c6 全绿且回执齐全；PROVIDER-INTEGRITY 与 CAPABILITY-WIRE 交付后开工；本卡不得触碰 C-AUD-PROXY 已交付的 stream_raw_with/terminal/thinking/URL 修复语义。",
+  "status": "pending"
+}

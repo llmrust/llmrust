@@ -1,0 +1,90 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-018-HTTP-SAFE",
+  "phase": "PH-0.1.8",
+  "story": "VS-3",
+  "priority": "P0",
+  "parallel": "[P]",
+  "owner_agent": "dev-llmrust-018http",
+  "qa_agent": "qa-llmrust-018http",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "src/providers/http.rs",
+    "src/providers/http/",
+    "src/providers/mod.rs",
+    "src/providers/compat.rs",
+    "src/providers/retry.rs",
+    "src/providers/openai.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/google.rs",
+    "src/providers/ollama.rs",
+    "src/lib.rs",
+    "tests/provider_contract_freeze.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "exact_file_paths": [
+    "src/providers/http.rs",
+    "src/providers/mod.rs",
+    "src/providers/compat.rs",
+    "src/providers/retry.rs",
+    "src/providers/openai.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/google.rs",
+    "src/providers/ollama.rs",
+    "src/lib.rs",
+    "tests/provider_contract_freeze.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "planned_file_paths": [
+    "src/providers/http/redirect.rs",
+    "src/providers/http/error.rs",
+    "src/providers/http/retry_hint.rs"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-3",
+    "PH-0.1.8",
+    "B-018-HTTP",
+    "T-018-HTTP"
+  ],
+  "requirement_refs": [
+    "P1-02",
+    "P1-03",
+    "P2-06",
+    "P2-10",
+    "P2-12",
+    "P2-26",
+    "P2-37",
+    "P3-11",
+    "KI-REQWEST-URL-DISPLAY",
+    "KI-RETRY-EMBED-RETRY-AFTER",
+    "KI-RETRY-JITTER-RANGE",
+    "KI-BASEURL-TRAILING-SLASH",
+    "KI-COMPAT-NONJSON-ERROR",
+    "K-02",
+    "K-04",
+    "K-05"
+  ],
+  "ruling_refs": [
+    "architect 裁定 2026-11-24：reqwest Error 在 LlmError::Http 构造边界统一 without_url；禁止任何 provider/代理错误文案回显完整 URL。",
+    "architect 裁定 2026-11-24：凭证请求默认 reqwest::redirect::Policy::none；跨源 307/308 不得重放 POST 正文或自定义 header。base URL 的 userinfo/query/fragment 在网络前拒绝，尾斜杠只做无歧义归一化。",
+    "architect 裁定 2026-11-24：Retry-After 用单次调用返回值与错误绑定，可使用带默认实现的新增 Provider trait 方法；不得给 LlmError 加变体/字段，不得保留供重试决策读取的实例级共享 hint 槽。embedding 与 chat/stream 同口径。",
+    "architect 裁定 2026-11-24：OpenAIProvider::new 仅官方 origin 保持 official reasoning；自定义 base URL 一律按 compatible profile。Gemini model 名走 URL path-segment API。"
+  ],
+  "acceptance_criteria": [
+    "c1 新增并以 `cargo test --locked --test provider_contract_freeze audit_2026_http_` 运行以下 10 条本地 TCP/纯函数测试，stdout 含 `10 passed; 0 failed; 0 ignored`：audit_2026_http_error_redacts_url_and_userinfo、audit_2026_http_cross_origin_redirect_replays_nothing、audit_2026_http_concurrent_retry_hints_are_request_scoped、audit_2026_http_embedding_honors_retry_after、audit_2026_http_retry_after_rejects_invalid_calendar_and_signed_seconds、audit_2026_http_with_retry_is_idempotent、audit_2026_http_custom_openai_url_is_not_official_reasoning、audit_2026_http_google_model_is_path_segment_encoded、audit_2026_http_base_url_rejects_userinfo_query_fragment、audit_2026_http_base_url_trailing_slash_normalized。重定向测试必须证明第二个服务器收到 0 次请求且正文/header 均未到达；并发测试交错两个请求的 60s/无 hint/网络错误，后者不得复用前者 hint。",
+    "c2 结构判据（python 逐条 exit 0）：① src/providers/mod.rs 与 src/providers/http/ 合起来实现统一的 HTTP 错误脱敏入口且源码含 `without_url`；② src/providers/http.rs 含 `Policy::none`；③ src/providers/compat.rs 不含 `Mutex<Option<Duration>>`，且新增 hint 由调用结果携带；④ src/providers/retry.rs 的 embedding 重试路径与 chat/stream 共用 `backoff_with_hint` 等价逻辑并记录 delay_source；⑤ src/lib.rs 的 with_retry 对已包装 Provider 不再次嵌套；⑥ src/providers/openai.rs 的自定义 URL 构造不声明 official verified reasoning；⑦ src/providers/google.rs 使用 path_segments_mut/path_segment 等 URL path API，不再直接拼 model；⑧ 共享 base URL 校验拒绝 userinfo/query/fragment，尾斜杠只做无歧义归一化，四类 provider 请求路径均调用该校验。",
+    "c3 注入验红：临时把 src/providers/http.rs 的 redirect policy 恢复为 reqwest 默认跟随策略，`cargo test --locked --test provider_contract_freeze audit_2026_http_cross_origin_redirect_replays_nothing` 必须 exit 非 0；恢复后同命令 exit 0，且 src/providers/http.rs 的 sha256 与注入前 h0 相同。",
+    "c4 门禁逐条 exit 0：cargo test --locked --workspace、cargo test --locked --workspace --all-features、cargo build --locked --workspace、cargo fmt --all --check、cargo clippy --locked --all-targets --all-features -- -D warnings、cargo rustdoc --locked --all-features -- -D warnings。",
+    "c5 台账链机判（单行命令，exit 0 即 PASS；F 自动并入 planned_file_paths）：`python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-HTTP');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-HTTP-SAFE.json',encoding='utf-8'));F=['src/providers/http.rs','src/providers/mod.rs','src/providers/compat.rs','src/providers/retry.rs','src/providers/openai.rs','src/providers/anthropic.rs','src/providers/google.rs','src/providers/ollama.rs','src/lib.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-HTTP-SAFE' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"`。断言 scope/真实性或 planned 缺失、六字段含 file、old=batch_base baseline（newly-oversized 允许 batch_base 无 baseline/adjustment 且 old=0/首条）、前驱 new=old、new=splitlines 实测=当前 baseline、reason/authorized/date；当前<threshold 或 planned 文件尚不存在时不得登记 baseline/adjustment。",
+    "c6 零放宽与 semver：以基线 commit eb07c7cb118a0b289df50a581173d01a158b4bb6 比对，既有 assert/assert_eq/assert_ne 行集合只增不减；全仓 #[ignore]/#[should_panic] 位置集合不变；`cargo semver-checks --baseline-version 0.1.6 --default-features` 与 `cargo semver-checks --baseline-version 0.1.6 --all-features` 均 exit 0。"
+  ],
+  "independent_test": "cargo test --locked --workspace --all-features",
+  "needs_clarification": [],
+  "blocked_by": [
+    "C-AUD-PROXY"
+  ],
+  "checkpoint": "c1-c6 全绿且 dev/qa/gate/ci/ledger 回执齐全；C-AUD-PROXY 已交付后开工；本卡独占 tests/hotspot_ledger.json，后续 source 卡按 blocked_by 串行。",
+  "status": "pending"
+}

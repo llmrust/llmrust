@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "gate",
   "agent": "gate-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
-  "comments": "五卡 c4 门禁命令组（cargo build/test --workspace、fmt --all --check、clippy --workspace --all-targets -- -D warnings，PROV/PROXY 另加 cargo test --workspace --features proxy，proxy feature 实测存在于 Cargo.toml）均为本机可实跑且逐条 exit 0 可记录的标准 cargo 命令，判据只锚 exit code 与 stdout/stderr 原文存档，与 gate 回执 command_exit_codes逐条记录/mock_used=false 字段结构兼容（B-DELTA-NULL 回执先例已验证同款命令组本机可达），gitleaks 仅落 CI 未压给 gate（本机实测无该 CLI，口径自洽），无不可跑命令与口径冲突，同意 spec v3。",
-  "signedAt": "2026-11-20T15:08:02.089Z"
+  "comments": "v8 只读复核通过：spec 哈希匹配；config gates 已新增 cargo deny --locked check，C-AUD-PROXY c4 已同步该命令；本机 cargo deny --locked check --help 解析 exit 0。未运行 cargo build/test/deny 实门。",
+  "signedAt": "2026-11-25T02:55:48.5595536Z"
 }

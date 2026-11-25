@@ -44,7 +44,16 @@
     ".agents/skills/agent-workforce-loop/SKILL.md",
     ".agents/skills/agent-workforce-loop/references/spec-structure.md",
     ".agents/skills/agent-workforce-loop/references/roles.md",
-    ".agents/skills/agent-workforce-loop/assets/signoff.template.json"
+    ".agents/skills/agent-workforce-loop/assets/signoff.template.json",
+    "docs/audit-2026-11-24.md",
+    ".workforce/cards/C-AUD-PROXY.json",
+    ".agents/skills/agent-workforce-loop/references/loop-state-machine.md",
+    ".agents/skills/agent-workforce-loop/references/acceptance-five-layers.md",
+    ".agents/skills/agent-workforce-loop/scripts/validate-spec.mjs",
+    ".agents/skills/agent-workforce-loop/scripts/check-criteria.mjs",
+    ".agents/skills/agent-workforce-loop/scripts/validate-skill.mjs",
+    ".agents/skills/agent-workforce-loop/scripts/loop.mjs",
+    "examples/README.md"
   ],
   "constitution": {
     "priority": "highest",
@@ -61,13 +70,13 @@
       },
       {
         "id": "K-03",
-        "text": "发布包必须干净：.workforce 运行态与日志不得进入 cargo 包（否则 package_guard 红）。",
-        "enforced_by": "cargo test --test package_guard exit 0（4 passed, 0 failed, 0 ignored）"
+        "text": "发布包必须干净：任何 `.workforce/` 或 `.agents/` 内部治理文件不得进入 crate；Cargo exclude 与 package guard 的允许清单/负例共同阻断，不得靠运行时未跟踪状态偶然通过。",
+        "enforced_by": "`cargo test --test package_guard` exit 0 且全部 test result 行 0 failed/0 ignored；`cargo package --list --locked --allow-dirty` 中 `.workforce/` 与 `.agents/` 前缀条目均为 0；package_guard 必须包含这两类内部文件的合成负例与合法相似名正例。"
       },
       {
         "id": "K-04",
-        "text": "零 skip、零 ignore、零放宽：任何判据不得标 SKIP，不得新增 #[ignore] 或 #[should_panic] 来绕开失败，不得删改既有测试断言。",
-        "enforced_by": "cargo test --workspace 输出中 ignored 计数为 0 且 exit 0；git diff 中不得出现既有断言行的删除，且不得新增 #[ignore] / #[should_panic]"
+        "text": "零 skip、零 ignore、零放宽：任何判据不得标 SKIP，不得新增 #[ignore] 或 #[should_panic] 来绕开失败，不得删改既有测试断言。v7 起无新例外；KI-HIST-DOCS-ASSERT-RELAX 仅归档 C-AUD-DOCS 的历史交付事实，不构成后续放宽授权。",
+        "enforced_by": "cargo test --locked --workspace 与 cargo test --locked --workspace --all-features 的 unit/integration ignored 均为 0 且 exit 0；git diff 中不得出现既有断言行的删除，且不得新增 #[ignore] / #[should_panic]；任何新增例外必须由新 spec 明确授权，v7 无此类例外。"
       },
       {
         "id": "K-05",
@@ -108,7 +117,15 @@
       "severity": "medium",
       "statement": "src/providers/google.rs 流组装层（约 L790-792）在任意帧带 tool_calls 时无条件把 finish_reason 改写为 ToolCalls：上游已经给出 length/max_tokens/safety 等真实终态时也会被覆盖，终态语义失真（与 ERR-003「不虚构 reason」同族的反向问题：真实 reason 被吞）。",
       "impact": "依赖 finish_reason 做计费/截断处理判断的下游拿到错误终态；不影响正常 Stop 文本流的表层行为，故列 medium。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-PROVIDER-INTEGRITY",
+      "covered_by": [
+        "C-018-PROVIDER-INTEGRITY"
+      ],
+      "audit_refs": [
+        "P2-28",
+        "P2-40"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-GEM-PARALLEL-TOOL-MERGE",
@@ -117,7 +134,14 @@
       "severity": "medium",
       "statement": "Gemini 多工具结果（parallel tool results）在请求侧的合并/映射策略未实现或未覆盖测试：并行 tool_result 的组装路径缺少契约级用例，行为未钉住。",
       "impact": "并行工具调用回合的行为无回归保护，改动易引入静默行为漂移。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-PROVIDER-INTEGRITY",
+      "covered_by": [
+        "C-018-PROVIDER-INTEGRITY"
+      ],
+      "audit_refs": [
+        "P2-39"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-GEM-CHAT-EMPTY-OK",
@@ -126,7 +150,14 @@
       "severity": "medium",
       "statement": "src/providers/google.rs chat 路径（约 L940）对 candidate 为 None 的 200 响应返回 Ok(空 content)：上游异常形态被折叠成「成功的空回复」，违反 CONTRACTS.md §6「error 上不得返回 Ok」。流式侧 promptFeedback 拦截（#4）修复后非流式侧仍留此洞。",
       "impact": "上游安全拦截/异常 200 被吞成空成功，调用方无法区分「模型就是没说话」与「上游出问题」。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-PROVIDER-INTEGRITY",
+      "covered_by": [
+        "C-018-PROVIDER-INTEGRITY"
+      ],
+      "audit_refs": [
+        "P2-40"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-GEM-SYSTEM-TOOL-IMAGE",
@@ -135,7 +166,14 @@
       "severity": "medium",
       "statement": "Gemini 请求组装对 system / tool 角色消息中的 image 内容做丢弃处理（或未验证不丢）：多模态 system 消息的图片在该 provider 无显式契约说明。",
       "impact": "多模态 + system/tool 组合请求的行为未定义、未测试；实际效果可能是静默丢内容。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-CAPABILITY-WIRE",
+      "covered_by": [
+        "C-018-CAPABILITY-WIRE"
+      ],
+      "audit_refs": [
+        "P1-12"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-ANT-PROXY-THINKING-CLOSE",
@@ -144,7 +182,14 @@
       "severity": "medium",
       "statement": "Anthropic 代理流（src/proxy/anthropic_proxy.rs）在异常/截断路径上可能不闭合思考内容块（缺 content_block_stop 类终态事件）；PRX-004 已处理干净截断的 error 化，thinking 块的闭合口径未钉测试。",
       "impact": "以块为单位的 Anthropic 客户端在思考块未闭合时可能挂起或丢整段 thinking。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-PROXY-RESIDUAL",
+      "covered_by": [
+        "C-018-PROXY-RESIDUAL"
+      ],
+      "audit_refs": [
+        "P2-17"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-ANT-BLOCK-TYPES",
@@ -153,7 +198,15 @@
       "severity": "medium",
       "statement": "src/proxy/anthropic_proxy.rs 的 AnthropicContentBlock（或等价响应组装结构）缺 thinking / redacted_thinking 块类型：上游思考块无法以原生 wire 形态回给 Anthropic 协议客户端。",
       "impact": "Anthropic 协议客户端拿不到思考块或拿到降级文本；与 REA-002 供应商侧实现不对齐。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-PROXY-RESIDUAL",
+      "covered_by": [
+        "C-018-PROXY-RESIDUAL"
+      ],
+      "audit_refs": [
+        "P2-15",
+        "P2-17"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-ANT-PREV-RESPONSE",
@@ -162,7 +215,14 @@
       "severity": "medium",
       "statement": "Anthropic 端点请求中的 previous_response_id / store 字段在转换层被直接丢弃，无任何警告或 400 告知。",
       "impact": "启用服务端会话续接的客户端行为静默偏离预期，无诊断线索。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-PROXY-RESIDUAL",
+      "covered_by": [
+        "C-018-PROXY-RESIDUAL"
+      ],
+      "audit_refs": [
+        "P1-05"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-OLLAMA-STREAM-ERROR-LINE",
@@ -171,7 +231,14 @@
       "severity": "medium",
       "statement": "src/providers/ollama.rs 流解析对 error 形态 NDJSON 行缺乏显式契约处理：错误行可能被当普通行解析失败（Parse）而非按协议报 LlmError::Stream 或 Api，错误降级路径未钉测试。",
       "impact": "Ollama 流错误的语义与 AGENTS.md「流错误必须暴露」口径不完全对齐，行为对上游错误体形态敏感。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-PROVIDER-INTEGRITY",
+      "covered_by": [
+        "C-018-PROVIDER-INTEGRITY"
+      ],
+      "audit_refs": [
+        "P2-27"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-OLLAMA-TOP-P-DOC",
@@ -180,7 +247,14 @@
       "severity": "medium",
       "statement": "Ollama 的 top_p 支持在代码与文档两侧口径不一致（一侧声明支持、另一侧声明不支持）：docs/CAPABILITIES.md 采样表 Ollama 列 `top_p` 为 ➖，但请求组装是否透传 top_p 未被三载体对账覆盖。",
       "impact": "用户按文档决定带不带 top_p，可能与实际行为相反；三载体一致性存疑。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-CAPABILITY-WIRE",
+      "covered_by": [
+        "C-018-CAPABILITY-WIRE"
+      ],
+      "audit_refs": [
+        "P1-12"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-OLLAMA-SAMPLING-DROP",
@@ -189,7 +263,14 @@
       "severity": "medium",
       "statement": "Ollama 路径对其不支持的其他采样参数（seed / penalties / stop / metadata 等）为静默丢弃：无警告日志、无 Unsupported 拒绝，与 CAP-003「大声拒绝或显式透传」的口径不符。",
       "impact": "参数静默失效难排查；与 docs/CAPABILITIES.md「不支持清单」声明的方式（拒绝）不一致。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-CAPABILITY-WIRE",
+      "covered_by": [
+        "C-018-CAPABILITY-WIRE"
+      ],
+      "audit_refs": [
+        "P1-12"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-COMPAT-CHAT-EMPTY",
@@ -198,7 +279,14 @@
       "severity": "medium",
       "statement": "src/providers/compat.rs chat 路径对 200 空 choices 响应返回 Ok：上游异常形态折叠为「成功的空回复」（与 KI-GEM-CHAT-EMPTY-OK 同族，共享 OpenAI 兼容路径的所有 provider 均受影响）。",
       "impact": "DeepSeek/Moonshot/OpenRouter 等兼容 provider 的异常 200 无法与正常空回复区分。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-PROVIDER-INTEGRITY",
+      "covered_by": [
+        "C-018-PROVIDER-INTEGRITY"
+      ],
+      "audit_refs": [
+        "P2-30"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-COMPAT-INCLUDE-USAGE",
@@ -207,7 +295,14 @@
       "severity": "medium",
       "statement": "OpenAI 兼容流请求无条件携带 stream_options.include_usage：部分严格网关/兼容端点（尤其非官方实现）会因为不认识 stream_options 而拒绝或行为异常，且用户无法关闭。",
       "impact": "第三方 OpenAI 兼容端点（本仓的主打场景之一）兼容性受损；无逃生开关。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-CAPABILITY-WIRE",
+      "covered_by": [
+        "C-018-CAPABILITY-WIRE"
+      ],
+      "audit_refs": [
+        "P2-31"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-COMPAT-EXTRA-FLATTEN",
@@ -216,7 +311,14 @@
       "severity": "medium",
       "statement": "compat 请求组装的 extra 字段展开存在遮蔽（shadow）问题：调用方经 extra 显式传入的键可能被默认映射静默覆盖，或与固定字段的优先级未定义。",
       "impact": "高级用户用 extra 定制请求会踩到静默覆盖，行为反直觉且难调试。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-CAPABILITY-WIRE",
+      "covered_by": [
+        "C-018-CAPABILITY-WIRE"
+      ],
+      "audit_refs": [
+        "P2-01"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-COMPAT-NONJSON-ERROR",
@@ -225,16 +327,31 @@
       "severity": "medium",
       "statement": "上游返回非 JSON 错误体（HTML 错误页 / 纯文本 502）时，兼容路径的错误归一化不确定：可能产生误导性的 Parse 错误而非保留上游 status 与原文摘要（truncate），与 anthropic_proxy 已有的「non-JSON error body 固定措辞」先例不一致。",
       "impact": "网关类故障排障困难；错误分类（transient vs fatal）消费方判断失真。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-HTTP-SAFE",
+      "covered_by": [
+        "C-018-HTTP-SAFE"
+      ],
+      "audit_refs": [
+        "P1-02",
+        "P2-13"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-REQWEST-URL-DISPLAY",
       "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
       "found_at": "2026-11-20",
-      "severity": "medium",
+      "severity": "P1",
       "statement": "reqwest::Error 的 Display 实现自带 URL：凡是直接把 reqwest 错误 to_string() 的路径（provider 层、代理层残留点）都会把完整 URL（含 path/query）透出；key 虽在 header 不在 URL，但内网拓扑与 deployment path 属敏感信息（AGENTS.md Logging「不 log full URLs」的同类义务）。",
       "impact": "错误信息外发（代理转发给客户端）时泄漏内部部署形态；#13 修代理层主路径后，provider 层残留点仍在。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-HTTP-SAFE",
+      "covered_by": [
+        "C-018-HTTP-SAFE"
+      ],
+      "audit_refs": [
+        "P1-02"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-RETRY-EMBED-RETRY-AFTER",
@@ -243,7 +360,14 @@
       "severity": "medium",
       "statement": "ERR-004 的 Retry-After 捕获只布线在 chat/stream 共享路径；embed 路径的 429/503 Retry-After 未被消费（last_retry_after 不覆盖 embed 调用链）。",
       "impact": "embedding 限流场景退回本地指数退避，无视上游给的等待窗口，恶化限流。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-HTTP-SAFE",
+      "covered_by": [
+        "C-018-HTTP-SAFE"
+      ],
+      "audit_refs": [
+        "P2-37"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-RETRY-JITTER-RANGE",
@@ -252,7 +376,15 @@
       "severity": "medium",
       "statement": "重试抖动（jitter）的取值区间实现与设计口径存在偏差（区间端点开闭/比例因子），且缺边界值单测。",
       "impact": "极端情况下多个客户端重试同步（jitter 失效），或退避超出设计上限；影响面小但属契约漂移。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-HTTP-SAFE",
+      "covered_by": [
+        "C-018-HTTP-SAFE"
+      ],
+      "audit_refs": [
+        "P2-12",
+        "P3-11"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-STREAMUTIL-LINE-CAP",
@@ -261,7 +393,14 @@
       "severity": "medium",
       "statement": "src/providers/stream_util.rs 行缓冲对超长单行（无换行的巨型 SSE 行）的上限行为未定义/未测：恶意或故障上游可能造成内存放大。",
       "impact": "DoS 面：上游发送无界单行时可撑爆内存；与 #7 的 provider 侧有界化属同一纵深防御层的缺口。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-STREAM-CORE",
+      "covered_by": [
+        "C-018-STREAM-CORE"
+      ],
+      "audit_refs": [
+        "P1-07"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-SSE-DATA-NOSPACE",
@@ -270,7 +409,15 @@
       "severity": "medium",
       "statement": "SSE 解析对 `data:` 后无空格的形态（data:payload，规范允许）兼容性未钉测试：部分上游/网关重写器会去掉空格，解析层若严格要求 `data: ` 会静默丢帧。",
       "impact": "与 B-DELTA-NULL 同族的「上游形态差异导致整流失败/丢帧」风险，但触发面窄（非标准网关），列 medium。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-STREAM-CORE",
+      "covered_by": [
+        "C-018-STREAM-CORE"
+      ],
+      "audit_refs": [
+        "P1-07",
+        "P2-29"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-BASEURL-TRAILING-SLASH",
@@ -279,7 +426,14 @@
       "severity": "medium",
       "statement": "ProviderConfig.base_url 带尾斜杠时与内部 path 拼接会产生双斜杠（`https://host/v1//chat`）：部分严格上游 404。未做归一化，也未在文档警示。",
       "impact": "用户自配 base_url 高频踩坑（一个字符差异导致全 provider 不可用），报错与根因距离远。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-HTTP-SAFE",
+      "covered_by": [
+        "C-018-HTTP-SAFE"
+      ],
+      "audit_refs": [
+        "P1-03"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-ZH-RESPONSES-DOC",
@@ -288,16 +442,29 @@
       "severity": "medium",
       "statement": "README.zh-CN.md 全文对 /v1/responses 端点零提及：中文读者无法发现该端点存在（英文 README 有说明）。属文档完整性缺陷，非行为缺陷。",
       "impact": "中文用户的端点可发现性缺口；不改代码不影响行为，故列 medium 而不进本轮卡。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-API-DOC",
+      "covered_by": [
+        "C-018-API-DOC"
+      ],
+      "audit_refs": [
+        "P2-35"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-REEXPORTS",
       "found_by": "lead（2026-11-20 全量审计）／architect-llmrust（登记）",
       "found_at": "2026-11-20",
       "severity": "medium",
-      "statement": "ThinkingConfig / CachePolicy 等 0.1.2+ 引入的公开类型未在 crate root re-export：用户必须写 llmrust::types::ThinkingConfig 深层路径，与 README 主示例的扁平导入风格不一致。",
+      "statement": "2026-11-24 v7.1 复核：CachePolicy/CacheRetention 已在 crate 根导出；ThinkingConfig 根/prelude re-export 与既有 api_freeze stable-but-not-root-reexported 断言及 K-04 冲突，移入 0.2.0 候选，0.1.8 不改写既有断言。",
       "impact": "API 人机工学问题：无行为破坏，但新类型用起来像二等公民，容易猜错导入路径。",
-      "resolution_owner": "lead"
+      "resolution_owner": "lead",
+      "covered_by": [],
+      "audit_refs": [
+        "P2-35"
+      ],
+      "disposition": "deferred-0.2.0",
+      "historical_statement": "ThinkingConfig / CachePolicy 等 0.1.2+ 引入的公开类型未在 crate root re-export：用户必须写 llmrust::types::ThinkingConfig 深层路径，与 README 主示例的扁平导入风格不一致。"
     },
     {
       "id": "KI-SAMPLING-COLUMN-OVERCLAIM",
@@ -306,7 +473,14 @@
       "severity": "medium",
       "statement": "docs/CAPABILITIES.md 采样表以「OpenAI-compat」单列合并 OpenAI/DeepSeek/Moonshot/OpenRouter 四家providers 的声明：四家实际支持面不完全一致（如 seed / stop 支持、json_schema/logprobs 差异），合并列存在过度声明（说 ✅ 而某家实为 ➖）。C-AUD-DOCS 修复的是矩阵行与 JSON 载体的不一致（L16-17），合并采样列本身的结构性过度声明留待后续。",
       "impact": "用户按合并列选参会对个别 provider 产生错误预期；属文档精度问题。",
-      "resolution_owner": "lead"
+      "resolution_owner": "C-018-CAPABILITY-WIRE",
+      "covered_by": [
+        "C-018-CAPABILITY-WIRE"
+      ],
+      "audit_refs": [
+        "P1-12"
+      ],
+      "disposition": "planned-PH-0.1.8"
     },
     {
       "id": "KI-LOW-BACKLOG",
@@ -316,6 +490,26 @@
       "statement": "审计 backlog 另有约 45 条 low 级项（Lead 汇报口径：「完整清单可后续向 Lead 索取」），多为措辞、命名、小范围可读性与轻微性能项。按 Boss 决策 A「severe+high 必修、medium/low 登记」处理：low 级不逐条展开登记（避免凭记忆转述失真），由 Lead 持有完整清单并择机开后续战役。",
       "impact": "low 级项继续存在但已获可见性与归属；不影响本轮 VS-0 验收。",
       "resolution_owner": "lead"
+    },
+    {
+      "id": "KI-HIST-DELTA-INJECTION",
+      "found_by": "lead（2026-11-24 历史交付复核）／architect-llmrust（归档）",
+      "found_at": "2026-11-24",
+      "severity": "low",
+      "statement": "C-DELTA-NULL 旧注入说明称可重现“两个测试 failures”，但消费者仍使用 Option 时该注入会编译失败，不能按原文重现。既有交付证据保留，不回退历史卡文件；未来复验必须使用保持编译的反向注入。 C-DELTA c6 历史台账机判只验五字段，遗漏 file 与非空校验及 old 链连续；历史卡不改，v7.1 起新卡 c5 使用六字段含 file、batch_base old、前驱 new→old、new→实测→baseline 的完整链口径。",
+      "impact": "历史卡面注入叙述不可直接重放，但不改变既有交付事实。",
+      "resolution_owner": "lead",
+      "disposition": "archived-historical; card file unchanged"
+    },
+    {
+      "id": "KI-HIST-DOCS-ASSERT-RELAX",
+      "found_by": "lead（2026-11-24 历史交付复核）／architect-llmrust（归档）",
+      "found_at": "2026-11-24",
+      "severity": "medium",
+      "statement": "C-AUD-DOCS 历史 c7 曾允许调整 negative_* 断言，与 K-04 零放宽冲突。已交付事实保留，卡文件不改；v7 起 K-04 无新例外。",
+      "impact": "仅作历史治理留痕，不授权后续放宽。",
+      "resolution_owner": "lead",
+      "disposition": "archived-historical; no new exception"
     }
   ],
   "phases": [
@@ -382,7 +576,7 @@
         },
         {
           "id": "B-AUD-3",
-          "goal": "审计清障第三批（单卡，blocked_by C-AUD-COMPAT；与 B-AUD-2 都持有 tests/hotspot_ledger.json，两者并发会触发 PARALLEL_SCOPE_CONFLICT，故实际串行，先后顺序由 Lead 视 B-AUD-1 交付后的现场决定）：C-AUD-PROXY 修三个代理端点的 wire 语义——handle_stream 绕过 stream_with 造成裁决与 unify_terminal 缺失（#2 severe）、Responses 流的思考内容丢弃（#9，裁定按 Responses wire 原生形态落地）、bare done 合成 finish_reason（#10）、两处 None=>emit_completed 截断伪造成功（#11）、embeddings 缺 split_model 预检（#12）、三端点流错误事件裸 e.to_string() 的文案与 URL 泄漏（#13）、convert_request role 未钳制（#14）、responses 错误映射 _ 兜底 502 违反 Unsupported→400（#14 关联），并携带本批台账调整。",
+          "goal": "审计清障第三批（单卡，执行以 C-AUD-PROXY 卡 blocked_by=[C-AUD-COMPAT,C-AUD-PROV] 为准；与 B-AUD-2 同持 tests/hotspot_ledger.json，故串行）：C-AUD-PROXY 保留已完成的 stream_raw_with/代理 wire 实现，并将 url 2.5.8→>=2.5.9 的 P1-13 依赖安全升级前移以解除远端 Security Gates/release 死锁；Cargo.lock 纳入本卡 scope 且 cargo deny --locked check 设为门。回流后保留实现、重跑 QA/Gate/CI；PH-0.1.8 RELEASE 卡仍负责其余发布门，不重复 url 升级。",
           "tasks": [
             {
               "id": "T-AUD-PROXY",
@@ -392,7 +586,344 @@
           ]
         }
       ]
+    },
+    {
+      "id": "PH-0.1.8",
+      "phase_vertical_slice": {
+        "id": "VS-3",
+        "goal": "在 PH-0.1.7 交付基线之上，把 2026-11-24 审计尚未覆盖的 P1 与高风险 P2 收敛为可发布的 0.1.8：请求/重试/重定向安全 → 有界严格流与 terminal 状态 → provider 工具/响应完整性 → 三协议代理残余 wire → 能力声明/最终 wire 一致 → 路由/计费 → 文档/附加 API → 供应链/包/发布/E2E 门；不重复开 C-AUD-PROXY 已覆盖的代理修复卡。",
+        "serves": "VS-0",
+        "acceptance": "8 张卡各自 c1-c6 机判全绿并 delivered；P1-02/03/05/06/07/12/13/14/15 全部由本阶段或既有 C-AUD-PROXY 对账；41 项 P2 在 audit_dispositions 逐项有归属；cargo build/test 默认与 all-features、fmt、clippy、rustdoc、semver、cargo deny、package guard、E2E strict gate 全绿；.workforce/ 与 .agents/ 包内条目为 0；不新增 ignore/should_panic，不削弱既有断言。"
+      },
+      "batches": [
+        {
+          "id": "B-018-HTTP",
+          "goal": "请求传输与重试安全纵切（C-018-HTTP-SAFE）：URL/error 脱敏、跨源重定向阻断、base URL 校验、Retry-After 请求作用域与 embedding、with_retry 幂等、OpenAI 自定义端点声明、Gemini model 编码。",
+          "tasks": [
+            {
+              "id": "T-018-HTTP",
+              "role": "dev",
+              "card": "C-018-HTTP-SAFE"
+            }
+          ]
+        },
+        {
+          "id": "B-018-ROUTER",
+          "goal": "路由与计费纵切（C-018-ROUTER-COST）：冷却 fallback/公平性/状态清理、Router+Retry 组合语义、retention-aware 成本估算附加 API。",
+          "tasks": [
+            {
+              "id": "T-018-ROUTER",
+              "role": "dev",
+              "card": "C-018-ROUTER-COST"
+            }
+          ]
+        },
+        {
+          "id": "B-018-STREAM",
+          "goal": "流字节与 terminal 纵切（C-018-STREAM-CORE）：有界标准 SSE、严格 UTF-8、Content-Type、terminal thinking、错误立即关闭、clean EOF/截断口径。",
+          "tasks": [
+            {
+              "id": "T-018-STREAM",
+              "role": "dev",
+              "card": "C-018-STREAM-CORE"
+            }
+          ]
+        },
+        {
+          "id": "B-018-PROVIDER",
+          "goal": "Provider 响应与工具完整性纵切（C-018-PROVIDER-INTEGRITY）：Anthropic 工具闭合/JSON、Gemini 唯一 id/空 candidates/thought/schema、compat 空 choices/refusal/embedding index、Ollama finish/error/embedding、严格工具参数。",
+          "tasks": [
+            {
+              "id": "T-018-PROVIDER",
+              "role": "dev",
+              "card": "C-018-PROVIDER-INTEGRITY"
+            }
+          ]
+        },
+        {
+          "id": "B-018-PROXY",
+          "goal": "三协议代理残余 wire 纵切（C-018-PROXY-RESIDUAL）：只处理 C-AUD-PROXY 未覆盖的工具 index/finish 映射、Responses 字段/状态/事件、Anthropic usage/顺序、认证/413/错误 schema、输出边界与非法工具参数。",
+          "tasks": [
+            {
+              "id": "T-018-PROXY",
+              "role": "dev",
+              "card": "C-018-PROXY-RESIDUAL"
+            }
+          ]
+        },
+        {
+          "id": "B-018-CAPABILITY",
+          "goal": "能力声明与最终 wire 纵切（C-018-CAPABILITY-WIRE）：request profile、extra 冲突、response_format/cache/logprobs/sampling/image 裁决、provider profile、CachePolicy 解耦、模型表严格 schema 与附加查询 API。",
+          "tasks": [
+            {
+              "id": "T-018-CAPABILITY",
+              "role": "dev",
+              "card": "C-018-CAPABILITY-WIRE"
+            }
+          ]
+        },
+        {
+          "id": "B-018-API-DOC",
+          "goal": "0.1.x 文档与治理 SSOT 纵切（C-018-API-DOC）：能力/定价 API 文档、PROJECT_MAP/CONTRACTS/双语 README/CHANGELOG/api-inventory 同步；ThinkingConfig 根/prelude re-export 明确 deferred 0.2.0，保留既有 api_freeze 断言，仅新增 deferred 断言。",
+          "tasks": [
+            {
+              "id": "T-018-API-DOC",
+              "role": "dev",
+              "card": "C-018-API-DOC"
+            }
+          ]
+        },
+        {
+          "id": "B-018-RELEASE",
+          "goal": "最终串行发布工程纵切（C-018-RELEASE-GATE，blocked_by C-018-API-DOC）：url 公告、.workforce/.agents 包排除与 guard、完整 publish 依赖、locked/MSRV/平台/历史秘密扫描、真实 API/guard admission、严格 E2E、精确产物与 GitHub Release；此时才 bump 0.1.8、转换 Unreleased 并四载体对齐版本。",
+          "tasks": [
+            {
+              "id": "T-018-RELEASE",
+              "role": "dev",
+              "card": "C-018-RELEASE-GATE"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "revision_note": "v3（2026-11-20，architect-llmrust）：① 依据 Boss 2026-11-20 决策 A（以全量审计 backlog 为需求开新战役）把 VS-0 重写为战役级总切片，新增 PH-0.1.7（B-AUD-1 三卡并行 / B-AUD-2 / B-AUD-3 各单卡，共五卡）；② 宪法 K-01–K-05 原文沿用（仍为真且各有机器 enforcement），仅 K-02 的 enforced_by 改为不锁定 pass 数的写法——C-AUD-GUARD 会给 architecture_guard 净增负例，写死 15 会在交付时变成假判据（K-02 的机器锚是 exit 0 + failed/ignored 双零 + 两个双向用例，不是数字 15）；新增 K-06「代理 wire 零伪造」，把 AGENTS.md Proxy 规则与 ERR-003/H-3 先例升格为战役总纲，承载 #2/#6/#9–#14 组；③ PH-0.1.5 / B-DELTA-NULL / T-DELTA-NULL 与 C-DELTA-NULL 卡文件逐字保留不动：init 的 sameCards 判定（card_id 与 card sha256 不变）会把该批续判 delivered，既有回执与 handoff 历史保留；④ 席位命名沿用 v2 修订口径并按卡细分：五张卡各自使用独立 dev/qa 席位（dev-llmrust-cs/-dt/-gv/-pv/-px 与 qa-llmrust-cs/-dt/-gv/-pv/-px；带连字符的具体名走 agentMatchesSeat 的前缀分支 ^<role>-，五卡互不占用）；批次级 gate/ledger/ci 席位沿用 gate-llmrust / ledger-llmrust / ci-llmrust；⑤ 台账集中策略（SPCC §4.4 / §9.2 第 1 条 / §11.1.4）：每批至多一张卡持有 tests/hotspot_ledger.json 写入范围（B-AUD-1=C-AUD-COMPAT、B-AUD-2=C-AUD-PROV、B-AUD-3=C-AUD-PROXY）；B-AUD-2 与 B-AUD-3 都持有台账故显式串行（并发即 PARALLEL_SCOPE_CONFLICT，loop 也会拦）；台账 adjustment 沿用 v2 先例由 dev 代写（authorized_by 记 Boss 2026-11-20 决策 A，date=2026-11-20，reason 记卡 id 与审计项），architect 在 spec-review 前追认；非台账卡（C-AUD-DOCS / C-AUD-GUARD）机判禁止改动任何 src/**/*.rs；⑥ 审计 medium 项 23 条逐条登记 known_issues（owner=lead），low 项以 KI-LOW-BACKLOG 打包登记（完整清单 Lead 持有），已解决的 KI-PKG-GLOB 原样留痕；⑦ 零放宽基线改为 b008185（当前 main；v2 的 33a8e3e^ 只覆盖其当时范围），且 #[should_panic] 口径改为「位置集合与基线完全一致」（既不增也不删）；⑧ proxy wire 测试因其 #[cfg(feature=\"proxy\")] 门控，命令一律用 cargo test --workspace --features proxy 口径（普通 cargo test --workspace 编译不到代理用例，不能作 wire 判据）；Doc-tests ignored 基线按 feature 口径分列：普通 2（src/lib.rs:57、src/providers/retry.rs:19），--features proxy 4（另含 src/proxy/mod.rs:396、:595）。"
+  "revision_note": "v8（2026-11-25，architect-llmrust，Lead 依赖死锁解除）：① C-AUD-PROXY scope 增加 Cargo.lock 与 P1-13，c1/c2 断言 url>=2.5.9，c4 增加 cargo deny --locked check；c5/c6 仍只覆盖 proxy 三文件+lib 四个 src 台账文件，Cargo.lock 不入热点台账；② config gates 增加 cargo deny --locked check 并提交 config-only commit；③ B-AUD-3 记录依赖安全升级前移、已完成代理实现保留、回流后重跑 QA/Gate/CI；PH-0.1.8 RELEASE 卡不重复 url 升级；④ 其它卡、历史卡与业务源码不改，v7.1 全部口径保留。",
+  "audit_dispositions": {
+    "P1-02": [
+      "C-018-HTTP-SAFE",
+      "KI-REQWEST-URL-DISPLAY"
+    ],
+    "P1-03": [
+      "C-018-HTTP-SAFE",
+      "KI-BASEURL-TRAILING-SLASH"
+    ],
+    "P1-04": [
+      "C-AUD-PROXY",
+      "existing-PH-0.1.7; no duplicate card"
+    ],
+    "P1-05": [
+      "C-AUD-PROXY",
+      "C-018-PROXY-RESIDUAL",
+      "KI-ANT-PREV-RESPONSE"
+    ],
+    "P1-06": [
+      "C-AUD-PROXY",
+      "C-018-PROXY-RESIDUAL"
+    ],
+    "P1-07": [
+      "C-018-STREAM-CORE",
+      "KI-STREAMUTIL-LINE-CAP",
+      "KI-SSE-DATA-NOSPACE"
+    ],
+    "P1-12": [
+      "C-018-CAPABILITY-WIRE",
+      "KI-SAMPLING-COLUMN-OVERCLAIM"
+    ],
+    "P1-13": [
+      "C-018-RELEASE-GATE"
+    ],
+    "P1-14": [
+      "C-018-RELEASE-GATE"
+    ],
+    "P1-15": [
+      "C-018-RELEASE-GATE"
+    ],
+    "P2-01": [
+      "C-018-CAPABILITY-WIRE",
+      "KI-COMPAT-EXTRA-FLATTEN"
+    ],
+    "P2-02": [
+      "C-018-STREAM-CORE"
+    ],
+    "P2-03": [
+      "C-018-ROUTER-COST"
+    ],
+    "P2-04": [
+      "C-018-ROUTER-COST"
+    ],
+    "P2-05": [
+      "C-018-ROUTER-COST"
+    ],
+    "P2-06": [
+      "C-018-HTTP-SAFE"
+    ],
+    "P2-07": [
+      "C-018-ROUTER-COST"
+    ],
+    "P2-08": [
+      "C-018-CAPABILITY-WIRE"
+    ],
+    "P2-09": [
+      "C-018-ROUTER-COST"
+    ],
+    "P2-10": [
+      "C-018-HTTP-SAFE"
+    ],
+    "P2-11": [
+      "C-018-PROVIDER-INTEGRITY"
+    ],
+    "P2-12": [
+      "C-018-HTTP-SAFE",
+      "KI-RETRY-JITTER-RANGE"
+    ],
+    "P2-13": [
+      "C-018-HTTP-SAFE",
+      "C-018-PROXY-RESIDUAL",
+      "KI-COMPAT-NONJSON-ERROR"
+    ],
+    "P2-14": [
+      "C-018-PROXY-RESIDUAL"
+    ],
+    "P2-15": [
+      "C-018-PROXY-RESIDUAL",
+      "KI-ANT-BLOCK-TYPES"
+    ],
+    "P2-16": [
+      "C-018-PROXY-RESIDUAL"
+    ],
+    "P2-17": [
+      "C-018-PROXY-RESIDUAL",
+      "KI-ANT-PROXY-THINKING-CLOSE"
+    ],
+    "P2-18": [
+      "C-018-PROXY-RESIDUAL"
+    ],
+    "P2-19": [
+      "C-018-PROXY-RESIDUAL"
+    ],
+    "P2-20": [
+      "C-018-PROXY-RESIDUAL"
+    ],
+    "P2-21": [
+      "C-018-PROVIDER-INTEGRITY",
+      "C-018-PROXY-RESIDUAL"
+    ],
+    "P2-22": [
+      "C-018-RELEASE-GATE"
+    ],
+    "P2-23": [
+      "C-018-RELEASE-GATE"
+    ],
+    "P2-24": [
+      "C-018-CAPABILITY-WIRE"
+    ],
+    "P2-25": [
+      "C-018-CAPABILITY-WIRE"
+    ],
+    "P2-26": [
+      "C-018-HTTP-SAFE"
+    ],
+    "P2-27": [
+      "C-018-PROVIDER-INTEGRITY",
+      "KI-OLLAMA-STREAM-ERROR-LINE"
+    ],
+    "P2-28": [
+      "C-018-PROVIDER-INTEGRITY",
+      "KI-GEM-FINISH-OVERWRITE"
+    ],
+    "P2-29": [
+      "C-018-STREAM-CORE",
+      "KI-SSE-DATA-NOSPACE"
+    ],
+    "P2-30": [
+      "C-018-PROVIDER-INTEGRITY",
+      "KI-COMPAT-CHAT-EMPTY"
+    ],
+    "P2-31": [
+      "C-018-CAPABILITY-WIRE",
+      "KI-COMPAT-INCLUDE-USAGE"
+    ],
+    "P2-32": [
+      "C-018-RELEASE-GATE",
+      "partial: TLS backend selection deferred"
+    ],
+    "P2-33": [
+      "C-018-RELEASE-GATE"
+    ],
+    "P2-34": [
+      "C-018-API-DOC"
+    ],
+    "P2-35": [
+      "C-018-API-DOC",
+      "KI-ZH-RESPONSES-DOC",
+      "KI-REEXPORTS"
+    ],
+    "P2-36": [
+      "C-018-STREAM-CORE"
+    ],
+    "P2-37": [
+      "C-018-HTTP-SAFE",
+      "KI-RETRY-EMBED-RETRY-AFTER"
+    ],
+    "P2-38": [
+      "C-018-PROVIDER-INTEGRITY"
+    ],
+    "P2-39": [
+      "C-018-PROVIDER-INTEGRITY",
+      "KI-GEM-PARALLEL-TOOL-MERGE"
+    ],
+    "P2-40": [
+      "C-018-PROVIDER-INTEGRITY",
+      "KI-GEM-CHAT-EMPTY-OK"
+    ],
+    "P2-41": [
+      "C-018-RELEASE-GATE"
+    ]
+  },
+  "version_decisions": {
+    "current_crate_version": "0.1.6",
+    "planned_version": "0.1.8",
+    "semver_baselines": {
+      "adjacent_release": "0.1.6",
+      "adjacent_reason": "0.1.7 尚未发布，0.1.8 的强制 CI/release 相邻基线是最近已发布的 0.1.6；本机 cargo semver-checks 0.48.0 已验证默认口径 196 pass。",
+      "adjacent_commands": [
+        "cargo semver-checks --baseline-version 0.1.6 --default-features",
+        "cargo semver-checks --baseline-version 0.1.6 --all-features"
+      ],
+      "optional_cumulative": "0.1.5",
+      "optional_cumulative_reason": "0.1.5 仅用于额外累计回归，不替代 0.1.6 相邻发布门。"
+    },
+    "decision": "PH-0.1.8 保持 0.1.x 补丁线，不升 0.2.0",
+    "rationale": "本轮是安全/正确性修复与纯附加 API；不增删 FinishReason 变体，不给 Usage/LlmError/ToolCall/Message 等可构造公开结构加字段，不改 Provider 既有方法签名。Proxy 索引与 Responses 状态使用私有 DTO；新增 trait 方法均有默认实现。",
+    "breaking_candidates_0_2_0": [
+      "Responses previous_response_id / store 的服务端会话存储与恢复",
+      "公开 ToolCall.index 或 Usage.cache_write_1h_tokens 字段",
+      "LlmError 携带请求级 Retry-After 上下文的新变体/字段",
+      "FinishReason 增加跨 provider 的原生变体",
+      "替换 parse_tool_arguments 的公开/半公开降级语义或重做 Provider 错误上下文 trait",
+      "ThinkingConfig crate 根/prelude re-export（K-04/api_freeze 冲突，v7.1 延期）"
+    ],
+    "deferred_items": [
+      {
+        "audit_ids": [
+          "P2-32"
+        ],
+        "item": "reqwest TLS backend 裁剪",
+        "reason": "native-tls/rustls 选择影响下游传输兼容性，须 Lead 单独技术裁定；不在 0.1.8 静默切换。"
+      }
+    ]
+  },
+  "roadmap": {
+    "implemented_additive_in_0_1_8": [
+      {
+        "feature": "ChatRequest::with_cache 与 provider-neutral CachePolicy 旧路径兼容",
+        "card": "C-018-CAPABILITY-WIRE"
+      },
+      {
+        "feature": "LmrsClient::capabilities(provider) 运行时能力查询",
+        "card": "C-018-CAPABILITY-WIRE"
+      },
+      {
+        "feature": "retention-aware cache write 成本估算 API（不修改 Usage）",
+        "card": "C-018-ROUTER-COST"
+      }
+    ],
+    "candidates_0_2_0": [
+      "Responses 服务端会话存储与 previous_response_id 恢复",
+      "公开 ToolCall index 与 Usage 1h cache-write 明细",
+      "FinishReason 跨 provider 原生扩展",
+      "Provider 请求级错误上下文与 Retry-After 类型的统一重构",
+      "ThinkingConfig crate 根/prelude 纯附加 re-export"
+    ]
+  }
 }

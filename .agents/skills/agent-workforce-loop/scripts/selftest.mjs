@@ -377,7 +377,7 @@ try {
     e4('[4] 同一张卡被两个任务认领 → spec 拒绝', ['architect-spec', '--as', 'architect-a'], 1, has('CARD_ASSIGNED_TWICE F1'));
     sp4.phases[0].batches[1].tasks.pop(); w4(`${D}/spec.json`, sp4);
     e4('[4] architect-spec', ['architect-spec', '--as', 'architect-a'], 0);
-    for (const r of ['architect', 'dev', 'qa', 'gate', 'ledger']) w4(`${D}/signoffs/${r}.json`, { role: r, agent: r + '-x', spec_sha256: sha4(`${D}/spec.json`), agreed: true });
+    for (const r of ['architect', 'dev', 'qa', 'gate', 'ci', 'ledger']) w4(`${D}/signoffs/${r}.json`, { role: r, agent: r + '-x', spec_sha256: sha4(`${D}/spec.json`), agreed: true });
     w4(`${D}/signoffs/lead.json`, { role: 'lead', agent: 'lead', spec_sha256: sha4(`${D}/spec.json`), approved: true });
     run('loop.mjs', ['spec-review'], R4); run('loop.mjs', ['spec-approve'], R4);
     const cfgBak4 = readFileSync(join(R4, D, 'config.json'));

@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "ci",
   "agent": "ci-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
   "agreed": true,
-  "comments": "同意签署：五卡全部 CI 承接面经实测成立——gitleaks 锚定由 security.yml secrets job（detect --no-git --config .gitleaks.toml）闭环，proxy 口径测试由 ci.yml cargo test --all-features（proxy 为唯一非默认 feature，等价 --features proxy）每次 push/PR 全量覆盖，architecture_guard/package_guard 有 architecture 专项 job，回执所需 pushed.head_sha 与 workflow_runs conclusion/URL 可经已认证 gh 实测拉取（b008185 双 workflow 均 push/success：CI 44723526976、Security Gates 44723526852），无判据引用 CI 上不存在的 job/命令，CRLF（splitlines/lines() 双口径同值、PROXY 卡不锚行号）与正斜杠路径差异不构成阻塞缺口。",
-  "signedAt": "2026-11-20T23:10:48+08:00"
+  "comments": "复核 spec v8 与 config 提交 7948e6a 后同意签署，无新增 CI 阻断。validate-spec 与 check-criteria 均 PASS（3 phases/12 batches/14 cards/90 criteria）；7948e6a 将 cargo deny --locked check 纳入七条 config gates，使供应链公告成为每批必跑门。v8 把 P1-13 的 url 2.5.8→>=2.5.9 升级前移到 C-AUD-PROXY：Cargo.lock 已纳入写域，c1/c2 有机判版本断言，c4 增加 cargo deny --locked check，且 Cargo.lock 不进入热点台账；B-AUD-3 保留已完成的 stream_raw_with/代理 wire 实现，回流后重跑 QA/Gate/CI，RELEASE-GATE 保留 url>=2.5.9 断言及其余完整发布门，不重复执行升级。该安排可解除“先要 CI 绿才能发布、但安全公告只在后期发布卡修复”的死锁。当前事实边界：工作区 Cargo.lock 仍为 url 2.5.8，远端代理分支 HEAD 93f8a94 的 Security Gates run 45535179134 为 failure（CI run 45535179019 为 success），7948e6a 本身也尚未推送；因此本次签署只确认前移方案可承接，必须完成锁文件升级并取得新 head_sha 的 Security Gates/CI 双绿后，才能把依赖阻断视为实际关闭。",
+  "signedAt": "2026-11-25T10:55:55+08:00"
 }

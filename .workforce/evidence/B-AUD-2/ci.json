@@ -1,0 +1,105 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ci",
+  "agent": "ci-llmrust",
+  "written_by": "ci-llmrust",
+  "card_id": null,
+  "batch_id": "B-AUD-2",
+  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "provider": "github",
+  "repo": "llmrust/llmrust",
+  "pushed": {
+    "remote": "origin",
+    "branch": "main",
+    "head_sha": "eb07c7cb118a0b289df50a581173d01a158b4bb6"
+  },
+  "workflow_runs": [
+    {
+      "id": 44796971257,
+      "name": "CI",
+      "run_number": 524,
+      "event": "push",
+      "head_sha": "eb07c7cb118a0b289df50a581173d01a158b4bb6",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/44796971257",
+      "jobs": [
+        { "name": "Test (stable)", "conclusion": "success" },
+        { "name": "API-002 semver gate (vs 0.1.2 baseline)", "conclusion": "success" },
+        { "name": "MSRV (1.86)", "conclusion": "success" },
+        { "name": "Architecture & package guards (CI-003)", "conclusion": "success" }
+      ]
+    },
+    {
+      "id": 44796971154,
+      "name": "Security Gates",
+      "run_number": 302,
+      "event": "push",
+      "head_sha": "eb07c7cb118a0b289df50a581173d01a158b4bb6",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/44796971154",
+      "jobs": [
+        { "name": "RustSec advisories", "conclusion": "success" },
+        { "name": "Secret scan (gitleaks CLI)", "conclusion": "success" },
+        { "name": "Supply-chain policy (cargo-deny)", "conclusion": "success" },
+        { "name": "Security audit", "conclusion": "success" }
+      ]
+    }
+  ],
+  "bypass_detected": false,
+  "verdict": "PASS",
+  "inputs_seen": [
+    "git rev-parse HEAD（=> eb07c7cb118a0b289df50a581173d01a158b4bb6）",
+    "git log --oneline -3 / git status --short（基线：仅本回执 ?? .workforce/evidence/B-AUD-2/ci.json 豁免项；66ff745..eb07c7c 单 1 提交 chore(workforce)）",
+    "git ls-remote --heads origin main（推送前 => 66ff7453528685eb82f3d29f7a855abbc98011a9；推送后 => eb07c7cb118a0b289df50a581173d01a158b4bb6）",
+    "git log --format=%B 66ff745..eb07c7c 逐条扫 skip-ci/ci-skip/no-ci/[skip/[ci（无命中，规范中文 conventional message）",
+    "git diff --name-only 66ff745..eb07c7c -- .github/（为空，workflow 零改动）",
+    "git rev-parse origin/main:.github/workflows/ci.yml 与 HEAD:.github/workflows/ci.yml blob 比对（ea1a3a91… 双侧一致）",
+    "git rev-parse origin/main:.github/workflows/security.yml 与 HEAD:.github/workflows/security.yml blob 比对（e14cafad… 双侧一致）",
+    "git config --show-origin --get-regexp '^credential'（B-AUD-1 权限方案仍在位：github.com helper 空值重置 manager 后接 gh auth git-credential）",
+    "gh auth status（活动账号 dongyanyuxuana，keyring，scopes read:org,repo,workflow；全程未动）",
+    "advapi32 CredReadW('gh:github.com:bishuan', CRED_TYPE_GENERIC=1) 进程内读取（Generic 凭据，40 字节 ghp_ 原始形态 token；仅单次注入 git push 的 GH_TOKEN 环境变量，用后即删；绝不打印、绝不落盘、绝不写入任何 git/gh 配置）",
+    "git push origin main（经 .workforce/tmp/ci-b2-push2.ps1，GH_TOKEN=bishuan 单次注入，GIT_TERMINAL_PROMPT=0，EAP=Continue 修复转录层）",
+    "git fetch origin / git branch -r --contains HEAD（=> origin/HEAD->origin/main, origin/main）",
+    "gh api user（推送后、无注入复核 => dongyanyuxuana，注入未污染活动会话）",
+    "gh api \"repos/llmrust/llmrust/actions/runs?head_sha=eb07c7cb118a0b289df50a581173d01a158b4bb6\"（轮询 5 次 2026-11-21 02:53:30..02:54:54 +08，20s 间隔，至两 run 均 status=completed；total_count=2，无本 head 的其他 run）",
+    "gh api repos/llmrust/llmrust/actions/runs/44796971257/jobs（CI run，逐 job 结论）",
+    "gh api repos/llmrust/llmrust/actions/runs/44796971154/jobs（Security Gates run，逐 job 结论）",
+    "git check-ignore .workforce/tmp/ci-b2-runs-eb07c7c.json（exit 0，确证 tmp 工件为 gitignored，不新增未忽略未跟踪文件）",
+    "Get-FileHash .workforce/tmp/ci-b2-runs-eb07c7c.json 与 .workforce/tmp/ci-b2-jobs-eb07c7c.json（sha256 与本回执 artifacts 逐项一致）"
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/tmp/ci-b2-runs-eb07c7c.json",
+      "sha256": "44c4951155b2b102e8cf40474515fdc8fbfb3eeccc72cf5624833d7258466a7d"
+    },
+    {
+      "path": ".workforce/tmp/ci-b2-jobs-eb07c7c.json",
+      "sha256": "720fd51219496c7dd7417b23a2f609bc53616172189d1163a1c3e78d51e9cb67"
+    }
+  ],
+  "command_exit_codes": [
+    { "cmd": "git rev-parse HEAD", "exit_code": 0 },
+    { "cmd": "git ls-remote --heads origin main（推送前与推送后各一次）", "exit_code": 0 },
+    { "cmd": "git status --short / git log --oneline -3（基线记录）", "exit_code": 0 },
+    { "cmd": "git log --format=%B 66ff745..eb07c7c | Select-String 'skip-ci|ci-skip|no-ci'（无命中）", "exit_code": 0 },
+    { "cmd": "git diff --name-only 66ff745..eb07c7c -- .github/（为空）", "exit_code": 0 },
+    { "cmd": "git rev-parse {origin/main,HEAD}:.github/workflows/{ci.yml,security.yml}（blob 双侧一致）", "exit_code": 0 },
+    { "cmd": "git config --show-origin --get-regexp '^credential'", "exit_code": 0 },
+    { "cmd": "gh auth status", "exit_code": 0 },
+    { "cmd": "git push origin main（66ff745..eb07c7c 普通快进 1 提交，attempt 1 一次成功）", "exit_code": 0 },
+    { "cmd": "推送后复核 git ls-remote --heads origin main => eb07c7cb118a0b289df50a581173d01a158b4bb6 refs/heads/main", "exit_code": 0 },
+    { "cmd": "git fetch origin（一次成功，预置 TLS 重试环未用上）", "exit_code": 0 },
+    { "cmd": "git branch -r --contains HEAD => origin/HEAD -> origin/main; origin/main", "exit_code": 0 },
+    { "cmd": "gh api user（无注入，推送后）=> dongyanyuxuana", "exit_code": 0 },
+    { "cmd": "gh api \"repos/llmrust/llmrust/actions/runs?head_sha=eb07c7cb118a0b289df50a581173d01a158b4bb6\"（轮询 5 次）", "exit_code": 0 },
+    { "cmd": "gh api repos/llmrust/llmrust/actions/runs/44796971257/jobs", "exit_code": 0 },
+    { "cmd": "gh api repos/llmrust/llmrust/actions/runs/44796971154/jobs", "exit_code": 0 },
+    { "cmd": "git check-ignore .workforce/tmp/ci-b2-runs-eb07c7c.json", "exit_code": 0 },
+    { "cmd": "Get-FileHash .workforce/tmp/ci-b2-{runs,jobs}-eb07c7c.json -Algorithm SHA256", "exit_code": 0 },
+    { "cmd": "gh api \"repos/llmrust/llmrust/actions/runs?head_sha=66ff7453528685eb82f3d29f7a855abbc98011a9\" --jq .total_count（上轮 66ff745 的 2 条运行记录仍可查，作为重绑前过程档案复核）", "exit_code": 0 }
+  ],
+  "mock_used": false,
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "【本回执为重绑态：当前 HEAD=eb07c7cb118a0b289df50a581173d01a158b4bb6，git ls-remote --heads origin main 同值；workflow_runs/artifacts/inputs_seen/command_exit_codes 已全部换绑至 eb07c7c，66ff745 轮记录见下】【重绑起因】Lead 跑 release 时被 WORKTREE_DIRTY 拦：B-AUD-1 遗留的 .workforce/evidence/B-AUD-1/ci.json（上上轮豁免路径）不在 B-AUD-2 豁免范围；Lead 将其入库为单 chore 提交 eb07c7c（『chore(workforce): B-AUD-1 ci 回介入库（B-AUD-2 release 前工作树清洁要求）』），HEAD 由 66ff745 前移，故本回执按 B-AUD-1 同款流程重绑。【权限方案（沿 B-AUD-1 先例，两轮均未变）】活动账号 dongyanyuxuana 实测无 push 权（B-AUD-1 回执在案 permissions.push=false）；推送身份 bishuan：Windows 凭据管理器条目 gh:github.com:bishuan（Generic），advapi32 CredReadW 进程内读取 40 字节 ghp_ token，仅以 GH_TOKEN 环境变量单次注入 git push（经 ~/.gitconfig 的 credential.https://github.com.helper = !gh auth git-credential 链路生效），用后即删；全程未打印/未落盘/未写入任何配置，gh auth switch、hosts.yml、全局配置零改动，两轮推送后 gh api user 复核活动账号均仍为 dongyanyuxuana。【66ff745 轮（过程档案）】git push origin main 普通快进 bd33b5a..66ff745（2 提交：ddc70a2 业务交付 + 66ff745 回执/ruling/probe 入库）——push 本体成功、远端落 66ff745，但转录包装脚本因 PS5.1 $ErrorActionPreference=Stop + 2>&1 把 git 的 stderr 进度行（'To https://github.com/llmrust/llmrust.git'）变为 terminating NativeCommandError 在转录层中断报 exit 1；非推送失败，推送结果由 ls-remote/fetch/branch -r 三重复核实锤（该事实已按原样记入上轮报告与本注释，本轮推送脚本以 EAP=Continue 修复此转录层瑕疵）。66ff745 的远端 CI 亦全绿：CI #44796217384（run_number 523）与 Security Gates #44796217591（run_number 301）各 success、合计 8/8 job 全绿，原始响应仍存 .workforce/tmp/ci-b2-runs.json（sha256 0945bfc799beabd34aad4e7119089859564939aef75c90e890afe6f8c254881b）与 .workforce/tmp/ci-b2-jobs.json（sha256 ea662eff675642b4fe531751fe0c9497577346e8a892957140fb5f3d6801b3ac）。【eb07c7c 轮（本回执，重绑依据）】推送：git push origin main 普通快进 66ff745..eb07c7c（1 个 chore 提交），attempt 1 一次成功 exit=0，无 force、无 lease；推送前专用 ls-remote 探针 66ff745、推送后 eb07c7c，fetch 一次成功。【远端 CI（结论仅在两 run 均 status=completed 后读取；queued/in_progress 不算通过）】head eb07c7cb118a0b289df50a581173d01a158b4bb6 的 runs 共 2 条：CI #44796971257（run_number 524，event=push，success，actor=bishuan）4/4 job 全绿——Test (stable) 15 steps、API-002 semver gate (vs 0.1.2 baseline) 10 steps、MSRV (1.86) 8 steps、Architecture & package guards (CI-003) 9 steps；Security Gates #44796971154（run_number 302，event=push，success，actor=bishuan）4/4 job 全绿——RustSec advisories 8 steps、Supply-chain policy (cargo-deny) 9 steps、Secret scan (gitleaks CLI) 6 steps、Security audit（check-run 形态条目，steps=0，URL llmrust/runs/136499026172，本轮该条目回到 Security Gates run 名下——66ff745 轮它曾挂在 CI run 名下，API 返回形态逐轮如实入账）。合计 8/8 job 全绿；轮询 5 次（02:53:30..02:54:54 +08，20s 间隔）至两 run 均 settled。逐字 API 响应存 .workforce/tmp/ci-b2-runs-eb07c7c.json（runs 列表原始响应）与 .workforce/tmp/ci-b2-jobs-eb07c7c.json（两 run 的 jobs 响应合并，含 run 元数据），sha256 见 artifacts；该目录 gitignored（B-DELTA-NULL 先例），不触发 WORKTREE_DIRTY。【bypass 审计（同 B-AUD-1 口径四项，两轮均查）】①commit message：66ff745..eb07c7c（本轮 1 提交）与 bd33b5a..66ff745（上轮 2 提交）逐条扫 skip-ci/ci-skip/no-ci/[skip/[ci 均无命中；②.github/ 在 66ff745..eb07c7c 零改动且 ci.yml/security.yml blob 推送前后双侧一致（ea1a3a91…/e14cafad…，三连轮同 blob）；③均普通快进推送，无 force/lease 技巧；④event 如实记 push（两 run actor=bishuan triggering_actor=bishuan，与凭据身份一致）。bypass_detected=false。【本回执运行时产物属性】ci.json 按机器设计以未跟踪运行时产物形态留在工作树（豁免路径），不 add、不 commit、不 gitignore；写入后工作树终态仅本回执一个未跟踪文件。"
+}

@@ -1,0 +1,612 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "gate",
+  "agent": "gate-llmrust",
+  "written_by": "gate-llmrust",
+  "card_id": "C-018-ROUTER-COST",
+  "batch_id": "B-018-ROUTER",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "handoff_id": "f0ccaa47803ffa8b43084e96",
+  "base_head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+  "inputs_seen": [
+    ".workforce/spec.json",
+    ".workforce/config.json",
+    ".workforce/cards/C-018-ROUTER-COST.json",
+    ".workforce/loop-state.json",
+    ".agents/skills/agent-workforce-loop/SKILL.md",
+    ".agents/skills/agent-workforce-loop/references/roles.md",
+    ".agents/skills/agent-workforce-loop/assets/evidence.template.json",
+    ".workforce/evidence/B-018-ROUTER/dev-C-018-ROUTER-COST.json",
+    ".workforce/evidence/B-018-ROUTER/qa-C-018-ROUTER-COST.json"
+  ],
+  "mock_used": false,
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-preflight.py",
+      "sha256": "1f0814e85568699ce8cc3cdaa843d743cd28aaa713ba8482dd1f01a62beab8e8"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-preflight.json",
+      "sha256": "5e4864babbca2676454f4d1c0a0b403c567a9cb0fc34170a2fe11d68b8db6996"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-validate-skill.stdout.log",
+      "sha256": "4b331b1d7e3b9b1d1fc86879d9f9702e155965adf7ae12f5827fdaf2157a3938"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-validate-skill.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-validate-skill.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-selftest.stdout.log",
+      "sha256": "b2438109667c9a06e4b881e3cc940490069b93358d296c1b00c500d3dc24e28b"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-selftest.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-selftest.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-loop-status.stdout.log",
+      "sha256": "1656ecb6e74565d9ab531b9266b588f978d2f175bff087cbacf3c2cceb3bf3b5"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-loop-status.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/skill-loop-status.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/prepare.py",
+      "sha256": "7bda1d245357ffe37d1e53c816d533238512690a2015bd1fde63e5345788002f"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/run.py",
+      "sha256": "c85234a18ee23161a4609c347adcc453eaf46f4163a55f6a6138188c8aac417b"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/finalize.py",
+      "sha256": "86443fb8ba71f2aa9289e2fc9029f33855571fd3aac315fa066046ef480702dd"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/verify-receipt.py",
+      "sha256": "a1dc260291ce3947978729373166aa0e20d6a492111e29407d48265b36c14814"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/preflight.json",
+      "sha256": "eb0f31eef37fa99469065b87aa29d3460bddd3530608e1b252ae6c32b141e571"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/run-manifest.json",
+      "sha256": "354ae52289b6ca252e899530b254dbd41c1aef1a3c03614898354c1272314db8"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/run-start.json",
+      "sha256": "6e630c0694bae2e8ae710508d01e5ea8ecb77e59f1841ddda4ba3a7ee177a0c3"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/runs.jsonl",
+      "sha256": "8e5fa22d5a68c22db655e80c202dff00d45efa95808038b5d126a5110fa6a894"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/run-summary.json",
+      "sha256": "ada978488c26200fabad8cd7b56048ec97ffc069698f0c3bc5f34901bc4695b3"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/postflight.json",
+      "sha256": "9175724999301b60c57448c9241cbfa416a6d1a8ecb75901ce66f621193095f7"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/git-status-before.bin",
+      "sha256": "e255253a26073e7210454dee19313e6eb42b8a48cf2263d9b40c94308c032088"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/git-status-after.bin",
+      "sha256": "e255253a26073e7210454dee19313e6eb42b8a48cf2263d9b40c94308c032088"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-01-build.cmd",
+      "sha256": "c400cdd913cab07d2f59fa710a9007eed48e0e51d11d810efeca795c20eb8458"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-01-build.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-01-build.stderr.log",
+      "sha256": "22d3bd2bf85ad9aeebd9095daa5b6209a83989763bb0c4cd3a90c0d63569e6fe"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-01-build.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-02-test-default.cmd",
+      "sha256": "b930d21e9b38793ada3d8e9e59be2d2a4557ee9911360e490a71399eecf20e2c"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-02-test-default.stdout.log",
+      "sha256": "a7c5d46ca2a879fa290a8334b91df244ec81ba6215008cd94beaa942ca6e6037"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-02-test-default.stderr.log",
+      "sha256": "f5f54fac285ea34405c92000355e83387a5cc729f77af0179556d3605e90a5c4"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-02-test-default.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-03-test-all-features.cmd",
+      "sha256": "8d4a438e37bf083db325aa753f5dee3ca46eaf87f6d41c4a2f998049c8e0ef7a"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-03-test-all-features.stdout.log",
+      "sha256": "b09e1591e1fb20bbd73ad1ea9ea62df4ca97b1de46933bb71f1b4e831cd723ed"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-03-test-all-features.stderr.log",
+      "sha256": "1e7ec5ab2b026cef487ccdaab8047e31f643b87c4db861d8e69a7266663c6987"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-03-test-all-features.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-04-fmt.cmd",
+      "sha256": "098f5ab6160a42857a4cea99e87dbf89b0ac369557cc5ccacc9fe2b7a851d2a0"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-04-fmt.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-04-fmt.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-04-fmt.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-05-clippy.cmd",
+      "sha256": "deca7b2bf8dee64475a24c77c30717cda51cb8ad1e83eacdf88eaed5b350dc20"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-05-clippy.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-05-clippy.stderr.log",
+      "sha256": "54d32f1312e9ec321c58af432997bfe3bae5b14322fc06e68fd35a1f2f0e6519"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-05-clippy.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-06-rustdoc.cmd",
+      "sha256": "b37ea1a72aa6204a6663aeaf417cf798106c8ef22fa4bfbe9c80f73feaf5d055"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-06-rustdoc.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-06-rustdoc.stderr.log",
+      "sha256": "72f11b30961bf3dc93b426292680e1de02fd4c9c39c47d1bd00543e2f78ee343"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-06-rustdoc.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-07-cargo-deny.cmd",
+      "sha256": "7a2066463fad140d081f15168430aa14c0625cb4b12903e21e86074621d1ffcb"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-07-cargo-deny.stdout.log",
+      "sha256": "f1a0fca39d4280363937aabd77783990ea6480bd9ca257816de3b68fc8efa845"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-07-cargo-deny.stderr.log",
+      "sha256": "4aafba369829b400f5f28dfde05cf2dacea09b3634836a7181bb2e84caacd6ac"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/required-07-cargo-deny.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-01-test-default.cmd",
+      "sha256": "b930d21e9b38793ada3d8e9e59be2d2a4557ee9911360e490a71399eecf20e2c"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-01-test-default.stdout.log",
+      "sha256": "bf3a3fbb30946dc6aad5dde18ae86e089ddbfd4d91917c988dbc54db4551a825"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-01-test-default.stderr.log",
+      "sha256": "88beeebd3ce24fa396a2930644ac64e98c2bd1a96049406c2d84935cfb47fd60"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-01-test-default.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-02-test-all-features.cmd",
+      "sha256": "8d4a438e37bf083db325aa753f5dee3ca46eaf87f6d41c4a2f998049c8e0ef7a"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-02-test-all-features.stdout.log",
+      "sha256": "89ef543ef63c544cb4b1d88ebbaba2e0c74c23e1312d025159b59e55c3393180"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-02-test-all-features.stderr.log",
+      "sha256": "05d2c1b5fca25afe81bec09ea6ba374ca963dd514290c2a502eeb251cd4c92e6"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-02-test-all-features.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-03-build-default.cmd",
+      "sha256": "38b0a5f1f3da79d78da34a8a4dfd3d269cc996093988dcebd848365c4c97ff64"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-03-build-default.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-03-build-default.stderr.log",
+      "sha256": "9d892c5778d0c975f64a671e66ea5a753502353da3addd1dfdf3825225e406a2"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-03-build-default.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-04-fmt.cmd",
+      "sha256": "098f5ab6160a42857a4cea99e87dbf89b0ac369557cc5ccacc9fe2b7a851d2a0"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-04-fmt.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-04-fmt.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-04-fmt.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-05-clippy.cmd",
+      "sha256": "deca7b2bf8dee64475a24c77c30717cda51cb8ad1e83eacdf88eaed5b350dc20"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-05-clippy.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-05-clippy.stderr.log",
+      "sha256": "9a30d54c8b16d7e49510b182028079bca120aeebb7d662e88f8566e6196a49f6"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c4-05-clippy.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c5-01-ledger-chain.cmd",
+      "sha256": "5b66814a0aed696c6eacac648766b01070f53fc1b1def75e3a7c1e5d7af73a4f"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c5-01-ledger-chain.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c5-01-ledger-chain.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/c5-01-ledger-chain.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/probe/verification.json",
+      "sha256": "bfb00facdd32a4c376734118dcedff0d22cd7152a9fea19972f544f0c2950925"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "id": "required-01-build",
+      "criterion": "config.gates.required_commands[0]",
+      "cmd": "cargo build --locked --workspace --all-targets --all-features",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/required-01-build.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/required-01-build.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/required-01-build.exit.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "22d3bd2bf85ad9aeebd9095daa5b6209a83989763bb0c4cd3a90c0d63569e6fe",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "required-02-test-default",
+      "criterion": "config.gates.required_commands[1]",
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/required-02-test-default.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/required-02-test-default.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/required-02-test-default.exit.txt",
+      "stdout_sha256": "a7c5d46ca2a879fa290a8334b91df244ec81ba6215008cd94beaa942ca6e6037",
+      "stderr_sha256": "f5f54fac285ea34405c92000355e83387a5cc729f77af0179556d3605e90a5c4",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "required-03-test-all-features",
+      "criterion": "config.gates.required_commands[2]",
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/required-03-test-all-features.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/required-03-test-all-features.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/required-03-test-all-features.exit.txt",
+      "stdout_sha256": "b09e1591e1fb20bbd73ad1ea9ea62df4ca97b1de46933bb71f1b4e831cd723ed",
+      "stderr_sha256": "1e7ec5ab2b026cef487ccdaab8047e31f643b87c4db861d8e69a7266663c6987",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "required-04-fmt",
+      "criterion": "config.gates.required_commands[3]",
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/required-04-fmt.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/required-04-fmt.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/required-04-fmt.exit.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "required-05-clippy",
+      "criterion": "config.gates.required_commands[4]",
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/required-05-clippy.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/required-05-clippy.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/required-05-clippy.exit.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "54d32f1312e9ec321c58af432997bfe3bae5b14322fc06e68fd35a1f2f0e6519",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "required-06-rustdoc",
+      "criterion": "config.gates.required_commands[5]",
+      "cmd": "cargo rustdoc --locked --all-features -- -D warnings",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/required-06-rustdoc.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/required-06-rustdoc.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/required-06-rustdoc.exit.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "72f11b30961bf3dc93b426292680e1de02fd4c9c39c47d1bd00543e2f78ee343",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "required-07-cargo-deny",
+      "criterion": "config.gates.required_commands[6]",
+      "cmd": "cargo deny --locked check",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/required-07-cargo-deny.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/required-07-cargo-deny.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/required-07-cargo-deny.exit.txt",
+      "stdout_sha256": "f1a0fca39d4280363937aabd77783990ea6480bd9ca257816de3b68fc8efa845",
+      "stderr_sha256": "4aafba369829b400f5f28dfde05cf2dacea09b3634836a7181bb2e84caacd6ac",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "c4-01-test-default",
+      "criterion": "C-018-ROUTER-COST.acceptance_criteria.c4[0]",
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/c4-01-test-default.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/c4-01-test-default.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/c4-01-test-default.exit.txt",
+      "stdout_sha256": "bf3a3fbb30946dc6aad5dde18ae86e089ddbfd4d91917c988dbc54db4551a825",
+      "stderr_sha256": "88beeebd3ce24fa396a2930644ac64e98c2bd1a96049406c2d84935cfb47fd60",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "c4-02-test-all-features",
+      "criterion": "C-018-ROUTER-COST.acceptance_criteria.c4[1]",
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/c4-02-test-all-features.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/c4-02-test-all-features.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/c4-02-test-all-features.exit.txt",
+      "stdout_sha256": "89ef543ef63c544cb4b1d88ebbaba2e0c74c23e1312d025159b59e55c3393180",
+      "stderr_sha256": "05d2c1b5fca25afe81bec09ea6ba374ca963dd514290c2a502eeb251cd4c92e6",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "c4-03-build-default",
+      "criterion": "C-018-ROUTER-COST.acceptance_criteria.c4[2]",
+      "cmd": "cargo build --locked --workspace",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/c4-03-build-default.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/c4-03-build-default.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/c4-03-build-default.exit.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "9d892c5778d0c975f64a671e66ea5a753502353da3addd1dfdf3825225e406a2",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "c4-04-fmt",
+      "criterion": "C-018-ROUTER-COST.acceptance_criteria.c4[3]",
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/c4-04-fmt.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/c4-04-fmt.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/c4-04-fmt.exit.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "c4-05-clippy",
+      "criterion": "C-018-ROUTER-COST.acceptance_criteria.c4[4]",
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/c4-05-clippy.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/c4-05-clippy.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/c4-05-clippy.exit.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "9a30d54c8b16d7e49510b182028079bca120aeebb7d662e88f8566e6196a49f6",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "c5-01-ledger-chain",
+      "criterion": "C-018-ROUTER-COST.acceptance_criteria.c5",
+      "cmd": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-ROUTER');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-ROUTER-COST.json',encoding='utf-8'));F=['src/router.rs','src/pricing.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-ROUTER-COST' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/c5-01-ledger-chain.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/c5-01-ledger-chain.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/c5-01-ledger-chain.exit.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    }
+  ],
+  "expected_command_count": 13,
+  "recorded_command_count": 13,
+  "missing_commands": [],
+  "skipped_commands": [],
+  "command_serial": true,
+  "criteria_results": {
+    "config_required_commands": "PASS",
+    "card_c4": "PASS",
+    "card_c5": "PASS",
+    "command_outputs_archived": "PASS",
+    "protected_inputs_unchanged": "PASS",
+    "no_skip": "PASS"
+  },
+  "test_result_lines": {
+    "required-02-test-default": [
+      "test result: ok. 276 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.45s",
+      "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+      "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s",
+      "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.29s",
+      "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+      "test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 1.07s"
+    ],
+    "required-03-test-all-features": [
+      "test result: ok. 410 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s",
+      "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s",
+      "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.04s",
+      "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+      "test result: ok. 7 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.30s"
+    ],
+    "c4-01-test-default": [
+      "test result: ok. 276 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s",
+      "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s",
+      "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.43s",
+      "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+      "test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.92s"
+    ],
+    "c4-02-test-all-features": [
+      "test result: ok. 410 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s",
+      "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s",
+      "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.17s",
+      "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+      "test result: ok. 7 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.23s"
+    ]
+  },
+  "observations": [
+    {
+      "id": "OBS-CARGO-DENY-WARNINGS",
+      "command_id": "required-07-cargo-deny",
+      "exit_code": 0,
+      "stdout": "advisories ok, bans ok, licenses ok, sources ok",
+      "stderr_warning_count": 11,
+      "disposition": "warnings preserved verbatim; verdict follows the actual cargo deny exit code and output"
+    },
+    {
+      "id": "OBS-DOCTEST-IGNORED-COUNTS",
+      "default_doctest_result": "test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 1.07s",
+      "all_features_doctest_result": "test result: ok. 7 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.30s",
+      "disposition": "existing doctest ignored counts remain in raw stdout; no gate command was skipped"
+    }
+  ],
+  "verification": {
+    "path": ".workforce/evidence/B-018-ROUTER/probe/verification.json",
+    "sha256": "bfb00facdd32a4c376734118dcedff0d22cd7152a9fea19972f544f0c2950925",
+    "failed_checks": []
+  },
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "generated_at_utc": "2026-11-25T06:32:29.289437+00:00",
+  "notes": "独立门禁按配置 7 条 required_commands、卡 c4 五条、c5 一条，共 13 条命令串行实跑；config=PASS，c4=PASS，c5=PASS。每条 stdout/stderr/exit 分别以原始文件保存并计算 sha256；无 SKIP、无 mock、未删 FAIL。受保护输入与 QA 冻结文件复核=PASS。"
+}

@@ -1,0 +1,158 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "dev",
+  "agent": "dev-llmrust-018router",
+  "written_by": "dev-llmrust-018router",
+  "card_id": "C-018-ROUTER-COST",
+  "batch_id": "B-018-ROUTER",
+  "batch_base": "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+  "card_sha256": "88cc2c20d9e9a5591f3e5a5ab70013ddc129b870573579785697e9ee66e35740",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "inputs_seen": [
+    ".workforce/cards/C-018-ROUTER-COST.json",
+    ".workforce/spec.json",
+    ".workforce/loop-state.json",
+    ".workforce/config.json",
+    ".agents/skills/agent-workforce-loop/references/roles.md",
+    ".agents/skills/agent-workforce-loop/assets/evidence.template.json",
+    "AGENTS.md",
+    "AGENT_MANIFESTO.md",
+    "docs/PROJECT_MAP.md",
+    "docs/CAPABILITIES.md",
+    "docs/CONTRACTS.md",
+    "docs/SPCC-0.1.4.md",
+    "docs/audit-2026-11-24.md",
+    "src/types.rs",
+    "src/providers/mod.rs",
+    "src/providers/retry.rs",
+    "src/cache_control.rs",
+    "src/lib.rs",
+    "src/router.rs",
+    "src/pricing.rs",
+    "tests/hotspot_ledger.json",
+    "tests/architecture_guard.rs",
+    "tests/api_freeze.rs",
+    "tests/test_hygiene_guard.rs",
+    "examples/README.md",
+    "Cargo.toml",
+    ".workforce/evidence/B-018-HTTP/dev-C-018-HTTP-SAFE.json"
+  ],
+  "files_changed": [
+    "src/router.rs",
+    "src/pricing.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "mock_used": false,
+  "artifacts": [
+    {
+      "path": "src/router.rs",
+      "sha256": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e"
+    },
+    {
+      "path": "src/pricing.rs",
+      "sha256": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "python -c <c2.1-c2.6 unified structural probes>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --lib audit_2026_router_cost_ready_failure_falls_back_to_cooling",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --lib audit_2026_router_cost_",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --locked --workspace --all-targets --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo rustdoc --locked --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test architecture_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test package_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test test_hygiene_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo deny --locked check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-ROUTER');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-ROUTER-COST.json',encoding='utf-8'));F=['src/router.rs','src/pricing.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-ROUTER-COST' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <assert/assert_eq/assert_ne line-set and ignore/should_panic occurrence comparison vs eb07c7cb118a0b289df50a581173d01a158b4bb6>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git -c core.whitespace=cr-at-eol diff --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <final scope, SHA-256, line-count and line-ending verification>",
+      "exit_code": 0
+    }
+  ],
+  "observations": [
+    {
+      "kind": "expected_injection_red",
+      "cmd": "cargo test --locked --lib audit_2026_router_cost_ready_failure_falls_back_to_cooling",
+      "injected_change": "temporarily replaced candidates.extend(cooling) in Router::candidates with a comment, removing the ready-exhaustion cooling fallback while keeping the crate compilable",
+      "exit_code": 101,
+      "observed": "The named test failed with 0 passed; 1 failed; 0 ignored because the ready deployment returned Api 503 and the recovered cooling deployment was not attempted. The two unused-variable warnings were confined to the injected build.",
+      "restored_exit_code": 0,
+      "h0": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+      "h1": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e"
+    }
+  ],
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "c1: 四条 Router 命名测试加一条 pricing 命名测试共 5 passed; 0 failed; 0 ignored，覆盖 ready 失败 fallback、三节点偏斜、全冷却注册顺序、并发 cooldown 写入/确定性过期/per-group RR/容量/极端 Duration，以及 1h 写缓存计价。c2: 六项结构探针逐条通过；Usage 与 HEAD 零差异。c3: 删除 cooling fallback 后注入 exit 101，恢复后 exit 0 且 h0=h1。c4: 卡面五条门禁与 config 附加 build/rustdoc/deny 全部 exit 0；默认 workspace 的 unit/integration ignored 全为 0、doc ignored=2，all-features 的 unit/integration ignored 全为 0、doc ignored=4，均为既有 rust,ignore 文档块。c5: batch_base=18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c；精确卡面链命令 exit 0。router 1231->1586（前驱 new=1231），pricing 首次跨阈值 0->527；两条 adjustment 均含六字段、C-018-ROUTER-COST、architect-llmrust 与 2026-11-24，new 等于 splitlines 实测与 baseline。c6: 相对 eb07c7cb118a0b289df50a581173d01a158b4bb6，断言行集合 942->1029、删除/改写 0；ignore/should_panic 2->2、新增 0；semver 0.1.6 默认与 all-features 各 196 checks pass。Router+Retry 在 0.1.x 保持同部署先重试、耗尽后 failover；公共文档和 chat/stream 结构化日志明确 waits_for_upstream=false 与 retry_budget_exhausted，最终 CONTRACTS 文档同步由 C-018-API-DOC 承接（本卡 scope 不含 docs）。src/router.rs 与 src/pricing.rs 最终为 LF，tests/hotspot_ledger.json 为 CRLF；未改 spec/card/signoffs/loop-state，未 git commit。cargo deny 有既有 duplicate/license-not-encountered 警告但 exit 0；唯一红命令为卡面要求的注入，已仅记 observations。"
+}

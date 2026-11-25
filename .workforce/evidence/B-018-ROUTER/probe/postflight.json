@@ -1,0 +1,34 @@
+{
+  "schema": "agent-workforce-gate-postflight/v1",
+  "batch_id": "B-018-ROUTER",
+  "card_id": "C-018-ROUTER-COST",
+  "agent": "gate-llmrust",
+  "written_by": "gate-llmrust",
+  "verified_at_utc": "2026-11-25T06:32:29.191662+00:00",
+  "head": "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+  "protected_sha256": {
+    ".workforce/spec.json": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+    ".workforce/config.json": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+    ".workforce/cards/C-018-ROUTER-COST.json": "88cc2c20d9e9a5591f3e5a5ab70013ddc129b870573579785697e9ee66e35740",
+    ".workforce/loop-state.json": "dfb697977881fed4c9723a3fb8760bae86c828e272ab39be92a65ab8a6390c9b",
+    ".workforce/evidence/B-018-ROUTER/dev-C-018-ROUTER-COST.json": "e07711f8b70dd43033c8e922bc5381264dd9a78f9679919cea162c5221b31917",
+    ".workforce/evidence/B-018-ROUTER/qa-C-018-ROUTER-COST.json": "e96053a1a341949a5efa827f0e42727a8c619a2c83dace9e31c62753bfb76c39",
+    ".workforce/signoffs/architect.json": "bc711bc94075a9ed904f27d5652b4f78bf733a81b8fe0da10842009ae34ee3ac",
+    ".workforce/signoffs/ci.json": "031d0ffc060a15623dda7c51ff25456d733ec730398d355fe4ace45ba2d5070a",
+    ".workforce/signoffs/dev.json": "2973235b654220cd19442234552440f4ed7de7aa1f71dfbbffc35fb1fb079943",
+    ".workforce/signoffs/gate.json": "2553240ceb9c97ea4655e5122b7d173a20fee325f7d710444e1c319d6bc96dd1",
+    ".workforce/signoffs/lead.json": "65241f78059fe8b2a54a72831ece6b6aafc057d4828709781daf64b494f2375a",
+    ".workforce/signoffs/ledger.json": "1fa47443c4bbb8f3cc884ab5ac3d96408ae6ed602a78dc55cf20f476fdf5a8de",
+    ".workforce/signoffs/qa.json": "93817f949b37a24264ff138cff210b7bdf6c85e1cabd1e9c053378667fb85f0e",
+    "src/pricing.rs": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30",
+    "src/router.rs": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+    "tests/hotspot_ledger.json": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd"
+  },
+  "protected_mismatches": [],
+  "git_status_after": {
+    "path": ".workforce/evidence/B-018-ROUTER/probe/git-status-after.bin",
+    "sha256": "e255253a26073e7210454dee19313e6eb42b8a48cf2263d9b40c94308c032088",
+    "bytes": 101
+  },
+  "git_diff_binary_sha256": "9c9e34b4a49285d3e91d789936d222c94caef52c509b20bc010d40a8e72aa7a0"
+}

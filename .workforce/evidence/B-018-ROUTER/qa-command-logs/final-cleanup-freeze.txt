@@ -1,0 +1,32 @@
+{
+  "handoff_id": "f0ccaa47803ffa8b43084e96",
+  "base_head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+  "batch_base_from_loop_state": "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+  "head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+  "temporary_directory": "E:\\Temp\\qa-llmrust-018router-rerun-20261125",
+  "temporary_directory_absent": true,
+  "temporary_probe_files_removed": [
+    "c2_probe.py",
+    "c3_inject.py",
+    "c5_branch_probe.py",
+    "c6_probe.py",
+    "router.rs.pre-injection.bak"
+  ],
+  "obsolete_prior_attempt_log_removed": true,
+  "frozen_file_count": 3,
+  "frozen_files_sha256": {
+    "src/router.rs": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+    "src/pricing.rs": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30",
+    "tests/hotspot_ledger.json": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd"
+  },
+  "frozen_files_match_base_head_bytes": true,
+  "all_frozen_sha_unchanged": true,
+  "tracked_diff_paths": [],
+  "business_bytes_match_base_head": true,
+  "types_usage_diff_exit_code": 0,
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "spec_matches_declared": true,
+  "handoff_verified_in_loop_state": true,
+  "cleanup_and_freeze_exit_code": 0
+}
+FINAL_CLEANUP_AND_FREEZE_RESULT: PASS

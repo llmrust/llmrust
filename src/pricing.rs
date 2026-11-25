@@ -74,6 +74,31 @@ impl CachePricing {
     }
 }
 
+/// Cache-write token counts split by provider retention tier.
+///
+/// [`Usage`] keeps one aggregate `cache_write_tokens` field for 0.1.x
+/// constructibility compatibility. This separate input lets cost estimation
+/// distinguish the 5-minute and 1-hour write rates without changing [`Usage`].
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CacheWriteTokens {
+    /// Tokens written to a 5-minute cache.
+    pub five_min: u64,
+    /// Tokens written to a 1-hour cache.
+    pub one_hour: u64,
+}
+
+impl CacheWriteTokens {
+    /// Construct retention-aware cache-write counts.
+    pub const fn new(five_min: u64, one_hour: u64) -> Self {
+        Self { five_min, one_hour }
+    }
+
+    /// Total cache-write tokens, saturating at [`u64::MAX`].
+    pub const fn total(&self) -> u64 {
+        self.five_min.saturating_add(self.one_hour)
+    }
+}
+
 /// Per-token pricing for a model, in US dollars per 1,000 tokens.
 ///
 /// Prompt (input) and completion (output) tokens are usually billed at
@@ -157,6 +182,49 @@ impl ModelPricing {
         let write_cost = cached_write as f64 / 1000.0 * write_rate;
 
         uncached_cost + read_cost + write_cost + completion_cost
+    }
+
+    /// Estimate cost with cache-write tokens split by retention tier.
+    ///
+    /// This is the retention-aware counterpart to
+    /// [`Self::estimate_cost_with_cache`]. `usage.cache_read_tokens` and the
+    /// explicit `cache_writes` counts are subsets of `usage.prompt_tokens`; the
+    /// uncached remainder is computed with saturating subtraction. The aggregate
+    /// `usage.cache_write_tokens` field is deliberately ignored here because its
+    /// retention is unknown — callers that need exact 1-hour accounting pass
+    /// [`CacheWriteTokens`] instead. `total_tokens` is never used.
+    ///
+    /// Each tier uses its own configured rate. A missing 5-minute rate falls back
+    /// to the 1-hour rate and then the prompt rate, matching the legacy API. A
+    /// missing 1-hour rate falls back directly to the prompt rate, **never** to
+    /// the cheaper 5-minute rate. Unconfigured rates are not free.
+    pub fn estimate_cost_with_cache_retention(
+        &self,
+        usage: &Usage,
+        cache: &CachePricing,
+        cache_writes: &CacheWriteTokens,
+    ) -> f64 {
+        let completion_cost = usage.completion_tokens as f64 / 1000.0 * self.completion_per_1k;
+        let cached_read = usage.cache_read_tokens.unwrap_or(0);
+        let cached_write = cache_writes.total();
+        let uncached = usage
+            .prompt_tokens
+            .saturating_sub(cached_read)
+            .saturating_sub(cached_write);
+
+        let read_rate = cache.read_per_1k.unwrap_or(self.prompt_per_1k);
+        let write_5m_rate = cache
+            .write_5m_per_1k
+            .or(cache.write_1h_per_1k)
+            .unwrap_or(self.prompt_per_1k);
+        let write_1h_rate = cache.write_1h_per_1k.unwrap_or(self.prompt_per_1k);
+
+        let uncached_cost = uncached as f64 / 1000.0 * self.prompt_per_1k;
+        let read_cost = cached_read as f64 / 1000.0 * read_rate;
+        let write_5m_cost = cache_writes.five_min as f64 / 1000.0 * write_5m_rate;
+        let write_1h_cost = cache_writes.one_hour as f64 / 1000.0 * write_1h_rate;
+
+        uncached_cost + read_cost + write_5m_cost + write_1h_cost + completion_cost
     }
 }
 
@@ -414,5 +482,46 @@ mod tests {
         u.total_tokens = 9_999;
         let second = pricing.estimate_cost_with_cache(&u, &cache);
         assert_eq!(first, second, "total_tokens must not affect the estimate");
+    }
+
+    #[test]
+    fn audit_2026_router_cost_one_hour_cache_write_is_priced() {
+        let pricing = ModelPricing::new(0.003, 0.015);
+        let cache = CachePricing::new(Some(0.0003), Some(0.00375), Some(0.006));
+        let usage = Usage {
+            prompt_tokens: 2_000,
+            completion_tokens: 500,
+            total_tokens: 2_500,
+            cache_read_tokens: Some(500),
+            // The aggregate legacy field cannot express retention. The new API
+            // must use CacheWriteTokens instead of silently choosing 5m.
+            cache_write_tokens: Some(1_000),
+            ..Default::default()
+        };
+
+        let five_min = pricing.estimate_cost_with_cache_retention(
+            &usage,
+            &cache,
+            &CacheWriteTokens::new(1_000, 0),
+        );
+        let one_hour = pricing.estimate_cost_with_cache_retention(
+            &usage,
+            &cache,
+            &CacheWriteTokens::new(0, 1_000),
+        );
+        let mixed = pricing.estimate_cost_with_cache_retention(
+            &usage,
+            &cache,
+            &CacheWriteTokens::new(400, 600),
+        );
+
+        assert!((five_min - 0.0129).abs() < 1e-12, "got {five_min}");
+        assert!((one_hour - 0.01515).abs() < 1e-12, "got {one_hour}");
+        assert!((mixed - 0.01425).abs() < 1e-12, "got {mixed}");
+        assert!(
+            one_hour > five_min,
+            "1h writes must not fall back to the cheaper 5m rate"
+        );
+        assert_eq!(CacheWriteTokens::new(400, 600).total(), 1_000);
     }
 }

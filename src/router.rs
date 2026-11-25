@@ -30,7 +30,29 @@
 //! the others until the cooldown expires.
 //!
 //! If all deployments in a group are in cooldown, the router fails open:
-//! all deployments are still attempted in order rather than returning an error.
+//! all deployments are still attempted in their registration order rather than
+//! returning an error. Round-robin never rotates this all-cooling fallback.
+//!
+//! Ready deployments are selected **before** round-robin advances. If every
+//! ready deployment fails during this request, the cooling deployments are then
+//! attempted in registration order as a last resort.
+//!
+//! ## Retry composition (0.1.x)
+//!
+//! A [`Router`] over an ordinary [`LmrsClient`] is failover-first: after a
+//! failoverable error it switches deployments without sleeping. When the client
+//! has been configured with [`LmrsClient::with_retry`], the composition is
+//! deliberately **not** failover-first: [`crate::RetryProvider`] first exhausts
+//! the same deployment's retry budget (including any back-off wait), and only
+//! then returns the error to the Router for failover.
+//!
+//! Failover logs make that distinction explicit. `waits_for_upstream = false`
+//! describes the Router's own switch decision after the deployment call returns;
+//! it does not claim that an inner retry decorator never waited.
+//! `retry_budget_exhausted = true` means a retry-wrapped deployment returned a
+//! retryable failure after its budget was consumed. Non-retryable failover errors
+//! such as 429 and `UnknownProvider` leave that field false. True failover-first
+//! retry composition remains a 0.2.0 candidate.
 //!
 //! Streaming is only affected on the initial connection. Once a stream is
 //! established, mid-stream errors are the caller's responsibility.
@@ -62,6 +84,12 @@ use std::time::{Duration, Instant};
 use crate::providers::{LlmError, Result};
 use crate::types::{ChatRequest, ChatResponse, StreamChunk};
 use crate::LmrsClient;
+
+/// Upper bound for passive cooldown state, including literal deployment names.
+/// Expired entries are pruned on every snapshot/write; at capacity the earliest
+/// deadline is evicted so a long-running process cannot grow this map without
+/// bound. Eviction fails open for that deployment rather than dropping traffic.
+const MAX_COOLDOWN_ENTRIES: usize = 1024;
 
 /// How a [`Router`] chooses the starting deployment within a group.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -151,7 +179,15 @@ pub(crate) fn error_kind_of(e: &LlmError) -> &'static str {
 /// **Cooldown note:** when enabled via [`Router::with_cooldown`], deployments
 /// that fail with a transient error are temporarily deprioritized. This is
 /// passive — no background health check runs. Failed deployments are
-/// automatically retried after the cooldown duration expires.
+/// automatically retried after the cooldown duration expires. Ready deployments
+/// are rotated first; cooling deployments are a registration-ordered fallback
+/// only after all ready deployments fail, or the fail-open order when all cool.
+///
+/// **Retry composition:** with [`LmrsClient::with_retry`], the inner
+/// [`crate::RetryProvider`] exhausts the same deployment's budget before this
+/// Router fails over. The combination is therefore not failover-first in 0.1.x.
+/// Failover logs report `waits_for_upstream = false` for the Router's own switch
+/// and `retry_budget_exhausted` for the inner decorator's completed budget.
 ///
 /// **Embeddings note:** routing, failover, and cooldown apply to `chat` and
 /// `stream` only. Embeddings are not routed through groups; call
@@ -216,18 +252,36 @@ impl Router {
 
     // ── cooldown helpers ──────────────────────────────────────────
 
-    fn is_in_cooldown(&self, deployment: &str) -> bool {
-        if self.cooldown.is_none() {
-            return false;
+    /// Remove expired state while holding the cooldown lock. This also bounds
+    /// literal `provider/model` groups, which otherwise create one map entry per
+    /// distinct upstream failure for the lifetime of the process.
+    fn prune_expired_cooldowns(guard: &mut HashMap<String, Instant>, now: Instant) {
+        guard.retain(|_, deadline| *deadline > now);
+    }
+
+    /// Insert one deadline while preserving the map's capacity invariant.
+    /// Ties are broken by deployment name so eviction is deterministic.
+    fn insert_cooldown(
+        guard: &mut HashMap<String, Instant>,
+        deployment: String,
+        deadline: Instant,
+        now: Instant,
+    ) {
+        Self::prune_expired_cooldowns(guard, now);
+        if !guard.contains_key(&deployment) && guard.len() >= MAX_COOLDOWN_ENTRIES {
+            let evict = guard
+                .iter()
+                .min_by(|(left_name, left_deadline), (right_name, right_deadline)| {
+                    left_deadline
+                        .cmp(right_deadline)
+                        .then_with(|| left_name.cmp(right_name))
+                })
+                .map(|(name, _)| name.clone());
+            if let Some(name) = evict {
+                guard.remove(&name);
+            }
         }
-        let guard = self
-            .cooldown_until
-            .lock()
-            .expect("cooldown lock not poisoned");
-        match guard.get(deployment) {
-            Some(deadline) => Instant::now() < *deadline,
-            None => false,
-        }
+        guard.insert(deployment, deadline);
     }
 
     fn mark_cooldown(&self, deployment: &str) {
@@ -235,11 +289,17 @@ impl Router {
             Some(d) => d,
             None => return,
         };
+        let now = Instant::now();
+        // An unrepresentable deadline fails open for this mark instead of
+        // panicking. Any shorter pre-existing cooldown remains unchanged.
+        let Some(deadline) = now.checked_add(dur) else {
+            return;
+        };
         let mut guard = self
             .cooldown_until
             .lock()
             .expect("cooldown lock not poisoned");
-        guard.insert(deployment.to_string(), Instant::now() + dur);
+        Self::insert_cooldown(&mut guard, deployment.to_string(), deadline, now);
     }
 
     fn clear_cooldown(&self, deployment: &str) {
@@ -250,66 +310,103 @@ impl Router {
         guard.remove(deployment);
     }
 
-    /// Return the ordered deployments to attempt for `group`, with cooldown
-    /// filtering applied when enabled. If all deployments are in cooldown,
-    /// returns the full list (fail-open).
+    /// Take one locked snapshot and partition deployments without ever nesting
+    /// the cooldown lock with the round-robin counter lock.
+    fn ready_and_cooling(&self, deployments: &[String]) -> (Vec<String>, Vec<String>) {
+        if self.cooldown.is_none() {
+            return (deployments.to_vec(), Vec::new());
+        }
+
+        let now = Instant::now();
+        let mut ready = Vec::with_capacity(deployments.len());
+        let mut cooling = Vec::with_capacity(deployments.len());
+        {
+            let mut guard = self
+                .cooldown_until
+                .lock()
+                .expect("cooldown lock not poisoned");
+            Self::prune_expired_cooldowns(&mut guard, now);
+            for deployment in deployments {
+                if guard
+                    .get(deployment)
+                    .is_some_and(|deadline| *deadline > now)
+                {
+                    cooling.push(deployment.clone());
+                } else {
+                    ready.push(deployment.clone());
+                }
+            }
+        }
+        (ready, cooling)
+    }
+
+    /// Return ready deployments in round-robin order, followed by cooling
+    /// deployments in registration order. The cooling suffix is used only after
+    /// every ready deployment has failed during this request.
     fn candidates(&self, group: &str) -> Vec<String> {
-        let deployments = self.resolve(group);
-        if self.cooldown.is_none() || deployments.len() <= 1 {
+        let deployments = self.registered_deployments(group);
+        let (ready, cooling) = self.ready_and_cooling(&deployments);
+
+        if ready.is_empty() {
+            // All cooling: fail open in registration order. Do not touch the
+            // round-robin counter, so recovery keeps the group's fair rotation.
             return deployments;
         }
 
-        let mut ready: Vec<String> = Vec::with_capacity(deployments.len());
-        let mut cooling: Vec<String> = Vec::with_capacity(deployments.len());
+        // Ready filtering is complete before this method advances per-group RR.
+        let mut candidates = self.rotate_ready(group, ready);
+        candidates.extend(cooling);
+        candidates
+    }
 
-        for d in deployments {
-            if self.is_in_cooldown(&d) {
-                cooling.push(d);
-            } else {
-                ready.push(d);
-            }
-        }
-
-        if ready.is_empty() {
-            // All deployments cooling — fail open
-            cooling
-        } else {
-            ready
+    /// Resolve registration order without applying round-robin. An unregistered
+    /// group resolves to itself, so the router transparently forwards plain
+    /// `provider/model` strings.
+    fn registered_deployments(&self, group: &str) -> Vec<String> {
+        match self.groups.get(group) {
+            Some(list) => list.clone(),
+            None => vec![group.to_string()],
         }
     }
 
-    /// Resolve the ordered deployments to attempt for `group`, applying the
-    /// routing strategy. An unregistered group resolves to itself, so the
-    /// router transparently forwards plain `provider/model` strings.
-    fn resolve(&self, group: &str) -> Vec<String> {
-        let base = match self.groups.get(group) {
-            Some(list) => list.clone(),
-            None => vec![group.to_string()],
+    fn rotate_ready(&self, group: &str, ready: Vec<String>) -> Vec<String> {
+        if ready.len() <= 1 || self.strategy == RoutingStrategy::Ordered {
+            return ready;
+        }
+
+        // Per-group counter: lazily created on first use. This lock is scoped
+        // here, after the cooldown snapshot lock has been released.
+        let mut counters = self
+            .counters
+            .lock()
+            .expect("round-robin counters lock not poisoned");
+        let counter = counters.entry(group.to_string()).or_insert(0);
+        let start = *counter % ready.len();
+        *counter = counter.wrapping_add(1);
+        let mut rotated = ready[start..].to_vec();
+        rotated.extend_from_slice(&ready[..start]);
+        rotated
+    }
+
+    /// Whether a failoverable error reached the Router only after an inner
+    /// retry decorator consumed its same-deployment budget. 429 and
+    /// UnknownProvider are failoverable but deliberately not retried.
+    async fn retry_budget_exhausted(&self, model: &str, error: &LlmError) -> bool {
+        let retryable = match error {
+            LlmError::Http(_) | LlmError::Stream(_) => true,
+            LlmError::Api { status, .. } => *status >= 500,
+            _ => false,
         };
-
-        if base.len() <= 1 {
-            return base;
+        if !retryable {
+            return false;
         }
-
-        match self.strategy {
-            RoutingStrategy::Ordered => base,
-            RoutingStrategy::RoundRobin => {
-                // Per-group counter: lazily created on first use, so `route()`
-                // and `with_strategy()` ordering never matters and unregistered
-                // (literal) groups never allocate a counter. The counter lock is
-                // scoped to this block and never nested with the cooldown lock.
-                let mut counters = self
-                    .counters
-                    .lock()
-                    .expect("round-robin counters lock not poisoned");
-                let counter = counters.entry(group.to_string()).or_insert(0);
-                let start = *counter % base.len();
-                *counter += 1;
-                let mut rotated = base[start..].to_vec();
-                rotated.extend_from_slice(&base[..start]);
-                rotated
-            }
-        }
+        let Some((provider, _)) = model.split_once('/') else {
+            return false;
+        };
+        self.client
+            .get_provider(provider)
+            .await
+            .is_ok_and(|provider| provider.is_retry_provider())
     }
 
     /// Send a chat request to `group` using a simple text prompt.
@@ -340,12 +437,14 @@ impl Router {
                     // 本层**读不到**该头：`Router` 持有的是 `LmrsClient`，响应头在 Provider 层
                     // 已随响应消费。故此处记录的是**决策事实**（不等待 + 原因），而非头值本身；
                     // 头值由 `RetryProvider` 在其日志中以 `delay_source = "upstream"` 呈现。
+                    let retry_budget_exhausted = self.retry_budget_exhausted(model, &e).await;
                     tracing::warn!(
                         group,
                         model,
                         error_kind = error_kind_of(&e),
                         waits_for_upstream = false,
-                        "failing over to next deployment (switch deployment, no wait by design)"
+                        retry_budget_exhausted,
+                        "failing over after deployment result (Router switches without waiting; an inner RetryProvider may already have exhausted its budget)"
                     );
                     self.mark_cooldown(model);
                     last_error = Some(e);
@@ -382,11 +481,14 @@ impl Router {
                     return Ok(s);
                 }
                 Err(e) if should_failover(&e) => {
+                    let retry_budget_exhausted = self.retry_budget_exhausted(model, &e).await;
                     tracing::warn!(
                         group,
                         model,
                         error_kind = error_kind_of(&e),
-                        "failing over to next deployment"
+                        waits_for_upstream = false,
+                        retry_budget_exhausted,
+                        "failing over stream connection (Router switches without waiting; an inner RetryProvider may already have exhausted its budget)"
                     );
                     self.mark_cooldown(model);
                     last_error = Some(e);
@@ -1227,5 +1329,258 @@ mod tests {
         assert_eq!(r_a.content, "a1");
         let r_b = router.chat("B", "hi").await.unwrap();
         assert_eq!(r_b.content, "b1");
+    }
+
+    // ── C-018-ROUTER-COST: cooling fallback, fairness and bounded state ──
+
+    #[tokio::test]
+    async fn audit_2026_router_cost_ready_failure_falls_back_to_cooling() {
+        let client = Arc::new(LmrsClient::new());
+        let ready = Arc::new(CountedProvider::new(Arc::new(FailingProvider::new(503))));
+        let cooling = Arc::new(CountedProvider::new(Arc::new(OkProvider::new("recovered"))));
+        client.set_custom("ready", ready.clone()).await;
+        client.set_custom("cooling", cooling.clone()).await;
+
+        let router = Router::new(client)
+            .with_cooldown(Duration::from_secs(60))
+            .route("grp", ["ready/m", "cooling/m"]);
+        // Simulate a deployment that failed earlier and has since recovered but
+        // whose passive cooldown has not expired yet.
+        router.mark_cooldown("cooling/m");
+
+        let response = router.chat("grp", "hi").await.unwrap();
+        assert_eq!(response.content, "recovered");
+        assert_eq!(ready.calls(), 1, "the ready deployment is tried first");
+        assert_eq!(
+            cooling.calls(),
+            1,
+            "ready exhaustion must fall back to the cooling deployment in this request"
+        );
+    }
+
+    #[test]
+    fn audit_2026_router_cost_round_robin_after_ready_filter() {
+        let router = Router::new(Arc::new(LmrsClient::new()))
+            .with_strategy(RoutingStrategy::RoundRobin)
+            .with_cooldown(Duration::from_secs(60))
+            .route("grp", ["a/m", "b/m", "c/m"]);
+        router.mark_cooldown("b/m");
+
+        // Three-node skew regression: rotating the full [a,b,c] list before
+        // filtering produces [a,c], [c,a], [c,a] and overloads c. Filtering first
+        // rotates the two ready nodes fairly and appends b only as fallback.
+        assert_eq!(router.candidates("grp"), ["a/m", "c/m", "b/m"]);
+        assert_eq!(router.candidates("grp"), ["c/m", "a/m", "b/m"]);
+        assert_eq!(router.candidates("grp"), ["a/m", "c/m", "b/m"]);
+    }
+
+    #[test]
+    fn audit_2026_router_cost_all_cooling_keeps_registration_order() {
+        let router = Router::new(Arc::new(LmrsClient::new()))
+            .with_strategy(RoutingStrategy::RoundRobin)
+            .with_cooldown(Duration::from_secs(60))
+            .route("grp", ["a/m", "b/m", "c/m"]);
+        for deployment in ["a/m", "b/m", "c/m"] {
+            router.mark_cooldown(deployment);
+        }
+
+        let expected = vec!["a/m".to_string(), "b/m".to_string(), "c/m".to_string()];
+        for _ in 0..4 {
+            assert_eq!(router.candidates("grp"), expected);
+        }
+        assert!(
+            !router.counters.lock().unwrap().contains_key("grp"),
+            "all-cooling fail-open must not consume the group's round-robin turn"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn audit_2026_router_cost_concurrent_cooldown_rr_interleaving() {
+        use std::sync::Barrier;
+
+        struct AuditProvider {
+            name: &'static str,
+            fail_every: bool,
+            calls: AtomicUsize,
+            log: Arc<Mutex<Vec<&'static str>>>,
+        }
+
+        #[async_trait]
+        impl crate::providers::Provider for AuditProvider {
+            async fn chat(&self, _req: &ChatRequest) -> Result<ChatResponse> {
+                self.log.lock().unwrap().push(self.name);
+                self.calls.fetch_add(1, Ordering::SeqCst);
+                if self.fail_every {
+                    Err(LlmError::Api {
+                        status: 503,
+                        message: "audit transient failure".into(),
+                    })
+                } else {
+                    Ok(ChatResponse {
+                        content: self.name.into(),
+                        ..Default::default()
+                    })
+                }
+            }
+
+            async fn stream(
+                &self,
+                _req: &ChatRequest,
+            ) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+                Ok(Box::pin(stream::empty()))
+            }
+        }
+
+        let client = Arc::new(LmrsClient::new());
+        let a_log = Arc::new(Mutex::new(Vec::new()));
+        let b_log = Arc::new(Mutex::new(Vec::new()));
+        let c_log = Arc::new(Mutex::new(Vec::new()));
+        let make = |name: &'static str, fail_every: bool, log: &Arc<Mutex<Vec<&'static str>>>| {
+            Arc::new(AuditProvider {
+                name,
+                fail_every,
+                calls: AtomicUsize::new(0),
+                log: log.clone(),
+            })
+        };
+        let a1 = make("a1", true, &a_log);
+        let a2 = make("a2", false, &a_log);
+        let a3 = make("a3", false, &a_log);
+        let b1 = make("b1", true, &b_log);
+        let b2 = make("b2", false, &b_log);
+        let b3 = make("b3", false, &b_log);
+        let c1 = make("c1", true, &c_log);
+        let c2 = make("c2", true, &c_log);
+        let c3 = make("c3", true, &c_log);
+        client.set_custom("a1", a1).await;
+        client.set_custom("a2", a2).await;
+        client.set_custom("a3", a3).await;
+        client.set_custom("b1", b1).await;
+        client.set_custom("b2", b2).await;
+        client.set_custom("b3", b3).await;
+        client.set_custom("c1", c1).await;
+        client.set_custom("c2", c2).await;
+        client.set_custom("c3", c3).await;
+
+        let router = Arc::new(
+            Router::new(client)
+                .with_strategy(RoutingStrategy::RoundRobin)
+                .with_cooldown(Duration::from_secs(60))
+                .route("A", ["a1/m", "a2/m", "a3/m"])
+                .route("B", ["b1/m", "b2/m", "b3/m"])
+                .route("C", ["c1/m", "c2/m", "c3/m"]),
+        );
+
+        // A generous deadlock safety net, never a latency assertion.
+        tokio::time::timeout(Duration::from_secs(30), async {
+            let barrier = Arc::new(Barrier::new(2));
+            let mut first = Vec::new();
+            for group in ["A", "B"] {
+                let router = router.clone();
+                let barrier = barrier.clone();
+                first.push(tokio::spawn(async move {
+                    barrier.wait();
+                    router.chat(group, "hi").await.unwrap()
+                }));
+            }
+            for handle in first {
+                handle.await.unwrap();
+            }
+            assert!(router.cooldown_until.lock().unwrap().contains_key("a1/m"));
+            assert!(router.cooldown_until.lock().unwrap().contains_key("b1/m"));
+
+            // Expire those writes deterministically, then interleave many RR
+            // increments and fresh cooldown writes independently in both groups.
+            // This exercises the real snapshot pruning path without making the
+            // verdict depend on wall-clock scheduling under load.
+            {
+                let now = Instant::now();
+                let mut guard = router.cooldown_until.lock().unwrap();
+                guard.insert("a1/m".into(), now);
+                guard.insert("b1/m".into(), now);
+            }
+            a_log.lock().unwrap().clear();
+            b_log.lock().unwrap().clear();
+            let mut traffic = Vec::new();
+            for (group, rounds) in [("A", 20), ("B", 22)] {
+                for _ in 0..2 {
+                    let router = router.clone();
+                    traffic.push(tokio::spawn(async move {
+                        for _ in 0..rounds {
+                            router.chat(group, "hi").await.unwrap();
+                        }
+                    }));
+                }
+            }
+            for handle in traffic {
+                handle.await.unwrap();
+            }
+
+            let a_names = a_log.lock().unwrap().clone();
+            let b_names = b_log.lock().unwrap().clone();
+            assert!(a_names.iter().all(|name| name.starts_with('a')));
+            assert!(b_names.iter().all(|name| name.starts_with('b')));
+            assert!(a_names.contains(&"a2") && a_names.contains(&"a3"));
+            assert!(b_names.contains(&"b2") && b_names.contains(&"b3"));
+
+            // A advanced 41 turns and B 45 turns. A shared counter would make
+            // these starts depend on the other group's traffic.
+            router.clear_cooldown("a1/m");
+            router.clear_cooldown("b1/m");
+            assert_eq!(router.candidates("A"), ["a3/m", "a1/m", "a2/m"]);
+            assert_eq!(router.candidates("B"), ["b1/m", "b2/m", "b3/m"]);
+
+            // Drive a third group fully into cooldown, then prove fail-open is
+            // registration-ordered even though this Router uses round-robin.
+            assert!(router.chat("C", "hi").await.is_err());
+            c_log.lock().unwrap().clear();
+            assert!(router.chat("C", "hi").await.is_err());
+            assert_eq!(*c_log.lock().unwrap(), ["c1", "c2", "c3"]);
+            assert_eq!(router.counters.lock().unwrap().get("C"), Some(&1));
+        })
+        .await
+        .expect("concurrent cooldown/RR operations must not deadlock");
+
+        // Expired literal-group state is cleaned by the next candidate snapshot.
+        {
+            let mut guard = router.cooldown_until.lock().unwrap();
+            guard.insert("expired/one".into(), Instant::now());
+            guard.insert("expired/two".into(), Instant::now());
+        }
+        assert_eq!(router.candidates("literal/m"), ["literal/m"]);
+        assert!(!router
+            .cooldown_until
+            .lock()
+            .unwrap()
+            .contains_key("expired/one"));
+        assert!(!router
+            .cooldown_until
+            .lock()
+            .unwrap()
+            .contains_key("expired/two"));
+
+        // Capacity is a hard bound even for arbitrarily many literal groups.
+        let future = Instant::now().checked_add(Duration::from_secs(60)).unwrap();
+        {
+            let mut guard = router.cooldown_until.lock().unwrap();
+            for index in 0..MAX_COOLDOWN_ENTRIES {
+                Router::insert_cooldown(
+                    &mut guard,
+                    format!("capacity/{index}"),
+                    future,
+                    Instant::now(),
+                );
+            }
+            Router::insert_cooldown(&mut guard, "capacity/new".into(), future, Instant::now());
+        }
+        assert_eq!(
+            router.cooldown_until.lock().unwrap().len(),
+            MAX_COOLDOWN_ENTRIES
+        );
+
+        // Extreme Duration must not panic at Instant addition.
+        let extreme = Router::new(Arc::new(LmrsClient::new())).with_cooldown(Duration::MAX);
+        extreme.mark_cooldown("extreme/m");
+        assert!(extreme.cooldown_until.lock().unwrap().is_empty());
     }
 }

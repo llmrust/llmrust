@@ -9,7 +9,8 @@
     "src/providers/google.rs": 1812,
     "src/types.rs": 1136,
     "src/providers/anthropic.rs": 1688,
-    "src/router.rs": 1231,
+    "src/router.rs": 1586,
+    "src/pricing.rs": 527,
     "src/providers/ollama.rs": 860,
     "src/lib.rs": 957,
     "src/providers/retry.rs": 863,
@@ -559,6 +560,22 @@
       "new": 957,
       "reason": "C-018-HTTP-SAFE: with_retry skips already wrapped providers so retry loops cannot multiply. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
       "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/router.rs",
+      "old": 1231,
+      "new": 1586,
+      "reason": "C-018-ROUTER-COST (B-018-ROUTER, P2-03/04/05/07): ready-first cooldown partitioning with cooling fallback after ready exhaustion, round-robin over ready nodes only, registration-ordered all-cooling fail-open, expired-state pruning and a 1024-entry capacity bound with checked_add deadlines, explicit waits_for_upstream/retry_budget_exhausted logs and docs, plus four named regression tests including three-node skew and concurrent cooldown/RR interleaving. +355 lines measured after cargo fmt; all growth is real logic, documentation and tests, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-ROUTER-COST)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/pricing.rs",
+      "old": 0,
+      "new": 527,
+      "reason": "C-018-ROUTER-COST (B-018-ROUTER, P2-09): new public CacheWriteTokens input and ModelPricing::estimate_cost_with_cache_retention price 5-minute and 1-hour writes separately without changing Usage; named 1-hour pricing regression proves the 1-hour tier no longer falls back to the 5-minute rate. The file crossed threshold=500 for the first time in this batch (batch_base had no baseline or adjustment), so this is its first 0->527 registration with the actual post-fmt line count.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-ROUTER-COST)",
       "date": "2026-11-24"
     }
   ]

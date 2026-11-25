@@ -20,7 +20,8 @@
       "cargo test --locked --workspace --all-features",
       "cargo fmt --all --check",
       "cargo clippy --locked --all-targets --all-features -- -D warnings",
-      "cargo rustdoc --locked --all-features -- -D warnings"
+      "cargo rustdoc --locked --all-features -- -D warnings",
+      "cargo deny --locked check"
     ],
     "require_no_mock": true
   },

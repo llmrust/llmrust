@@ -1,57 +1,44 @@
 //! Shared helpers for parsing chunked SSE / line-delimited byte streams.
 //!
-//! HTTP response bodies arrive as arbitrary byte chunks whose boundaries do
-//! **not** align with SSE line boundaries. A naive per-chunk `.lines()` split
-//! therefore has two bugs:
-//!
-//! 1. A `data:` line split across two network packets is parsed as two
-//!    incomplete halves, both of which fail to deserialize and are silently
-//!    dropped — losing tokens. The more fragmented the network, the more is
-//!    lost.
-//! 2. A multi-byte UTF-8 character (e.g. CJK text or emoji) split across a
-//!    packet boundary is turned into the U+FFFD replacement character by lossy
-//!    decoding, corrupting the output.
-//!
-//! [`line_stream`] fixes both by accumulating raw bytes in a buffer and only
-//! decoding a line once a complete terminator is available. Decoding is
-//! **strict**: invalid UTF-8 is an explicit error instead of replacement
-//! characters, and a line is rejected before its buffer can grow past the
-//! shared hard bound.
-//!
-//! Most providers now consume the richer [`crate::providers::sse`] event
-//! parser; this function remains as the public line-level API. Its generic
-//! error type gained a `From<LlmError>` bound so decode/bound violations can
-//! be surfaced through the caller's error type rather than swallowed.
+//! Production providers use the bounded, strict framing in
+//! [`crate::providers::sse`]. The public [`line_stream`] function is the
+//! deprecated 0.1.6 compatibility API: it deliberately retains the original
+//! lossy decoding and unbounded buffering behaviour so existing 0.1.x
+//! downstream code keeps compiling and behaving unchanged. It must not be used
+//! for new production stream parsing.
 
-use crate::providers::LlmError;
+pub mod legacy;
+
 use futures::Stream;
 
 /// Wrap a byte-chunk stream and yield complete text lines.
 ///
+/// This is the original 0.1.6 API, retained for compatibility. New code must
+/// use the strict provider stream APIs instead. Its historical behaviour is:
+///
 /// - Lines split across chunks are reassembled before being emitted.
-/// - Multi-byte UTF-8 split across chunks is reassembled before decoding.
-/// - `\n`, `\r\n` and bare `\r` terminators are accepted (including a `\r\n`
-///   pair split across two chunks).
-/// - A leading UTF-8 BOM is stripped from the first line.
-/// - The trailing terminator is stripped.
+/// - Only `\n` terminates a line; an optional preceding `\r` is stripped.
+/// - Bytes are decoded with `String::from_utf8_lossy`.
+/// - Buffering is unbounded, as in 0.1.6.
 /// - Any bytes still buffered when the underlying stream ends are flushed as a
 ///   final line.
 /// - An error from the underlying stream is forwarded, after which the stream
 ///   terminates.
-/// - Invalid UTF-8 or an oversized line becomes an `Err` carrying
-///   [`LlmError::Parse`]; it is never replaced with U+FFFD.
+#[deprecated(
+    note = "use providers::sse strict stream APIs; legacy API retained for 0.1.x compatibility"
+)]
 pub fn line_stream<S, B, E>(byte_stream: S) -> impl Stream<Item = std::result::Result<String, E>>
 where
     S: Stream<Item = std::result::Result<B, E>> + Send + 'static,
     B: AsRef<[u8]> + Send + 'static,
-    E: From<LlmError> + Send + Unpin + 'static,
+    E: Send + 'static,
 {
-    crate::providers::sse::strict_line_stream(byte_stream)
+    legacy::line_stream(byte_stream)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::line_stream;
+    use crate::providers::sse::strict_line_stream;
     use crate::providers::LlmError;
     use futures::StreamExt;
 
@@ -60,7 +47,9 @@ mod tests {
     ) -> Vec<std::result::Result<String, LlmError>> {
         let items: Vec<std::result::Result<&'static [u8], LlmError>> =
             chunks.into_iter().map(Ok).collect();
-        line_stream(futures::stream::iter(items)).collect().await
+        strict_line_stream(futures::stream::iter(items))
+            .collect()
+            .await
     }
 
     async fn lines(chunks: Vec<&'static [u8]>) -> Vec<String> {

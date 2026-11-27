@@ -1,0 +1,683 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ledger",
+  "agent": "ledger-llmrust",
+  "written_by": "ledger-llmrust",
+  "card_id": null,
+  "batch_id": "B-018-STREAM",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "inputs_seen": [
+    ".workforce/config.json（ledger.command/none_reason）",
+    ".workforce/cards/C-018-STREAM-CORE.json（c5 原文、write_scopes、planned_file_paths）",
+    "tests/hotspot_ledger.json（被核验台账实物）",
+    ".workforce/loop-state.json（仅 B-018-STREAM batch_base/handoff/card_sha256 与运行时 sha256；不列 artifacts）",
+    ".workforce/spec.json（仅核验 sha256）",
+    ".agents/skills/agent-workforce-loop/references/roles.md、assets/evidence.template.json、scripts/lib.mjs（角色、回执与 selfShaOk/ledgerCheck 口径）",
+    ".workforce/evidence/B-018-STREAM/dev-C-018-STREAM-CORE.json（仅 artifacts.path/sha256 与 files_changed；notes 未作为证据）",
+    ".workforce/evidence/B-018-STREAM/qa-C-018-STREAM-CORE.json（仅 artifacts.path/sha256 与 handoff_id；notes 未作为证据）",
+    "git 对象 22274d332e658114f6dfad5537b1e79a4bdd2f58:tests/hotspot_ledger.json 与四个 provider 文件"
+  ],
+  "ledger": {
+    "duty_basis": {
+      "config_ledger": "command=null；llmrust 仓无台账生成脚本，按 none_reason 只验 schema/generatedAt/self_sha256 自洽；Node ledgerCheck 预期 ok=true/unverified=true。",
+      "role_contract": "ledger-* 独立核验台账；agent=ledger-llmrust，written_by=ledger-llmrust，independent=true，declared_by_lead=false。",
+      "c5_basis": "C-018-STREAM-CORE acceptance_criteria c5；六字段、batch_base 前驱、scope、threshold、授权与 date 按卡面原文机判。"
+    },
+    "target_card_id": "C-018-STREAM-CORE",
+    "verification_started_at": "2026-11-27T09:48:44.436Z",
+    "target": "tests/hotspot_ledger.json",
+    "target_sha256_raw_bytes": "fce12174aca4f6769a2ba1b988520194c393949fe81cee18d0e5564f30c80c0e",
+    "base_target_sha256_raw_bytes": "3f9cfa62e87059c88cdd779e06755f891f11af9a6f057711bc0745cf3d85d5f1",
+    "threshold": 500,
+    "line_count_metric": "UTF-8 decode 后 len(splitlines())；另扫全部 32 个 src/**/*.rs 无 VT/FF/FS/GS/RS/NEL/LS/PS 与孤立 CR，故与 Rust lines().count() 同口径。",
+    "runtime_state": {
+      "path": ".workforce/loop-state.json",
+      "sha256_before": "9eb7d845fdb5bd5d7b51aa494c76f489d668e07db2a9b546c315e09c679ff816",
+      "sha256_after_read_only_checks": "9eb7d845fdb5bd5d7b51aa494c76f489d668e07db2a9b546c315e09c679ff816",
+      "sha256_at_receipt_generation": "9eb7d845fdb5bd5d7b51aa494c76f489d668e07db2a9b546c315e09c679ff816",
+      "included_in_artifacts": false,
+      "reason": "运行时文件哈希只写正文，避免 artifacts 数组引用易变状态文件。"
+    },
+    "freeze": {
+      "batch_base": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+      "base_head": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+      "head": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+      "handoff_id": "113575cb55ff699791471702",
+      "handoff_at": "2026-11-27T09:11:32.860Z",
+      "receipt_file": ".workforce/evidence/B-018-STREAM/dev-C-018-STREAM-CORE.json",
+      "receipt_sha256": "25013ac852a0d1010330816048f7bccf9a009cdaa661452b187f445819449b21",
+      "qa_receipt_file": ".workforce/evidence/B-018-STREAM/qa-C-018-STREAM-CORE.json",
+      "qa_receipt_sha256": "f941b17aa098799bc48e5967b8f3d4ce85b25eb9be315107e9d766be6422a9c8",
+      "frozen_files_total": 6,
+      "frozen_files": {
+        "src/providers/stream_util.rs": "927b4ed1767ea117d6b522dec9783106980debddf69bffbc4a466bae38440915",
+        "src/providers/stream_util/legacy.rs": "ece6b1f28e7af749b3b49904841db447d9a4b1e541aa12e2d9ee0cfe0779d9a6",
+        "src/providers/sse/parser.rs": "f87077e9084d43f9296fbf5333587a0ea2476dbcd13116dfc06b5dfa0cd76d3b",
+        "src/providers/sse/mod.rs": "d82acd6f877d2b5d86109faae9ccb7fb4649f85a9eca7257b6c201d5d0113aed",
+        "tests/contract_tests.rs": "ca4590681bcf5a9100c36d3741fd9af7cc9a68723e8dce6c41e2c8f4e1391cc8",
+        "tests/hotspot_ledger.json": "fce12174aca4f6769a2ba1b988520194c393949fe81cee18d0e5564f30c80c0e"
+      },
+      "drift_after_handoff": [],
+      "zero_drift": true
+    },
+    "c5_machine_command": {
+      "source": ".workforce/cards/C-018-STREAM-CORE.json acceptance_criteria c5",
+      "code_sha256": "2e9d86a8586647742d61f52c3495d351417536e7ff918b49d364c3461c5c006c",
+      "execution": "python -c <卡面原文>，subprocess argv 实跑",
+      "exit_code": 0,
+      "pass": true
+    },
+    "c5": {
+      "expected_paths": [
+        "src/providers/stream_util.rs",
+        "src/providers/stream_state.rs",
+        "src/providers/mod.rs",
+        "src/providers/compat.rs",
+        "src/providers/anthropic.rs",
+        "src/providers/google.rs",
+        "src/providers/ollama.rs",
+        "src/providers/sse/parser.rs",
+        "src/providers/sse/limits.rs",
+        "src/providers/stream_util/legacy.rs"
+      ],
+      "expected_paths_total": 10,
+      "planned_file_paths": [
+        "src/providers/sse/parser.rs",
+        "src/providers/sse/limits.rs",
+        "src/providers/stream_util/legacy.rs"
+      ],
+      "path_checks": [
+        {
+          "file": "src/providers/stream_util.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 111,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/stream_state.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 477,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/mod.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 428,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/compat.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 2134,
+          "threshold": 500,
+          "in_baseline": true,
+          "baseline_lines": 2134,
+          "adjustment_count": 10,
+          "pass": true
+        },
+        {
+          "file": "src/providers/anthropic.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 1691,
+          "threshold": 500,
+          "in_baseline": true,
+          "baseline_lines": 1691,
+          "adjustment_count": 11,
+          "pass": true
+        },
+        {
+          "file": "src/providers/google.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 1815,
+          "threshold": 500,
+          "in_baseline": true,
+          "baseline_lines": 1815,
+          "adjustment_count": 10,
+          "pass": true
+        },
+        {
+          "file": "src/providers/ollama.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 868,
+          "threshold": 500,
+          "in_baseline": true,
+          "baseline_lines": 868,
+          "adjustment_count": 7,
+          "pass": true
+        },
+        {
+          "file": "src/providers/sse/parser.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 425,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/sse/limits.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 18,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/stream_util/legacy.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 75,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        }
+      ],
+      "adjustments": [
+        {
+          "file": "src/providers/compat.rs",
+          "adjustment_index": 74,
+          "old": 2134,
+          "new": 2134,
+          "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 2134 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 2134->2134 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+          "date": "2026-11-24",
+          "measured_lines": 2134,
+          "current_baseline": 2134,
+          "base_baseline": 2134,
+          "base_file_measured_lines": 2134,
+          "base_adjustment_count": 9,
+          "current_adjustment_count": 10,
+          "predecessor_new": 2134,
+          "six_fields_present_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorization_ok": true,
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "bytes_equal_batch_base": true,
+          "sha256": "ce3a892ded4a39ee61598c1b975d3e00bc5aef36e3c522ca97d19eea59c1a808",
+          "pass": true
+        },
+        {
+          "file": "src/providers/anthropic.rs",
+          "adjustment_index": 75,
+          "old": 1691,
+          "new": 1691,
+          "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 1691 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 1691->1691 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+          "date": "2026-11-24",
+          "measured_lines": 1691,
+          "current_baseline": 1691,
+          "base_baseline": 1691,
+          "base_file_measured_lines": 1691,
+          "base_adjustment_count": 10,
+          "current_adjustment_count": 11,
+          "predecessor_new": 1691,
+          "six_fields_present_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorization_ok": true,
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "bytes_equal_batch_base": true,
+          "sha256": "59aa1d047ca737e35f33eaf04defeda30befc589cdb9507d6d0a1387c6a8ca94",
+          "pass": true
+        },
+        {
+          "file": "src/providers/google.rs",
+          "adjustment_index": 76,
+          "old": 1815,
+          "new": 1815,
+          "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 1815 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 1815->1815 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+          "date": "2026-11-24",
+          "measured_lines": 1815,
+          "current_baseline": 1815,
+          "base_baseline": 1815,
+          "base_file_measured_lines": 1815,
+          "base_adjustment_count": 9,
+          "current_adjustment_count": 10,
+          "predecessor_new": 1815,
+          "six_fields_present_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorization_ok": true,
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "bytes_equal_batch_base": true,
+          "sha256": "55389d6502da7fc70998037786fbcb8e4b91d2139361b9b498230f93ab6227ac",
+          "pass": true
+        },
+        {
+          "file": "src/providers/ollama.rs",
+          "adjustment_index": 77,
+          "old": 868,
+          "new": 868,
+          "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 868 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 868->868 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+          "date": "2026-11-24",
+          "measured_lines": 868,
+          "current_baseline": 868,
+          "base_baseline": 868,
+          "base_file_measured_lines": 868,
+          "base_adjustment_count": 6,
+          "current_adjustment_count": 7,
+          "predecessor_new": 868,
+          "six_fields_present_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorization_ok": true,
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "bytes_equal_batch_base": true,
+          "sha256": "d132e25a909b659b18e2c0fc86297700f08047660af6aa3a66bd8ebeed19bab7",
+          "pass": true
+        }
+      ],
+      "below_threshold_paths": [
+        {
+          "file": "src/providers/stream_util.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 111,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/stream_state.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 477,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/mod.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 428,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/sse/parser.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 425,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/sse/limits.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 18,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/stream_util/legacy.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 75,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        }
+      ],
+      "legacy_planned": {
+        "file": "src/providers/stream_util/legacy.rs",
+        "planned": true,
+        "lines": 75,
+        "below_threshold": true,
+        "in_baseline": false,
+        "adjustment_count": 0,
+        "pass": true
+      },
+      "stray_card_adjustments": [],
+      "verdict": "PASS"
+    },
+    "threshold_bidirectional": {
+      "threshold": 500,
+      "src_rs_files_total": 32,
+      "files_ge_threshold": 13,
+      "baseline_entries": 13,
+      "baseline_eq_measured": 13,
+      "unlisted_oversized": [],
+      "listed_below_threshold": [],
+      "baseline_mismatches": [],
+      "line_metric_equivalent": true,
+      "verdict": "PASS"
+    },
+    "adjustments_summary": {
+      "count": 78,
+      "six_fields": [
+        "file",
+        "old",
+        "new",
+        "reason",
+        "authorized_by",
+        "date"
+      ],
+      "six_fields_all_present_nonempty": true,
+      "chain_continuity_gaps": [],
+      "chain_convergence": {
+        "verdict": "PASS",
+        "converged_files": [
+          "src/proxy/mod.rs",
+          "src/providers/anthropic.rs",
+          "src/providers/google.rs",
+          "src/providers/compat.rs",
+          "src/proxy/anthropic_proxy.rs",
+          "src/router.rs",
+          "src/proxy/responses_proxy.rs",
+          "src/providers/ollama.rs",
+          "src/lib.rs",
+          "src/providers/retry.rs",
+          "src/types.rs",
+          "src/providers/capabilities.rs",
+          "src/pricing.rs"
+        ],
+        "non_converged_files": []
+      },
+      "target_chains": {
+        "src/providers/compat.rs": {
+          "entries": 10,
+          "first_index": 4,
+          "last_index": 74,
+          "first_old": 1228,
+          "predecessor_new": 2134,
+          "last_new": 2134,
+          "baseline_now": 2134,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/anthropic.rs": {
+          "entries": 11,
+          "first_index": 1,
+          "last_index": 75,
+          "first_old": 972,
+          "predecessor_new": 1691,
+          "last_new": 1691,
+          "baseline_now": 1691,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/google.rs": {
+          "entries": 10,
+          "first_index": 2,
+          "last_index": 76,
+          "first_old": 1221,
+          "predecessor_new": 1815,
+          "last_new": 1815,
+          "baseline_now": 1815,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/ollama.rs": {
+          "entries": 7,
+          "first_index": 18,
+          "last_index": 77,
+          "first_old": 0,
+          "predecessor_new": 868,
+          "last_new": 868,
+          "baseline_now": 868,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        }
+      }
+    },
+    "append_only_vs_batch_base": {
+      "base_commit": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+      "base_adjustments": 74,
+      "current_adjustments": 78,
+      "base_prefix_parsed_identical": true,
+      "historical_entries_rewritten": false,
+      "appended_indices": [
+        74,
+        75,
+        76,
+        77
+      ],
+      "appended_card_entries_exact": true,
+      "top_level_keyset_unchanged": true,
+      "description_unchanged": true,
+      "threshold_unchanged": true,
+      "baseline_delta": {},
+      "added_baselines": {},
+      "removed_baselines": [],
+      "other_baselines_unchanged": true,
+      "verdict": "PASS"
+    },
+    "cross_check_receipts": {
+      "fields_read": [
+        "artifacts.path",
+        "artifacts.sha256",
+        "files_changed",
+        "handoff_id",
+        "spec_sha256",
+        "card_id",
+        "batch_id"
+      ],
+      "notes_used_as_evidence": false,
+      "dev_artifacts_total": 6,
+      "qa_artifacts_total": 6,
+      "artifact_sha_mismatches": 0,
+      "artifact_missing": 0,
+      "dev_files_changed": [
+        "src/providers/stream_util.rs",
+        "src/providers/stream_util/legacy.rs",
+        "src/providers/sse/parser.rs",
+        "src/providers/sse/mod.rs",
+        "tests/contract_tests.rs",
+        "tests/hotspot_ledger.json"
+      ],
+      "dev_files_changed_within_card_scopes": true,
+      "dev_artifact_paths_equal_handoff": true,
+      "qa_frozen_artifact_paths_equal_handoff": true,
+      "dev_qa_frozen_sha_equal": true,
+      "dev_receipt_sha256": "25013ac852a0d1010330816048f7bccf9a009cdaa661452b187f445819449b21",
+      "qa_receipt_sha256": "f941b17aa098799bc48e5967b8f3d4ce85b25eb9be315107e9d766be6422a9c8"
+    },
+    "protected_inputs_sha256": {
+      ".workforce/config.json": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      ".workforce/spec.json": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+      ".workforce/cards/C-018-STREAM-CORE.json": "95e6e839a9e1fa05d7b506b2f3b1166ae0b9665cffa7c7b37ecf99d18c9ac2b3",
+      "tests/hotspot_ledger.json": "fce12174aca4f6769a2ba1b988520194c393949fe81cee18d0e5564f30c80c0e",
+      ".agents/skills/agent-workforce-loop/scripts/lib.mjs": "5a6de4c0d045f0c2d69631db1a0cfd4625b74f9942af68b90fcdc1e2158b3b4e",
+      ".workforce/evidence/B-018-STREAM/dev-C-018-STREAM-CORE.json": "25013ac852a0d1010330816048f7bccf9a009cdaa661452b187f445819449b21",
+      ".workforce/evidence/B-018-STREAM/qa-C-018-STREAM-CORE.json": "f941b17aa098799bc48e5967b8f3d4ce85b25eb9be315107e9d766be6422a9c8"
+    },
+    "business_access": "read_only；唯一写入 .workforce/evidence/B-018-STREAM/ledger.json",
+    "problems": [],
+    "observations_non_blocking": [
+      {
+        "observation": "config.ledger.command=null",
+        "impact": "Node ledgerCheck 按配置返回 ok=true/unverified=true；另实跑 selfShaOk 校验自洽性。"
+      },
+      {
+        "observation": ".workforce/loop-state.json 为运行时文件",
+        "impact": "哈希仅记录在正文 runtime_state，不进入 artifacts 数组。"
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-018-STREAM/ledger.json",
+      "sha256": "SELF-REFERENTIAL：文件级 sha 由同文件 self_sha256 承载；最终文件 sha256 在回执外返回。",
+      "desc": "本回执自身；ledgerCheck 在 command=null 下验 schema/generatedAt/self_sha256"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "fce12174aca4f6769a2ba1b988520194c393949fe81cee18d0e5564f30c80c0e",
+      "desc": "被核验台账实物；与 handoff 冻结 sha 一致"
+    },
+    {
+      "path": "src/providers/stream_util.rs",
+      "sha256": "927b4ed1767ea117d6b522dec9783106980debddf69bffbc4a466bae38440915",
+      "desc": "handoff 冻结六文件之一；零漂移"
+    },
+    {
+      "path": "src/providers/stream_util/legacy.rs",
+      "sha256": "ece6b1f28e7af749b3b49904841db447d9a4b1e541aa12e2d9ee0cfe0779d9a6",
+      "desc": "handoff 冻结六文件之一；零漂移"
+    },
+    {
+      "path": "src/providers/sse/parser.rs",
+      "sha256": "f87077e9084d43f9296fbf5333587a0ea2476dbcd13116dfc06b5dfa0cd76d3b",
+      "desc": "handoff 冻结六文件之一；零漂移"
+    },
+    {
+      "path": "src/providers/sse/mod.rs",
+      "sha256": "d82acd6f877d2b5d86109faae9ccb7fb4649f85a9eca7257b6c201d5d0113aed",
+      "desc": "handoff 冻结六文件之一；零漂移"
+    },
+    {
+      "path": "tests/contract_tests.rs",
+      "sha256": "ca4590681bcf5a9100c36d3741fd9af7cc9a68723e8dce6c41e2c8f4e1391cc8",
+      "desc": "handoff 冻结六文件之一；零漂移"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "fce12174aca4f6769a2ba1b988520194c393949fe81cee18d0e5564f30c80c0e",
+      "desc": "handoff 冻结六文件之一；零漂移"
+    },
+    {
+      "path": "src/providers/compat.rs",
+      "sha256": "ce3a892ded4a39ee61598c1b975d3e00bc5aef36e3c522ca97d19eea59c1a808",
+      "desc": "provider no-op adjustment；与 batch_base 逐字节一致"
+    },
+    {
+      "path": "src/providers/anthropic.rs",
+      "sha256": "59aa1d047ca737e35f33eaf04defeda30befc589cdb9507d6d0a1387c6a8ca94",
+      "desc": "provider no-op adjustment；与 batch_base 逐字节一致"
+    },
+    {
+      "path": "src/providers/google.rs",
+      "sha256": "55389d6502da7fc70998037786fbcb8e4b91d2139361b9b498230f93ab6227ac",
+      "desc": "provider no-op adjustment；与 batch_base 逐字节一致"
+    },
+    {
+      "path": "src/providers/ollama.rs",
+      "sha256": "d132e25a909b659b18e2c0fc86297700f08047660af6aa3a66bd8ebeed19bab7",
+      "desc": "provider no-op adjustment；与 batch_base 逐字节一致"
+    },
+    {
+      "path": "src/providers/stream_state.rs",
+      "sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
+      "desc": "c5 路径；477<500，不入 baseline"
+    },
+    {
+      "path": "src/providers/mod.rs",
+      "sha256": "ca4a91e874b5ae46d3d74a7fe1ce5b0b5f83d0d1d121b26c757117964d8d5b45",
+      "desc": "c5 路径；428<500，不入 baseline"
+    },
+    {
+      "path": "src/providers/sse/limits.rs",
+      "sha256": "efeee5b43c2cfbaddd4e318544a6f18869427e9b1b1be16569ddee48056e93b3",
+      "desc": "planned 路径；18<500，不入 baseline"
+    },
+    {
+      "path": ".workforce/spec.json",
+      "sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+      "desc": "指定 spec；sha256 匹配"
+    },
+    {
+      "path": ".workforce/cards/C-018-STREAM-CORE.json",
+      "sha256": "95e6e839a9e1fa05d7b506b2f3b1166ae0b9665cffa7c7b37ecf99d18c9ac2b3",
+      "desc": "c5 判据、scope 与 planned_file_paths 来源"
+    },
+    {
+      "path": ".workforce/config.json",
+      "sha256": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      "desc": "ledger.command=null 与 none_reason 来源"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/dev-C-018-STREAM-CORE.json",
+      "sha256": "25013ac852a0d1010330816048f7bccf9a009cdaa661452b187f445819449b21",
+      "desc": "handoff 回执；仅对账 artifacts/files_changed"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/qa-C-018-STREAM-CORE.json",
+      "sha256": "f941b17aa098799bc48e5967b8f3d4ce85b25eb9be315107e9d766be6422a9c8",
+      "desc": "QA 回执；仅对账 artifacts/handoff_id"
+    },
+    {
+      "path": ".agents/skills/agent-workforce-loop/scripts/lib.mjs",
+      "sha256": "5a6de4c0d045f0c2d69631db1a0cfd4625b74f9942af68b90fcdc1e2158b3b4e",
+      "desc": "selfShaOk/ledgerCheck 机器语义来源"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "python -c \"<C-018-STREAM-CORE c5 卡面原文；code_sha256=2e9d86a8586647742d61f52c3495d351417536e7ff918b49d364c3461c5c006c>\"（subprocess argv 实跑）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node - <inline B-018-STREAM c5 核验：六字段/前驱/授权/date/append-only +4/threshold 13/13/handoff 6/dev 6+qa 6 artifacts/protected-input assertions>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"const fs=require('fs'),crypto=require('crypto');const p='.workforce/evidence/B-018-STREAM/ledger.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const w=j.self_sha256;delete j.self_sha256;if(w!==crypto.createHash('sha256').update(JSON.stringify(j)).digest('hex'))process.exit(1);console.log('SELF_SHA_OK '+w)\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"import('./.agents/skills/agent-workforce-loop/scripts/lib.mjs').then(m=>{const fs=require('fs');const p='.workforce/evidence/B-018-STREAM/ledger.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const P={repo:process.cwd(),dirRel:'.workforce',config:'.workforce/config.json'};const r=m.ledgerCheck(P,j.artifacts[0],j);if(!m.selfShaOk(j)||!r.ok)throw new Error(JSON.stringify(r));console.log(JSON.stringify({selfShaOk:true,ledgerCheck:r}));})\"",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS",
+  "summary": "B-018-STREAM / C-018-STREAM-CORE c5 独立核验 PASS：batch_base=22274d332e658114f6dfad5537b1e79a4bdd2f58；compat 2134→2134、anthropic 1691→1691、google 1815→1815、ollama 868→868 均为 batch_base 实测 no-op，前驱 new=old，六字段齐、授权含 architect-llmrust、date=2026-11-24；adjustments 74→78，仅追加 idx74–77，baseline/description/threshold 零变化。legacy planned 75<500 且不入 baseline/adjustments；threshold=500，32 个 src Rust 文件中 13 个达到阈值且 baseline 13/13 双向一致，78 条 adjustment 全链收敛。handoff=113575cb55ff699791471702 冻结 6 文件零漂移；dev/qa 各 6 artifacts 与 handoff/实物 sha 全一致，0 missing/0 mismatch；notes 未作为证据。loop-state 仅以运行时哈希写正文，不进入 artifacts。",
+  "generatedAt": "2026-11-27T09:53:44.429Z",
+  "self_sha256": "d933ca4ffd2b306ed5d791b1d362e75603e44b74567ef7d094db7f3c09b40620"
+}

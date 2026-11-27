@@ -10,8 +10,10 @@
 //! * lines are bounded by [`MAX_LINE_BYTES`] *before* the buffer grows;
 //! * `\n`, `\r\n` and bare `\r` terminators are supported, including a
 //!   `\r\n` pair split across two network chunks;
-//! * SSE events are dispatched only on a blank line, so multi-line `data:`
-//!   fields are joined (not parsed as separate JSON payloads);
+//! * SSE events dispatch on a blank line first; for 0.1.x compatibility only,
+//!   a directly following `data:` line also starts a new event when the
+//!   current data is already a complete JSON value. Incomplete JSON continues
+//!   as standard multi-line data, and EOF flushes a pending event;
 //! * `data:` with and without the optional single space is accepted;
 //! * a leading UTF-8 BOM is stripped from the first line.
 
@@ -115,37 +117,61 @@ impl LineSplitter {
     }
 }
 
-/// Assembles SSE events from complete lines and dispatches on blank lines.
+/// Assembles SSE events from complete lines. Standard blank-line dispatch has
+/// priority; the single-newline JSON compatibility rule is applied only when
+/// the next physical line is another `data:` field.
 #[derive(Default)]
 struct SseAssembler {
     event: Option<String>,
     data: String,
     has_data: bool,
+    /// Whether the immediately preceding physical line was `data:`. This keeps
+    /// comments/other fields from turning a standard multi-line event into a
+    /// compatibility frame boundary.
+    last_was_data: bool,
 }
 
 impl SseAssembler {
+    fn dispatch(&mut self, out: &mut Vec<SseEvent>) {
+        if !self.data.is_empty() {
+            out.push(SseEvent {
+                event: self.event.take(),
+                data: std::mem::take(&mut self.data),
+            });
+        } else {
+            self.event = None;
+            self.data.clear();
+        }
+        self.has_data = false;
+        self.last_was_data = false;
+    }
+
     fn push_line(&mut self, line: &str, out: &mut Vec<SseEvent>) -> Result<()> {
+        // Standard SSE always wins: a blank line dispatches the current event,
+        // even when its data is not a complete JSON value (the provider parser
+        // will then surface the malformed payload).
         if line.is_empty() {
-            if !self.data.is_empty() {
-                out.push(SseEvent {
-                    event: self.event.take(),
-                    data: std::mem::take(&mut self.data),
-                });
-            } else {
-                self.event = None;
-                self.data.clear();
-            }
-            self.has_data = false;
+            self.dispatch(out);
             return Ok(());
         }
         if line.starts_with(':') {
             // Comment / keepalive.
+            self.last_was_data = false;
             return Ok(());
         }
         let (field, value) = match line.split_once(':') {
             Some((field, value)) => (field, value.strip_prefix(' ').unwrap_or(value)),
             None => (line, ""),
         };
+
+        // Some 0.1.x upstreams omitted the blank line between JSON frames. A
+        // directly following `data:` line starts a new frame only when the
+        // current event already contains one complete JSON value. Otherwise
+        // the line is ordinary multi-line SSE data and must be appended.
+        if field == "data" && self.last_was_data && self.has_data && complete_json(&self.data) {
+            self.dispatch(out);
+        }
+
         match field {
             "data" => {
                 let needed = self
@@ -177,19 +203,21 @@ impl SseAssembler {
             // `retry` and unknown fields carry no stream semantics we consume.
             _ => {}
         }
+        self.last_was_data = field == "data";
         Ok(())
     }
 
     fn finish(&mut self, out: &mut Vec<SseEvent>) -> Result<()> {
-        if !self.data.is_empty() {
-            out.push(SseEvent {
-                event: self.event.take(),
-                data: std::mem::take(&mut self.data),
-            });
-        }
-        self.has_data = false;
+        // A clean EOF is also an event boundary. Dispatch pending data rather
+        // than silently dropping it; malformed JSON remains the provider's
+        // explicit parse error.
+        self.dispatch(out);
         Ok(())
     }
+}
+
+fn complete_json(data: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(data).is_ok()
 }
 
 // ── Strict line stream ───────────────────────────────────────

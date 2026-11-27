@@ -5,32 +5,11 @@
   "written_by": "qa-llmrust-018stream",
   "card_id": "C-018-STREAM-CORE",
   "batch_id": "B-018-STREAM",
-  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
-  "handoff_id": "4d6668fbb0415d4c9da8905b",
-  "base_head": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+  "handoff_id": "113575cb55ff699791471702",
   "independent": true,
   "declared_by_lead": false,
   "mock_used": false,
-  "dev_notes_read": false,
-  "written_at": "2026-11-25T18:15:00+08:00",
-  "inputs_seen": [
-    ".workforce/cards/C-018-STREAM-CORE.json",
-    "src/providers/sse/parser.rs",
-    "src/providers/sse/limits.rs",
-    "src/providers/sse/mod.rs",
-    "src/providers/stream_util.rs",
-    "src/providers/stream_state.rs",
-    "src/providers/mod.rs",
-    "src/providers/compat.rs",
-    "src/providers/anthropic.rs",
-    "src/providers/google.rs",
-    "src/providers/ollama.rs",
-    "tests/contract_tests.rs",
-    "tests/hotspot_ledger.json",
-    "docs/CONTRACTS.md",
-    ".workforce/spec.json",
-    ".workforce/loop-state.json"
-  ],
   "layers_covered": [
     "event",
     "logic",
@@ -48,54 +27,48 @@
     "K-05",
     "K-06"
   ],
+  "inputs_seen": [
+    ".workforce/cards/C-018-STREAM-CORE.json",
+    ".workforce/spec.json",
+    ".workforce/loop-state.json (仅 batch_base/handoff 冻结元数据)",
+    "src/providers/stream_util.rs",
+    "src/providers/stream_util/legacy.rs",
+    "src/providers/sse/mod.rs",
+    "src/providers/sse/parser.rs",
+    "src/providers/sse/limits.rs",
+    "src/providers/stream_state.rs",
+    "src/providers/compat.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/google.rs",
+    "src/providers/ollama.rs",
+    "tests/contract_tests.rs",
+    "tests/hotspot_ledger.json",
+    "git eb07c7cb118a0b289df50a581173d01a158b4bb6 baseline"
+  ],
   "artifacts": [
     {
       "path": "src/providers/stream_util.rs",
-      "sha256": "30185c6c0c4d9f7cda3728c4d6e122804c75b81b8ba9761e589ff9a9a7cbeb80"
+      "sha256": "927b4ed1767ea117d6b522dec9783106980debddf69bffbc4a466bae38440915"
     },
     {
-      "path": "src/providers/stream_state.rs",
-      "sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb"
-    },
-    {
-      "path": "src/providers/mod.rs",
-      "sha256": "ca4a91e874b5ae46d3d74a7fe1ce5b0b5f83d0d1d121b26c757117964d8d5b45"
-    },
-    {
-      "path": "src/providers/compat.rs",
-      "sha256": "ce3a892ded4a39ee61598c1b975d3e00bc5aef36e3c522ca97d19eea59c1a808"
-    },
-    {
-      "path": "src/providers/anthropic.rs",
-      "sha256": "59aa1d047ca737e35f33eaf04defeda30befc589cdb9507d6d0a1387c6a8ca94"
-    },
-    {
-      "path": "src/providers/google.rs",
-      "sha256": "55389d6502da7fc70998037786fbcb8e4b91d2139361b9b498230f93ab6227ac"
-    },
-    {
-      "path": "src/providers/ollama.rs",
-      "sha256": "d132e25a909b659b18e2c0fc86297700f08047660af6aa3a66bd8ebeed19bab7"
+      "path": "src/providers/stream_util/legacy.rs",
+      "sha256": "ece6b1f28e7af749b3b49904841db447d9a4b1e541aa12e2d9ee0cfe0779d9a6"
     },
     {
       "path": "src/providers/sse/parser.rs",
-      "sha256": "cdd5957db4089427aa957748e898d109d05cbd9918a652aa1d1f098bfc9e26eb"
-    },
-    {
-      "path": "src/providers/sse/limits.rs",
-      "sha256": "efeee5b43c2cfbaddd4e318544a6f18869427e9b1b1be16569ddee48056e93b3"
+      "sha256": "f87077e9084d43f9296fbf5333587a0ea2476dbcd13116dfc06b5dfa0cd76d3b"
     },
     {
       "path": "src/providers/sse/mod.rs",
-      "sha256": "e4a2993f0d76bad0496380b24818830baeff202b1c97d5a5da623b2a76c68ad3"
+      "sha256": "d82acd6f877d2b5d86109faae9ccb7fb4649f85a9eca7257b6c201d5d0113aed"
     },
     {
       "path": "tests/contract_tests.rs",
-      "sha256": "2ae68b3e3e914c794d5469e5d13dee97510c79d80a54ae4c8ecaf56df802588b"
+      "sha256": "ca4590681bcf5a9100c36d3741fd9af7cc9a68723e8dce6c41e2c8f4e1391cc8"
     },
     {
       "path": "tests/hotspot_ledger.json",
-      "sha256": "3f9cfa62e87059c88cdd779e06755f891f11af9a6f057711bc0745cf3d85d5f1"
+      "sha256": "fce12174aca4f6769a2ba1b988520194c393949fe81cee18d0e5564f30c80c0e"
     }
   ],
   "command_exit_codes": [
@@ -104,27 +77,11 @@
       "exit_code": 0
     },
     {
-      "cmd": "python .tmp/qa018_c2.py 1  (bounded constants + pre-growth cap)",
+      "cmd": "python 'E:\\Temp\\qa-018stream-c2-final.py'",
       "exit_code": 0
     },
     {
-      "cmd": "python .tmp/qa018_c2.py 2  (strict UTF-8, no from_utf8_lossy on provider stream paths)",
-      "exit_code": 0
-    },
-    {
-      "cmd": "python .tmp/qa018_c2.py 3  (terminal thinking harvested and emitted)",
-      "exit_code": 0
-    },
-    {
-      "cmd": "python .tmp/qa018_c2.py 4  (Err closes; next poll does not poll inner)",
-      "exit_code": 0
-    },
-    {
-      "cmd": "python .tmp/qa018_c2.py 5  (Content-Type validated before stream construction)",
-      "exit_code": 0
-    },
-    {
-      "cmd": "cargo test --locked --test contract_tests audit_2026_stream_terminal_thinking_survives_public_client  (after exact restore + forced rebuild)",
+      "cmd": "cargo test --locked --test contract_tests audit_2026_stream_terminal_thinking_survives_public_client",
       "exit_code": 0
     },
     {
@@ -156,481 +113,286 @@
       "exit_code": 0
     },
     {
-      "cmd": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "cmd": "python 'E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\c6_inventory.py' 'E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\c6-inventory.json'",
       "exit_code": 0
     },
     {
-      "cmd": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "cmd": "$env:CARGO_NET_OFFLINE='true'; cargo semver-checks --baseline-version 0.1.6 --default-features",
       "exit_code": 0
     },
     {
-      "cmd": "cargo test --locked --test qa018_adversarial_tmp -- --nocapture --test-threads=1  (temporary probe, deleted)",
+      "cmd": "$env:CARGO_NET_OFFLINE='true'; cargo semver-checks --baseline-version 0.1.6 --all-features",
       "exit_code": 0
     },
     {
-      "cmd": "cargo check --offline --manifest-path .tmp/qa018-probe-old/Cargo.toml  (downstream probe vs published 0.1.6, deleted)",
+      "cmd": "$env:CARGO_NET_OFFLINE='true'; $env:CARGO_TARGET_DIR='E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\downstream-target'; cargo run --locked --offline --quiet --manifest-path 'E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\downstream-current\\Cargo.toml'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "$env:CARGO_NET_OFFLINE='true'; $env:CARGO_TARGET_DIR='E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\downstream-target'; cargo run --locked --offline --quiet --manifest-path 'E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\downstream-published\\Cargo.toml'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test qa_018stream_adversarial_temp -- --nocapture",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python 'E:\\Temp\\qa-018stream-final-hygiene.py'",
       "exit_code": 0
     }
   ],
+  "expected_command_count": 17,
+  "recorded_command_count": 17,
+  "missing_commands": [],
+  "skipped_commands": [],
   "criteria": {
     "c1": {
       "status": "PASS",
-      "command": "cargo test --locked --test contract_tests audit_2026_stream_",
       "exit_code": 0,
-      "stdout_summary": "7 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out",
-      "test_count": 7,
-      "tests": [
-        {
-          "name": "audit_2026_stream_terminal_thinking_survives_public_client",
-          "ok": true,
-          "production_path": "LmrsClient::stream_with over OpenAiCompatibleProvider parsing real loopback SSE bytes; terminal thinking and thinking_done asserted on the single terminal"
-        },
-        {
-          "name": "audit_2026_stream_oversized_line_is_bounded",
-          "ok": true,
-          "production_path": "OpenAiCompatibleProvider::stream over a real 2 MiB single-line SSE body; asserts LlmError::Parse containing MAX_LINE_BYTES"
-        },
-        {
-          "name": "audit_2026_stream_invalid_utf8_is_error",
-          "ok": true,
-          "production_path": "OpenAiCompatibleProvider::stream over real bytes (valid frame then 0xFF 0xFE); asserts Parse+UTF-8 and no U+FFFD in output"
-        },
-        {
-          "name": "audit_2026_stream_standard_sse_variants_parse",
-          "ok": true,
-          "production_path": "OpenAiCompatibleProvider::stream over real bytes covering BOM, comment, data-no-space, CRLF, bare CR, multi-line data, [DONE] and event:error; asserts text ABC, terminal and Stream error"
-        },
-        {
-          "name": "audit_2026_stream_non_sse_200_is_error",
-          "ok": true,
-          "production_path": "all four Provider::stream impls against real loopback 200 responses with wrong/missing protocol types; each must return LlmError::Parse"
-        },
-        {
-          "name": "audit_2026_stream_error_closes_without_pending_poll",
-          "ok": true,
-          "production_path": "LmrsClient::stream_with over a custom Provider whose stream returns Err then Pending forever; second poll must be Ready(None) with inner poll count still 1"
-        },
-        {
-          "name": "audit_2026_stream_clean_eof_flush_keeps_missing_finish_reason",
-          "ok": true,
-          "production_path": "LmrsClient::stream_with over OpenAiCompatibleProvider real SSE bytes; clean EOF flushes complete tool calls with finish_reason None, malformed frame yields Parse and no done terminal"
-        }
-      ]
+      "observed": "11 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out",
+      "test_names": [
+        "audit_2026_stream_terminal_thinking_survives_public_client",
+        "audit_2026_stream_oversized_line_is_bounded",
+        "audit_2026_stream_invalid_utf8_is_error",
+        "audit_2026_stream_standard_sse_variants_parse",
+        "audit_2026_stream_non_sse_200_is_error",
+        "audit_2026_stream_error_closes_without_pending_poll",
+        "audit_2026_stream_clean_eof_flush_keeps_missing_finish_reason",
+        "audit_2026_stream_legacy_line_stream_signature_compatibility",
+        "audit_2026_stream_legacy_line_stream_behavior_unchanged",
+        "audit_2026_stream_single_newline_json_frames_tolerated",
+        "audit_2026_stream_multiline_data_not_split_before_json_complete"
+      ],
+      "signature_probe": "LegacyProbeError 含 PhantomPinned（!Unpin），未实现 From<LlmError>；公开 line_stream 编译并运行通过。",
+      "legacy_behavior": "覆盖 lossy 无效 UTF-8、CRLF、bare CR、EOF flush；另在 published/current 下游探针复核 split-UTF8、2MiB 无界与错误后关闭。",
+      "production_paths": "terminal thinking 走真实 LmrsClient；oversized/invalid/framing/single-newline/multiline 走真实 OpenAiCompatibleProvider + loopback HTTP；non-SSE 覆盖 compat/anthropic/google/ollama；error-close 走真实 LmrsClient。"
     },
     "c2": {
       "status": "PASS",
-      "probes_passed": 5,
-      "probes_total": 5,
-      "results": [
-        "sse/limits.rs defines MAX_LINE_BYTES=1 MiB and MAX_EVENT_BYTES=4 MiB; parser.rs checks next > MAX_LINE_BYTES before extend_from_slice and needed > MAX_EVENT_BYTES before push_str (also MAX_FIELD_BYTES)",
-        "sse/parser.rs decodes every complete line and EOF tail with String::from_utf8 mapped to LlmError::Parse; stream_util.rs and the four providers contain zero from_utf8_lossy (the only remaining from_utf8_lossy hits are in proxy test fixtures inside #[cfg(test)] modules, unrelated to provider stream paths)",
-        "stream_state.rs harvest_terminal saves chunk.thinking and emit_terminal emits self.thinking.clone(); regression test t10_terminal_thinking_is_preserved present",
-        "Err arm sets Phase::Errored and the next poll returns Ready(None) before polling inner (verified statically and by c1 error_closes test); LineStream/EventStream set failed and gate on it before polling inner",
-        "compat/anthropic/google call sse::require_event_stream(resp.headers())? and ollama calls sse::require_ndjson_or_json(resp.headers())? before bytes_stream()/stream construction; all use sse::event_line_stream or sse::strict_line_stream"
-      ]
+      "probe_count": 6,
+      "all_exit_zero": true,
+      "probes": [
+        {
+          "id": "c2-1",
+          "exit_code": 0,
+          "conclusion": "MAX_LINE_BYTES=1MiB、MAX_EVENT_BYTES=4MiB，均在缓冲扩展前检查。"
+        },
+        {
+          "id": "c2-2",
+          "exit_code": 0,
+          "conclusion": "legacy.rs 的 line_stream 函数体与 eb07c7cb 原实现逐字节一致；wrapper 精确 E: Send + 'static、#[deprecated]、无 From/Unpin；四 provider 只调 strict/event strict。"
+        },
+        {
+          "id": "c2-3",
+          "exit_code": 0,
+          "conclusion": "harvest_terminal 保存 thinking，emit_terminal 输出 self.thinking.clone()，thinking_done 保留。"
+        },
+        {
+          "id": "c2-4",
+          "exit_code": 0,
+          "conclusion": "Err 后进入 Errored，下一次 poll 在 inner poll 前返回 Ready(None)。"
+        },
+        {
+          "id": "c2-5",
+          "exit_code": 0,
+          "conclusion": "compat/anthropic/google 校验 SSE Content-Type；ollama 校验 NDJSON/JSON。"
+        },
+        {
+          "id": "c2-6",
+          "exit_code": 0,
+          "conclusion": "空行优先 dispatch；仅当前 data 已构成完整 JSON 时单 newline+data 自动断帧；未完成 JSON 多行追加；EOF 补发。"
+        }
+      ],
+      "legacy_function_sha256": "e9ce263cb8cc86a1cd8b95d9ef64ea900cd486c008becee0caf82dbc2afe79b1"
     },
     "c3": {
       "status": "PASS",
-      "h0_sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
-      "injected_change": "emit_terminal thinking: self.thinking.clone() -> thinking: None",
-      "injected_exit_code": 101,
-      "injected_failure": "assertion left == right failed: terminal thinking must survive the public collapse layer; left None, right Some(\"terminal-thought\")",
-      "restored_sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
+      "h0": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
+      "injection": "emit_terminal 的 thinking: self.thinking.clone() 临时改为 thinking: None",
+      "injected_native_test_exit_code": 101,
+      "injected_failure": "terminal thinking must survive the public collapse layer; left: None; right: Some(\"terminal-thought\")",
       "restored_exit_code": 0,
-      "sha_restored": true,
-      "forced_rebuild": true,
-      "note": "The injected binary was rebuilt (Compiling llmrust); after restoring the file the first run reused the injected binary because the copy restored the older mtime, so a forced rebuild (touch + Compiling llmrust) was required before the green run. Expected red is recorded only in observations."
+      "restored_sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
+      "force_recompile_observed": true,
+      "conclusion": "注入态目标测试原生 exit 101；恢复 h0 后强制重编译 exit 0。预期红仅记 observations，不入 command_exit_codes。"
     },
     "c4": {
       "status": "PASS",
       "gates": [
         {
-          "id": "c4.1",
-          "command": "cargo test --locked --workspace",
+          "cmd": "cargo test --locked --workspace",
           "exit_code": 0,
-          "ignored_unit_integration": 0,
+          "unit_ignored": 0,
+          "integration_ignored": 0,
           "doc_tests_ignored": 2
         },
         {
-          "id": "c4.2",
-          "command": "cargo test --locked --workspace --features proxy",
+          "cmd": "cargo test --locked --workspace --features proxy",
           "exit_code": 0,
-          "ignored_unit_integration": 0,
+          "unit_ignored": 0,
+          "integration_ignored": 0,
           "doc_tests_ignored": 4
         },
         {
-          "id": "c4.3",
-          "command": "cargo test --locked --workspace --all-features",
+          "cmd": "cargo test --locked --workspace --all-features",
           "exit_code": 0,
-          "ignored_unit_integration": 0,
+          "unit_ignored": 0,
+          "integration_ignored": 0,
           "doc_tests_ignored": 4
         },
         {
-          "id": "c4.4",
-          "command": "cargo build --locked --workspace",
+          "cmd": "cargo build --locked --workspace",
           "exit_code": 0
         },
         {
-          "id": "c4.5",
-          "command": "cargo fmt --all --check",
+          "cmd": "cargo fmt --all --check",
           "exit_code": 0
         },
         {
-          "id": "c4.6",
-          "command": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+          "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
           "exit_code": 0
         }
       ],
-      "ignored_note": "Every unit/integration test result line reports 0 ignored. The only ignored items are doctests: 2 default / 4 with proxy or all-features, exactly equal to the four ```rust,ignore blocks present at eb07c7cb."
+      "conclusion": "六门逐条 exit 0；普通/proxy/all-features 的 unit 与 integration ignored 均为 0；Doc-tests ignored 2/4/4，不超过 eb07c7cb 基线（默认 2、含 proxy 总计 4）。"
     },
     "c5": {
       "status": "PASS",
-      "command": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-STREAM');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-STREAM-CORE.json',encoding='utf-8'));F=['src/providers/stream_util.rs','src/providers/stream_state.rs','src/providers/mod.rs','src/providers/compat.rs','src/providers/anthropic.rs','src/providers/google.rs','src/providers/ollama.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-STREAM-CORE' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
-      "exit_code": 0,
-      "manual_checks": {
-        "threshold": 500,
-        "unregistered_under_threshold": {
-          "src/providers/stream_state.rs": 477,
-          "src/providers/mod.rs": 428,
-          "src/providers/stream_util.rs": 122,
-          "src/providers/sse/parser.rs": 397,
-          "src/providers/sse/limits.rs": 18,
-          "src/providers/sse/mod.rs": 134
+      "exact_card_command_exit_code": 0,
+      "batch_base": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+      "threshold": 500,
+      "legacy_planned": {
+        "path": "src/providers/stream_util/legacy.rs",
+        "lines": 75,
+        "in_baseline": false,
+        "adjustment_count": 0
+      },
+      "four_provider_noop_adjustments": {
+        "src/providers/compat.rs": {
+          "old": 2134,
+          "new": 2134,
+          "baseline": 2134,
+          "bytes_equal_batch_base": true
         },
-        "registered_adjustments": [
-          {
-            "file": "src/providers/compat.rs",
-            "old": 2129,
-            "new": 2134,
-            "measured": 2134,
-            "six_fields": true,
-            "old_equals_batch_base_baseline": true,
-            "predecessor_new_equals_old": true
-          },
-          {
-            "file": "src/providers/anthropic.rs",
-            "old": 1688,
-            "new": 1691,
-            "measured": 1691,
-            "six_fields": true,
-            "old_equals_batch_base_baseline": true,
-            "predecessor_new_equals_old": true
-          },
-          {
-            "file": "src/providers/google.rs",
-            "old": 1812,
-            "new": 1815,
-            "measured": 1815,
-            "six_fields": true,
-            "old_equals_batch_base_baseline": true,
-            "predecessor_new_equals_old": true
-          },
-          {
-            "file": "src/providers/ollama.rs",
-            "old": 860,
-            "new": 868,
-            "measured": 868,
-            "six_fields": true,
-            "old_equals_batch_base_baseline": true,
-            "predecessor_new_equals_old": true
-          }
-        ],
-        "baseline_lines_bidirectional_mismatches": [],
-        "batch_base": "1d717999b9ef9762c40c2e237d329db6522ffe37",
-        "ledger_file_lines": 614
-      }
-    },
-    "c6": {
-      "status": "FAIL",
-      "machine_subchecks": {
-        "baseline_commit": "eb07c7cb118a0b289df50a581173d01a158b4bb6",
-        "assert_lines_baseline": 1501,
-        "assert_lines_worktree": 1672,
-        "assert_lines_added": 171,
-        "assert_lines_missing": 0,
-        "ignore_should_panic_baseline": [
-          {
-            "file": "src/proxy/mod.rs",
-            "attr": "#[should_panic(expected = \"must not be empty or whitespace-only\")]",
-            "count": 2
-          }
-        ],
-        "ignore_should_panic_worktree": [
-          {
-            "file": "src/proxy/mod.rs",
-            "attr": "#[should_panic(expected = \"must not be empty or whitespace-only\")]",
-            "count": 2
-          }
-        ],
-        "new_ignore_or_should_panic": 0,
-        "unit_integration_ignored_default": 0,
-        "unit_integration_ignored_proxy": 0,
-        "unit_integration_ignored_all_features": 0,
-        "doc_tests_ignored_default": 2,
-        "doc_tests_ignored_proxy": 4,
-        "doc_tests_ignored_all_features": 4,
-        "doc_test_ignore_markers_baseline": 4,
-        "doc_test_ignore_markers_worktree": 4,
-        "semver_checks_default_features": {
-          "exit_code": 0,
-          "summary": "196 checks: 196 pass, 57 skip; no semver update required"
+        "src/providers/anthropic.rs": {
+          "old": 1691,
+          "new": 1691,
+          "baseline": 1691,
+          "bytes_equal_batch_base": true
         },
-        "semver_checks_all_features": {
-          "exit_code": 0,
-          "summary": "196 checks: 196 pass, 57 skip; no semver update required"
+        "src/providers/google.rs": {
+          "old": 1815,
+          "new": 1815,
+          "baseline": 1815,
+          "bytes_equal_batch_base": true
+        },
+        "src/providers/ollama.rs": {
+          "old": 868,
+          "new": 868,
+          "baseline": 868,
+          "bytes_equal_batch_base": true
         }
       },
-      "failure": {
-        "id": "QA-C6-SEMVER-LINE-STREAM-BOUND",
-        "summary": "The public fn llmrust::providers::stream_util::line_stream gained E: From<LlmError> + Unpin on top of the published 0.1.6 E: Send + 'static. That narrowing is a genuine breaking change for downstream callers, and cargo-semver-checks does not cover generic bound additions, so both semver-checks commands exit 0 as a false negative.",
-        "ruling_conflict": "architect ruling 2026-11-24: “公开旧 line_stream 签名保留以维持 semver”",
-        "public_path": "llmrust::providers::stream_util::line_stream (pub mod providers -> pub mod stream_util -> pub fn; reachable and imported by the downstream probe)",
-        "published_0_1_6_bound": "E: Send + 'static",
-        "current_bound": "E: From<LlmError> + Send + Unpin + 'static",
-        "downstream_probe_old": {
-          "manifest": ".tmp/qa018-probe-old (path dep on registry llmrust-0.1.6)",
-          "command": "cargo check --offline",
+      "append_only": {
+        "adjustments_prefix_equal_batch_base": true,
+        "appended_count": 4,
+        "baseline_changed": {},
+        "baseline_added": []
+      },
+      "conclusion": "卡面精确台账链 exit 0；legacy planned 75<500 且不入 baseline；四 provider no-op 链 old=new=baseline=batch_base 实测，逐字节未变；adjustments 仅追加 4 条，baseline 无漂移。"
+    },
+    "c6": {
+      "status": "PASS",
+      "assertion_inventory": {
+        "baseline": "eb07c7cb118a0b289df50a581173d01a158b4bb6",
+        "baseline_assertions": 1500,
+        "current_assertions_in_baseline_files": 1680,
+        "missing_assertions": 0,
+        "added_assertions": 180
+      },
+      "ignore_should_panic": {
+        "baseline_count": 2,
+        "current_count": 2,
+        "semantic_missing": 0,
+        "semantic_added": 0,
+        "functions": [
+          "router_with_auth_rejects_blank_token",
+          "router_with_auth_rejects_empty_token"
+        ],
+        "raw_line_shift": {
+          "3292->3346": true,
+          "3300->3354": true
+        }
+      },
+      "ignored_counts": {
+        "default_unit": 0,
+        "default_integration": 0,
+        "default_doc": 2,
+        "proxy_unit": 0,
+        "proxy_integration": 0,
+        "proxy_doc": 4,
+        "baseline_doc_total": 4,
+        "current_doc_total": 4
+      },
+      "semver": {
+        "default": {
           "exit_code": 0,
-          "meaning": "E=MyErr (Send + static + Unpin, no From<LlmError>) compiles against 0.1.6"
+          "checks": "196 pass, 57 skip"
         },
-        "downstream_probe_new": {
-          "manifest": ".tmp/qa018-probe-new (path dep on worktree)",
-          "command": "cargo check --offline",
-          "exit_code": 101,
-          "error": "error[E0277]: the trait bound `MyErr: From<LlmError>` is not satisfied (3 errors)",
-          "meaning": "the same caller no longer compiles"
+        "all_features": {
+          "exit_code": 0,
+          "checks": "196 pass, 57 skip"
         },
-        "semver_checks_coverage_gap": "cargo-semver-checks 0.48.0 --list exposes no lint for an added generic bound on a function (only parameter count/reorder lints, e.g. function_requires_different_generic_type_params); 196 checks pass without noticing the break",
-        "api_freeze_gap": "tests/api_freeze.rs and docs/api-inventory.json do not mention line_stream, so the API freeze cannot catch it either",
-        "remediation": "Keep line_stream with E: Send + 'static (old behaviour/signature) and expose the strict bounded parser under a new name/signature, or treat the change as breaking and bump accordingly; do not rely on semver-checks for generic-bound changes."
-      }
+        "network_note": "首次联网更新被环境代理阻断；使用本机已缓存 registry 的 CARGO_NET_OFFLINE=true 重跑，两口径均 exit 0。"
+      },
+      "downstream_custom_e": {
+        "published_0_1_6_exit_code": 0,
+        "current_worktree_exit_code": 0,
+        "error_type": "DownstreamError(PhantomPinned)，无 From<LlmError> 且 !Unpin",
+        "independent_of_semver_checks": true
+      },
+      "conclusion": "既有断言多重集合只增不减；ignore/should_panic 的 file+测试函数+属性集合不变；semver 双口径与独立下游自定义 E 编译/运行探针均通过。"
     }
   },
-  "adversarial_checks": [
-    {
-      "id": "ADV-1",
-      "layer": "interface",
-      "check": "line_stream public-API semver compatibility",
-      "result": "FAIL",
-      "evidence": "see c6.failure"
+  "adversarial": {
+    "status": "PASS",
+    "legacy_0_1_6": {
+      "published_and_current_probe_exit_codes": [
+        0,
+        0
+      ],
+      "invalid_utf8": "返回 U+FFFD，不报错",
+      "unbounded": "2MiB 无 newline 行在 EOF 完整 flush，无 1MiB strict cap",
+      "other_behavior": "CRLF 剥离、bare CR 保留、split-UTF8 重组、EOF tail flush、底层 Err 后立即关闭均保持"
     },
-    {
-      "id": "ADV-2",
-      "layer": "interface",
-      "check": "semver-checks coverage of added generic bounds",
-      "result": "GAP",
-      "evidence": "196 checks pass; lint list has no added-bound lint"
+    "strict_production": {
+      "temporary_tests": "4 passed; 0 failed; 0 ignored",
+      "line_boundary": "MAX_LINE_BYTES 精确接受；MAX_LINE_BYTES+1 Parse 拒绝",
+      "event_boundary": "MAX_EVENT_BYTES 精确接受；MAX_EVENT_BYTES+1 Parse 拒绝",
+      "field_boundary": "MAX_FIELD_BYTES+1 Parse 拒绝",
+      "blank_line_priority": "不完整 JSON 遇空行立即 dispatch 并产生 Parse，不错误等待/合并"
     },
-    {
-      "id": "ADV-3",
-      "layer": "event",
-      "check": "missing Content-Type on HTTP 200",
-      "result": "PASS",
-      "evidence": "temporary real-byte probe: compat/anthropic/google/ollama each return LlmError::Parse(\"stream response is missing Content-Type; expected ...\")"
-    },
-    {
-      "id": "ADV-4",
-      "layer": "event",
-      "check": "Content-Type with parameters and mixed case",
-      "result": "PASS",
-      "evidence": "\"Text/Event-Stream; Charset=UTF-8\" accepted; delta A parsed"
-    },
-    {
-      "id": "ADV-5",
-      "layer": "event",
-      "check": "Ollama NDJSON/JSON acceptance",
-      "result": "PASS",
-      "evidence": "application/x-ndjson and application/json; charset=utf-8 both parsed to delta \"hi\"; text/event-stream rejected as Parse"
-    },
-    {
-      "id": "ADV-6",
-      "layer": "event",
-      "check": "multi-line data, BOM, bare-CR framing through the real provider",
-      "result": "PASS",
-      "evidence": "temporary probe parsed \"AB\" (BOM + comment CRLF, data-no-space CR, multi-line data with CRLF blank line)"
-    },
-    {
-      "id": "ADV-7",
-      "layer": "event",
-      "check": "over-limit line: error rather than truncation",
-      "result": "PASS",
-      "evidence": "2 MiB line -> LlmError::Parse containing MAX_LINE_BYTES; no >64 KiB delta surfaced and no post-error content \"A\"; stream closed"
-    },
-    {
-      "id": "ADV-8",
-      "layer": "event",
-      "check": "single-newline-separated data frames (non-standard SSE)",
-      "result": "BEHAVIOUR-CHANGE",
-      "evidence": "two data: lines without a blank line are now merged into one event and rejected with Parse \"trailing characters at line 2 column 1\" (previously per-line parsing tolerated them)"
-    },
-    {
-      "id": "ADV-9",
-      "layer": "logic",
-      "check": "Err close semantics both at framing and collapse layers",
-      "result": "PASS",
-      "evidence": "code guards + c1 error_closes_without_pending_poll (inner poll count stays 1, next poll Ready(None))"
-    }
-  ],
+    "framing": "真实生产路径确认单 newline 完整 JSON 帧输出 AB 并终止；标准多行 data 只拼接一次并输出 AB；空行优先与 EOF 补发均正确。",
+    "findings": "未发现阻断性实现缺陷；semver-checks 的 196 项通过不作为泛型 bound 兼容性的替代证据。"
+  },
   "observations": [
-    {
-      "id": "OBS-1",
-      "severity": "blocking",
-      "text": "Public API break: line_stream added E: From<LlmError> + Unpin. Probe with MyErr compiles against published 0.1.6 (exit 0) and fails on this worktree (exit 101, E0277). Both semver-checks commands still exit 0 because that lint class does not exist. This contradicts the card ruling that the old line_stream signature is preserved for semver."
-    },
-    {
-      "id": "OBS-2",
-      "severity": "expected-red",
-      "text": "c3 injection: thinking: None made audit_2026_stream_terminal_thinking_survives_public_client fail with exit 101 (left None vs Some(\"terminal-thought\")); after exact restore and forced rebuild it exits 0 with sha 81f668b3..."
-    },
-    {
-      "id": "OBS-3",
-      "severity": "process",
-      "text": "Windows stale-binary hazard reproduced: restoring the file via Copy-Item kept the older mtime and cargo reused the injected test binary (still exit 101). Only after touching the source (Compiling llmrust) did the restored code turn green. Any future injection QA must force recompilation."
-    },
-    {
-      "id": "OBS-4",
-      "severity": "informational",
-      "text": "tests/contract_tests.rs existing fixture compat_tool_arguments_split_across_chunks changed its SSE separators from single \\n to blank-line \\n\\n. No asserted line was removed (assert count grew +171 repo-wide, 0 baseline assert lines missing), but per-line tolerance for non-standard SSE is no longer exercised."
-    },
-    {
-      "id": "OBS-5",
-      "severity": "informational",
-      "text": "src/providers/sse/mod.rs is a new real file inside write_scope src/providers/sse/ but is absent from card planned_file_paths and from the c5 F list; it is 134 lines (<500) and correctly unregistered. Handoff lists it among the 12 frozen files."
-    },
-    {
-      "id": "OBS-6",
-      "severity": "informational",
-      "text": "Content-Type enforcement rejects a 200 application/json body even if it is a valid non-streaming JSON payload for a stream call; this is the architect-required behaviour, and missing Content-Type is a distinct explicit Parse message rather than an empty success."
-    },
-    {
-      "id": "OBS-7",
-      "severity": "informational",
-      "text": "Doc-test ignored counts (2 default / 4 proxy/all-features) come from the same four ```rust,ignore blocks present at baseline eb07c7cb: src/lib.rs:57, src/providers/retry.rs:19, src/proxy/mod.rs:396 and :595."
-    }
+    "c3 的 cargo 包装命令返回 1，直接运行同一测试二进制并显式透传 $LASTEXITCODE 实测原生 exit 101；恢复后 cargo 目标测试 exit 0。",
+    "c2 与下游探针的早期脚本自身有切片/引用错误，修正后全部最终成功；command_exit_codes 只保留最终成功项。",
+    "tests/hotspot_ledger.json 全文件 646 行均为 CRLF；git diff --check 将 CR 报为 trailing whitespace，但逐字节检查确认行尾前无 space/tab，c4 fmt 与结构/台账门均通过。",
+    "未采用任何 dev receipt/notes/结论作为验收依据；旧 QA 回执未读，删除后由本独立实测重新生成。",
+    "临时集成测试、两个下游 crate、c2/c6 脚本、semver 构建目录、临时二进制与 spill 日志均已删除并验证不存在。"
   ],
-  "freeze_audit": {
-    "spec": {
-      "path": ".workforce/spec.json",
-      "sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
-      "matches_declared": true
-    },
-    "handoff": {
-      "id": "4d6668fbb0415d4c9da8905b",
-      "verified_in_loop_state": true
-    },
-    "base_head": "1d717999b9ef9762c40c2e237d329db6522ffe37",
-    "batch_base": "1d717999b9ef9762c40c2e237d329db6522ffe37",
-    "frozen_file_count": 12,
-    "frozen_files": [
-      {
-        "path": "src/providers/stream_util.rs",
-        "sha256": "30185c6c0c4d9f7cda3728c4d6e122804c75b81b8ba9761e589ff9a9a7cbeb80",
-        "lines": 122,
-        "unchanged": true
-      },
-      {
-        "path": "src/providers/stream_state.rs",
-        "sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
-        "lines": 477,
-        "unchanged": true
-      },
-      {
-        "path": "src/providers/mod.rs",
-        "sha256": "ca4a91e874b5ae46d3d74a7fe1ce5b0b5f83d0d1d121b26c757117964d8d5b45",
-        "lines": 428,
-        "unchanged": true
-      },
-      {
-        "path": "src/providers/compat.rs",
-        "sha256": "ce3a892ded4a39ee61598c1b975d3e00bc5aef36e3c522ca97d19eea59c1a808",
-        "lines": 2134,
-        "unchanged": true
-      },
-      {
-        "path": "src/providers/anthropic.rs",
-        "sha256": "59aa1d047ca737e35f33eaf04defeda30befc589cdb9507d6d0a1387c6a8ca94",
-        "lines": 1691,
-        "unchanged": true
-      },
-      {
-        "path": "src/providers/google.rs",
-        "sha256": "55389d6502da7fc70998037786fbcb8e4b91d2139361b9b498230f93ab6227ac",
-        "lines": 1815,
-        "unchanged": true
-      },
-      {
-        "path": "src/providers/ollama.rs",
-        "sha256": "d132e25a909b659b18e2c0fc86297700f08047660af6aa3a66bd8ebeed19bab7",
-        "lines": 868,
-        "unchanged": true
-      },
-      {
-        "path": "src/providers/sse/parser.rs",
-        "sha256": "cdd5957db4089427aa957748e898d109d05cbd9918a652aa1d1f098bfc9e26eb",
-        "lines": 397,
-        "unchanged": true
-      },
-      {
-        "path": "src/providers/sse/limits.rs",
-        "sha256": "efeee5b43c2cfbaddd4e318544a6f18869427e9b1b1be16569ddee48056e93b3",
-        "lines": 18,
-        "unchanged": true
-      },
-      {
-        "path": "src/providers/sse/mod.rs",
-        "sha256": "e4a2993f0d76bad0496380b24818830baeff202b1c97d5a5da623b2a76c68ad3",
-        "lines": 134,
-        "unchanged": true
-      },
-      {
-        "path": "tests/contract_tests.rs",
-        "sha256": "2ae68b3e3e914c794d5469e5d13dee97510c79d80a54ae4c8ecaf56df802588b",
-        "lines": 885,
-        "unchanged": true
-      },
-      {
-        "path": "tests/hotspot_ledger.json",
-        "sha256": "3f9cfa62e87059c88cdd779e06755f891f11af9a6f057711bc0745cf3d85d5f1",
-        "lines": 614,
-        "unchanged": true
-      }
-    ],
+  "hygiene": {
+    "head_before_and_after": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+    "git_commit_run": false,
+    "frozen_file_count": 6,
     "all_frozen_sha_unchanged": true,
-    "git_status_before": [
-      "M src/providers/anthropic.rs",
-      "M src/providers/compat.rs",
-      "M src/providers/google.rs",
-      "M src/providers/mod.rs",
-      "M src/providers/ollama.rs",
-      "M src/providers/stream_state.rs",
-      "M src/providers/stream_util.rs",
-      "M tests/contract_tests.rs",
-      "M tests/hotspot_ledger.json",
-      "?? .workforce/evidence/B-018-ROUTER/ci.json",
-      "?? .workforce/evidence/B-018-STREAM/",
-      "?? src/providers/sse/"
-    ],
-    "git_status_after_same": true,
-    "head": "1d717999b9ef9762c40c2e237d329db6522ffe37",
-    "temporary_removed": [
-      "tests/qa018_adversarial_tmp.rs",
-      ".tmp/qa018_c2.py",
-      ".tmp/qa018_c5_manual.py",
-      ".tmp/qa018_c6_diff.py",
-      ".tmp/qa018_extract_c5.py",
-      ".tmp/qa018_gates.ps1",
-      ".tmp/qa018_semver.ps1",
-      ".tmp/qa018-probe-old/",
-      ".tmp/qa018-probe-new/",
-      ".tmp/qa018-*.log",
-      ".tmp/qa018-*.json",
-      ".tmp/qa018-freeze.txt",
-      ".tmp/qa018-gitstatus.txt",
-      ".tmp/qa018-stream_state.h0.rs",
-      ".tmp/c5_command.txt"
-    ],
-    "temporary_files_absent": true
+    "stream_state_h0_restored": true,
+    "temporary_probe_source_absent": true,
+    "temporary_probe_directory_absent": true,
+    "temporary_logs_absent": true,
+    "git_status_note": "qa-C-018-STREAM-CORE.json 是受 Git 跟踪的指定交付文件；除该 receipt 从初态变为 M 外，Git 状态与初始快照完全一致，无额外业务/spec/card/signoffs/loop-state 改动。"
   },
-  "verdict": "FAIL",
-  "notes": "c1-c5 are green and every c6 machine command exits 0, but the interface-layer semver ruling is not satisfied: the public line_stream signature was narrowed with a From<LlmError> + Unpin bound. The published-0.1.6 downstream probe compiles (exit 0) while the same caller fails on this worktree (exit 101, E0277); cargo-semver-checks 0.48.0 has no lint for added generic bounds, so its green result is a false negative. Verdict FAIL pending a fix (keep the old signature and add a separately named strict entry point) or an explicit architect decision to accept a breaking change."
+  "verdict": "PASS",
+  "generated_at_utc": "2026-11-27T09:43:31.104129+00:00",
+  "notes": "独立 QA c1-c6 与额外对抗层全绿；event/logic/interface 三层覆盖；零 mock；永久业务/spec/card/signoffs/loop-state 未改；未 git commit。"
 }

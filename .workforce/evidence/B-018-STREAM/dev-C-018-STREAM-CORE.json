@@ -5,38 +5,34 @@
   "written_by": "dev-llmrust-018stream",
   "card_id": "C-018-STREAM-CORE",
   "batch_id": "B-018-STREAM",
-  "batch_base": "1d717999b9ef9762c40c2e237d329db6522ffe37",
-  "card_sha256": "c6db15b43f7b54d95f570615d80d15aa6be5682072d8be6065c8db9ca90029da",
-  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "batch_base": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+  "card_sha256": "95e6e839a9e1fa05d7b506b2f3b1166ae0b9665cffa7c7b37ecf99d18c9ac2b3",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+  "written_at": "2026-11-27T17:10:43+08:00",
   "inputs_seen": [
-    ".workforce/cards/C-018-STREAM-CORE.json",
-    ".workforce/spec.json",
-    ".workforce/loop-state.json",
-    ".workforce/evidence/B-018-ROUTER/STREAM-READINESS.md",
-    "AGENTS.md",
+    "AGENT_MANIFESTO.md",
+    "docs/PROJECT_MAP.md",
+    "docs/CAPABILITIES.md",
     "docs/CONTRACTS.md",
-    "Cargo.toml",
-    "src/lib.rs",
+    "src/types.rs",
     "src/providers/mod.rs",
     "src/providers/stream_util.rs",
     "src/providers/stream_state.rs",
+    "src/providers/sse/",
     "src/providers/compat.rs",
     "src/providers/anthropic.rs",
     "src/providers/google.rs",
     "src/providers/ollama.rs",
     "tests/contract_tests.rs",
-    "tests/hotspot_ledger.json"
+    "tests/hotspot_ledger.json",
+    ".workforce/cards/C-018-STREAM-CORE.json",
+    ".workforce/spec.json",
+    ".workforce/loop-state.json"
   ],
   "files_changed": [
     "src/providers/stream_util.rs",
-    "src/providers/stream_state.rs",
-    "src/providers/mod.rs",
-    "src/providers/compat.rs",
-    "src/providers/anthropic.rs",
-    "src/providers/google.rs",
-    "src/providers/ollama.rs",
+    "src/providers/stream_util/legacy.rs",
     "src/providers/sse/parser.rs",
-    "src/providers/sse/limits.rs",
     "src/providers/sse/mod.rs",
     "tests/contract_tests.rs",
     "tests/hotspot_ledger.json"
@@ -45,84 +41,60 @@
   "artifacts": [
     {
       "path": "src/providers/stream_util.rs",
-      "sha256": "30185c6c0c4d9f7cda3728c4d6e122804c75b81b8ba9761e589ff9a9a7cbeb80"
+      "sha256": "927b4ed1767ea117d6b522dec9783106980debddf69bffbc4a466bae38440915"
     },
     {
-      "path": "src/providers/stream_state.rs",
-      "sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb"
-    },
-    {
-      "path": "src/providers/mod.rs",
-      "sha256": "ca4a91e874b5ae46d3d74a7fe1ce5b0b5f83d0d1d121b26c757117964d8d5b45"
-    },
-    {
-      "path": "src/providers/compat.rs",
-      "sha256": "ce3a892ded4a39ee61598c1b975d3e00bc5aef36e3c522ca97d19eea59c1a808"
-    },
-    {
-      "path": "src/providers/anthropic.rs",
-      "sha256": "59aa1d047ca737e35f33eaf04defeda30befc589cdb9507d6d0a1387c6a8ca94"
-    },
-    {
-      "path": "src/providers/google.rs",
-      "sha256": "55389d6502da7fc70998037786fbcb8e4b91d2139361b9b498230f93ab6227ac"
-    },
-    {
-      "path": "src/providers/ollama.rs",
-      "sha256": "d132e25a909b659b18e2c0fc86297700f08047660af6aa3a66bd8ebeed19bab7"
+      "path": "src/providers/stream_util/legacy.rs",
+      "sha256": "ece6b1f28e7af749b3b49904841db447d9a4b1e541aa12e2d9ee0cfe0779d9a6"
     },
     {
       "path": "src/providers/sse/parser.rs",
-      "sha256": "cdd5957db4089427aa957748e898d109d05cbd9918a652aa1d1f098bfc9e26eb"
-    },
-    {
-      "path": "src/providers/sse/limits.rs",
-      "sha256": "efeee5b43c2cfbaddd4e318544a6f18869427e9b1b1be16569ddee48056e93b3"
+      "sha256": "f87077e9084d43f9296fbf5333587a0ea2476dbcd13116dfc06b5dfa0cd76d3b"
     },
     {
       "path": "src/providers/sse/mod.rs",
-      "sha256": "e4a2993f0d76bad0496380b24818830baeff202b1c97d5a5da623b2a76c68ad3"
+      "sha256": "d82acd6f877d2b5d86109faae9ccb7fb4649f85a9eca7257b6c201d5d0113aed"
     },
     {
       "path": "tests/contract_tests.rs",
-      "sha256": "2ae68b3e3e914c794d5469e5d13dee97510c79d80a54ae4c8ecaf56df802588b"
+      "sha256": "ca4590681bcf5a9100c36d3741fd9af7cc9a68723e8dce6c41e2c8f4e1391cc8"
     },
     {
       "path": "tests/hotspot_ledger.json",
-      "sha256": "3f9cfa62e87059c88cdd779e06755f891f11af9a6f057711bc0745cf3d85d5f1"
+      "sha256": "fce12174aca4f6769a2ba1b988520194c393949fe81cee18d0e5564f30c80c0e"
     }
   ],
   "command_exit_codes": [
-    {
-      "cmd": "cargo check --locked --all-targets --all-features",
-      "exit_code": 0
-    },
     {
       "cmd": "cargo test --locked --test contract_tests audit_2026_stream_",
       "exit_code": 0
     },
     {
-      "cmd": "python -c <c2.1 bounded constants and pre-growth check>",
+      "cmd": "python -c <c2.1 MAX_LINE_BYTES/MAX_EVENT_BYTES definitions and pre-growth checks>",
       "exit_code": 0
     },
     {
-      "cmd": "python -c <c2.2 strict UTF-8 and no from_utf8_lossy in provider stream paths>",
+      "cmd": "python -c <c2.2 strict production paths, exact deprecated legacy signature, lossy legacy isolation>",
       "exit_code": 0
     },
     {
-      "cmd": "python -c <c2.3 harvest/emit_terminal save thinking>",
+      "cmd": "python -c <c2.3 harvest_terminal and emit_terminal preserve thinking>",
       "exit_code": 0
     },
     {
-      "cmd": "python -c <c2.4 Err sets close flag and next poll returns None first>",
+      "cmd": "python -c <c2.4 Err close flag and next poll returns None before inner poll>",
       "exit_code": 0
     },
     {
-      "cmd": "python -c <c2.5 content-type validated before stream construction>",
+      "cmd": "python -c <c2.5 provider Content-Type validation precedes bytes_stream>",
       "exit_code": 0
     },
     {
-      "cmd": "cargo test --locked --test contract_tests audit_2026_stream_terminal_thinking_survives_public_client (after restore, forced rebuild)",
+      "cmd": "python -c <c2.6 blank-line priority, complete-JSON single-newline dispatch, multi-line append, EOF flush>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test contract_tests audit_2026_stream_terminal_thinking_survives_public_client (after exact restore and cargo clean -p llmrust)",
       "exit_code": 0
     },
     {
@@ -150,50 +122,216 @@
       "exit_code": 0
     },
     {
-      "cmd": "python -c <exact c5 hotspot-ledger chain command from loop-state B-018-STREAM>",
+      "cmd": "python -c <exact c5 hotspot-ledger chain command from C-018-STREAM-CORE>",
       "exit_code": 0
     },
     {
-      "cmd": "python -c <c6 assertion count non-decrease and ignore/should_panic set unchanged vs eb07c7cb>",
+      "cmd": "python -c <c6 baseline assertion multiset non-decrease and ignore/should_panic location-attribute sets unchanged>",
       "exit_code": 0
     },
     {
-      "cmd": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "cmd": "CARGO_NET_OFFLINE=true cargo semver-checks --baseline-version 0.1.6 --default-features",
       "exit_code": 0
     },
     {
-      "cmd": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "cmd": "CARGO_NET_OFFLINE=true cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo check --offline (temporary downstream custom-E probe against published llmrust 0.1.6; cleaned)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo check --offline (temporary downstream custom-E probe against current worktree; cleaned)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <legacy implementation byte-for-byte identity, spec SHA256, Rust LF and ledger CRLF verification>",
       "exit_code": 0
     },
     {
       "cmd": "git -c core.whitespace=cr-at-eol diff --check",
       "exit_code": 0
-    },
-    {
-      "cmd": "python -c <final scope, LF/CRLF, line-count and sha256 verification>",
-      "exit_code": 0
     }
   ],
+  "criteria": {
+    "c1": {
+      "status": "PASS",
+      "command": "cargo test --locked --test contract_tests audit_2026_stream_",
+      "exit_code": 0,
+      "stdout_summary": "11 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out",
+      "test_count": 11,
+      "tests": [
+        "audit_2026_stream_terminal_thinking_survives_public_client",
+        "audit_2026_stream_oversized_line_is_bounded",
+        "audit_2026_stream_invalid_utf8_is_error",
+        "audit_2026_stream_standard_sse_variants_parse",
+        "audit_2026_stream_non_sse_200_is_error",
+        "audit_2026_stream_error_closes_without_pending_poll",
+        "audit_2026_stream_clean_eof_flush_keeps_missing_finish_reason",
+        "audit_2026_stream_legacy_line_stream_signature_compatibility",
+        "audit_2026_stream_legacy_line_stream_behavior_unchanged",
+        "audit_2026_stream_single_newline_json_frames_tolerated",
+        "audit_2026_stream_multiline_data_not_split_before_json_complete"
+      ],
+      "compatibility_probe": "LegacyProbeError is custom, !Unpin, and has no From<LlmError>; both the in-crate contract probe and temporary downstream crates compile against 0.1.6 and the current worktree.",
+      "production_paths": "Legacy behavior is pinned at the public API boundary; single-newline and incomplete multi-line JSON tests parse real loopback bytes through OpenAiCompatibleProvider::stream."
+    },
+    "c2": {
+      "status": "PASS",
+      "probes_passed": 6,
+      "probes_total": 6,
+      "results": [
+        "MAX_LINE_BYTES and MAX_EVENT_BYTES are defined in sse/limits.rs; parser checks both limits before extend_from_slice/push_str.",
+        "compat/anthropic/google/ollama and strict sse parsing contain no from_utf8_lossy call; the deprecated public wrapper has exactly E: Send + 'static and delegates to the isolated 0.1.6 lossy implementation; no provider calls stream_util::line_stream.",
+        "UnifyTerminal harvests terminal chunk.thinking and emit_terminal emits self.thinking.clone().",
+        "Err sets Phase::Errored; the next poll returns Ready(None) before polling the inner stream. LineStream/EventStream also gate on failed before polling inner.",
+        "compat/anthropic/google require text/event-stream and Ollama requires NDJSON/JSON before bytes_stream().",
+        "SseAssembler handles blank lines first, auto-dispatches only for a directly following data line when current data parses as complete JSON, appends incomplete JSON, and dispatches pending data at EOF."
+      ]
+    },
+    "c3": {
+      "status": "PASS",
+      "injected_change": "temporarily replaced thinking: self.thinking.clone(), with thinking: None, in UnifyTerminal::emit_terminal",
+      "injected_exit_code": 101,
+      "injected_failure": "terminal thinking must survive the public collapse layer: left None, right Some(\"terminal-thought\")",
+      "restored_exit_code": 0,
+      "h0": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
+      "h1": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
+      "forced_rebuild": true
+    },
+    "c4": {
+      "status": "PASS",
+      "gates": [
+        {
+          "command": "cargo test --locked --workspace",
+          "exit_code": 0,
+          "unit_integration_ignored": 0,
+          "doc_tests_ignored": 2
+        },
+        {
+          "command": "cargo test --locked --workspace --features proxy",
+          "exit_code": 0,
+          "unit_integration_ignored": 0,
+          "doc_tests_ignored": 4
+        },
+        {
+          "command": "cargo test --locked --workspace --all-features",
+          "exit_code": 0,
+          "unit_integration_ignored": 0,
+          "doc_tests_ignored": 4
+        },
+        {
+          "command": "cargo build --locked --workspace",
+          "exit_code": 0
+        },
+        {
+          "command": "cargo fmt --all --check",
+          "exit_code": 0
+        },
+        {
+          "command": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+          "exit_code": 0
+        }
+      ]
+    },
+    "c5": {
+      "status": "PASS",
+      "command": "exact single-line python command from C-018-STREAM-CORE",
+      "exit_code": 0,
+      "threshold": 500,
+      "unregistered_under_threshold": {
+        "src/providers/stream_util.rs": 111,
+        "src/providers/stream_util/legacy.rs": 75,
+        "src/providers/stream_state.rs": 477,
+        "src/providers/mod.rs": 428,
+        "src/providers/sse/parser.rs": 425,
+        "src/providers/sse/limits.rs": 18,
+        "src/providers/sse/mod.rs": 164
+      },
+      "legacy_planned": "src/providers/stream_util/legacy.rs exists, is planned, is below threshold, and is absent from baseline_lines and adjustments.",
+      "registered_transitions": [
+        {
+          "file": "src/providers/compat.rs",
+          "old": 2134,
+          "new": 2134
+        },
+        {
+          "file": "src/providers/anthropic.rs",
+          "old": 1691,
+          "new": 1691
+        },
+        {
+          "file": "src/providers/google.rs",
+          "old": 1815,
+          "new": 1815
+        },
+        {
+          "file": "src/providers/ollama.rs",
+          "old": 868,
+          "new": 868
+        }
+      ],
+      "note": "The v8 checkpoint batch_base already contained the provider baselines, so truthful measured no-op transitions were appended to start the v9 chain at batch_base; no provider source changed in v9."
+    },
+    "c6": {
+      "status": "PASS",
+      "baseline_commit": "eb07c7cb118a0b289df50a581173d01a158b4bb6",
+      "assert_lines_baseline": 1490,
+      "assert_lines_worktree": 1669,
+      "missing_assert_lines": 0,
+      "missing_ignore_should_panic_locations": 0,
+      "new_ignore_should_panic_locations": 0,
+      "unit_integration_ignored": {
+        "default": 0,
+        "proxy": 0,
+        "all_features": 0
+      },
+      "doc_tests_ignored": {
+        "default": 2,
+        "proxy": 4,
+        "all_features": 4
+      },
+      "semver_default": {
+        "exit_code": 0,
+        "summary": "196 checks: 196 pass, 57 skip; no semver update required"
+      },
+      "semver_all_features": {
+        "exit_code": 0,
+        "summary": "196 checks: 196 pass, 57 skip; no semver update required"
+      },
+      "downstream_custom_error_probe": {
+        "published_0_1_6_exit_code": 0,
+        "current_worktree_exit_code": 0,
+        "error_type": "CustomError(PhantomPinned): no From<LlmError>, !Unpin"
+      }
+    }
+  },
   "observations": [
     {
       "kind": "expected_injection_red",
       "cmd": "cargo test --locked --test contract_tests audit_2026_stream_terminal_thinking_survives_public_client",
-      "injected_change": "temporarily replaced `thinking: self.thinking.clone(),` with `thinking: None,` inside UnifyTerminal::emit_terminal",
+      "injected_change": "UnifyTerminal::emit_terminal thinking: self.thinking.clone() -> thinking: None",
       "exit_code": 101,
-      "observed": "The named test failed (0 passed; 1 failed; 0 ignored): terminal.thinking was None while the fixture carried reasoning_content terminal-thought. Restored the file from a byte copy, then ran `cargo clean -p llmrust` before the rerun to avoid Cargo reusing the injected binary.",
-      "restored_exit_code": 0,
+      "observed": "0 passed; 1 failed; 0 ignored. Restored exact bytes, ran cargo clean -p llmrust, and the rerun exited 0 with h1 == h0.",
       "h0": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
-      "h1": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb"
+      "h1": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
+      "restored_exit_code": 0
     },
     {
       "kind": "expected_crlf_false_positives",
       "cmd": "git diff --check",
-      "exit_code": 2,
-      "observed": "Every reported line is an added line of tests/hotspot_ledger.json, which is required to stay CRLF. `git -c core.whitespace=cr-at-eol diff --check` is clean (exit 0); no real whitespace error exists."
+      "exit_code": 1,
+      "observed": "Only added tests/hotspot_ledger.json lines are reported because the required ledger format is CRLF. git -c core.whitespace=cr-at-eol diff --check exits 0; no Rust LF or real whitespace error exists."
+    },
+    {
+      "kind": "environment_network_retry",
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "observed": "The initial online invocation could not reach crates.io through the configured proxy and was cancelled during retries. Re-running with CARGO_NET_OFFLINE=true used the cached baseline and dependencies; default and all-features semver checks both exited 0 with 196/196 checks passing."
     }
   ],
   "verdict": "PASS",
   "independent": true,
   "declared_by_lead": false,
-  "notes": "c1: `cargo test --locked --test contract_tests audit_2026_stream_` => 7 passed; 0 failed; 0 ignored. The seven named production-path tests exercise real provider byte parsing through local loopback HTTP fixtures (compat/anthropic/google/ollama) or LmrsClient::stream_with (terminal thinking, clean-EOF flush, Err immediate close). c2: five structural probes exit 0 — MAX_LINE_BYTES/MAX_EVENT_BYTES are enforced before buffer growth; strict String::from_utf8 with no from_utf8_lossy anywhere in stream_util or the four providers (Ollama fixture readers switched to std::str::from_utf8); UnifyTerminal harvests and re-emits terminal thinking; Phase::Errored is checked at the top of poll_next before the inner stream; SSE content-type is validated before bytes_stream() and Ollama requires x-ndjson/application/json. c3: injection made terminal thinking None -> exit 101; restored sha256 h1 == h0 == ad195f5e... and the forced-rebuild rerun exited 0. c4: all six gates exit 0 (workspace default/proxy/all-features, build, fmt, clippy -D warnings); unit/integration ignored are 0 and doc-test ignored are the pre-existing 2 (default) / 4 (proxy/all-features). c5: exact card command exit 0; four adjustments appended for compat 2129->2134, anthropic 1688->1691, google 1812->1815, ollama 860->868, each with file/old/new/reason/authorized_by/date, reason contains C-018-STREAM-CORE, authorized_by contains architect-llmrust, date 2026-11-24; stream_util/stream_state/mod.rs and the new sse/{parser,limits}.rs stay below threshold=500 and are not ledgered. c6: no assertion decreases vs eb07c7cb, ignore/should_panic sets unchanged, semver 0.1.6 default and all-features each pass 196 checks. Line endings: all Rust files LF, tests/hotspot_ledger.json CRLF; cr-at-eol diff --check clean; plain diff --check only flags the required CRLF ledger additions. One pre-existing proxy-feature fixture in compat.rs was normalized to standard blank-line SSE framing (same assertions, no relaxation) because the new standard event parser correctly merges data lines until a blank line. No changes to spec/card/signoffs/loop-state; no git commit. Implementation notes: line_stream keeps its function name, parameters and Item type but now delegates to the strict parser and adds E: From<LlmError> + Unpin so decode/bound violations surface through E instead of replacement characters; both 0.1.6 semver gates pass. UnifyTerminal harvests thinking only from terminal chunks, so non-terminal reasoning already forwarded is not duplicated onto the terminal."
+  "notes": "v9 修复完成（session suffix: dev-llmrust-018stream-v9）。公开 providers::stream_util::line_stream 已恢复 0.1.6 精确 E: Send + 'static 签名、deprecated 注解与 lossy/仅 LF/CRLF/EOF flush 行为；实现逐字节等同于 eb07c7cb 的 legacy 函数并隔离到 planned 的 stream_util/legacy.rs。四个生产 provider 继续只走 strict 有界入口。SSE 改为空行优先，单 newline 后直接 data: 且当前数据已构成完整 JSON 时自动断帧，未完成 JSON 继续多行追加，EOF 补发；标准多行数据由真实 provider 测试钉住。c1 11/11、c2 6/6、c3 验红恢复、c4 六门、c5 台账链、c6 零放宽/semver 双口径/0.1.6 与当前自定义 E 下游探针全部 PASS。Rust 文件 LF，ledger CRLF；未新建分支、未 commit、未 push。"
 }

@@ -434,6 +434,7 @@ mod audit_2026_stream {
         ChatRequest, ChatResponse, LlmError, LmrsClient, Provider, ProviderConfig, StreamChunk,
     };
     use std::io::{Read, Write};
+    use std::marker::PhantomPinned;
     use std::net::{Shutdown, TcpListener, TcpStream};
     use std::pin::Pin;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -880,6 +881,115 @@ mod audit_2026_stream {
                 .iter()
                 .any(|item| matches!(item, Ok(chunk) if chunk.done)),
             "no success terminal may be fabricated after an error: {broken_items:?}"
+        );
+    }
+
+    /// Deliberately does not implement `From<LlmError>` and is `!Unpin`. The
+    /// public 0.1.6 compatibility signature must accept it unchanged.
+    #[derive(Debug)]
+    struct LegacyProbeError(PhantomPinned);
+
+    #[allow(deprecated)]
+    #[tokio::test]
+    async fn audit_2026_stream_legacy_line_stream_signature_compatibility() {
+        let chunks = vec![Ok::<&'static [u8], LegacyProbeError>(b"compat\n")];
+        let items = llmrust::providers::stream_util::line_stream(futures::stream::iter(chunks))
+            .collect::<Vec<_>>()
+            .await;
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].as_ref().unwrap(), "compat");
+    }
+
+    #[allow(deprecated)]
+    #[tokio::test]
+    async fn audit_2026_stream_legacy_line_stream_behavior_unchanged() {
+        // Only LF splits lines; CRLF is stripped, a bare CR is retained, invalid
+        // bytes stay lossy, and the newline-less EOF tail is flushed.
+        let chunks = vec![
+            Ok::<&'static [u8], LegacyProbeError>(b"a\r\n"),
+            Ok(b"b\rc\nlast\xFF"),
+        ];
+        let lines = llmrust::providers::stream_util::line_stream(futures::stream::iter(chunks))
+            .map(|item| item.expect("legacy stream item"))
+            .collect::<Vec<_>>()
+            .await;
+        assert_eq!(lines, vec!["a", "b\rc", "last\u{FFFD}"]);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_stream_single_newline_json_frames_tolerated() {
+        // No blank lines: the first complete JSON frame must be dispatched when
+        // the next `data:` line arrives. The second frame starts incomplete and
+        // continues on the following line; `[DONE]` is flushed at EOF.
+        let body = concat!(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"A\"},\"finish_reason\":null}]}\n",
+            "data: {\"choices\":[{\"delta\":\n",
+            "data: {\"content\":\"B\"},\"finish_reason\":\"stop\"}]}\n",
+            "data: [DONE]"
+        )
+        .as_bytes()
+        .to_vec();
+        let (base, server) = serve_once("text/event-stream", body);
+        let provider = compat_provider(&base);
+        let mut stream = provider
+            .stream(&ChatRequest::new("model", "hi"))
+            .await
+            .expect("stream established");
+        let items = collect(&mut stream).await;
+        server.join().unwrap();
+
+        assert!(
+            items.iter().all(|item| item.is_ok()),
+            "single-newline JSON frames must parse: {items:?}"
+        );
+        let text: String = items
+            .iter()
+            .filter_map(|item| item.as_ref().ok())
+            .map(|chunk| chunk.delta.as_str())
+            .collect();
+        assert_eq!(text, "AB", "both compatibility frames surface: {items:?}");
+        assert!(
+            items
+                .iter()
+                .any(|item| matches!(item, Ok(chunk) if chunk.done)),
+            "EOF-flushed [DONE] still terminates: {items:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn audit_2026_stream_multiline_data_not_split_before_json_complete() {
+        // Standard multi-line data: the first physical line is incomplete JSON,
+        // so the next `data:` line must be appended rather than dispatched.
+        let body = concat!(
+            "data: {\"choices\":[{\"delta\":\n",
+            "data: {\"content\":\"AB\"},\"finish_reason\":\"stop\"}]}"
+        )
+        .as_bytes()
+        .to_vec();
+        let (base, server) = serve_once("text/event-stream", body);
+        let provider = compat_provider(&base);
+        let mut stream = provider
+            .stream(&ChatRequest::new("model", "hi"))
+            .await
+            .expect("stream established");
+        let items = collect(&mut stream).await;
+        server.join().unwrap();
+
+        assert!(
+            items.iter().all(|item| item.is_ok()),
+            "incomplete JSON must remain one multi-line event: {items:?}"
+        );
+        let text: String = items
+            .iter()
+            .filter_map(|item| item.as_ref().ok())
+            .map(|chunk| chunk.delta.as_str())
+            .collect();
+        assert_eq!(text, "AB", "joined data is parsed once: {items:?}");
+        assert!(
+            items
+                .iter()
+                .any(|item| matches!(item, Ok(chunk) if chunk.done)),
+            "the complete EOF event is dispatched: {items:?}"
         );
     }
 }

@@ -5,7 +5,10 @@
 //! * **SSE** (OpenAI-compatible, Anthropic, Gemini): standard event framing —
 //!   `data:` with or without the optional space, multi-line `data`, `\n` /
 //!   `\r\n` / `\r` line endings, a leading BOM, comments, `event:` fields and
-//!   dispatch on a blank line. `event: error` surfaces as [`LlmError::Stream`].
+//!   dispatch on a blank line. For 0.1.x compatibility, a directly following
+//!   `data:` line also starts a new frame when the current data is already a
+//!   complete JSON value; incomplete JSON remains multi-line data. EOF flushes
+//!   pending data. `event: error` surfaces as [`LlmError::Stream`].
 //! * **NDJSON / JSON** (Ollama): complete lines, bounded and strictly decoded.
 //!
 //! A stream is only accepted when its `Content-Type` matches the protocol it
@@ -80,12 +83,39 @@ mod tests {
         let events = collect_events(vec![
             b"\xEF\xBB\xBF: keepalive\r\n",
             b"data:{\"a\":1}\r\n",
+            // An intervening non-data field keeps this a standard multi-line
+            // event rather than a single-newline compatibility boundary.
+            b"id: multiline\r\n",
             b"data: 2\r\n\r\n",
         ])
         .await;
         assert_eq!(events.len(), 1, "one event dispatched on the blank line");
         let event = events[0].as_ref().unwrap();
         assert_eq!(event.data, "{\"a\":1}\n2", "multi-line data is joined");
+    }
+
+    #[tokio::test]
+    async fn single_newline_complete_json_frames_and_eof_flush() {
+        let events = collect_events(vec![b"data:{\"a\":1}\ndata:{\"b\":2}"]).await;
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].as_ref().unwrap().data, "{\"a\":1}");
+        assert_eq!(events[1].as_ref().unwrap().data, "{\"b\":2}");
+    }
+
+    #[tokio::test]
+    async fn incomplete_json_continues_multiline_data() {
+        let events =
+            collect_events(vec![b"data: {\"a\":\n", b"data: 1}\n", b"data: {\"b\":2}"]).await;
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].as_ref().unwrap().data, "{\"a\":\n1}");
+        assert_eq!(events[1].as_ref().unwrap().data, "{\"b\":2}");
+    }
+
+    #[tokio::test]
+    async fn standard_blank_line_dispatches_before_json_compatibility() {
+        let events = collect_events(vec![b"data: {\"a\":\n\n"]).await;
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].as_ref().unwrap().data, "{\"a\":");
     }
 
     #[tokio::test]

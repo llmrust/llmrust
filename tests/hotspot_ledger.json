@@ -609,6 +609,38 @@
       "reason": "C-018-STREAM-CORE: bounded strict line parsing for NDJSON plus application/x-ndjson or application/json content-type validation before stream construction; measured after cargo fmt. Real implementation and tests, not inflation.",
       "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE)",
       "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 2134,
+      "new": 2134,
+      "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 2134 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 2134->2134 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1691,
+      "new": 1691,
+      "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 1691 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 1691->1691 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1815,
+      "new": 1815,
+      "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 1815 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 1815->1815 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 868,
+      "new": 868,
+      "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 868 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 868->868 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+      "date": "2026-11-24"
     }
   ]
 }

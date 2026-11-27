@@ -1,7 +1,7 @@
 //! Shared helpers for parsing chunked SSE / line-delimited byte streams.
 //!
 //! Production providers use the bounded, strict framing in
-//! [`crate::providers::sse`]. The public [`line_stream`] function is the
+//! `providers::sse`. The public [`line_stream`] function is the
 //! deprecated 0.1.6 compatibility API: it deliberately retains the original
 //! lossy decoding and unbounded buffering behaviour so existing 0.1.x
 //! downstream code keeps compiling and behaving unchanged. It must not be used

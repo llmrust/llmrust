@@ -5,10 +5,11 @@
   "agent": "gate-llmrust",
   "written_by": "gate-llmrust",
   "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
-  "handoff_id": "113575cb55ff699791471702",
+  "handoff_id": "ece5291caa237b095b4515f9",
   "repo": "D:\\llmrust-0.1.5",
-  "head": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+  "head": "aa56d1ed2e65f240461081e65bf7dc3ad1d61b73",
   "batch_base": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+  "base_head": "aa56d1ed2e65f240461081e65bf7dc3ad1d61b73",
   "serial": true,
   "execution": "one Windows COMSPEC batch per recorded command; stdout/stderr redirected directly to separate binary files; no pipeline",
   "expected_command_count": 14,
@@ -154,5 +155,5 @@
       "command_file": "c5-01-ledger-chain.cmd"
     }
   ],
-  "prepared_at_utc": "2026-11-27T09:47:51.377802+00:00"
+  "prepared_at_utc": "2026-11-27T11:50:19.904007+00:00"
 }

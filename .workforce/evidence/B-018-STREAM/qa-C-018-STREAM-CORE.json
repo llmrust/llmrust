@@ -6,7 +6,7 @@
   "card_id": "C-018-STREAM-CORE",
   "batch_id": "B-018-STREAM",
   "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
-  "handoff_id": "113575cb55ff699791471702",
+  "handoff_id": "ece5291caa237b095b4515f9",
   "independent": true,
   "declared_by_lead": false,
   "mock_used": false,
@@ -48,7 +48,7 @@
   "artifacts": [
     {
       "path": "src/providers/stream_util.rs",
-      "sha256": "927b4ed1767ea117d6b522dec9783106980debddf69bffbc4a466bae38440915"
+      "sha256": "4393fca859f2ec24e68e673e1ac0ddc2da5292d0db13e6516183a91c20f49c78"
     },
     {
       "path": "src/providers/stream_util/legacy.rs",
@@ -77,7 +77,7 @@
       "exit_code": 0
     },
     {
-      "cmd": "python 'E:\\Temp\\qa-018stream-c2-final.py'",
+      "cmd": "python 'E:\\Temp\\qa-llmrust-018stream-v9-ece5291c\\c2_probes.py'",
       "exit_code": 0
     },
     {
@@ -113,7 +113,7 @@
       "exit_code": 0
     },
     {
-      "cmd": "python 'E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\c6_inventory.py' 'E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\c6-inventory.json'",
+      "cmd": "python 'E:\\Temp\\qa-llmrust-018stream-v9-ece5291c\\c6_inventory.py' 'E:\\Temp\\qa-llmrust-018stream-v9-ece5291c\\c6-inventory.json'",
       "exit_code": 0
     },
     {
@@ -125,11 +125,19 @@
       "exit_code": 0
     },
     {
-      "cmd": "$env:CARGO_NET_OFFLINE='true'; $env:CARGO_TARGET_DIR='E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\downstream-target'; cargo run --locked --offline --quiet --manifest-path 'E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\downstream-current\\Cargo.toml'",
+      "cmd": "$env:RUSTDOCFLAGS='-D warnings'; cargo doc --locked --no-deps",
       "exit_code": 0
     },
     {
-      "cmd": "$env:CARGO_NET_OFFLINE='true'; $env:CARGO_TARGET_DIR='E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\downstream-target'; cargo run --locked --offline --quiet --manifest-path 'E:\\Temp\\qa-llmrust-018stream-v9-113575cb55ff699791471702\\downstream-published\\Cargo.toml'",
+      "cmd": "$env:RUSTDOCFLAGS='-D warnings'; cargo doc --locked --no-deps --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "$env:CARGO_NET_OFFLINE='true'; $env:CARGO_TARGET_DIR='D:\\llmrust-0.1.5\\target'; cargo run --locked --offline --quiet --manifest-path 'E:\\Temp\\qa-llmrust-018stream-v9-ece5291c\\downstream-current\\Cargo.toml'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "$env:CARGO_NET_OFFLINE='true'; $env:CARGO_TARGET_DIR='D:\\llmrust-0.1.5\\target'; cargo run --locked --offline --quiet --manifest-path 'E:\\Temp\\qa-llmrust-018stream-v9-ece5291c\\downstream-published\\Cargo.toml'",
       "exit_code": 0
     },
     {
@@ -137,12 +145,12 @@
       "exit_code": 0
     },
     {
-      "cmd": "python 'E:\\Temp\\qa-018stream-final-hygiene.py'",
+      "cmd": "python 'E:\\Temp\\qa-018stream-ece5291c-hygiene.py'",
       "exit_code": 0
     }
   ],
-  "expected_command_count": 17,
-  "recorded_command_count": 17,
+  "expected_command_count": 19,
+  "recorded_command_count": 19,
   "missing_commands": [],
   "skipped_commands": [],
   "criteria": {
@@ -163,9 +171,9 @@
         "audit_2026_stream_single_newline_json_frames_tolerated",
         "audit_2026_stream_multiline_data_not_split_before_json_complete"
       ],
-      "signature_probe": "LegacyProbeError 含 PhantomPinned（!Unpin），未实现 From<LlmError>；公开 line_stream 编译并运行通过。",
-      "legacy_behavior": "覆盖 lossy 无效 UTF-8、CRLF、bare CR、EOF flush；另在 published/current 下游探针复核 split-UTF8、2MiB 无界与错误后关闭。",
-      "production_paths": "terminal thinking 走真实 LmrsClient；oversized/invalid/framing/single-newline/multiline 走真实 OpenAiCompatibleProvider + loopback HTTP；non-SSE 覆盖 compat/anthropic/google/ollama；error-close 走真实 LmrsClient。"
+      "signature_probe": "LegacyProbeError(PhantomPinned) 无 From<LlmError> 且 !Unpin，公开 line_stream 编译运行通过。",
+      "legacy_behavior": "lossy/CRLF/bare CR/EOF flush；published/current 下游另测 split-UTF8、2MiB 无界、Err 后关闭。",
+      "production_paths": "terminal thinking 走 LmrsClient；strict/framing/single-newline/multiline 走真实 provider+loopback；non-SSE 覆盖四 provider；error-close 走 LmrsClient。"
     },
     "c2": {
       "status": "PASS",
@@ -175,32 +183,32 @@
         {
           "id": "c2-1",
           "exit_code": 0,
-          "conclusion": "MAX_LINE_BYTES=1MiB、MAX_EVENT_BYTES=4MiB，均在缓冲扩展前检查。"
+          "conclusion": "MAX_LINE_BYTES=1MiB/MAX_EVENT_BYTES=4MiB，扩展前检查。"
         },
         {
           "id": "c2-2",
           "exit_code": 0,
-          "conclusion": "legacy.rs 的 line_stream 函数体与 eb07c7cb 原实现逐字节一致；wrapper 精确 E: Send + 'static、#[deprecated]、无 From/Unpin；四 provider 只调 strict/event strict。"
+          "conclusion": "legacy 函数体与 eb07c7cb 逐字节一致；wrapper 精确 E: Send+'static、deprecated、无 From/Unpin；四 provider strict-only。"
         },
         {
           "id": "c2-3",
           "exit_code": 0,
-          "conclusion": "harvest_terminal 保存 thinking，emit_terminal 输出 self.thinking.clone()，thinking_done 保留。"
+          "conclusion": "terminal thinking/thinking_done harvest+emit。"
         },
         {
           "id": "c2-4",
           "exit_code": 0,
-          "conclusion": "Err 后进入 Errored，下一次 poll 在 inner poll 前返回 Ready(None)。"
+          "conclusion": "Err 后关闭，下次 poll 不触 inner。"
         },
         {
           "id": "c2-5",
           "exit_code": 0,
-          "conclusion": "compat/anthropic/google 校验 SSE Content-Type；ollama 校验 NDJSON/JSON。"
+          "conclusion": "SSE/NDJSON Content-Type 四路 wired。"
         },
         {
           "id": "c2-6",
           "exit_code": 0,
-          "conclusion": "空行优先 dispatch；仅当前 data 已构成完整 JSON 时单 newline+data 自动断帧；未完成 JSON 多行追加；EOF 补发。"
+          "conclusion": "空行优先；完整 JSON 才自动断帧；未完成多行追加；EOF 补发。"
         }
       ],
       "legacy_function_sha256": "e9ce263cb8cc86a1cd8b95d9ef64ea900cd486c008becee0caf82dbc2afe79b1"
@@ -208,13 +216,14 @@
     "c3": {
       "status": "PASS",
       "h0": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
-      "injection": "emit_terminal 的 thinking: self.thinking.clone() 临时改为 thinking: None",
-      "injected_native_test_exit_code": 101,
-      "injected_failure": "terminal thinking must survive the public collapse layer; left: None; right: Some(\"terminal-thought\")",
+      "injection": "emit_terminal thinking: self.thinking.clone() -> None",
+      "injected_cargo_exit_code": 101,
+      "injected_native_exit_code": 101,
+      "injected_failure": "terminal thinking must survive; left None/right Some(terminal-thought)",
       "restored_exit_code": 0,
       "restored_sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
       "force_recompile_observed": true,
-      "conclusion": "注入态目标测试原生 exit 101；恢复 h0 后强制重编译 exit 0。预期红仅记 observations，不入 command_exit_codes。"
+      "conclusion": "预期红仅记 observations；恢复 h0 后强制重编译 exit0。"
     },
     "c4": {
       "status": "PASS",
@@ -253,7 +262,7 @@
           "exit_code": 0
         }
       ],
-      "conclusion": "六门逐条 exit 0；普通/proxy/all-features 的 unit 与 integration ignored 均为 0；Doc-tests ignored 2/4/4，不超过 eb07c7cb 基线（默认 2、含 proxy 总计 4）。"
+      "conclusion": "六门全0；unit/integration ignored全0；doc ignored 2/4/4不超过基线。"
     },
     "c5": {
       "status": "PASS",
@@ -298,7 +307,7 @@
         "baseline_changed": {},
         "baseline_added": []
       },
-      "conclusion": "卡面精确台账链 exit 0；legacy planned 75<500 且不入 baseline；四 provider no-op 链 old=new=baseline=batch_base 实测，逐字节未变；adjustments 仅追加 4 条，baseline 无漂移。"
+      "conclusion": "精确命令0；legacy planned<500不入baseline；四provider no-op链与batch_base字节一致；append-only。"
     },
     "c6": {
       "status": "PASS",
@@ -341,8 +350,18 @@
         "all_features": {
           "exit_code": 0,
           "checks": "196 pass, 57 skip"
+        }
+      },
+      "rustdoc": {
+        "default": {
+          "cmd": "RUSTDOCFLAGS=-D warnings cargo doc --locked --no-deps",
+          "exit_code": 0
         },
-        "network_note": "首次联网更新被环境代理阻断；使用本机已缓存 registry 的 CARGO_NET_OFFLINE=true 重跑，两口径均 exit 0。"
+        "all_features": {
+          "cmd": "RUSTDOCFLAGS=-D warnings cargo doc --locked --no-deps --all-features",
+          "exit_code": 0
+        },
+        "conclusion": "rustdoc 修复后默认与 all-features 均零警告生成成功。"
       },
       "downstream_custom_e": {
         "published_0_1_6_exit_code": 0,
@@ -350,7 +369,7 @@
         "error_type": "DownstreamError(PhantomPinned)，无 From<LlmError> 且 !Unpin",
         "independent_of_semver_checks": true
       },
-      "conclusion": "既有断言多重集合只增不减；ignore/should_panic 的 file+测试函数+属性集合不变；semver 双口径与独立下游自定义 E 编译/运行探针均通过。"
+      "conclusion": "断言只增不减；ignore/should_panic语义位置不变；semver/rustdoc/独立下游探针全绿。"
     }
   },
   "adversarial": {
@@ -360,29 +379,29 @@
         0,
         0
       ],
-      "invalid_utf8": "返回 U+FFFD，不报错",
-      "unbounded": "2MiB 无 newline 行在 EOF 完整 flush，无 1MiB strict cap",
-      "other_behavior": "CRLF 剥离、bare CR 保留、split-UTF8 重组、EOF tail flush、底层 Err 后立即关闭均保持"
+      "invalid_utf8": "U+FFFD 而非报错",
+      "unbounded": "2MiB无newline行EOF完整flush",
+      "other": "CRLF/bare CR/split-UTF8/EOF tail/Err后关闭保持"
     },
     "strict_production": {
       "temporary_tests": "4 passed; 0 failed; 0 ignored",
-      "line_boundary": "MAX_LINE_BYTES 精确接受；MAX_LINE_BYTES+1 Parse 拒绝",
-      "event_boundary": "MAX_EVENT_BYTES 精确接受；MAX_EVENT_BYTES+1 Parse 拒绝",
-      "field_boundary": "MAX_FIELD_BYTES+1 Parse 拒绝",
-      "blank_line_priority": "不完整 JSON 遇空行立即 dispatch 并产生 Parse，不错误等待/合并"
+      "line_boundary": "精确接受/+1拒绝",
+      "event_boundary": "精确接受/+1拒绝",
+      "field_boundary": "MAX_FIELD_BYTES+1拒绝",
+      "blank_line_priority": "不完整JSON空行立即dispatch并Parse"
     },
-    "framing": "真实生产路径确认单 newline 完整 JSON 帧输出 AB 并终止；标准多行 data 只拼接一次并输出 AB；空行优先与 EOF 补发均正确。",
-    "findings": "未发现阻断性实现缺陷；semver-checks 的 196 项通过不作为泛型 bound 兼容性的替代证据。"
+    "framing": "单newline完整JSON帧与标准多行data均经真实生产路径确认；空行优先、EOF补发正确。",
+    "findings": "未发现阻断性缺陷。"
   },
   "observations": [
-    "c3 的 cargo 包装命令返回 1，直接运行同一测试二进制并显式透传 $LASTEXITCODE 实测原生 exit 101；恢复后 cargo 目标测试 exit 0。",
-    "c2 与下游探针的早期脚本自身有切片/引用错误，修正后全部最终成功；command_exit_codes 只保留最终成功项。",
-    "tests/hotspot_ledger.json 全文件 646 行均为 CRLF；git diff --check 将 CR 报为 trailing whitespace，但逐字节检查确认行尾前无 space/tab，c4 fmt 与结构/台账门均通过。",
-    "未采用任何 dev receipt/notes/结论作为验收依据；旧 QA 回执未读，删除后由本独立实测重新生成。",
-    "临时集成测试、两个下游 crate、c2/c6 脚本、semver 构建目录、临时二进制与 spill 日志均已删除并验证不存在。"
+    "新 handoff ece5291caa237b095b4515f9 相对上一轮仅 stream_util.rs 文档1行变化；本轮完整重跑c1-c6、rustdoc与对抗层。",
+    "c3注入态cargo与原生测试均exit101；恢复h0后强制重编译exit0；预期红不入command_exit_codes。",
+    "临时对抗测试早期脚本自身缺少分号，修正后4/4通过；最终command_exit_codes只含成功项。",
+    "未采用dev receipt/notes/结论作为判据；旧QA receipt由本轮独立实测覆盖。",
+    "临时测试源码、下游crate、c2/c6脚本、构建探针、semver目录与spill日志均已删除并验证不存在。"
   ],
   "hygiene": {
-    "head_before_and_after": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+    "head_before_and_after": "aa56d1ed2e65f240461081e65bf7dc3ad1d61b73",
     "git_commit_run": false,
     "frozen_file_count": 6,
     "all_frozen_sha_unchanged": true,
@@ -390,9 +409,10 @@
     "temporary_probe_source_absent": true,
     "temporary_probe_directory_absent": true,
     "temporary_logs_absent": true,
-    "git_status_note": "qa-C-018-STREAM-CORE.json 是受 Git 跟踪的指定交付文件；除该 receipt 从初态变为 M 外，Git 状态与初始快照完全一致，无额外业务/spec/card/signoffs/loop-state 改动。"
+    "temporary_build_artifacts_absent": true,
+    "git_status_note": "qa-C-018-STREAM-CORE.json受Git跟踪；除指定receipt变为M外，Git状态与初始快照一致，无额外业务/spec/card/signoffs/loop-state改动。"
   },
   "verdict": "PASS",
-  "generated_at_utc": "2026-11-27T09:43:31.104129+00:00",
-  "notes": "独立 QA c1-c6 与额外对抗层全绿；event/logic/interface 三层覆盖；零 mock；永久业务/spec/card/signoffs/loop-state 未改；未 git commit。"
+  "generated_at_utc": "2026-11-27T11:29:40.968723+00:00",
+  "notes": "独立QA新handoff完整重跑全绿；event/logic/interface覆盖；零mock；未改业务、未git commit。"
 }

@@ -111,7 +111,7 @@
     "config_commands_exact_and_in_order": true,
     "card_c4_commands_exact_and_in_order": true,
     "card_c5_command_exact": true,
-    "config_required_all_exit_zero": false,
+    "config_required_all_exit_zero": true,
     "card_c4_all_exit_zero": true,
     "card_c5_exit_zero": true,
     "protected_inputs_unchanged": true,
@@ -123,15 +123,13 @@
     "temporary_command_wrappers_cleaned": true,
     "no_temporary_probe_subdirectories": true
   },
-  "failed_checks": [
-    "config_required_all_exit_zero"
-  ],
-  "config_required_commands": "FAIL",
+  "failed_checks": [],
+  "config_required_commands": "PASS",
   "card_c4": "PASS",
   "card_c5": "PASS",
   "protected_inputs_unchanged": "PASS",
   "command_outputs_archived": "PASS",
   "no_skip": "PASS",
-  "verdict": "FAIL",
-  "verified_at_utc": "2026-11-27T09:52:07.913961+00:00"
+  "verdict": "PASS",
+  "verified_at_utc": "2026-11-27T11:55:08.115471+00:00"
 }

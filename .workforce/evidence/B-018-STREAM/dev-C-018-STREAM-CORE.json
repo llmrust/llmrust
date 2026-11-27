@@ -41,7 +41,7 @@
   "artifacts": [
     {
       "path": "src/providers/stream_util.rs",
-      "sha256": "927b4ed1767ea117d6b522dec9783106980debddf69bffbc4a466bae38440915"
+      "sha256": "4393fca859f2ec24e68e673e1ac0ddc2da5292d0db13e6516183a91c20f49c78"
     },
     {
       "path": "src/providers/stream_util/legacy.rs",
@@ -65,6 +65,10 @@
     }
   ],
   "command_exit_codes": [
+    {
+      "cmd": "cargo rustdoc --locked --all-features -- -D warnings",
+      "exit_code": 0
+    },
     {
       "cmd": "cargo test --locked --test contract_tests audit_2026_stream_",
       "exit_code": 0
@@ -333,5 +337,5 @@
   "verdict": "PASS",
   "independent": true,
   "declared_by_lead": false,
-  "notes": "v9 修复完成（session suffix: dev-llmrust-018stream-v9）。公开 providers::stream_util::line_stream 已恢复 0.1.6 精确 E: Send + 'static 签名、deprecated 注解与 lossy/仅 LF/CRLF/EOF flush 行为；实现逐字节等同于 eb07c7cb 的 legacy 函数并隔离到 planned 的 stream_util/legacy.rs。四个生产 provider 继续只走 strict 有界入口。SSE 改为空行优先，单 newline 后直接 data: 且当前数据已构成完整 JSON 时自动断帧，未完成 JSON 继续多行追加，EOF 补发；标准多行数据由真实 provider 测试钉住。c1 11/11、c2 6/6、c3 验红恢复、c4 六门、c5 台账链、c6 零放宽/semver 双口径/0.1.6 与当前自定义 E 下游探针全部 PASS。Rust 文件 LF，ledger CRLF；未新建分支、未 commit、未 push。"
+  "notes": "v9 修复完成（session suffix: dev-llmrust-018stream-v9）。公开 providers::stream_util::line_stream 已恢复 0.1.6 精确 E: Send + 'static 签名、deprecated 注解与 lossy/仅 LF/CRLF/EOF flush 行为；实现逐字节等同于 eb07c7cb 的 legacy 函数并隔离到 planned 的 stream_util/legacy.rs。四个生产 provider 继续只走 strict 有界入口。SSE 改为空行优先，单 newline 后直接 data: 且当前数据已构成完整 JSON 时自动断帧，未完成 JSON 继续多行追加，EOF 补发；标准多行数据由真实 provider 测试钉住。c1 11/11、c2 6/6、c3 验红恢复、c4 六门、c5 台账链、c6 零放宽/semver 双口径/0.1.6 与当前自定义 E 下游探针全部 PASS。Gate reopen 后仅将公共 docs 中对私有 crate::providers::sse 的 intra-doc 链接改为普通 code 路径 providers::sse，未改公开 API/行为；cargo rustdoc --locked --all-features -- -D warnings exit0，11 条 audit 仍 11/0/0。Rust 文件 LF，ledger CRLF；未新建分支、未 commit、未 push。"
 }

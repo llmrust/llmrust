@@ -45,15 +45,15 @@
       "batch_base": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
       "base_head": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
       "head": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
-      "handoff_id": "113575cb55ff699791471702",
-      "handoff_at": "2026-11-27T09:11:32.860Z",
+      "handoff_id": "ece5291caa237b095b4515f9",
+      "handoff_at": "2026-11-27T11:07:49.203Z",
       "receipt_file": ".workforce/evidence/B-018-STREAM/dev-C-018-STREAM-CORE.json",
-      "receipt_sha256": "25013ac852a0d1010330816048f7bccf9a009cdaa661452b187f445819449b21",
+      "receipt_sha256": "4e61f98d55fe25108d014d63f7c4d5f99ba842b36e254237f587fa78e1d4db6c",
       "qa_receipt_file": ".workforce/evidence/B-018-STREAM/qa-C-018-STREAM-CORE.json",
-      "qa_receipt_sha256": "f941b17aa098799bc48e5967b8f3d4ce85b25eb9be315107e9d766be6422a9c8",
+      "qa_receipt_sha256": "72f3ea4a851411df85ccf875fd7cb32e19dfc66e5a61e02057ba2a9b32c01a57",
       "frozen_files_total": 6,
       "frozen_files": {
-        "src/providers/stream_util.rs": "927b4ed1767ea117d6b522dec9783106980debddf69bffbc4a466bae38440915",
+        "src/providers/stream_util.rs": "4393fca859f2ec24e68e673e1ac0ddc2da5292d0db13e6516183a91c20f49c78",
         "src/providers/stream_util/legacy.rs": "ece6b1f28e7af749b3b49904841db447d9a4b1e541aa12e2d9ee0cfe0779d9a6",
         "src/providers/sse/parser.rs": "f87077e9084d43f9296fbf5333587a0ea2476dbcd13116dfc06b5dfa0cd76d3b",
         "src/providers/sse/mod.rs": "d82acd6f877d2b5d86109faae9ccb7fb4649f85a9eca7257b6c201d5d0113aed",
@@ -526,8 +526,8 @@
       "dev_artifact_paths_equal_handoff": true,
       "qa_frozen_artifact_paths_equal_handoff": true,
       "dev_qa_frozen_sha_equal": true,
-      "dev_receipt_sha256": "25013ac852a0d1010330816048f7bccf9a009cdaa661452b187f445819449b21",
-      "qa_receipt_sha256": "f941b17aa098799bc48e5967b8f3d4ce85b25eb9be315107e9d766be6422a9c8"
+      "dev_receipt_sha256": "4e61f98d55fe25108d014d63f7c4d5f99ba842b36e254237f587fa78e1d4db6c",
+      "qa_receipt_sha256": "72f3ea4a851411df85ccf875fd7cb32e19dfc66e5a61e02057ba2a9b32c01a57"
     },
     "protected_inputs_sha256": {
       ".workforce/config.json": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
@@ -535,8 +535,8 @@
       ".workforce/cards/C-018-STREAM-CORE.json": "95e6e839a9e1fa05d7b506b2f3b1166ae0b9665cffa7c7b37ecf99d18c9ac2b3",
       "tests/hotspot_ledger.json": "fce12174aca4f6769a2ba1b988520194c393949fe81cee18d0e5564f30c80c0e",
       ".agents/skills/agent-workforce-loop/scripts/lib.mjs": "5a6de4c0d045f0c2d69631db1a0cfd4625b74f9942af68b90fcdc1e2158b3b4e",
-      ".workforce/evidence/B-018-STREAM/dev-C-018-STREAM-CORE.json": "25013ac852a0d1010330816048f7bccf9a009cdaa661452b187f445819449b21",
-      ".workforce/evidence/B-018-STREAM/qa-C-018-STREAM-CORE.json": "f941b17aa098799bc48e5967b8f3d4ce85b25eb9be315107e9d766be6422a9c8"
+      ".workforce/evidence/B-018-STREAM/dev-C-018-STREAM-CORE.json": "4e61f98d55fe25108d014d63f7c4d5f99ba842b36e254237f587fa78e1d4db6c",
+      ".workforce/evidence/B-018-STREAM/qa-C-018-STREAM-CORE.json": "72f3ea4a851411df85ccf875fd7cb32e19dfc66e5a61e02057ba2a9b32c01a57"
     },
     "business_access": "read_only；唯一写入 .workforce/evidence/B-018-STREAM/ledger.json",
     "problems": [],
@@ -564,7 +564,7 @@
     },
     {
       "path": "src/providers/stream_util.rs",
-      "sha256": "927b4ed1767ea117d6b522dec9783106980debddf69bffbc4a466bae38440915",
+      "sha256": "4393fca859f2ec24e68e673e1ac0ddc2da5292d0db13e6516183a91c20f49c78",
       "desc": "handoff 冻结六文件之一；零漂移"
     },
     {
@@ -644,12 +644,12 @@
     },
     {
       "path": ".workforce/evidence/B-018-STREAM/dev-C-018-STREAM-CORE.json",
-      "sha256": "25013ac852a0d1010330816048f7bccf9a009cdaa661452b187f445819449b21",
+      "sha256": "4e61f98d55fe25108d014d63f7c4d5f99ba842b36e254237f587fa78e1d4db6c",
       "desc": "handoff 回执；仅对账 artifacts/files_changed"
     },
     {
       "path": ".workforce/evidence/B-018-STREAM/qa-C-018-STREAM-CORE.json",
-      "sha256": "f941b17aa098799bc48e5967b8f3d4ce85b25eb9be315107e9d766be6422a9c8",
+      "sha256": "72f3ea4a851411df85ccf875fd7cb32e19dfc66e5a61e02057ba2a9b32c01a57",
       "desc": "QA 回执；仅对账 artifacts/handoff_id"
     },
     {
@@ -677,7 +677,7 @@
     }
   ],
   "verdict": "PASS",
-  "summary": "B-018-STREAM / C-018-STREAM-CORE c5 独立核验 PASS：batch_base=22274d332e658114f6dfad5537b1e79a4bdd2f58；compat 2134→2134、anthropic 1691→1691、google 1815→1815、ollama 868→868 均为 batch_base 实测 no-op，前驱 new=old，六字段齐、授权含 architect-llmrust、date=2026-11-24；adjustments 74→78，仅追加 idx74–77，baseline/description/threshold 零变化。legacy planned 75<500 且不入 baseline/adjustments；threshold=500，32 个 src Rust 文件中 13 个达到阈值且 baseline 13/13 双向一致，78 条 adjustment 全链收敛。handoff=113575cb55ff699791471702 冻结 6 文件零漂移；dev/qa 各 6 artifacts 与 handoff/实物 sha 全一致，0 missing/0 mismatch；notes 未作为证据。loop-state 仅以运行时哈希写正文，不进入 artifacts。",
+  "summary": "B-018-STREAM / C-018-STREAM-CORE c5 独立核验 PASS：batch_base=22274d332e658114f6dfad5537b1e79a4bdd2f58；compat 2134→2134、anthropic 1691→1691、google 1815→1815、ollama 868→868 均为 batch_base 实测 no-op，前驱 new=old，六字段齐、授权含 architect-llmrust、date=2026-11-24；adjustments 74→78，仅追加 idx74–77，baseline/description/threshold 零变化。legacy planned 75<500 且不入 baseline/adjustments；threshold=500，32 个 src Rust 文件中 13 个达到阈值且 baseline 13/13 双向一致，78 条 adjustment 全链收敛。handoff=ece5291caa237b095b4515f9 冻结 6 文件零漂移；dev/qa 各 6 artifacts 与 handoff/实物 sha 全一致，0 missing/0 mismatch；notes 未作为证据。loop-state 仅以运行时哈希写正文，不进入 artifacts。",
   "generatedAt": "2026-11-27T09:53:44.429Z",
-  "self_sha256": "d933ca4ffd2b306ed5d791b1d362e75603e44b74567ef7d094db7f3c09b40620"
+  "self_sha256": "c99307c3c419a579502db4f06bbf60620f8037111216cbde8d0ab57b041e978b"
 }

@@ -18,7 +18,8 @@ BATCH = "B-018-STREAM"
 CARD = "C-018-STREAM-CORE"
 AGENT = "gate-llmrust"
 SPEC_SHA = "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94"
-HANDOFF = "113575cb55ff699791471702"
+HANDOFF = "ece5291caa237b095b4515f9"
+QA_RECEIPT_SHA = "72f3ea4a851411df85ccf875fd7cb32e19dfc66e5a61e02057ba2a9b32c01a57"
 GATE_PATH = REPO / f".workforce/evidence/{BATCH}/gate.json"
 MANIFEST_PATH = PROBE / "run-manifest.json"
 PREFLIGHT_PATH = PROBE / "preflight.json"
@@ -118,6 +119,7 @@ def prepare() -> None:
     task = next(t for t in batch["tasks"] if t["card_id"] == CARD)
     head = git_bytes("rev-parse", "HEAD").decode("ascii").strip()
     batch_base = batch["batch_base"]
+    base_head = batch.get("base_head", batch_base)
     handoff = batch["handoffs"][CARD]
 
     qa_artifacts = {a["path"]: a["sha256"] for a in qa.get("artifacts", [])}
@@ -168,8 +170,9 @@ def prepare() -> None:
         "card_gate_agent_matches": card["gate_agent"] == AGENT,
         "loop_card_sha256_matches": task["card_sha256"] == actual_card_sha,
         "loop_spec_sha256_matches": loop["spec_sha256"] == actual_spec_sha,
-        "head_equals_batch_base": head == batch_base,
+        "head_equals_base_head": head == base_head,
         "qa_verdict_pass": qa.get("verdict") == "PASS",
+        "qa_receipt_sha256_matches": sha256(qa_path) == QA_RECEIPT_SHA,
         "qa_independent": qa.get("independent") is True and qa.get("declared_by_lead") is False,
         "qa_mock_used_false": qa.get("mock_used") is False,
         "qa_handoff_matches": qa.get("handoff_id") == HANDOFF == handoff.get("handoff_id"),
@@ -182,7 +185,12 @@ def prepare() -> None:
 
     git_status_before = git_bytes("status", "--porcelain=v1", "-z", "--untracked-files=all")
     (PROBE / "git-status-before.bin").write_bytes(git_status_before)
-    git_diff_sha_before = hashlib.sha256(git_bytes("diff", "--binary")).hexdigest()
+    diff_pathspec = [
+        ".",
+        f":(exclude).workforce/evidence/{BATCH}/gate.json",
+        f":(exclude).workforce/evidence/{BATCH}/probe/**",
+    ]
+    git_diff_sha_before = hashlib.sha256(git_bytes("diff", "--binary", "--", *diff_pathspec)).hexdigest()
     git_cached_diff_sha_before = hashlib.sha256(git_bytes("diff", "--cached", "--binary")).hexdigest()
 
     specs = []
@@ -256,6 +264,7 @@ def prepare() -> None:
         "repo": str(REPO),
         "head": head,
         "batch_base": batch_base,
+        "base_head": base_head,
         "serial": True,
         "execution": "one Windows COMSPEC batch per recorded command; stdout/stderr redirected directly to separate binary files; no pipeline",
         "expected_command_count": len(specs),
@@ -280,6 +289,7 @@ def prepare() -> None:
         "qa_verdict": qa["verdict"],
         "head": head,
         "batch_base": batch_base,
+        "base_head": base_head,
         "checks": checks,
         "frozen_files": frozen_actual,
         "frozen_files_match_qa": not frozen_mismatches,
@@ -476,13 +486,13 @@ def finalize() -> None:
 
     git_status_after = git_bytes("status", "--porcelain=v1", "-z", "--untracked-files=all")
     (PROBE / "git-status-after.bin").write_bytes(git_status_after)
-    git_diff_sha_after = hashlib.sha256(git_bytes("diff", "--binary")).hexdigest()
+    git_diff_sha_after = hashlib.sha256(git_bytes("diff", "--binary", "--", ".", f":(exclude).workforce/evidence/{BATCH}/gate.json", f":(exclude).workforce/evidence/{BATCH}/probe/**")).hexdigest()
     git_cached_diff_sha_after = hashlib.sha256(git_bytes("diff", "--cached", "--binary")).hexdigest()
     checks["git_status_unchanged_outside_gate_evidence"] = filtered_status(git_status_after) == filtered_status((PROBE / "git-status-before.bin").read_bytes())
     checks["tracked_diff_unchanged"] = git_diff_sha_after == preflight["git_diff_binary_sha256"]
     checks["tracked_cached_diff_unchanged"] = git_cached_diff_sha_after == preflight["git_cached_diff_binary_sha256"]
     current_head = git_bytes("rev-parse", "HEAD").decode("ascii").strip()
-    checks["head_unchanged"] = current_head == preflight["head"] == preflight["batch_base"]
+    checks["head_unchanged"] = current_head == preflight["head"] == preflight["base_head"]
 
     postflight = {
         "schema": "agent-workforce-gate-postflight/v1",
@@ -501,6 +511,7 @@ def finalize() -> None:
         },
         "git_diff_binary_sha256": git_diff_sha_after,
         "git_cached_diff_binary_sha256": git_cached_diff_sha_after,
+        "tracked_diff_scope": "all tracked changes except gate.json and probe/** outputs intentionally overwritten by this gate; includes ledger.json and all business/spec/card/signoffs/loop-state paths",
     }
     POSTFLIGHT_PATH.write_text(json.dumps(postflight, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 

@@ -1,7 +1,7 @@
 {
   "schema": "agent-workforce-gate-run-summary/v1",
-  "started_at_utc": "2026-11-27T09:48:12.986775+00:00",
-  "finished_at_utc": "2026-11-27T09:51:19.298934+00:00",
+  "started_at_utc": "2026-11-27T11:51:12.494697+00:00",
+  "finished_at_utc": "2026-11-27T11:54:16.125885+00:00",
   "serial": true,
   "serial_order_verified": true,
   "expected_command_count": 14,
@@ -12,7 +12,7 @@
     "required-03-test-all-features": 0,
     "required-04-fmt": 0,
     "required-05-clippy": 0,
-    "required-06-rustdoc": 101,
+    "required-06-rustdoc": 0,
     "required-07-cargo-deny": 0,
     "c4-01-test-default": 0,
     "c4-02-test-proxy": 0,
@@ -22,6 +22,6 @@
     "c4-06-clippy": 0,
     "c5-01-ledger-chain": 0
   },
-  "all_exit_zero": false,
+  "all_exit_zero": true,
   "skipped_commands": []
 }

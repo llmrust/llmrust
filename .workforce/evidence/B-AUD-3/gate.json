@@ -1,0 +1,371 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "gate",
+  "agent": "gate-llmrust",
+  "written_by": "gate-llmrust",
+  "card_id": "C-AUD-PROXY",
+  "batch_id": "B-AUD-3",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "handoff_id": "79b1a1c78436c5d212c854a3",
+  "inputs_seen": [
+    ".workforce/spec.json",
+    ".workforce/config.json",
+    ".workforce/cards/C-AUD-PROXY.json",
+    ".workforce/loop-state.json",
+    ".agents/skills/agent-workforce-loop/SKILL.md",
+    ".agents/skills/agent-workforce-loop/references/roles.md",
+    ".agents/skills/agent-workforce-loop/references/loop-state-machine.md",
+    ".agents/skills/agent-workforce-loop/assets/evidence.template.json",
+    ".workforce/evidence/B-AUD-3/dev-C-AUD-PROXY.json",
+    ".workforce/evidence/B-AUD-3/qa-C-AUD-PROXY.json",
+    "AGENTS.md",
+    "AGENT_MANIFESTO.md",
+    "docs/PROJECT_MAP.md",
+    "docs/CAPABILITIES.md",
+    "docs/CONTRACTS.md",
+    "src/types.rs",
+    "src/providers/mod.rs",
+    "examples/README.md",
+    "Cargo.lock"
+  ],
+  "mock_used": false,
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/preflight.json",
+      "sha256": "3dcdc83b7437a822fc00ba69368fcb7be5c4e4ad91062417052239c5ac0cfce6"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/rerun-preflight.json",
+      "sha256": "3b5952d98f8adeccc5b296a51081afcfe9458c7a0adce01677bbe56b1585e5a8"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/run-commands.ps1",
+      "sha256": "1dde89a49213093c0121025dd3aab82ca42eb4ed8a43f52f32b47fd055df1cd2"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/run-missing.ps1",
+      "sha256": "283b125668182f6d04dace5bf9b3a760b023fb2d856fc80b6874908c295d57f6"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/finalize-gate.py",
+      "sha256": "059e57e9686acb5984ff8f6b24d47c03b22dba104fc8d36570f45f0518e6f006"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/run-manifest.json",
+      "sha256": "7c36d02877613284fef2ebd2a0e6404ad4861a6d224116f2a4d2ac4e00d4982c"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/runs.jsonl",
+      "sha256": "64904d4d651bc18030fd6849dc04b59e417696844120a0ecaa34354b4a8222bf"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-01-test-default.stderr.log",
+      "sha256": "368545b9186b6a609f2ffc5ceb83a266787206310c4cdfc1a21edca4fb9a36eb"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-01-test-default.stdout.log",
+      "sha256": "5575201fac5f82382a7015463b5d07b835f43cbf6517c79b8a902086ff54ce69"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-02-test-proxy.stderr.log",
+      "sha256": "db116cfc2c5d5d087613955fa17e777fbef2b6bf1a04be365978148be524ef4c"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-02-test-proxy.stdout.log",
+      "sha256": "70c2ef70ced1592877c752f65efc25ab1c011c6daf60fd9b39ca7a573cf54353"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-03-build-default.stderr.log",
+      "sha256": "2461b00c8697c4189b2de92ca6fb05b5d72273c78a0a47b1ce4e83ccca077b70"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-03-build-default.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-04-fmt.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-04-fmt.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-05-clippy-default.stderr.log",
+      "sha256": "9c73735a1033f44f00ea48e15c38d73843ff5a391557aac653bd81d564a34b5f"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-05-clippy-default.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-06-cargo-deny.stderr.log",
+      "sha256": "4aafba369829b400f5f28dfde05cf2dacea09b3634836a7181bb2e84caacd6ac"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c4-06-cargo-deny.stdout.log",
+      "sha256": "f1a0fca39d4280363937aabd77783990ea6480bd9ca257816de3b68fc8efa845"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c5-01-architecture-guard.stderr.log",
+      "sha256": "238de1530dead034c8381fa839f62c06f23fa1cdef90afaa05fb5e3c7af88aa5"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c5-01-architecture-guard.stdout.log",
+      "sha256": "2f17af5da384f6e02cc878e31a185e356f3c61d3b8f65372d1678fd218ce0093"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c5-02-package-guard.stderr.log",
+      "sha256": "3b5c5c49a6c3c1a73e52c11637a49bdcbe081ea7b113100a04cf1ef2ba84d6e4"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c5-02-package-guard.stdout.log",
+      "sha256": "b6c9dd1db33d05d122e60a8bf2f622e6b989ec4ae6f67a7ef35f56d5f91182f4"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c5-03-responses-proxy-tests.stderr.log",
+      "sha256": "63a4b9b178102b155797a96fa8387c3404087e5cabfffd8bda4a5ff6ae9a131b"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c5-03-responses-proxy-tests.stdout.log",
+      "sha256": "af39e78e089cbfaf966c0ba90e6550de9f676b868b33559f8ccf238910b23e94"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c5-04-proxy-lib.stderr.log",
+      "sha256": "74b770520c03d091b8e1462d3c93ca349fc17f9ab816ee5f3e9a45229827fc7c"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c5-04-proxy-lib.stdout.log",
+      "sha256": "93d4b24686f926b5940a9d45e8427b0bf7ccfe54230b09579f62ada1f98df2b4"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c5-05-contract-tests.stderr.log",
+      "sha256": "c4a45bf1355e9c50383f46c9e6e57c85a8bcb15399a1d24c56a048f936341c4c"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/c5-05-contract-tests.stdout.log",
+      "sha256": "7a51d922b9c0443954b6e2c5e762c3c5734475a0711715dbb48d99341a1b07f1"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-01-build.stderr.log",
+      "sha256": "c457ec746995acccb8492ea2870a34a877aa8d445212405710e3b64be9b5133e"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-01-build.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-02-test-default.stderr.log",
+      "sha256": "cc258a57d4d553d42124743ff2cfb0e27dc16edce8fce492af31595f049c3c58"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-02-test-default.stdout.log",
+      "sha256": "896cf4be5d14e10353108a0df3c80418996bc17fb33aba7ad52b6ce6336d342c"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-03-test-all-features.stderr.log",
+      "sha256": "310eb4728a28cfe3bc1008ea9ffa9b2a768f9edf8afeef14d535567567ebd8f2"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-03-test-all-features.stdout.log",
+      "sha256": "58dfe5809f89791343cda87e058b4aaecf07e1fea1855f9c7bbc7fd0d972b55a"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-04-fmt.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-04-fmt.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-05-clippy.stderr.log",
+      "sha256": "625a254589f92fad8a5699813ec488f29196db587b0435f822ef84c9e4bcbf21"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-05-clippy.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-06-rustdoc.stderr.log",
+      "sha256": "4b3791a4b6ac41a717a0a85704623897a98dd6e7fa22290ea421aeae5a8d32d5"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-06-rustdoc.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-07-cargo-deny.stderr.log",
+      "sha256": "4aafba369829b400f5f28dfde05cf2dacea09b3634836a7181bb2e84caacd6ac"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/required-07-cargo-deny.stdout.log",
+      "sha256": "f1a0fca39d4280363937aabd77783990ea6480bd9ca257816de3b68fc8efa845"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/probe/verification.json",
+      "sha256": "2665f22fbb6f8e3fb9ca19ab737051b62cda40a65233cb0150ec6b6bae9a87b8"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "id": "required-01-build",
+      "criterion": "config.gates.required_commands[0]",
+      "cmd": "cargo build --locked --workspace --all-targets --all-features",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/required-01-build.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/required-01-build.stderr.log"
+    },
+    {
+      "id": "required-02-test-default",
+      "criterion": "config.gates.required_commands[1]",
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/required-02-test-default.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/required-02-test-default.stderr.log"
+    },
+    {
+      "id": "required-03-test-all-features",
+      "criterion": "config.gates.required_commands[2]",
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/required-03-test-all-features.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/required-03-test-all-features.stderr.log"
+    },
+    {
+      "id": "required-04-fmt",
+      "criterion": "config.gates.required_commands[3]",
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/required-04-fmt.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/required-04-fmt.stderr.log"
+    },
+    {
+      "id": "required-05-clippy",
+      "criterion": "config.gates.required_commands[4]",
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/required-05-clippy.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/required-05-clippy.stderr.log"
+    },
+    {
+      "id": "required-06-rustdoc",
+      "criterion": "config.gates.required_commands[5]",
+      "cmd": "cargo rustdoc --locked --all-features -- -D warnings",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/required-06-rustdoc.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/required-06-rustdoc.stderr.log"
+    },
+    {
+      "id": "required-07-cargo-deny",
+      "criterion": "config.gates.required_commands[6]",
+      "cmd": "cargo deny --locked check",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/required-07-cargo-deny.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/required-07-cargo-deny.stderr.log"
+    },
+    {
+      "id": "c4-01-test-default",
+      "criterion": "C-AUD-PROXY.c4[0]",
+      "cmd": "cargo test --workspace",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c4-01-test-default.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c4-01-test-default.stderr.log"
+    },
+    {
+      "id": "c4-02-test-proxy",
+      "criterion": "C-AUD-PROXY.c4[1]",
+      "cmd": "cargo test --workspace --features proxy",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c4-02-test-proxy.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c4-02-test-proxy.stderr.log"
+    },
+    {
+      "id": "c4-03-build-default",
+      "criterion": "C-AUD-PROXY.c4[2]",
+      "cmd": "cargo build --workspace",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c4-03-build-default.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c4-03-build-default.stderr.log"
+    },
+    {
+      "id": "c4-04-fmt",
+      "criterion": "C-AUD-PROXY.c4[3]",
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c4-04-fmt.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c4-04-fmt.stderr.log"
+    },
+    {
+      "id": "c4-05-clippy-default",
+      "criterion": "C-AUD-PROXY.c4[4]",
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c4-05-clippy-default.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c4-05-clippy-default.stderr.log"
+    },
+    {
+      "id": "c4-06-cargo-deny",
+      "criterion": "C-AUD-PROXY.c4[5]",
+      "cmd": "cargo deny --locked check",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c4-06-cargo-deny.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c4-06-cargo-deny.stderr.log"
+    },
+    {
+      "id": "c5-01-architecture-guard",
+      "criterion": "C-AUD-PROXY.c5[0]",
+      "cmd": "cargo test --features proxy --test architecture_guard",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c5-01-architecture-guard.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c5-01-architecture-guard.stderr.log"
+    },
+    {
+      "id": "c5-02-package-guard",
+      "criterion": "C-AUD-PROXY.c5[1]",
+      "cmd": "cargo test --features proxy --test package_guard",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c5-02-package-guard.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c5-02-package-guard.stderr.log"
+    },
+    {
+      "id": "c5-03-responses-proxy-tests",
+      "criterion": "C-AUD-PROXY.c5[2]",
+      "cmd": "cargo test --features proxy --test responses_proxy_tests",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c5-03-responses-proxy-tests.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c5-03-responses-proxy-tests.stderr.log"
+    },
+    {
+      "id": "c5-04-proxy-lib",
+      "criterion": "C-AUD-PROXY.c5[3]",
+      "cmd": "cargo test --features proxy --lib",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c5-04-proxy-lib.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c5-04-proxy-lib.stderr.log"
+    },
+    {
+      "id": "c5-05-contract-tests",
+      "criterion": "C-AUD-PROXY.c5[4]",
+      "cmd": "cargo test --features proxy --test contract_tests",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-AUD-3/probe/c5-05-contract-tests.stdout.log",
+      "stderr": ".workforce/evidence/B-AUD-3/probe/c5-05-contract-tests.stderr.log"
+    }
+  ],
+  "expected_command_count": 18,
+  "recorded_command_count": 18,
+  "missing_commands": [],
+  "criteria_results": {
+    "config_required_commands": "PASS",
+    "card_c4": "PASS",
+    "card_c5": "PASS",
+    "zero_relaxation_ignored_counts": "PASS",
+    "protected_inputs_unchanged": "PASS"
+  },
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "generated_at_utc": "2026-11-25T03:26:28.332420+00:00",
+  "notes": "v8 新 handoff 下独立 gate 共记录 18/18 条命令退出码且全部为 0：config 七条 required_commands、卡 c4 六条、c5 五条。首批 8 条未重跑；经 Lead 授权仅串行重跑缺失的 c4-02..c4-06 与 c5 五条并追加 runs.jsonl。每条 stdout/stderr 原始字节分别留存并计算 sha256；c5 输出条件、ignored 零放宽口径与受保护文件哈希复核通过，故 verdict=PASS。未修改业务代码、测试、spec、card、signoffs 或 loop-state；mock_used=false。"
+}

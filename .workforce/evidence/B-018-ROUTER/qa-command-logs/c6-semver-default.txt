@@ -1,0 +1,11 @@
+    Blocking waiting for cargo global package lock
+    Building llmrust v0.1.6 (current)
+       Built [  16.581s] (current)
+     Parsing llmrust v0.1.6 (current)
+      Parsed [   0.191s] (current)
+     Parsing llmrust v0.1.6 (baseline, cached)
+      Parsed [   0.116s] (baseline)
+    Checking llmrust v0.1.6 -> v0.1.6 (no change; assume minor)
+     Checked [   0.133s] 196 checks: 196 pass, 57 skip
+     Summary no semver update required
+    Finished [  22.830s] llmrust

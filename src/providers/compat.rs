@@ -12,8 +12,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-use crate::providers::http::{build_http_client, REQUEST_TIMEOUT};
-use crate::providers::stream_util::line_stream;
+use crate::providers::http::{self, build_http_client, REQUEST_TIMEOUT};
+use crate::providers::sse;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
     ChatRequest, ChatResponse, Content, Embedding, EmbeddingRequest, EmbeddingResponse,
@@ -95,6 +95,9 @@ struct CompMessage {
     tool_call_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     name: Option<String>,
+    /// A non-empty refusal is an explicit upstream rejection, never an empty success.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    refusal: Option<String>,
 }
 
 impl From<&Message> for CompMessage {
@@ -119,13 +122,16 @@ impl From<&Message> for CompMessage {
             tool_calls: msg.tool_calls.clone(),
             tool_call_id: msg.tool_call_id.clone(),
             name: msg.name.clone(),
+            refusal: None,
         }
     }
 }
 
 #[derive(Deserialize)]
 struct CompResponse {
-    choices: Vec<CompChoice>,
+    /// `null` is a legitimate usage-only shape on compatible endpoints.
+    #[serde(default)]
+    choices: Option<Vec<CompChoice>>,
     model: String,
     usage: Option<CompUsage>,
 }
@@ -176,8 +182,9 @@ struct CompStreamError {
 
 #[derive(Deserialize)]
 struct CompStreamChunk {
+    /// Some gateways emit `choices: null` on usage-only frames.
     #[serde(default)]
-    choices: Vec<CompStreamChoice>,
+    choices: Option<Vec<CompStreamChoice>>,
     #[serde(default)]
     usage: Option<CompUsage>,
     /// AUD#3: in-band error field, named exactly as on the wire (`error`)
@@ -436,7 +443,11 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
         })];
     }
     let usage = parsed.usage.map(comp_usage_to_usage);
-    match parsed.choices.first() {
+    match parsed
+        .choices
+        .as_deref()
+        .and_then(|choices| choices.first())
+    {
         Some(choice) => {
             // DELTA-NULL: `delta` may be absent or explicitly `null` on terminal
             // frames; substitute an empty delta so downstream logic is unchanged.
@@ -645,11 +656,6 @@ pub struct OpenAiCompatibleProvider {
     /// REA-003: only the verified OpenAI endpoint may send reasoning fields.
     /// Third-party OpenAI-compatible wrappers must NOT inherit this capability.
     reasoning_supported: bool,
-    /// `ERR-004`：最近一次失败响应里上游给出的 `Retry-After` 窗口（已解析、已截顶）。
-    ///
-    /// 用 `Mutex` 是因为 `Provider` 的方法取 `&self`；写入点是 [`Self::parse_error`]，
-    /// 读取点是 [`crate::RetryProvider`]（经 `Provider::last_retry_after`）。
-    last_retry_after: std::sync::Mutex<Option<std::time::Duration>>,
 }
 
 impl OpenAiCompatibleProvider {
@@ -670,7 +676,6 @@ impl OpenAiCompatibleProvider {
             base_url,
             extra_headers: extra_headers.into_iter().collect(),
             reasoning_supported: false,
-            last_retry_after: std::sync::Mutex::new(None),
         }
     }
 
@@ -768,39 +773,31 @@ impl OpenAiCompatibleProvider {
 
     /// Send a fully-built request body and return the raw HTTP response.
     async fn send(&self, body: &CompChatRequest<'_>) -> Result<reqwest::Response> {
+        let url = http::redirect::endpoint_url(&self.base_url, "chat/completions")?;
         let mut rb = self
             .client
-            .post(format!("{}/chat/completions", self.base_url))
+            .post(url)
             .header("Authorization", format!("Bearer {}", self.api_key));
 
         for (k, v) in &self.extra_headers {
             rb = rb.header(k.as_str(), v.as_str());
         }
 
-        let resp = rb.json(body).send().await?;
+        let resp = rb
+            .json(body)
+            .send()
+            .await
+            .map_err(http::error::http_error)?;
         Ok(resp)
     }
 
     /// Common HTTP error -> LlmError conversion.
     ///
-    /// `ERR-004`：顺带**捕获上游的 `Retry-After`**（在 `resp.text()` 消费 body 之前读头），
-    /// 解析后存入 [`Self::last_retry_after`]，供 `RetryProvider` 决定等待窗口。
-    /// 解析失败/无头 → `None`（调用方回落本地退避），**不猜**。
-    async fn parse_error(&self, resp: reqwest::Response) -> LlmError {
+    /// `ERR-004`：捕获当前响应头并绑定到外层单次调用 scope；成功、无头或网络错误
+    /// 都不会继承其它请求的提示。
+    async fn parse_error(resp: reqwest::Response) -> LlmError {
         let status = resp.status().as_u16();
-        let hint = resp
-            .headers()
-            .get(reqwest::header::RETRY_AFTER)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| {
-                crate::providers::retry::parse_retry_after(
-                    v,
-                    crate::providers::retry::now_unix_secs(),
-                )
-            });
-        if let Ok(mut slot) = self.last_retry_after.lock() {
-            *slot = hint;
-        }
+        http::retry_hint::capture_response(&resp);
         let text = resp.text().await.unwrap_or_default();
         let msg = serde_json::from_str::<CompErrorBody>(&text)
             .map(|e| e.error.message)
@@ -813,54 +810,84 @@ impl OpenAiCompatibleProvider {
 
     /// Send an embeddings request and return the raw HTTP response.
     async fn send_embed(&self, body: &CompEmbeddingRequest<'_>) -> Result<reqwest::Response> {
+        let url = http::redirect::endpoint_url(&self.base_url, "embeddings")?;
         let mut rb = self
             .client
-            .post(format!("{}/embeddings", self.base_url))
+            .post(url)
             .header("Authorization", format!("Bearer {}", self.api_key));
 
         for (k, v) in &self.extra_headers {
             rb = rb.header(k.as_str(), v.as_str());
         }
 
-        let resp = rb.json(body).send().await?;
+        let resp = rb
+            .json(body)
+            .send()
+            .await
+            .map_err(http::error::http_error)?;
         Ok(resp)
     }
 
     /// Parse a non-streaming response into [`ChatResponse`].
-    fn parse_response(parsed: CompResponse) -> ChatResponse {
+    ///
+    /// `choices: null` is accepted only as a usage-only response. An empty
+    /// choice list, an explicit refusal, or a primary message with neither
+    /// text nor tool calls is an upstream protocol failure, not `Ok("")`.
+    fn parse_response(parsed: CompResponse) -> Result<ChatResponse> {
         let usage = parsed.usage.map(comp_usage_to_usage);
-
-        let (content, tool_calls, finish_reason, logprobs) = match parsed.choices.into_iter().next()
-        {
-            Some(choice) => {
-                let content = match choice.message.content {
-                    Some(c) => c.as_text(),
-                    None => String::new(),
-                };
-                (
-                    content,
-                    choice.message.tool_calls,
-                    choice.finish_reason.map(FinishReason::from),
-                    choice.logprobs,
-                )
+        let Some(choices) = parsed.choices else {
+            if usage.is_some() {
+                return Ok(ChatResponse {
+                    model: parsed.model,
+                    usage,
+                    ..Default::default()
+                });
             }
-            None => (String::new(), None, None, None),
+            return Err(LlmError::Parse(
+                "OpenAI-compatible response has no choices and no usage".to_string(),
+            ));
         };
-
-        ChatResponse {
+        let Some(choice) = choices.into_iter().next() else {
+            return Err(LlmError::Parse(
+                "OpenAI-compatible response has an empty primary choice".to_string(),
+            ));
+        };
+        if choice
+            .message
+            .refusal
+            .as_deref()
+            .is_some_and(|refusal| !refusal.trim().is_empty())
+        {
+            return Err(LlmError::Parse(
+                "OpenAI-compatible response refused the request".to_string(),
+            ));
+        }
+        let content = choice
+            .message
+            .content
+            .as_ref()
+            .map_or_else(String::new, |content| content.as_text());
+        let tool_calls = choice.message.tool_calls.filter(|calls| !calls.is_empty());
+        if content.is_empty() && tool_calls.is_none() {
+            return Err(LlmError::Parse(
+                "OpenAI-compatible primary choice has no content or tool calls".to_string(),
+            ));
+        }
+        Ok(ChatResponse {
             content,
             model: parsed.model,
             usage,
             tool_calls,
-            finish_reason,
-            logprobs,
-        }
+            finish_reason: choice.finish_reason.map(FinishReason::from),
+            logprobs: choice.logprobs,
+        })
     }
 }
 
 #[async_trait]
 impl Provider for OpenAiCompatibleProvider {
     async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse> {
+        http::retry_hint::clear_response();
         // REA-003: reasoning gate (Unsupported before any network call).
         let reasoning_effort = self.reasoning_effort(req, false)?;
         let messages: Vec<CompMessage> = req.messages.iter().map(CompMessage::from).collect();
@@ -876,7 +903,7 @@ impl Provider for OpenAiCompatibleProvider {
 
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
-            let err = self.parse_error(resp).await;
+            let err = Self::parse_error(resp).await;
             tracing::error!(
                 provider = "openai-compatible",
                 status,
@@ -886,17 +913,20 @@ impl Provider for OpenAiCompatibleProvider {
             return Err(err);
         }
 
-        let parsed: CompResponse = resp
-            .json()
-            .await
-            .map_err(|e| LlmError::Parse(format!("OpenAI-compatible parse: {e}")))?;
+        let parsed: CompResponse = resp.json().await.map_err(|e| {
+            LlmError::Parse(format!(
+                "OpenAI-compatible parse: {}",
+                http::error::error_message(e)
+            ))
+        })?;
 
-        let result = Self::parse_response(parsed);
+        let result = Self::parse_response(parsed)?;
         tracing::debug!(provider = "openai-compatible", model = &result.model, finish_reason = ?result.finish_reason, "chat response received");
         Ok(result)
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
+        http::retry_hint::clear_response();
         // REA-003: reasoning gate (Unsupported before any network call).
         let reasoning_effort = self.reasoning_effort(req, true)?;
         let messages: Vec<CompMessage> = req.messages.iter().map(CompMessage::from).collect();
@@ -912,7 +942,7 @@ impl Provider for OpenAiCompatibleProvider {
 
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
-            let err = self.parse_error(resp).await;
+            let err = Self::parse_error(resp).await;
             tracing::error!(
                 provider = "openai-compatible",
                 status,
@@ -922,16 +952,22 @@ impl Provider for OpenAiCompatibleProvider {
             return Err(err);
         }
 
+        // C-018-STREAM-CORE: a 200 response is only a stream when it says so.
+        // `application/json` (or a missing type) is an explicit protocol error,
+        // never an empty success.
+        sse::require_event_stream(resp.headers())?;
+
         let byte_stream = resp
             .bytes_stream()
-            .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
+            .map(|r| r.map_err(|e| LlmError::Stream(http::error::error_message(e))));
 
-        let stream = sse_chunk_stream(line_stream(byte_stream));
+        let stream = sse_chunk_stream(sse::event_line_stream(byte_stream));
 
         Ok(stream.boxed())
     }
 
     async fn embed(&self, req: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+        http::retry_hint::clear_response();
         tracing::debug!(
             provider = "openai-compatible",
             model = %req.model,
@@ -951,7 +987,7 @@ impl Provider for OpenAiCompatibleProvider {
 
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
-            let err = self.parse_error(resp).await;
+            let err = Self::parse_error(resp).await;
             tracing::error!(
                 provider = "openai-compatible",
                 status,
@@ -961,11 +997,17 @@ impl Provider for OpenAiCompatibleProvider {
             return Err(err);
         }
 
-        let parsed: CompEmbeddingResponse = resp
-            .json()
-            .await
-            .map_err(|e| LlmError::Parse(format!("OpenAI-compatible embeddings parse: {e}")))?;
+        let parsed: CompEmbeddingResponse = resp.json().await.map_err(|e| {
+            LlmError::Parse(format!(
+                "OpenAI-compatible embeddings parse: {}",
+                http::error::error_message(e)
+            ))
+        })?;
 
+        crate::providers::validate_embedding_indices(
+            req.input.len(),
+            parsed.data.iter().map(|item| item.index),
+        )?;
         let data: Vec<Embedding> = parsed
             .data
             .into_iter()
@@ -991,11 +1033,6 @@ impl Provider for OpenAiCompatibleProvider {
             "embedding response received"
         );
         Ok(result)
-    }
-
-    /// `ERR-004`：把最近一次失败响应里捕获的 `Retry-After` 交给 `RetryProvider`。
-    fn last_retry_after(&self) -> Option<std::time::Duration> {
-        self.last_retry_after.lock().ok().and_then(|slot| *slot)
     }
 }
 
@@ -1066,7 +1103,7 @@ mod tests {
         .to_string();
 
         let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
-        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        let resp = OpenAiCompatibleProvider::parse_response(parsed).unwrap();
         assert_eq!(resp.content, "");
         assert_eq!(resp.finish_reason, Some(FinishReason::ToolCalls));
         let calls = resp.tool_calls.expect("tool_calls present");
@@ -1101,7 +1138,7 @@ mod tests {
         .to_string();
 
         let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
-        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        let resp = OpenAiCompatibleProvider::parse_response(parsed).unwrap();
         assert_eq!(resp.content, "Hi");
         assert_eq!(resp.finish_reason, Some(FinishReason::Stop));
 
@@ -1841,7 +1878,7 @@ mod tests {
                     assert_eq!(body["model"], "text-embedding-3-small");
                     assert_eq!(body["input"][0], "hello");
                     assert_eq!(body["input"][1], "world");
-                    axum::Json(serde_json::json!({"data":[],"model":"m"}))
+                    axum::Json(serde_json::json!({"data":[{"index":0,"embedding":[0.1]},{"index":1,"embedding":[0.2]}],"model":"m"}))
                 },
             ),
         );
@@ -1867,7 +1904,9 @@ mod tests {
                     assert_eq!(body["dimensions"], 1024);
                     assert_eq!(body["user"], "u");
                     assert_eq!(body["task"], "search");
-                    axum::Json(serde_json::json!({"data":[],"model":"m"}))
+                    axum::Json(
+                        serde_json::json!({"data":[{"index":0,"embedding":[0.1]}],"model":"m"}),
+                    )
                 },
             ),
         );
@@ -1924,9 +1963,9 @@ mod tests {
         // spark-x2.6; before the fix the accumulated arguments (tens of
         // kilobytes in practice) were swallowed inside the accumulator.
         let sse = [
-            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"function\":{\"name\":\"write\",\"arguments\":\"{\\\"path\\\":\"}}]},\"finish_reason\":null}]}\n",
-            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"a.rs\\\"}\"}}]},\"finish_reason\":null}]}\n",
-            "data: [DONE]\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"function\":{\"name\":\"write\",\"arguments\":\"{\\\"path\\\":\"}}]},\"finish_reason\":null}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"a.rs\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
+            "data: [DONE]\n\n",
         ]
         .concat();
         let app = axum::Router::new().route(
@@ -1974,7 +2013,7 @@ mod tests {
             axum::routing::post(
                 |axum::Json(body): axum::Json<serde_json::Value>| async move {
                     assert_eq!(body["model"], "text-embedding-3-small");
-                    axum::Json(serde_json::json!({"data":[],"model":"text-embedding-3-small"}))
+                    axum::Json(serde_json::json!({"data":[{"index":0,"embedding":[0.1]}],"model":"text-embedding-3-small"}))
                 },
             ),
         );
@@ -2112,7 +2151,7 @@ mod tests {
         })
         .to_string();
         let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
-        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        let resp = OpenAiCompatibleProvider::parse_response(parsed).unwrap();
         let u = resp.usage.unwrap();
         assert_eq!(u.cache_read_tokens, Some(5));
         assert_eq!(u.reasoning_tokens, Some(8));
@@ -2128,7 +2167,7 @@ mod tests {
         })
         .to_string();
         let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
-        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        let resp = OpenAiCompatibleProvider::parse_response(parsed).unwrap();
         let u = resp.usage.unwrap();
         assert_eq!(u.cache_read_tokens, None);
         assert_eq!(u.reasoning_tokens, None);

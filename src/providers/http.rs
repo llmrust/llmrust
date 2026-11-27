@@ -9,6 +9,10 @@
 //! on large models. Centralizing the builder here keeps the tuning identical
 //! across providers and gives us a single place to evolve it.
 
+pub(crate) mod error;
+pub(crate) mod redirect;
+pub(crate) mod retry_hint;
+
 use reqwest::Client;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -41,6 +45,9 @@ pub(crate) fn build_http_client(
 ) -> Client {
     let mut builder = Client::builder()
         .no_proxy()
+        // Credentialed POST bodies and custom headers must never be replayed to
+        // a redirect target, including same-origin 307/308 responses.
+        .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(CONNECT_TIMEOUT)
         .pool_max_idle_per_host(POOL_MAX_IDLE_PER_HOST)
         .tcp_keepalive(TCP_KEEPALIVE);
@@ -82,12 +89,15 @@ pub(crate) fn build_http_client(
     builder.build().unwrap_or_else(|err| {
         tracing::warn!(
             error = %err,
-            "failed to build the configured HTTP client; falling back to `Client::new()`. \
+            "failed to build the configured HTTP client; falling back to a minimal client. \
              LOST: connect_timeout, request timeout, pool_max_idle_per_host, tcp_keepalive, \
-             no_proxy setting, and all custom headers. Requests will still work but without \
-             these settings (ERR-001)."
+             no_proxy setting, and all custom headers. Redirects remain disabled. Requests \
+             will still work but without these settings (ERR-001)."
         );
-        Client::new()
+        Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .unwrap_or_else(|_| Client::new())
     })
 }
 

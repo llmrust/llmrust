@@ -1,0 +1,351 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ledger",
+  "agent": "ledger-llmrust",
+  "written_by": "ledger-llmrust",
+  "card_id": null,
+  "batch_id": "B-018-ROUTER",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "inputs_seen": [
+    ".workforce/config.json（仅 ledger.command/none_reason）",
+    ".workforce/cards/C-018-ROUTER-COST.json（c5 原文、write_scopes、planned_file_paths）",
+    "tests/hotspot_ledger.json（被核验台账实物）",
+    ".workforce/loop-state.json（仅读取 B-018-ROUTER batch_base/handoff/card_sha256，并计算运行时 sha256；不列入 artifacts）",
+    ".workforce/spec.json（仅核验 sha256 与指定值一致）",
+    ".agents/skills/agent-workforce-loop/references/roles.md、assets/evidence.template.json、scripts/lib.mjs（角色与 selfShaOk/ledgerCheck 口径）",
+    ".workforce/evidence/B-018-ROUTER/dev-C-018-ROUTER-COST.json（仅访问 artifacts.path/sha256 与 files_changed；未读 notes/解释）",
+    ".workforce/evidence/B-018-ROUTER/qa-C-018-ROUTER-COST.json（仅访问 artifacts.path/sha256 与 handoff_id；未读 notes/解释）",
+    "git 对象 18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c:tests/hotspot_ledger.json、src/router.rs、src/pricing.rs"
+  ],
+  "ledger": {
+    "duty_basis": {
+      "config_ledger": "command=null；llmrust 仓无台账生成脚本，按 none_reason 只验 schema/generatedAt/self_sha256 自洽；Node ledgerCheck 的预期结果为 ok=true/unverified=true。",
+      "role_contract": "ledger-* 独立核验台账；agent=ledger-llmrust，written_by=ledger-llmrust，independent=true，declared_by_lead=false。",
+      "c5_basis": "C-018-ROUTER-COST acceptance_criteria c5；六字段、batch_base 前驱、newly-oversized、scope、threshold、授权与 date 均按卡面原文机判。"
+    },
+    "target_card_id": "C-018-ROUTER-COST",
+    "verification_started_at": "2026-11-25T06:13:56.078309+00:00",
+    "target": "tests/hotspot_ledger.json",
+    "target_sha256_raw_bytes": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd",
+    "base_target_sha256_raw_bytes": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8",
+    "threshold": 500,
+    "line_count_metric": "UTF-8 decode 后 len(splitlines())；另扫全部 28 个 src/**/*.rs 无 VT/FF/FS/GS/RS/NEL/LS/PS 与孤立 CR，故与 Rust lines().count() 同口径。",
+    "runtime_state": {
+      "path": ".workforce/loop-state.json",
+      "sha256_before": "dfb697977881fed4c9723a3fb8760bae86c828e272ab39be92a65ab8a6390c9b",
+      "sha256_after_read_only_checks": "dfb697977881fed4c9723a3fb8760bae86c828e272ab39be92a65ab8a6390c9b",
+      "included_in_artifacts": false,
+      "reason": "运行时文件哈希只写正文，避免 artifacts 数组引用易变状态文件。"
+    },
+    "freeze": {
+      "batch_base": "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+      "base_head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+      "head": "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+      "handoff_id": "f0ccaa47803ffa8b43084e96",
+      "handoff_at": "2026-11-25T06:00:09.698Z",
+      "receipt_file": ".workforce/evidence/B-018-ROUTER/dev-C-018-ROUTER-COST.json",
+      "receipt_sha256": "e07711f8b70dd43033c8e922bc5381264dd9a78f9679919cea162c5221b31917",
+      "qa_receipt_file": ".workforce/evidence/B-018-ROUTER/qa-C-018-ROUTER-COST.json",
+      "qa_receipt_sha256": "86fa849d5fce8e4d7a2945292b697b87f6d4c8b231a72e27ed26b85ecb204dff",
+      "frozen_files_total": 3,
+      "frozen_files": {
+        "src/router.rs": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+        "src/pricing.rs": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30",
+        "tests/hotspot_ledger.json": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd"
+      },
+      "drift_after_handoff": [],
+      "zero_drift": true
+    },
+    "c5_machine_command": {
+      "source": ".workforce/cards/C-018-ROUTER-COST.json acceptance_criteria c5",
+      "code_sha256": "50ab953088308ba5a91ec7601bc3664328bfb8c4957bb3dd6532072e5774a41b",
+      "execution": "python -c <卡面原文>，subprocess argv 实跑",
+      "exit_code": 0,
+      "pass": true
+    },
+    "c5": {
+      "expected_paths": [
+        "src/router.rs",
+        "src/pricing.rs"
+      ],
+      "expected_paths_total": 2,
+      "planned_file_paths": [],
+      "adjustments": [
+        {
+          "file": "src/router.rs",
+          "adjustment_index": 68,
+          "old": 1231,
+          "new": 1586,
+          "measured_lines": 1586,
+          "current_baseline": 1586,
+          "base_baseline_lines": 1231,
+          "base_file_measured_lines": 1231,
+          "base_adjustment_count": 3,
+          "current_adjustment_count": 4,
+          "predecessor_new": 1231,
+          "six_fields_present_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-ROUTER-COST)",
+          "authorization_ok": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        },
+        {
+          "file": "src/pricing.rs",
+          "adjustment_index": 69,
+          "old": 0,
+          "new": 527,
+          "measured_lines": 527,
+          "current_baseline": 527,
+          "base_baseline_present": false,
+          "base_adjustment_present": false,
+          "base_file_measured_lines": 418,
+          "base_file_below_threshold": true,
+          "current_adjustment_count": 1,
+          "six_fields_present_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-ROUTER-COST)",
+          "authorization_ok": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "newly_oversized_old_zero_first_only": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        }
+      ],
+      "newly_oversized": {
+        "files": [
+          "src/pricing.rs"
+        ],
+        "batch_base_baseline_present": false,
+        "batch_base_adjustment_present": false,
+        "batch_base_file_measured_lines": 418,
+        "old": 0,
+        "new": 527,
+        "measured_lines": 527,
+        "first_and_only_adjustment": true,
+        "pass": true
+      },
+      "stray_card_adjustments": [],
+      "verdict": "PASS"
+    },
+    "threshold_bidirectional": {
+      "threshold": 500,
+      "src_rs_files_total": 28,
+      "files_ge_threshold": 13,
+      "baseline_entries": 13,
+      "baseline_eq_measured": 13,
+      "unlisted_oversized": [],
+      "listed_below_threshold": [],
+      "baseline_mismatches": [],
+      "line_metric_equivalent": true,
+      "verdict": "PASS"
+    },
+    "adjustments_summary": {
+      "count": 70,
+      "six_fields": [
+        "file",
+        "old",
+        "new",
+        "reason",
+        "authorized_by",
+        "date"
+      ],
+      "six_fields_all_present_nonempty": true,
+      "chain_continuity_gaps": [],
+      "chain_convergence": {
+        "verdict": "PASS",
+        "converged_files": [
+          "src/lib.rs",
+          "src/pricing.rs",
+          "src/providers/anthropic.rs",
+          "src/providers/capabilities.rs",
+          "src/providers/compat.rs",
+          "src/providers/google.rs",
+          "src/providers/ollama.rs",
+          "src/providers/retry.rs",
+          "src/proxy/anthropic_proxy.rs",
+          "src/proxy/mod.rs",
+          "src/proxy/responses_proxy.rs",
+          "src/router.rs",
+          "src/types.rs"
+        ],
+        "non_converged_files": []
+      },
+      "target_chains": {
+        "src/router.rs": {
+          "entries": 4,
+          "first_index": 14,
+          "last_index": 68,
+          "first_old": 851,
+          "predecessor_new": 1231,
+          "last_new": 1586,
+          "baseline_now": 1586,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/pricing.rs": {
+          "entries": 1,
+          "first_index": 69,
+          "last_index": 69,
+          "first_old": 0,
+          "last_new": 527,
+          "baseline_now": 527,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        }
+      }
+    },
+    "append_only_vs_batch_base": {
+      "base_commit": "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+      "base_adjustments": 68,
+      "current_adjustments": 70,
+      "base_prefix_parsed_identical": true,
+      "historical_entries_rewritten": false,
+      "appended_indices": [
+        68,
+        69
+      ],
+      "appended_card_entries_exact": true,
+      "top_level_keyset_unchanged": true,
+      "description_unchanged": true,
+      "threshold_unchanged": true,
+      "baseline_delta": {
+        "src/router.rs": {
+          "old": 1231,
+          "new": 1586
+        }
+      },
+      "added_baselines": {
+        "src/pricing.rs": 527
+      },
+      "removed_baselines": [],
+      "other_baselines_unchanged": true,
+      "verdict": "PASS"
+    },
+    "cross_check_receipts": {
+      "fields_read": [
+        "artifacts.path",
+        "artifacts.sha256",
+        "files_changed",
+        "handoff_id"
+      ],
+      "notes_read": false,
+      "dev_artifacts_total": 3,
+      "qa_artifacts_total": 21,
+      "artifact_sha_mismatches": 0,
+      "artifact_missing": 0,
+      "dev_files_changed": [
+        "src/router.rs",
+        "src/pricing.rs",
+        "tests/hotspot_ledger.json"
+      ],
+      "dev_files_changed_within_card_scopes": true,
+      "dev_artifact_paths_equal_handoff": true,
+      "qa_frozen_artifact_paths_equal_handoff": true,
+      "dev_qa_frozen_sha_equal": true,
+      "qa_additional_command_log_artifacts_total": 18,
+      "qa_additional_command_log_artifacts_sha_verified": true,
+      "dev_receipt_sha256": "e07711f8b70dd43033c8e922bc5381264dd9a78f9679919cea162c5221b31917",
+      "qa_receipt_sha256": "86fa849d5fce8e4d7a2945292b697b87f6d4c8b231a72e27ed26b85ecb204dff"
+    },
+    "protected_inputs_sha256": {
+      ".workforce/config.json": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      ".workforce/spec.json": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      ".workforce/cards/C-018-ROUTER-COST.json": "88cc2c20d9e9a5591f3e5a5ab70013ddc129b870573579785697e9ee66e35740",
+      "tests/hotspot_ledger.json": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd",
+      "src/router.rs": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+      "src/pricing.rs": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30",
+      ".workforce/evidence/B-018-ROUTER/dev-C-018-ROUTER-COST.json": "e07711f8b70dd43033c8e922bc5381264dd9a78f9679919cea162c5221b31917",
+      ".workforce/evidence/B-018-ROUTER/qa-C-018-ROUTER-COST.json": "86fa849d5fce8e4d7a2945292b697b87f6d4c8b231a72e27ed26b85ecb204dff"
+    },
+    "business_access": "read_only；唯一写入 .workforce/evidence/B-018-ROUTER/ledger.json",
+    "problems": [],
+    "observations_non_blocking": [
+      {
+        "observation": "config.ledger.command=null",
+        "impact": "Node ledgerCheck 按配置返回 ok=true/unverified=true；另已实跑 selfShaOk 校验自洽性。"
+      },
+      {
+        "observation": ".workforce/loop-state.json 为运行时文件",
+        "impact": "哈希仅记录在正文 runtime_state，不进入 artifacts 数组。"
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/ledger.json",
+      "sha256": "SELF-REFERENTIAL：文件级 sha 由同文件 self_sha256 承载；最终文件 sha256 在回执外返回。",
+      "desc": "本回执自身；ledgerCheck 在 command=null 下验 schema/generatedAt/self_sha256"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd",
+      "desc": "被核验台账实物；与 handoff 冻结 sha 一致"
+    },
+    {
+      "path": "src/router.rs",
+      "sha256": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+      "desc": "router 1231→1586；handoff 后零漂移"
+    },
+    {
+      "path": "src/pricing.rs",
+      "sha256": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30",
+      "desc": "pricing newly-oversized 0→527；handoff 后零漂移"
+    },
+    {
+      "path": ".workforce/spec.json",
+      "sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      "desc": "指定 spec；逐字节 sha256 匹配"
+    },
+    {
+      "path": ".workforce/cards/C-018-ROUTER-COST.json",
+      "sha256": "88cc2c20d9e9a5591f3e5a5ab70013ddc129b870573579785697e9ee66e35740",
+      "desc": "c5 判据、scope 与 planned_file_paths 来源"
+    },
+    {
+      "path": ".workforce/config.json",
+      "sha256": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      "desc": "ledger.command=null 与 none_reason 来源"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/dev-C-018-ROUTER-COST.json",
+      "sha256": "e07711f8b70dd43033c8e922bc5381264dd9a78f9679919cea162c5221b31917",
+      "desc": "仅读 artifacts/files_changed 用于对账"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-C-018-ROUTER-COST.json",
+      "sha256": "86fa849d5fce8e4d7a2945292b697b87f6d4c8b231a72e27ed26b85ecb204dff",
+      "desc": "仅读 artifacts/handoff_id 用于对账；未读 notes"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "python -c \"<C-018-ROUTER-COST c5 卡面原文；code_sha256=50ab953088308ba5a91ec7601bc3664328bfb8c4957bb3dd6532072e5774a41b>\"（subprocess argv 实跑）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python - <inline B-018-ROUTER c5 核验：六字段/前驱/授权/date/newly-oversized/threshold 13/13/append-only/handoff 3/dev 3+qa 21 artifacts/protected-input assertions>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"const fs=require('fs'),crypto=require('crypto');const p='.workforce/evidence/B-018-ROUTER/ledger.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const w=j.self_sha256;delete j.self_sha256;if(w!==crypto.createHash('sha256').update(JSON.stringify(j)).digest('hex'))process.exit(1);console.log('SELF_SHA_OK '+w)\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"import('./.agents/skills/agent-workforce-loop/scripts/lib.mjs').then(m=>{const fs=require('fs');const p='.workforce/evidence/B-018-ROUTER/ledger.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const P={repo:process.cwd(),dirRel:'.workforce',config:'.workforce/config.json'};const r=m.ledgerCheck(P,j.artifacts[0],j);if(!m.selfShaOk(j)||!r.ok)throw new Error(JSON.stringify(r));console.log(JSON.stringify({selfShaOk:true,ledgerCheck:r}));})\"",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS",
+  "summary": "B-018-ROUTER / C-018-ROUTER-COST c5 独立核验 PASS：batch_base=18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c；router 1231→1586（前驱 new=1231），pricing 首次跨阈值 0→527（batch_base 无 baseline/adjustment，base 文件 418 行）；两条 adjustment 六字段齐、授权含 architect-llmrust、date=2026-11-24，new=splitlines 实测=当前 baseline。threshold=500，28 个 src Rust 文件中 13 个达到阈值且 baseline 13/13 双向一致；70 条 adjustment 六字段齐、全链收敛。append-only：前 68 条与 batch_base parsed 完全相同，仅追加 idx68–69，baseline 仅 router 更新并新增 pricing。handoff=f0ccaa47803ffa8b43084e96 冻结 3 文件零漂移；dev artifacts 3、qa artifacts 21 全部 sha 匹配，0 missing/0 mismatch，冻结 3 路径与 sha 在 dev/qa/handoff 三方一致。未读 notes；loop-state 仅以运行时哈希写正文，不进入 artifacts。",
+  "generatedAt": "2026-11-25T06:14:31.025Z",
+  "self_sha256": "6982889f723414c230a17d071af272876c703e1dbe6c68d0ccaad4214e554ebe"
+}

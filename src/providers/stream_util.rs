@@ -1,97 +1,69 @@
 //! Shared helpers for parsing chunked SSE / line-delimited byte streams.
 //!
-//! HTTP response bodies arrive as arbitrary byte chunks whose boundaries do
-//! **not** align with SSE line boundaries. A naive
-//! `for line in String::from_utf8_lossy(&chunk).lines()` therefore has two
-//! bugs:
-//!
-//! 1. A `data:` line split across two network packets is parsed as two
-//!    incomplete halves, both of which fail to deserialize and are silently
-//!    dropped — losing tokens. The more fragmented the network, the more is
-//!    lost.
-//! 2. A multi-byte UTF-8 character (e.g. CJK text or emoji) split across a
-//!    packet boundary is turned into the U+FFFD replacement character by
-//!    `from_utf8_lossy`, corrupting the output.
-//!
-//! [`line_stream`] fixes both by accumulating raw bytes in a buffer and only
-//! decoding a line once a complete `\n`-terminated line is available.
+//! Production providers use the bounded, strict framing in
+//! `providers::sse`. The public [`line_stream`] function is the
+//! deprecated 0.1.6 compatibility API: it deliberately retains the original
+//! lossy decoding and unbounded buffering behaviour so existing 0.1.x
+//! downstream code keeps compiling and behaving unchanged. It must not be used
+//! for new production stream parsing.
 
-use futures::{Stream, StreamExt};
+pub mod legacy;
+
+use futures::Stream;
 
 /// Wrap a byte-chunk stream and yield complete text lines.
 ///
+/// This is the original 0.1.6 API, retained for compatibility. New code must
+/// use the strict provider stream APIs instead. Its historical behaviour is:
+///
 /// - Lines split across chunks are reassembled before being emitted.
-/// - Multi-byte UTF-8 split across chunks is reassembled before decoding, so
-///   it is never corrupted into replacement characters.
-/// - The trailing `\n` (and an optional preceding `\r`) is stripped.
+/// - Only `\n` terminates a line; an optional preceding `\r` is stripped.
+/// - Bytes are decoded with `String::from_utf8_lossy`.
+/// - Buffering is unbounded, as in 0.1.6.
 /// - Any bytes still buffered when the underlying stream ends are flushed as a
 ///   final line.
 /// - An error from the underlying stream is forwarded, after which the stream
 ///   terminates.
+#[deprecated(
+    note = "use providers::sse strict stream APIs; legacy API retained for 0.1.x compatibility"
+)]
 pub fn line_stream<S, B, E>(byte_stream: S) -> impl Stream<Item = std::result::Result<String, E>>
 where
     S: Stream<Item = std::result::Result<B, E>> + Send + 'static,
     B: AsRef<[u8]> + Send + 'static,
     E: Send + 'static,
 {
-    futures::stream::unfold(
-        (byte_stream.boxed(), Vec::<u8>::new(), false),
-        |(mut stream, mut buf, mut ended)| async move {
-            loop {
-                // Emit a complete line if the buffer already contains one.
-                if let Some(pos) = buf.iter().position(|&b| b == b'\n') {
-                    let mut line: Vec<u8> = buf.drain(..=pos).collect();
-                    line.pop(); // drop the trailing '\n'
-                    if line.last() == Some(&b'\r') {
-                        line.pop(); // drop a trailing '\r' (CRLF endings)
-                    }
-                    let decoded = String::from_utf8_lossy(&line).into_owned();
-                    return Some((Ok(decoded), (stream, buf, ended)));
-                }
-
-                if ended {
-                    // Underlying stream finished: flush any trailing bytes as a
-                    // final (newline-less) line, then stop.
-                    if buf.is_empty() {
-                        return None;
-                    }
-                    let decoded = String::from_utf8_lossy(&buf).into_owned();
-                    buf.clear();
-                    return Some((Ok(decoded), (stream, buf, true)));
-                }
-
-                match stream.next().await {
-                    Some(Ok(chunk)) => buf.extend_from_slice(chunk.as_ref()),
-                    Some(Err(e)) => {
-                        // Forward the error, then terminate on the next poll.
-                        buf.clear();
-                        return Some((Err(e), (stream, buf, true)));
-                    }
-                    None => ended = true,
-                }
-            }
-        },
-    )
+    legacy::line_stream(byte_stream)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::line_stream;
+    use crate::providers::sse::strict_line_stream;
+    use crate::providers::LlmError;
     use futures::StreamExt;
 
-    async fn collect_lines(chunks: Vec<&'static [u8]>) -> Vec<String> {
-        let items: Vec<std::result::Result<&'static [u8], std::io::Error>> =
+    async fn collect_lines(
+        chunks: Vec<&'static [u8]>,
+    ) -> Vec<std::result::Result<String, LlmError>> {
+        let items: Vec<std::result::Result<&'static [u8], LlmError>> =
             chunks.into_iter().map(Ok).collect();
-        line_stream(futures::stream::iter(items))
-            .map(|r| r.unwrap())
-            .collect::<Vec<_>>()
+        strict_line_stream(futures::stream::iter(items))
+            .collect()
             .await
+    }
+
+    async fn lines(chunks: Vec<&'static [u8]>) -> Vec<String> {
+        collect_lines(chunks)
+            .await
+            .into_iter()
+            .map(|line| line.unwrap())
+            .collect()
     }
 
     #[tokio::test]
     async fn reassembles_line_split_across_chunks() {
         // "data: hello\n" split in the middle of the word.
-        let lines = collect_lines(vec![b"data: hel", b"lo\n"]).await;
+        let lines = lines(vec![b"data: hel", b"lo\n"]).await;
         assert_eq!(lines, vec!["data: hello".to_string()]);
     }
 
@@ -106,14 +78,14 @@ mod tests {
         tail_buf.push(b'\n');
         let tail: &'static [u8] = Box::leak(tail_buf.into_boxed_slice());
 
-        let lines = collect_lines(vec![head, tail]).await;
+        let lines = lines(vec![head, tail]).await;
         assert_eq!(lines, vec!["你好".to_string()]);
         assert!(!lines[0].contains('\u{FFFD}'));
     }
 
     #[tokio::test]
     async fn splits_multiple_lines_and_flushes_tail() {
-        let lines = collect_lines(vec![b"a\nb\nc"]).await;
+        let lines = lines(vec![b"a\nb\nc"]).await;
         assert_eq!(
             lines,
             vec!["a".to_string(), "b".to_string(), "c".to_string()]
@@ -122,7 +94,18 @@ mod tests {
 
     #[tokio::test]
     async fn strips_crlf_line_endings() {
-        let lines = collect_lines(vec![b"x\r\ny\r\n"]).await;
+        let lines = lines(vec![b"x\r\ny\r\n"]).await;
         assert_eq!(lines, vec!["x".to_string(), "y".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn invalid_utf8_is_an_error_not_replacement_characters() {
+        let out = collect_lines(vec![b"ok\n", b"bad \xFF\n"]).await;
+        assert!(matches!(&out[0], Ok(line) if line == "ok"));
+        assert!(
+            matches!(&out[1], Err(LlmError::Parse(message)) if message.contains("UTF-8")),
+            "expected a Parse error, got {:?}",
+            out[1]
+        );
     }
 }

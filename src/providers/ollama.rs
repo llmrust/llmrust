@@ -6,8 +6,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-use crate::providers::http::build_http_client;
-use crate::providers::stream_util::line_stream;
+use crate::providers::http::{self, build_http_client};
+use crate::providers::sse;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
     ChatRequest, ChatResponse, Embedding, EmbeddingRequest, EmbeddingResponse, EmbeddingUsage,
@@ -111,6 +111,8 @@ struct OllamaResponse {
     eval_count: u64,
     #[serde(default)]
     prompt_eval_count: u64,
+    #[serde(default)]
+    done_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -169,6 +171,11 @@ fn parse_ndjson_line(line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     if line.is_empty() {
         return Vec::new();
+    }
+    // Ollama reports in-band failures as {"error":"..."} NDJSON. Detect the
+    // envelope before the normal chunk DTO so it is a Stream error, not Parse.
+    if let Ok(error) = serde_json::from_str::<OllamaErrorBody>(line) {
+        return vec![Err(LlmError::Stream(error.error))];
     }
     let parsed = match serde_json::from_str::<OllamaStreamChunk>(line) {
         Ok(p) => p,
@@ -237,10 +244,11 @@ impl Provider for OllamaProvider {
         );
         let resp = self
             .client
-            .post(format!("{}/api/chat", self.base_url))
+            .post(http::redirect::endpoint_url(&self.base_url, "api/chat")?)
             .json(&body)
             .send()
-            .await?;
+            .await
+            .map_err(http::error::http_error)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -264,7 +272,7 @@ impl Provider for OllamaProvider {
         let parsed: OllamaResponse = resp
             .json()
             .await
-            .map_err(|e| LlmError::Parse(e.to_string()))?;
+            .map_err(|e| LlmError::Parse(http::error::error_message(e)))?;
 
         let result = ChatResponse {
             content: parsed.message.content,
@@ -275,6 +283,7 @@ impl Provider for OllamaProvider {
                 total_tokens: parsed.prompt_eval_count.saturating_add(parsed.eval_count),
                 ..Default::default()
             }),
+            finish_reason: parsed.done_reason.map(FinishReason::from),
             ..Default::default()
         };
         tracing::debug!(
@@ -312,10 +321,11 @@ impl Provider for OllamaProvider {
         );
         let resp = self
             .client
-            .post(format!("{}/api/chat", self.base_url))
+            .post(http::redirect::endpoint_url(&self.base_url, "api/chat")?)
             .json(&body)
             .send()
-            .await?;
+            .await
+            .map_err(http::error::http_error)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -336,17 +346,31 @@ impl Provider for OllamaProvider {
             return Err(err);
         }
 
+        // C-018-STREAM-CORE: Ollama streams newline-delimited JSON; a 200 with
+        // any other type is an explicit protocol error, not an empty success.
+        sse::require_ndjson_or_json(resp.headers())?;
+
         let byte_stream = resp
             .bytes_stream()
-            .map(|r| r.map_err(|e| LlmError::Stream(e.to_string())));
+            .map(|r| r.map_err(|e| LlmError::Stream(http::error::error_message(e))));
 
-        let stream = line_stream(byte_stream).flat_map(|line_result| {
-            let chunks = match line_result {
-                Ok(line) => parse_ndjson_line(&line),
-                Err(e) => vec![Err(e)],
-            };
-            futures::stream::iter(chunks)
-        });
+        let stream = sse::strict_line_stream(byte_stream)
+            .scan(false, |errored, line_result| {
+                let output = if *errored {
+                    None
+                } else {
+                    let chunks = match line_result {
+                        Ok(line) => parse_ndjson_line(&line),
+                        Err(error) => vec![Err(error)],
+                    };
+                    if chunks.iter().any(|chunk| chunk.is_err()) {
+                        *errored = true;
+                    }
+                    Some(chunks)
+                };
+                futures::future::ready(output)
+            })
+            .flat_map(futures::stream::iter);
 
         Ok(stream.boxed())
     }
@@ -375,10 +399,11 @@ impl Provider for OllamaProvider {
 
         let resp = self
             .client
-            .post(format!("{}/api/embed", self.base_url))
+            .post(http::redirect::endpoint_url(&self.base_url, "api/embed")?)
             .json(&body)
             .send()
-            .await?;
+            .await
+            .map_err(http::error::http_error)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -399,11 +424,14 @@ impl Provider for OllamaProvider {
             return Err(err);
         }
 
-        let parsed: OllamaEmbedResponse = resp
-            .json()
-            .await
-            .map_err(|e| LlmError::Parse(format!("Ollama embed parse: {e}")))?;
+        let parsed: OllamaEmbedResponse = resp.json().await.map_err(|e| {
+            LlmError::Parse(format!(
+                "Ollama embed parse: {}",
+                http::error::error_message(e)
+            ))
+        })?;
 
+        crate::providers::validate_embedding_indices(req.input.len(), 0..parsed.embeddings.len())?;
         let data: Vec<Embedding> = parsed
             .embeddings
             .into_iter()
@@ -527,7 +555,9 @@ mod tests {
             if let Ok((mut stream, _)) = listener.accept() {
                 let mut buf = vec![0u8; 16384];
                 let n = stream.read(&mut buf).unwrap_or(0);
-                let raw = String::from_utf8_lossy(&buf[..n]).to_string();
+                let raw = std::str::from_utf8(&buf[..n])
+                    .unwrap_or_default()
+                    .to_string();
                 let first_line = raw.lines().next().unwrap_or("");
                 let mut parts = first_line.split_whitespace();
                 let method = parts.next().unwrap_or("GET");
@@ -726,7 +756,9 @@ mod tests {
                 counter.fetch_add(1, Ordering::SeqCst);
                 let mut buf = vec![0u8; 16384];
                 let n = stream.read(&mut buf).unwrap_or(0);
-                let raw = String::from_utf8_lossy(&buf[..n]).to_string();
+                let raw = std::str::from_utf8(&buf[..n])
+                    .unwrap_or_default()
+                    .to_string();
                 let first_line = raw.lines().next().unwrap_or("");
                 let mut parts = first_line.split_whitespace();
                 let method = parts.next().unwrap_or("GET");

@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "dev",
   "agent": "dev-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
-  "comments": "同意：五卡 write_scopes 全部实测存在且与判据落点一致，机判锚点（旧代码位点/既有用例名/基线 sha256/台账 old 值）与 b008185 工作区逐条吻合，B-AUD-1 三卡写入范围两两不交、跨批 scope 重叠均由 blocked_by 串行化解，每批唯一台账卡且 dev 代写+Boss 授权+architect 追认模式与台账既有先例一致；两条非阻塞注记：C-AUD-PROXY 叙述的 anthropic_proxy 既有测试数实测为 35（卡内写 36，该数字仅为描述性、机判不依赖它），C-AUD-PROV scope 中的 tests/capability_freeze.rs 属防御性预留（无判据强制改动落点）。",
-  "signedAt": "2026-11-20T23:16:08+08:00"
+  "comments": "静态复核 v9，方案可实现且无阻塞：v0.1.6 的 line_stream 可将精确 E: Send + 'static 签名及 lossy、LF/CRLF、EOF 行为原样隔离到 stream_util/legacy.rs，再由 stream_util.rs 的 #[deprecated] 薄包装保留公开兼容入口，不新增 From<LlmError>/Unpin bound。生产路径可完全分流到私有 strict 入口：compat/anthropic/google 使用严格 SSE event parser，Ollama 使用严格 NDJSON line parser；严格 UTF-8、扩展前限额、Content-Type、错误后立即关闭及 terminal thinking 均可落地。dispatch 可实现为空行优先，仅在下一个 data: 行且当前数据已构成完整 JSON 时自动断帧，未完成 JSON 继续多行追加、EOF 补发，并可用不实现 From<LlmError> 的自定义 E 探针验证 legacy 兼容。未运行 cargo，未修改其它文件。",
+  "signedAt": "2026-11-27T16:45:53.7063205+08:00"
 }

@@ -1,0 +1,60 @@
+PASS assertions only added: baseline=1444, current=1585, added=141, removed=0
+PASS ignore/should_panic semantic positions unchanged: {('src/proxy/mod.rs', 'should_panic', 'router_with_auth_rejects_blank_token'): 1, ('src/proxy/mod.rs', 'should_panic', 'router_with_auth_rejects_empty_token'): 1}
+PASS src/types.rs Usage unchanged from base_head
+PASS c1 exactly five named tests, all green
+PASS no skipped unit/integration tests: {'default': {'unit_integration_binaries': 18, 'unit_integration_ignored': 0, 'doc_tests_ignored': 2, 'doc_tests_passed': 6}, 'all_features': {'unit_integration_binaries': 18, 'unit_integration_ignored': 0, 'doc_tests_ignored': 4, 'doc_tests_passed': 7}}
+{
+  "base_head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+  "handoff_id": "f0ccaa47803ffa8b43084e96",
+  "baseline_commit": "eb07c7cb118a0b289df50a581173d01a158b4bb6",
+  "assert_lines": {
+    "baseline_occurrences": 1444,
+    "current_occurrences": 1585,
+    "added_occurrences": 141,
+    "removed_occurrences": 0
+  },
+  "ignore_should_panic": {
+    "baseline_semantic_positions": 2,
+    "current_semantic_positions": 2,
+    "positions": [
+      [
+        "src/proxy/mod.rs",
+        "should_panic",
+        "router_with_auth_rejects_blank_token",
+        1
+      ],
+      [
+        "src/proxy/mod.rs",
+        "should_panic",
+        "router_with_auth_rejects_empty_token",
+        1
+      ]
+    ],
+    "added": 0,
+    "removed": 0
+  },
+  "usage_unchanged_from_base_head": true,
+  "c1_named_tests": [
+    "audit_2026_router_cost_ready_failure_falls_back_to_cooling",
+    "audit_2026_router_cost_round_robin_after_ready_filter",
+    "audit_2026_router_cost_all_cooling_keeps_registration_order",
+    "audit_2026_router_cost_one_hour_cache_write_is_priced",
+    "audit_2026_router_cost_concurrent_cooldown_rr_interleaving"
+  ],
+  "gate_test_summaries": {
+    "default": {
+      "unit_integration_binaries": 18,
+      "unit_integration_ignored": 0,
+      "doc_tests_ignored": 2,
+      "doc_tests_passed": 6
+    },
+    "all_features": {
+      "unit_integration_binaries": 18,
+      "unit_integration_ignored": 0,
+      "doc_tests_ignored": 4,
+      "doc_tests_passed": 7
+    }
+  },
+  "zero_relaxation": "PASS"
+}
+C6_ZERO_RESULT: PASS

@@ -1,0 +1,591 @@
+{
+  "schema": "agent-workforce-qa-evidence/v1",
+  "role": "qa",
+  "agent": "qa-llmrust-018http",
+  "written_by": "qa-llmrust-018http",
+  "card_id": "C-018-HTTP-SAFE",
+  "batch_id": "B-018-HTTP",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "handoff_id": "0aaf82060ef22dc752267648",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "layers_covered": [
+    "event",
+    "logic",
+    "interface"
+  ],
+  "rule_ids": [
+    "P1-02",
+    "P1-03",
+    "P2-06",
+    "P2-10",
+    "P2-12",
+    "P2-26",
+    "P2-37",
+    "P3-11",
+    "KI-REQWEST-URL-DISPLAY",
+    "KI-RETRY-EMBED-RETRY-AFTER",
+    "KI-RETRY-JITTER-RANGE",
+    "KI-BASEURL-TRAILING-SLASH",
+    "KI-COMPAT-NONJSON-ERROR",
+    "K-02",
+    "K-04",
+    "K-05"
+  ],
+  "written_at": "2026-11-25T13:29:52+08:00",
+  "artifacts": [
+    {
+      "path": "src/providers/http.rs",
+      "sha256": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78"
+    },
+    {
+      "path": "src/providers/mod.rs",
+      "sha256": "0ff54f99f3a4ae76f4a56d8a3886f38151a4f8229b8b9b3b3cf13b21b2b2cf19"
+    },
+    {
+      "path": "src/providers/compat.rs",
+      "sha256": "3f1248a86c071e470617b9f13e441b00e5e575b98bf160e1f9f02816984586a4"
+    },
+    {
+      "path": "src/providers/retry.rs",
+      "sha256": "f7192fc1c82a5afde7b58cdfa999db961953b66ffd7bda74a3bc747f82e19f83"
+    },
+    {
+      "path": "src/providers/openai.rs",
+      "sha256": "becffa8c01561f22ab9f17499d65d0cdd2c21e48fdf5ba2cc53644c0bede800c"
+    },
+    {
+      "path": "src/providers/anthropic.rs",
+      "sha256": "d465f0e2896b0ba722fae1bedbe7f8059f4a191c5fe068f05c7bc59918ea1a3d"
+    },
+    {
+      "path": "src/providers/google.rs",
+      "sha256": "d2050e96b3bc303c47a4c139fd5b755dc98927b9aaa296d72d232ef96f35fe40"
+    },
+    {
+      "path": "src/providers/ollama.rs",
+      "sha256": "c8be53e6c1deca93cd03f7fddb4849045a5f66c223066341656317fb534a48b2"
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "913a19bfd4d4d5dbc04696abe49ec2b085ac26a0c924810086b38aa9097717ce"
+    },
+    {
+      "path": "tests/provider_contract_freeze.rs",
+      "sha256": "d309e38e04fc57620a55595f8ca34fa7cff063067ba0c10c20840d47a997a361"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8"
+    },
+    {
+      "path": "src/providers/http/redirect.rs",
+      "sha256": "10613bc8ff610764b79732cc6c57068a3fcc1bd76711ddce2d0b2789198bad07"
+    },
+    {
+      "path": "src/providers/http/error.rs",
+      "sha256": "08a2b9465f83f9772dfc502128805176f3c91a4426e0d20cef164eebc10a2d4b"
+    },
+    {
+      "path": "src/providers/http/retry_hint.rs",
+      "sha256": "25414b5dcad31607b395bd8aa263f4fccb58edc0228831602d00957c8bc8db10"
+    }
+  ],
+  "freeze_audit": {
+    "spec": {
+      "path": ".workforce/spec.json",
+      "sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      "matches_declared": true
+    },
+    "frozen_file_count": 14,
+    "frozen_files": [
+      {
+        "path": "src/providers/http.rs",
+        "sha256": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78",
+        "lines": 119,
+        "baseline_sha256": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78",
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/mod.rs",
+        "sha256": "0ff54f99f3a4ae76f4a56d8a3886f38151a4f8229b8b9b3b3cf13b21b2b2cf19",
+        "lines": 427,
+        "baseline_sha256": "0ff54f99f3a4ae76f4a56d8a3886f38151a4f8229b8b9b3b3cf13b21b2b2cf19",
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/compat.rs",
+        "sha256": "3f1248a86c071e470617b9f13e441b00e5e575b98bf160e1f9f02816984586a4",
+        "lines": 2129,
+        "baseline_sha256": "3f1248a86c071e470617b9f13e441b00e5e575b98bf160e1f9f02816984586a4",
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/retry.rs",
+        "sha256": "f7192fc1c82a5afde7b58cdfa999db961953b66ffd7bda74a3bc747f82e19f83",
+        "lines": 863,
+        "baseline_sha256": "f7192fc1c82a5afde7b58cdfa999db961953b66ffd7bda74a3bc747f82e19f83",
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/openai.rs",
+        "sha256": "becffa8c01561f22ab9f17499d65d0cdd2c21e48fdf5ba2cc53644c0bede800c",
+        "lines": 163,
+        "baseline_sha256": "becffa8c01561f22ab9f17499d65d0cdd2c21e48fdf5ba2cc53644c0bede800c",
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/anthropic.rs",
+        "sha256": "d465f0e2896b0ba722fae1bedbe7f8059f4a191c5fe068f05c7bc59918ea1a3d",
+        "lines": 1688,
+        "baseline_sha256": "d465f0e2896b0ba722fae1bedbe7f8059f4a191c5fe068f05c7bc59918ea1a3d",
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/google.rs",
+        "sha256": "d2050e96b3bc303c47a4c139fd5b755dc98927b9aaa296d72d232ef96f35fe40",
+        "lines": 1812,
+        "baseline_sha256": "d2050e96b3bc303c47a4c139fd5b755dc98927b9aaa296d72d232ef96f35fe40",
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/ollama.rs",
+        "sha256": "c8be53e6c1deca93cd03f7fddb4849045a5f66c223066341656317fb534a48b2",
+        "lines": 860,
+        "baseline_sha256": "c8be53e6c1deca93cd03f7fddb4849045a5f66c223066341656317fb534a48b2",
+        "unchanged": true
+      },
+      {
+        "path": "src/lib.rs",
+        "sha256": "913a19bfd4d4d5dbc04696abe49ec2b085ac26a0c924810086b38aa9097717ce",
+        "lines": 957,
+        "baseline_sha256": "913a19bfd4d4d5dbc04696abe49ec2b085ac26a0c924810086b38aa9097717ce",
+        "unchanged": true
+      },
+      {
+        "path": "tests/provider_contract_freeze.rs",
+        "sha256": "d309e38e04fc57620a55595f8ca34fa7cff063067ba0c10c20840d47a997a361",
+        "lines": 1019,
+        "baseline_sha256": "d309e38e04fc57620a55595f8ca34fa7cff063067ba0c10c20840d47a997a361",
+        "unchanged": true
+      },
+      {
+        "path": "tests/hotspot_ledger.json",
+        "sha256": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8",
+        "lines": 565,
+        "baseline_sha256": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8",
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/http/redirect.rs",
+        "sha256": "10613bc8ff610764b79732cc6c57068a3fcc1bd76711ddce2d0b2789198bad07",
+        "lines": 70,
+        "baseline_sha256": "10613bc8ff610764b79732cc6c57068a3fcc1bd76711ddce2d0b2789198bad07",
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/http/error.rs",
+        "sha256": "08a2b9465f83f9772dfc502128805176f3c91a4426e0d20cef164eebc10a2d4b",
+        "lines": 18,
+        "baseline_sha256": "08a2b9465f83f9772dfc502128805176f3c91a4426e0d20cef164eebc10a2d4b",
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/http/retry_hint.rs",
+        "sha256": "25414b5dcad31607b395bd8aa263f4fccb58edc0228831602d00957c8bc8db10",
+        "lines": 176,
+        "baseline_sha256": "25414b5dcad31607b395bd8aa263f4fccb58edc0228831602d00957c8bc8db10",
+        "unchanged": true
+      }
+    ],
+    "frozen_files_sha256": {
+      "src/providers/http.rs": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78",
+      "src/providers/mod.rs": "0ff54f99f3a4ae76f4a56d8a3886f38151a4f8229b8b9b3b3cf13b21b2b2cf19",
+      "src/providers/compat.rs": "3f1248a86c071e470617b9f13e441b00e5e575b98bf160e1f9f02816984586a4",
+      "src/providers/retry.rs": "f7192fc1c82a5afde7b58cdfa999db961953b66ffd7bda74a3bc747f82e19f83",
+      "src/providers/openai.rs": "becffa8c01561f22ab9f17499d65d0cdd2c21e48fdf5ba2cc53644c0bede800c",
+      "src/providers/anthropic.rs": "d465f0e2896b0ba722fae1bedbe7f8059f4a191c5fe068f05c7bc59918ea1a3d",
+      "src/providers/google.rs": "d2050e96b3bc303c47a4c139fd5b755dc98927b9aaa296d72d232ef96f35fe40",
+      "src/providers/ollama.rs": "c8be53e6c1deca93cd03f7fddb4849045a5f66c223066341656317fb534a48b2",
+      "src/lib.rs": "913a19bfd4d4d5dbc04696abe49ec2b085ac26a0c924810086b38aa9097717ce",
+      "tests/provider_contract_freeze.rs": "d309e38e04fc57620a55595f8ca34fa7cff063067ba0c10c20840d47a997a361",
+      "tests/hotspot_ledger.json": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8",
+      "src/providers/http/redirect.rs": "10613bc8ff610764b79732cc6c57068a3fcc1bd76711ddce2d0b2789198bad07",
+      "src/providers/http/error.rs": "08a2b9465f83f9772dfc502128805176f3c91a4426e0d20cef164eebc10a2d4b",
+      "src/providers/http/retry_hint.rs": "25414b5dcad31607b395bd8aa263f4fccb58edc0228831602d00957c8bc8db10"
+    },
+    "all_frozen_sha_unchanged": true,
+    "freeze_verification": {
+      "baseline_head": "5f8d844",
+      "baseline_head_full": "5f8d844ffb2902055ba2cedf1d8a36271ac8282f",
+      "current_head": "5f8d844ffb2902055ba2cedf1d8a36271ac8282f",
+      "git_status_unchanged": true,
+      "business_bytes_match_previous_handoff": true,
+      "verified_after_temporary_cleanup_at": "2026-11-25T13:29:52+08:00"
+    },
+    "temporary_artifacts_removed": true,
+    "temporary_directory": "E:\\Temp\\qa-llmrust-018http-rerun-440ef41c49c944f39a0a27cb49fca608",
+    "temporary_directory_absent": true,
+    "receipt_path": ".workforce/evidence/B-018-HTTP/qa-C-018-HTTP-SAFE.json"
+  },
+  "commands": [
+    {
+      "id": "c1",
+      "command": "cargo test --locked --test provider_contract_freeze audit_2026_http_",
+      "exit_code": 0
+    },
+    {
+      "id": "c2",
+      "command": "python E:\\Temp\\qa-llmrust-018http-rerun-440ef41c49c944f39a0a27cb49fca608\\c2_probe.py",
+      "exit_code": 0,
+      "temporary_probe_removed": true
+    },
+    {
+      "id": "c3_restored",
+      "command": "cargo test --locked --test provider_contract_freeze audit_2026_http_cross_origin_redirect_replays_nothing",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.1",
+      "command": "cargo test --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.2",
+      "command": "cargo test --locked --workspace --all-features",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.3",
+      "command": "cargo build --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.4",
+      "command": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.5",
+      "command": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.6",
+      "command": "cargo rustdoc --locked --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "id": "c6.semver.default",
+      "command": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "exit_code": 0
+    },
+    {
+      "id": "c6.semver.all",
+      "command": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "exit_code": 0
+    },
+    {
+      "id": "c5",
+      "command": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-HTTP');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-HTTP-SAFE.json',encoding='utf-8'));F=['src/providers/http.rs','src/providers/mod.rs','src/providers/compat.rs','src/providers/retry.rs','src/providers/openai.rs','src/providers/anthropic.rs','src/providers/google.rs','src/providers/ollama.rs','src/lib.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-HTTP-SAFE' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0
+    },
+    {
+      "id": "c5_branches",
+      "command": "python E:\\Temp\\qa-llmrust-018http-rerun-440ef41c49c944f39a0a27cb49fca608\\c5_branch_probe.py",
+      "exit_code": 0,
+      "temporary_probe_removed": true
+    },
+    {
+      "id": "c6_zero",
+      "command": "python E:\\Temp\\qa-llmrust-018http-rerun-440ef41c49c944f39a0a27cb49fca608\\c6_probe.py",
+      "exit_code": 0,
+      "temporary_probe_removed": true
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "cargo test --locked --test provider_contract_freeze audit_2026_http_",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python E:\\Temp\\qa-llmrust-018http-rerun-440ef41c49c944f39a0a27cb49fca608\\c2_probe.py",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test provider_contract_freeze audit_2026_http_cross_origin_redirect_replays_nothing",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo rustdoc --locked --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-HTTP');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-HTTP-SAFE.json',encoding='utf-8'));F=['src/providers/http.rs','src/providers/mod.rs','src/providers/compat.rs','src/providers/retry.rs','src/providers/openai.rs','src/providers/anthropic.rs','src/providers/google.rs','src/providers/ollama.rs','src/lib.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-HTTP-SAFE' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python E:\\Temp\\qa-llmrust-018http-rerun-440ef41c49c944f39a0a27cb49fca608\\c5_branch_probe.py",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python E:\\Temp\\qa-llmrust-018http-rerun-440ef41c49c944f39a0a27cb49fca608\\c6_probe.py",
+      "exit_code": 0
+    }
+  ],
+  "criteria": {
+    "c1": {
+      "status": "PASS",
+      "command_exit_code": 0,
+      "test_count": 10,
+      "stdout_summary": "10 passed; 0 failed; 0 ignored",
+      "tests": [
+        "audit_2026_http_error_redacts_url_and_userinfo",
+        "audit_2026_http_cross_origin_redirect_replays_nothing",
+        "audit_2026_http_concurrent_retry_hints_are_request_scoped",
+        "audit_2026_http_embedding_honors_retry_after",
+        "audit_2026_http_retry_after_rejects_invalid_calendar_and_signed_seconds",
+        "audit_2026_http_with_retry_is_idempotent",
+        "audit_2026_http_custom_openai_url_is_not_official_reasoning",
+        "audit_2026_http_google_model_is_path_segment_encoded",
+        "audit_2026_http_base_url_rejects_userinfo_query_fragment",
+        "audit_2026_http_base_url_trailing_slash_normalized"
+      ],
+      "redirect_wire_assertion": "target_requests.is_empty(); origin received exactly one request containing body-sentinel and header-sentinel; 307 remains an error",
+      "concurrency_assertion": "interleaved hinted=60s, no-hint=None and network-error=None calls; subsequent success=None; no instance hint remains"
+    },
+    "c2": {
+      "status": "PASS",
+      "command_exit_code": 0,
+      "probes_passed": 8,
+      "probes_total": 8,
+      "results": [
+        "c2.1 unified HTTP sanitization boundary: PASS",
+        "c2.2 redirect Policy::none: PASS",
+        "c2.3 request-scoped result-carried hint: PASS",
+        "c2.4 chat/stream/embed shared backoff and delay_source: PASS",
+        "c2.5 with_retry idempotence structure: PASS",
+        "c2.6 custom OpenAI URL is not official reasoning: PASS",
+        "c2.7 Gemini model path-segment encoding: PASS",
+        "c2.8 shared base URL validation across four providers: PASS"
+      ]
+    },
+    "c3": {
+      "status": "PASS",
+      "restored_command_exit_code": 0,
+      "h0_sha256": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78",
+      "restored_sha256": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78",
+      "sha_restored": true,
+      "injection_result_recorded_in": "observations/OBS-C3-EXPECTED-RED"
+    },
+    "c4": {
+      "status": "PASS",
+      "gates": [
+        {
+          "id": "c4.1",
+          "command": "cargo test --locked --workspace",
+          "exit_code": 0
+        },
+        {
+          "id": "c4.2",
+          "command": "cargo test --locked --workspace --all-features",
+          "exit_code": 0
+        },
+        {
+          "id": "c4.3",
+          "command": "cargo build --locked --workspace",
+          "exit_code": 0
+        },
+        {
+          "id": "c4.4",
+          "command": "cargo fmt --all --check",
+          "exit_code": 0
+        },
+        {
+          "id": "c4.5",
+          "command": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+          "exit_code": 0
+        },
+        {
+          "id": "c4.6",
+          "command": "cargo rustdoc --locked --all-features -- -D warnings",
+          "exit_code": 0
+        }
+      ],
+      "test_summaries": {
+        "c4.1": {
+          "unit_and_integration_ignored": 0,
+          "doc_tests_ignored": 2,
+          "doc_tests_passed": 6
+        },
+        "c4.2": {
+          "unit_and_integration_ignored": 0,
+          "doc_tests_ignored": 4,
+          "doc_tests_passed": 7
+        }
+      }
+    },
+    "c5": {
+      "status": "PASS",
+      "command_exit_code": 0,
+      "batch_base": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+      "threshold": 500,
+      "planned_files_created_under_threshold": [
+        {
+          "file": "src/providers/http/redirect.rs",
+          "lines": 70,
+          "threshold": 500,
+          "registered_in_baseline": false,
+          "adjustment_count": 0
+        },
+        {
+          "file": "src/providers/http/error.rs",
+          "lines": 18,
+          "threshold": 500,
+          "registered_in_baseline": false,
+          "adjustment_count": 0
+        },
+        {
+          "file": "src/providers/http/retry_hint.rs",
+          "lines": 176,
+          "threshold": 500,
+          "registered_in_baseline": false,
+          "adjustment_count": 0
+        }
+      ],
+      "existing_hotspot_adjustments": [
+        {
+          "file": "src/providers/compat.rs",
+          "old": 2136,
+          "new": 2129,
+          "measured_lines": 2129
+        },
+        {
+          "file": "src/providers/retry.rs",
+          "old": 970,
+          "new": 863,
+          "measured_lines": 863
+        },
+        {
+          "file": "src/providers/anthropic.rs",
+          "old": 1684,
+          "new": 1688,
+          "measured_lines": 1688
+        },
+        {
+          "file": "src/providers/google.rs",
+          "old": 1813,
+          "new": 1812,
+          "measured_lines": 1812
+        },
+        {
+          "file": "src/providers/ollama.rs",
+          "old": 855,
+          "new": 860,
+          "measured_lines": 860
+        },
+        {
+          "file": "src/lib.rs",
+          "old": 951,
+          "new": 957,
+          "measured_lines": 957
+        }
+      ],
+      "actual_newly_oversized_files_in_card_F": [],
+      "newly_oversized_branch_probe": "synthetic valid old=0/first-row case plus nonzero-old, planned-registration and predecessor-chain negative cases",
+      "planned_and_newly_oversized_probe_summary": "7/7 PASS",
+      "branch_probe_results": [
+        "PASS: actual planned created-under-threshold: src/providers/http/redirect.rs (actual=True, expected=True)",
+        "PASS: actual planned created-under-threshold: src/providers/http/error.rs (actual=True, expected=True)",
+        "PASS: actual planned created-under-threshold: src/providers/http/retry_hint.rs (actual=True, expected=True)",
+        "PASS: newly-oversized valid old=0/first row (actual=True, expected=True)",
+        "PASS: newly-oversized rejects nonzero old without base baseline (actual=False, expected=False)",
+        "PASS: planned under-threshold rejects baseline registration (actual=False, expected=False)",
+        "PASS: newly-oversized rejects predecessor new != old (actual=False, expected=False)"
+      ]
+    },
+    "c6": {
+      "status": "PASS",
+      "zero_relaxation_command_exit_code": 0,
+      "baseline_commit": "eb07c7cb118a0b289df50a581173d01a158b4bb6",
+      "assert_lines": {
+        "baseline_occurrences": 1501,
+        "current_occurrences": 1612,
+        "added_occurrences": 111,
+        "removed_occurrences": 0
+      },
+      "ignore_should_panic": {
+        "baseline_semantic_positions": 2,
+        "current_semantic_positions": 2,
+        "added": 0,
+        "removed": 0,
+        "raw_line_drift_recorded_in": "observations/OBS-C6-LINE-DRIFT"
+      },
+      "semver": [
+        {
+          "command": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+          "exit_code": 0,
+          "checks": 196,
+          "pass": 196,
+          "skip": 57,
+          "summary": "no semver update required"
+        },
+        {
+          "command": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+          "exit_code": 0,
+          "checks": 196,
+          "pass": 196,
+          "skip": 57,
+          "summary": "no semver update required"
+        }
+      ]
+    }
+  },
+  "observations": [
+    {
+      "id": "OBS-C3-EXPECTED-RED",
+      "expected_red": true,
+      "exit_code": 101,
+      "command": "cargo test --locked --test provider_contract_freeze audit_2026_http_cross_origin_redirect_replays_nothing",
+      "injection": "configured client redirect Policy::none -> Policy::default",
+      "observed": "test failed; redirect target received POST /replayed with x-audit-secret: header-sentinel and JSON body containing body-sentinel",
+      "disposition": "expected adversarial red only; restored source and forced recompile produced exit 0"
+    },
+    {
+      "id": "OBS-C6-LINE-DRIFT",
+      "observed": "two pre-existing #[should_panic] lines in src/proxy/mod.rs shifted from 3292/3300 at eb07c7c to 3346/3354",
+      "cause": "already-committed C-AUD-PROXY changes between eb07c7c and HEAD; src/proxy/mod.rs has no C-018-HTTP working-tree modification",
+      "verification": "stable (file, attribute, following function) positions remain exactly 2 -> 2 with no addition/removal; no suppression was introduced by this card"
+    }
+  ],
+  "verdict": "PASS"
+}

@@ -1,0 +1,535 @@
+{
+  "schema": "agent-workforce-qa-evidence/v1",
+  "role": "qa",
+  "agent": "qa-llmrust-018router",
+  "written_by": "qa-llmrust-018router",
+  "card_id": "C-018-ROUTER-COST",
+  "batch_id": "B-018-ROUTER",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "handoff_id": "f0ccaa47803ffa8b43084e96",
+  "base_head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "dev_notes_read": false,
+  "layers_covered": [
+    "event",
+    "logic",
+    "interface"
+  ],
+  "rule_ids": [
+    "P2-03",
+    "P2-04",
+    "P2-05",
+    "P2-07",
+    "P2-09",
+    "K-02",
+    "K-04",
+    "K-05"
+  ],
+  "written_at": "2026-11-25T14:48:45+08:00",
+  "artifacts": [
+    {
+      "path": "src/router.rs",
+      "sha256": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e"
+    },
+    {
+      "path": "src/pricing.rs",
+      "sha256": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c1-named-tests.txt",
+      "sha256": "1d6eb97e0bb87ef02917992715182788a9872b8599a6522b6d16ce90d6ef0834"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c2-structure-probe.txt",
+      "sha256": "064272bc40a828815bf0e14dd5e45920660e3b6362a972aa2b9b426c87c126eb"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c3-injected-red.txt",
+      "sha256": "125c30fc2c851594034f4fe2e3cc7ef9a798c88ce3f7db0d552a575a15e0a70e"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c3-restored-green.txt",
+      "sha256": "cd9c02b6bbae4309e54eb2f083916ef4405676dd01f402fe18b567be9a12f5dc"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c3-summary.json",
+      "sha256": "ea8d0163dfaccf5c8fced98ac8822b8267288bae0e8176149c67182fa3f429ae"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c4-build.txt",
+      "sha256": "3fa3aa38222ce4738d2363fcfcc0c10dad583a685f5173270f8876e3dbad264d"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c4-clippy.txt",
+      "sha256": "05d2fe4d06cd0bc17a811eb1447fcd1c2251f0ea93cef61c7042e5b9f71e9044"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c4-summary.json",
+      "sha256": "83c7f0552869bb1b478a784965277895f6b13b3aac1ce18591cf70767246947d"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c4-test-all-features.txt",
+      "sha256": "5b2da85c22f4f4f5eef0a7cf3c4e349024a8e2001ee2ca999ff649067a06d80e"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c4-test-default.txt",
+      "sha256": "77c702347501ac98d7973adfb101baff8a9ff4bcabb490c7f85f1ca61cdec7ca"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c5-branch-probe.txt",
+      "sha256": "eaeba6df183352e8d826b91dca723ce6f816307d8e5d29a1a2f5f9450b6691e6"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c6-semver-all-features.txt",
+      "sha256": "a4f4082979c59708829bc6950e3352e7777fbe74d48e7b834c7e40ad374a1b20"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c6-semver-default.txt",
+      "sha256": "e0f09c6f1882f7f3fa4983c4e0c429ed163cb52cad462f6f60a99e3bc9e5dc8e"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c6-zero-relaxation.txt",
+      "sha256": "1655d7c84121f9214653cb0108115eaf91bb0c175e178a1b232c49c741e0cc68"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c6-zero-summary.json",
+      "sha256": "278fc00926dbe27aa3d4d94a840bcf1e926136cb43795ceb575fa8808de99941"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/final-cleanup-freeze.txt",
+      "sha256": "4db5767f3036957e3c5ef183f1d12ee4631a3dc72693a3cb9f28b6c662c3e6ba"
+    },
+    {
+      "path": ".workforce/evidence/B-018-ROUTER/qa-command-logs/final-verification.json",
+      "sha256": "bf60739d70c276193e7146d3605730bd2c1550e9f4f9ceaa266af2bcef8e43eb"
+    }
+  ],
+  "freeze_audit": {
+    "spec": {
+      "path": ".workforce/spec.json",
+      "sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      "matches_declared": true
+    },
+    "handoff": {
+      "id": "f0ccaa47803ffa8b43084e96",
+      "verified_in_loop_state": true
+    },
+    "base_head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+    "frozen_file_count": 3,
+    "frozen_files": [
+      {
+        "path": "src/router.rs",
+        "sha256": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+        "lines": 1586,
+        "baseline_sha256": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+        "matches_base_head_bytes": true,
+        "unchanged": true
+      },
+      {
+        "path": "src/pricing.rs",
+        "sha256": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30",
+        "lines": 527,
+        "baseline_sha256": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30",
+        "matches_base_head_bytes": true,
+        "unchanged": true
+      },
+      {
+        "path": "tests/hotspot_ledger.json",
+        "sha256": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd",
+        "lines": 582,
+        "baseline_sha256": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd",
+        "matches_base_head_bytes": true,
+        "unchanged": true
+      }
+    ],
+    "frozen_files_sha256": {
+      "src/router.rs": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+      "src/pricing.rs": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30",
+      "tests/hotspot_ledger.json": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd"
+    },
+    "all_frozen_sha_unchanged": true,
+    "freeze_verification": {
+      "handoff_id": "f0ccaa47803ffa8b43084e96",
+      "base_head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+      "batch_base_from_loop_state": "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+      "head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+      "temporary_directory": "E:\\Temp\\qa-llmrust-018router-rerun-20261125",
+      "temporary_directory_absent": true,
+      "temporary_probe_files_removed": [
+        "c2_probe.py",
+        "c3_inject.py",
+        "c5_branch_probe.py",
+        "c6_probe.py",
+        "router.rs.pre-injection.bak"
+      ],
+      "obsolete_prior_attempt_log_removed": true,
+      "frozen_file_count": 3,
+      "frozen_files_sha256": {
+        "src/router.rs": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+        "src/pricing.rs": "47efcffab8fbfc3e3f7c0d4c6c9bf5727d1a99192e8e4268d9453a7cd4747d30",
+        "tests/hotspot_ledger.json": "38377e55c987bbc35108d946c5b3a1803b942c6f71b528f7786f64b2918c26dd"
+      },
+      "frozen_files_match_base_head_bytes": true,
+      "all_frozen_sha_unchanged": true,
+      "tracked_diff_paths": [],
+      "business_bytes_match_base_head": true,
+      "types_usage_diff_exit_code": 0,
+      "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      "spec_matches_declared": true,
+      "handoff_verified_in_loop_state": true,
+      "cleanup_and_freeze_exit_code": 0
+    },
+    "temporary_artifacts_removed": true,
+    "temporary_directory": "E:\\Temp\\qa-llmrust-018router-rerun-20261125",
+    "temporary_directory_absent": true,
+    "receipt_path": ".workforce/evidence/B-018-ROUTER/qa-C-018-ROUTER-COST.json"
+  },
+  "commands": [
+    {
+      "id": "c1",
+      "command": "cargo test --locked --lib audit_2026_router_cost_",
+      "exit_code": 0
+    },
+    {
+      "id": "c2",
+      "command": "python E:\\Temp\\qa-llmrust-018router-rerun-20261125\\c2_probe.py",
+      "exit_code": 0,
+      "temporary_probe_removed": true
+    },
+    {
+      "id": "c3",
+      "command": "python E:\\Temp\\qa-llmrust-018router-rerun-20261125\\c3_inject.py",
+      "exit_code": 0,
+      "temporary_probe_removed": true,
+      "note": "harness exit 0; expected adversarial red is recorded only in observations"
+    },
+    {
+      "id": "c3.restored",
+      "command": "cargo test --locked --lib audit_2026_router_cost_ready_failure_falls_back_to_cooling",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.1",
+      "command": "cargo test --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.2",
+      "command": "cargo test --locked --workspace --all-features",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.3",
+      "command": "cargo build --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.4",
+      "command": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "id": "c4.5",
+      "command": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "id": "c5",
+      "command": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-ROUTER');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-ROUTER-COST.json',encoding='utf-8'));F=['src/router.rs','src/pricing.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-ROUTER-COST' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0
+    },
+    {
+      "id": "c5.branches",
+      "command": "python E:\\Temp\\qa-llmrust-018router-rerun-20261125\\c5_branch_probe.py",
+      "exit_code": 0,
+      "temporary_probe_removed": true
+    },
+    {
+      "id": "c6.zero",
+      "command": "python E:\\Temp\\qa-llmrust-018router-rerun-20261125\\c6_probe.py",
+      "exit_code": 0,
+      "temporary_probe_removed": true
+    },
+    {
+      "id": "c6.semver.default",
+      "command": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "exit_code": 0
+    },
+    {
+      "id": "c6.semver.all",
+      "command": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "exit_code": 0
+    },
+    {
+      "id": "final.cleanup",
+      "command": "python inline cleanup/freeze verifier",
+      "exit_code": 0
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "cargo test --locked --lib audit_2026_router_cost_",
+      "exit_code": 0,
+      "id": "c1"
+    },
+    {
+      "cmd": "python E:\\Temp\\qa-llmrust-018router-rerun-20261125\\c2_probe.py",
+      "exit_code": 0,
+      "id": "c2"
+    },
+    {
+      "cmd": "python E:\\Temp\\qa-llmrust-018router-rerun-20261125\\c3_inject.py",
+      "exit_code": 0,
+      "id": "c3"
+    },
+    {
+      "cmd": "cargo test --locked --lib audit_2026_router_cost_ready_failure_falls_back_to_cooling",
+      "exit_code": 0,
+      "id": "c3.restored"
+    },
+    {
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0,
+      "id": "c4.1"
+    },
+    {
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0,
+      "id": "c4.2"
+    },
+    {
+      "cmd": "cargo build --locked --workspace",
+      "exit_code": 0,
+      "id": "c4.3"
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0,
+      "id": "c4.4"
+    },
+    {
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "id": "c4.5"
+    },
+    {
+      "cmd": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-ROUTER');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-ROUTER-COST.json',encoding='utf-8'));F=['src/router.rs','src/pricing.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-ROUTER-COST' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0,
+      "id": "c5"
+    },
+    {
+      "cmd": "python E:\\Temp\\qa-llmrust-018router-rerun-20261125\\c5_branch_probe.py",
+      "exit_code": 0,
+      "id": "c5.branches"
+    },
+    {
+      "cmd": "python E:\\Temp\\qa-llmrust-018router-rerun-20261125\\c6_probe.py",
+      "exit_code": 0,
+      "id": "c6.zero"
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "exit_code": 0,
+      "id": "c6.semver.default"
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "exit_code": 0,
+      "id": "c6.semver.all"
+    },
+    {
+      "cmd": "python inline cleanup/freeze verifier",
+      "exit_code": 0,
+      "id": "final.cleanup"
+    }
+  ],
+  "criteria": {
+    "c1": {
+      "status": "PASS",
+      "command_exit_code": 0,
+      "test_count": 5,
+      "stdout_summary": "5 passed; 0 failed; 0 ignored",
+      "tests": [
+        "audit_2026_router_cost_ready_failure_falls_back_to_cooling",
+        "audit_2026_router_cost_round_robin_after_ready_filter",
+        "audit_2026_router_cost_all_cooling_keeps_registration_order",
+        "audit_2026_router_cost_one_hour_cache_write_is_priced",
+        "audit_2026_router_cost_concurrent_cooldown_rr_interleaving"
+      ]
+    },
+    "c2": {
+      "status": "PASS",
+      "command_exit_code": 0,
+      "probes_passed": 6,
+      "probes_total": 6,
+      "results": [
+        "ready filtering precedes round-robin",
+        "cooling fallback after ready exhaustion",
+        "checked_add/pruning/capacity/Duration::MAX",
+        "public retention pricing with split cache-write counts; Usage unchanged",
+        "waits_for_upstream/retry_budget_exhausted docs and logs",
+        "concurrent cooldown/RR deadlock/isolation/registration-order proof"
+      ]
+    },
+    "c3": {
+      "status": "PASS",
+      "restored_command_exit_code": 0,
+      "h0_sha256": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+      "restored_sha256": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+      "sha_restored": true,
+      "injected_evidence": "observations/OBS-C3-EXPECTED-RED",
+      "injected_log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c3-injected-red.txt",
+      "restored_log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c3-restored-green.txt"
+    },
+    "c4": {
+      "status": "PASS",
+      "gates": [
+        {
+          "id": "c4.1",
+          "command": "cargo test --locked --workspace",
+          "exit_code": 0,
+          "log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c4-test-default.txt"
+        },
+        {
+          "id": "c4.2",
+          "command": "cargo test --locked --workspace --all-features",
+          "exit_code": 0,
+          "log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c4-test-all-features.txt"
+        },
+        {
+          "id": "c4.3",
+          "command": "cargo build --locked --workspace",
+          "exit_code": 0,
+          "log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c4-build.txt"
+        },
+        {
+          "id": "c4.4",
+          "command": "cargo fmt --all --check",
+          "exit_code": 0,
+          "log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c4-fmt.txt"
+        },
+        {
+          "id": "c4.5",
+          "command": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+          "exit_code": 0,
+          "log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c4-clippy.txt"
+        }
+      ],
+      "test_summaries": {
+        "default": {
+          "unit_integration_binaries": 18,
+          "unit_integration_ignored": 0,
+          "doc_tests_ignored": 2,
+          "doc_tests_passed": 6
+        },
+        "all_features": {
+          "unit_integration_binaries": 18,
+          "unit_integration_ignored": 0,
+          "doc_tests_ignored": 4,
+          "doc_tests_passed": 7
+        }
+      }
+    },
+    "c5": {
+      "status": "PASS",
+      "command_exit_code": 0,
+      "batch_base_from_loop_state": "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+      "threshold": 500,
+      "router": {
+        "old": 1231,
+        "new": 1586,
+        "measured_lines": 1586,
+        "predecessor_new": 1231
+      },
+      "pricing_newly_oversized": {
+        "batch_base_baseline_present": false,
+        "batch_base_adjustment_present": false,
+        "old": 0,
+        "new": 527,
+        "measured_lines": 527,
+        "current_baseline": 527,
+        "first_and_only_adjustment": true,
+        "status": "PASS"
+      },
+      "branch_probe_results": "11/11 PASS",
+      "branch_probe_log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c5-branch-probe.txt"
+    },
+    "c6": {
+      "status": "PASS",
+      "zero_relaxation_command_exit_code": 0,
+      "baseline_commit": "eb07c7cb118a0b289df50a581173d01a158b4bb6",
+      "assert_lines": {
+        "baseline_occurrences": 1444,
+        "current_occurrences": 1585,
+        "added_occurrences": 141,
+        "removed_occurrences": 0
+      },
+      "ignore_should_panic": {
+        "baseline_semantic_positions": 2,
+        "current_semantic_positions": 2,
+        "positions": [
+          [
+            "src/proxy/mod.rs",
+            "should_panic",
+            "router_with_auth_rejects_blank_token",
+            1
+          ],
+          [
+            "src/proxy/mod.rs",
+            "should_panic",
+            "router_with_auth_rejects_empty_token",
+            1
+          ]
+        ],
+        "added": 0,
+        "removed": 0
+      },
+      "usage_unchanged_from_base_head": true,
+      "semver": [
+        {
+          "command": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+          "exit_code": 0,
+          "checks": 196,
+          "pass": 196,
+          "skip": 57,
+          "summary": "no semver update required"
+        },
+        {
+          "command": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+          "exit_code": 0,
+          "checks": 196,
+          "pass": 196,
+          "skip": 57,
+          "summary": "no semver update required"
+        }
+      ]
+    }
+  },
+  "observations": [
+    {
+      "id": "OBS-C3-EXPECTED-RED",
+      "expected_red": true,
+      "exit_code": 101,
+      "command": "cargo test --locked --lib audit_2026_router_cost_ready_failure_falls_back_to_cooling",
+      "injection": "removed candidates.extend(cooling); ready-exhaustion cooling suffix",
+      "injected_sha256": "958271702f0e33a97492f69b68fd5a4c21b66b6a0adee8760963d9b957f8eca6",
+      "observed": "named test failed with Api 503 after removing the cooling suffix; exact-byte restore returned exit 0 and h1==h0",
+      "log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c3-injected-red.txt",
+      "disposition": "expected adversarial red only; excluded from commands/command_exit_codes per lead instruction"
+    },
+    {
+      "id": "OBS-NEW-HANDOFF-RERUN",
+      "handoff_id": "f0ccaa47803ffa8b43084e96",
+      "base_head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+      "observed": "c1-c6 rerun on committed business bytes; tracked diff is empty and all three frozen files match base_head byte-for-byte",
+      "disposition": "temporary probes deleted; prior obsolete attempt log removed; QA wrote only its receipt and qa-command-logs"
+    }
+  ],
+  "verdict": "PASS"
+}

@@ -2,17 +2,18 @@
   "description": "CI-003 hotspot ledger (SPCC §4.4). Baseline line counts are the real counts at task creation; the ledger may only shrink (never grow) unless a split task or an architect-written exception explicitly authorizes a transition. Do not inflate a number to turn a guard green. PROCESS LESSON (CI-003 PR #95): after any `cargo fmt` auto-fix, the architecture guards MUST be re-run locally before pushing; a fmt-driven reflow once silently broke the hotspot baseline. THRESHOLD (2026-09-11, #209): raised to the Owner rule — every `src/**/*.rs` file must stay under 500 lines; the threshold is a single source of truth here and must match SPCC §4.4. Coverage is now BIDIRECTIONAL: a file at or above `threshold` that has no key under `baseline_lines` is a violation (previously only listed files were checked, so an unlisted oversized file could grow or shrink silently — e.g. ollama.rs at 805).",
   "threshold": 500,
   "baseline_lines": {
-    "src/proxy/mod.rs": 3770,
-    "src/proxy/anthropic_proxy.rs": 2053,
-    "src/proxy/responses_proxy.rs": 964,
-    "src/providers/compat.rs": 2136,
-    "src/providers/google.rs": 1813,
+    "src/proxy/mod.rs": 4138,
+    "src/proxy/anthropic_proxy.rs": 2225,
+    "src/proxy/responses_proxy.rs": 1177,
+    "src/providers/compat.rs": 2175,
+    "src/providers/google.rs": 2005,
     "src/types.rs": 1136,
-    "src/providers/anthropic.rs": 1684,
-    "src/router.rs": 1231,
-    "src/providers/ollama.rs": 855,
-    "src/lib.rs": 847,
-    "src/providers/retry.rs": 970,
+    "src/providers/anthropic.rs": 1760,
+    "src/router.rs": 1586,
+    "src/pricing.rs": 527,
+    "src/providers/ollama.rs": 887,
+    "src/lib.rs": 957,
+    "src/providers/retry.rs": 863,
     "src/providers/capabilities.rs": 712
   },
   "adjustments": [
@@ -480,6 +481,198 @@
       "reason": "appended 2026-11-21（B-AUD-2 台账写入窗口）。C-AUD-PROV（B-AUD-2 审计清障，AUD#8，CAP-003：能力裁决在大一统入口，provider 层声明必须真实）：set_openai_compatible 由 OpenAIProvider::new 改走本卡新增的 pub fn new_compatible 构造——第三方 OpenAI 兼容端点不再继承官方端点的 with_reasoning(true) 推理声明（openai.rs REA-003 注释自身即此义务），该构造的实例 capabilities().reasoning 声明 Unsupported、thinking 请求在任何网络调用前以 LlmError::Unsupported 拒绝；set_openai（官方端点）保持官方构造与 verified 声明不变（OpenAIProvider::new( 在 lib.rs 恰现一次）。+8 行（839→847）：构造函数切换一行 + 注释与文档说明。src/providers/openai.rs（160 行）低于 threshold=500，不为本卡入台账（卡面裁定）。三载体已同步：docs/CAPABILITIES.md 与 llmrust.capabilities.json 注明 set_openai_compatible 注册的第三方端点不继承 official-endpoint reasoning；capability_freeze 矩阵 openai 行不变（两构造器对 freeze 的官方观测面一致）。本条为 dev 代写，待 architect-llmrust 在 spec-review 阶段追认。",
       "authorized_by": "Boss 2026-11-20 决策 A",
       "date": "2026-11-20"
+    },
+    {
+      "file": "src/proxy/mod.rs",
+      "old": 3770,
+      "new": 4138,
+      "reason": "appended 2026-11-24（B-AUD-3 唯一台账写入窗口）。C-AUD-PROXY（PH-0.1.7 审计清障，AUD#2/#10/#12/#13/#14）：Chat 流改走 LmrsClient::stream_raw_with，保留真实 bare done 且 finish_reason 缺省序列化为 null，不再合成 Stop/ToolCalls；/v1/embeddings 增加 split_model 预检使无前缀模型在 provider 调用前返回 400；SSE 错误改固定措辞并去 URL/截断，Unknown role 钳制；新增 8 条命名 wire 测试（含 Ollama tools/image 零调用）。+368 行（3770→4138）全部为真实实现/文档与回归测试，既有断言只增不减。",
+      "authorized_by": "architect-llmrust v7.1 2026-11-24（上游授权：Boss 2026-11-20 决策 A）",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/proxy/anthropic_proxy.rs",
+      "old": 2053,
+      "new": 2225,
+      "reason": "appended 2026-11-24（B-AUD-3 唯一台账写入窗口）。C-AUD-PROXY（PH-0.1.7 审计清障，AUD#2/#13/#14）：Anthropic 流改走 stream_raw_with，由既有 flush() 对净 EOF 报 error 而不借用 unify_terminal 伪造终态；流内错误统一固定措辞、去 URL 并截断，HTTP 错误体在单一构造点脱敏；Unknown role 钳制；新增 3 条命名 wire 测试（错误脱敏 + Ollama tools/image 零调用）。+172 行（2053→2225）全部为真实实现/文档与回归测试，既有 35 条测试断言未删改。",
+      "authorized_by": "architect-llmrust v7.1 2026-11-24（上游授权：Boss 2026-11-20 决策 A）",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/proxy/responses_proxy.rs",
+      "old": 964,
+      "new": 1177,
+      "reason": "appended 2026-11-24（B-AUD-3 唯一台账写入窗口）。C-AUD-PROXY（PH-0.1.7 审计清障，AUD#2/#9/#11/#13/#14）：Responses 流改走 stream_raw_with；StreamChunk.thinking/thinking_done 原生映射为 reasoning output item 与 reasoning_summary_* 事件；主循环净 EOF 由 response.completed 改为 response.failed(incomplete)，真实 done 后的 trailing usage EOF 仍 completed；Unsupported 映射 400，流错误固定措辞并截断；稳定 output_index 覆盖 reasoning/message/tool。新增 4 条命名 wire 测试，既有 10 条测试断言未删改。+213 行（964→1177）全部为真实实现/文档与回归测试。",
+      "authorized_by": "architect-llmrust v7.1 2026-11-24（上游授权：Boss 2026-11-20 决策 A）",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/lib.rs",
+      "old": 847,
+      "new": 951,
+      "reason": "appended 2026-11-24（B-AUD-3 唯一台账写入窗口）。C-AUD-PROXY（PH-0.1.7 审计清障，AUD#2）：新增 pub(crate) LmrsClient::stream_raw_with，统一完成 model 解析、provider 获取、model 改写与 CAP-003 adjudication，但不调用 unify_terminal；公共 stream_with 复用该入口后继续执行 STR-001 单终态收敛。新增 2 条 raw-stream 单测，证明净 EOF 不被合成终态且能力拒绝早于 provider 调用。+104 行（847→951）全部为真实实现/文档与回归测试。",
+      "authorized_by": "architect-llmrust v7.1 2026-11-24（上游授权：Boss 2026-11-20 决策 A）",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 2136,
+      "new": 2129,
+      "reason": "C-018-HTTP-SAFE: request-scoped Retry-After capture replaces the instance Mutex; fixed endpoints validate base URL and reqwest errors are sanitized. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/retry.rs",
+      "old": 970,
+      "new": 863,
+      "reason": "C-018-HTTP-SAFE: Retry-After parser moved to http/retry_hint.rs; chat/stream/embedding consume per-call tuples through backoff_with_hint with delay_source; decorator marker added. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1684,
+      "new": 1688,
+      "reason": "C-018-HTTP-SAFE: network requests validate base URL and use the shared redirect/error boundary. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1813,
+      "new": 1812,
+      "reason": "C-018-HTTP-SAFE: Gemini model is encoded through URL path-segment API; base URL and reqwest errors use shared boundaries. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 855,
+      "new": 860,
+      "reason": "C-018-HTTP-SAFE: chat/embed requests validate base URL and use the shared redirect/error boundary. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/lib.rs",
+      "old": 951,
+      "new": 957,
+      "reason": "C-018-HTTP-SAFE: with_retry skips already wrapped providers so retry loops cannot multiply. Line count is measured after cargo fmt; all changes are real implementation, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/router.rs",
+      "old": 1231,
+      "new": 1586,
+      "reason": "C-018-ROUTER-COST (B-018-ROUTER, P2-03/04/05/07): ready-first cooldown partitioning with cooling fallback after ready exhaustion, round-robin over ready nodes only, registration-ordered all-cooling fail-open, expired-state pruning and a 1024-entry capacity bound with checked_add deadlines, explicit waits_for_upstream/retry_budget_exhausted logs and docs, plus four named regression tests including three-node skew and concurrent cooldown/RR interleaving. +355 lines measured after cargo fmt; all growth is real logic, documentation and tests, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-ROUTER-COST)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/pricing.rs",
+      "old": 0,
+      "new": 527,
+      "reason": "C-018-ROUTER-COST (B-018-ROUTER, P2-09): new public CacheWriteTokens input and ModelPricing::estimate_cost_with_cache_retention price 5-minute and 1-hour writes separately without changing Usage; named 1-hour pricing regression proves the 1-hour tier no longer falls back to the 5-minute rate. The file crossed threshold=500 for the first time in this batch (batch_base had no baseline or adjustment), so this is its first 0->527 registration with the actual post-fmt line count.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-ROUTER-COST)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 2129,
+      "new": 2134,
+      "reason": "C-018-STREAM-CORE: bounded strict SSE event parsing (shared src/providers/sse), content-type validation before stream construction, and event-error surfacing; measured after cargo fmt. Real implementation and tests, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1688,
+      "new": 1691,
+      "reason": "C-018-STREAM-CORE: same shared bounded strict SSE event parsing plus text/event-stream content-type validation before stream construction; measured after cargo fmt. Real implementation and tests, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1812,
+      "new": 1815,
+      "reason": "C-018-STREAM-CORE: same shared bounded strict SSE event parsing plus text/event-stream content-type validation before stream construction; measured after cargo fmt. Real implementation and tests, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 860,
+      "new": 868,
+      "reason": "C-018-STREAM-CORE: bounded strict line parsing for NDJSON plus application/x-ndjson or application/json content-type validation before stream construction; measured after cargo fmt. Real implementation and tests, not inflation.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 2134,
+      "new": 2134,
+      "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 2134 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 2134->2134 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1691,
+      "new": 1691,
+      "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 1691 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 1691->1691 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1815,
+      "new": 1815,
+      "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 1815 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 1815->1815 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 868,
+      "new": 868,
+      "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 868 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 868->868 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 2134,
+      "new": 2175,
+      "reason": "C-018-PROVIDER-INTEGRITY: nullable stream choices preserve usage-only frames; non-stream null/empty/refusal/no-content responses fail explicitly; embedding count and unique complete index sets are validated. Growth is real production logic plus inline fixture corrections, measured after cargo fmt.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1691,
+      "new": 1760,
+      "reason": "C-018-PROVIDER-INTEGRITY: streamed tools now track content_block_stop and validate closure, non-empty id/name and legal JSON before message_delta or clean-EOF flush; incomplete tools return Err with no done terminal. Request-side tool arguments use strict parsing. Growth is real implementation and regression tests, measured after cargo fmt.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1815,
+      "new": 2005,
+      "reason": "C-018-PROVIDER-INTEGRITY: response-scoped unique tool ids, round-scoped nearest-unmatched tool-result resolution with Message::tool.name priority, chat promptFeedback/no-candidate errors, thought/content separation, one-layer wrapper-only schema unwrap, preserved upstream finish reasons, and pre-network Unsupported for unrepresentable stream logprobs. Growth is real implementation and regression tests, measured after cargo fmt.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 868,
+      "new": 887,
+      "reason": "C-018-PROVIDER-INTEGRITY: non-stream done_reason maps to finish_reason; NDJSON error envelopes map to LlmError::Stream and close without a later success terminal; embedding vector count must match input count. Growth is real implementation and tests, measured after cargo fmt.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+      "date": "2026-11-24"
     }
   ]
 }

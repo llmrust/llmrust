@@ -1,0 +1,745 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ledger",
+  "agent": "ledger-llmrust",
+  "written_by": "ledger-llmrust",
+  "card_id": null,
+  "batch_id": "B-018-HTTP",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "inputs_seen": [
+    ".workforce/config.json（ledger.command=null；none_reason 已读）",
+    ".workforce/cards/C-018-HTTP-SAFE.json（c5 原文、planned_file_paths、write_scopes）",
+    "tests/hotspot_ledger.json（被核验台账实物）",
+    ".workforce/loop-state.json（B-018-HTTP batch_base 与 C-018-HTTP-SAFE handoff 14 文件）",
+    ".workforce/spec.json（仅核验 sha256 与指定值一致）",
+    ".agents/skills/agent-workforce-loop/references/roles.md + assets/evidence.template.json + scripts/lib.mjs（角色、回执与 selfShaOk/ledgerCheck 口径）",
+    ".workforce/evidence/B-018-HTTP/dev-C-018-HTTP-SAFE.json + .workforce/evidence/B-018-HTTP/qa-C-018-HTTP-SAFE.json（只访问 artifacts(path+sha256) 与 dev files_changed；未读取 notes/verdict/解释）",
+    "git 对象 4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d:tests/hotspot_ledger.json 与六个 oversized 文件基线文本"
+  ],
+  "ledger": {
+    "duty_basis": {
+      "config_ledger": "command=null；llmrust 仓没有台账生成脚本（无 tools/gen_spcc.py 类生成器）；台账层只验 self_sha256 自洽，不重跑生成命令，手写台账可过。llmrust 的机器事实源是 cargo test 输出 + CI 运行记录，两者在 gate/ci 回执里逐条记录 exit code 与 URL。",
+      "role_contract": "ledger-* 独立核验台账；agent=ledger-llmrust，independent=true，declared_by_lead=false",
+      "c5_basis": "C-018-HTTP-SAFE acceptance c5 + ruling_refs；六文件 adjustment，authorized_by 含 architect-llmrust，date=2026-11-24"
+    },
+    "verification_started_at": "2026-11-25T05:07:38.308Z",
+    "target": "tests/hotspot_ledger.json",
+    "target_sha256_raw_bytes": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8",
+    "threshold": 500,
+    "line_count_metric": "UTF-8 decode 后 len(splitlines())；另扫全部 28 个 src/**/*.rs 无 VT/FF/FS/GS/RS/NEL/LS/PS 与孤立 CR，故与 Rust lines().count() 同口径",
+    "freeze": {
+      "batch_base": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+      "batch_base_short": "4ff1fd4",
+      "base_head": "5f8d844ffb2902055ba2cedf1d8a36271ac8282f",
+      "loop_state_runtime_sha256": "0c2c508a418bd5ada8bdf4b0ca37ef42339d9a2d9d8b563606ef1c645ec1cc70",
+      "handoff_id": "0aaf82060ef22dc752267648",
+      "handoff_at": "2026-11-25T04:45:07.005Z",
+      "receipt_file": ".workforce/evidence/B-018-HTTP/dev-C-018-HTTP-SAFE.json",
+      "receipt_sha256": "ee8acbd4eca3fafffc3a1441e0d60c9398c6108e6a6a2fd5256b565627e3917a",
+      "qa_receipt_sha256": "7d9043d3c225c1b7fc7edfcab626087bfaa8b3dfafdaf134f7d759ae0f13e567",
+      "frozen_files": {
+        "src/providers/http.rs": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78",
+        "src/providers/http/redirect.rs": "10613bc8ff610764b79732cc6c57068a3fcc1bd76711ddce2d0b2789198bad07",
+        "src/providers/http/error.rs": "08a2b9465f83f9772dfc502128805176f3c91a4426e0d20cef164eebc10a2d4b",
+        "src/providers/http/retry_hint.rs": "25414b5dcad31607b395bd8aa263f4fccb58edc0228831602d00957c8bc8db10",
+        "src/providers/mod.rs": "0ff54f99f3a4ae76f4a56d8a3886f38151a4f8229b8b9b3b3cf13b21b2b2cf19",
+        "src/providers/compat.rs": "3f1248a86c071e470617b9f13e441b00e5e575b98bf160e1f9f02816984586a4",
+        "src/providers/retry.rs": "f7192fc1c82a5afde7b58cdfa999db961953b66ffd7bda74a3bc747f82e19f83",
+        "src/providers/openai.rs": "becffa8c01561f22ab9f17499d65d0cdd2c21e48fdf5ba2cc53644c0bede800c",
+        "src/providers/anthropic.rs": "d465f0e2896b0ba722fae1bedbe7f8059f4a191c5fe068f05c7bc59918ea1a3d",
+        "src/providers/google.rs": "d2050e96b3bc303c47a4c139fd5b755dc98927b9aaa296d72d232ef96f35fe40",
+        "src/providers/ollama.rs": "c8be53e6c1deca93cd03f7fddb4849045a5f66c223066341656317fb534a48b2",
+        "src/lib.rs": "913a19bfd4d4d5dbc04696abe49ec2b085ac26a0c924810086b38aa9097717ce",
+        "tests/provider_contract_freeze.rs": "d309e38e04fc57620a55595f8ca34fa7cff063067ba0c10c20840d47a997a361",
+        "tests/hotspot_ledger.json": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8"
+      },
+      "frozen_files_total": 14,
+      "drift_after_handoff": [],
+      "zero_drift": true
+    },
+    "c5_machine_command": {
+      "source": ".workforce/cards/C-018-HTTP-SAFE.json acceptance_criteria c5",
+      "code_sha256": "cc53f25146efcf03afe45f575b3749ca44f326e9981d2a55f6d6f3ddfe682f8f",
+      "execution": "python -c <卡面原文>，subprocess argv 实跑",
+      "exit_code": 0,
+      "newly_oversized_branch_present": true,
+      "pass": true
+    },
+    "c5": {
+      "expected_paths": [
+        "src/providers/http.rs",
+        "src/providers/mod.rs",
+        "src/providers/compat.rs",
+        "src/providers/retry.rs",
+        "src/providers/openai.rs",
+        "src/providers/anthropic.rs",
+        "src/providers/google.rs",
+        "src/providers/ollama.rs",
+        "src/lib.rs",
+        "src/providers/http/redirect.rs",
+        "src/providers/http/error.rs",
+        "src/providers/http/retry_hint.rs"
+      ],
+      "expected_paths_total": 12,
+      "expected_adjustment_files": [
+        "src/providers/compat.rs",
+        "src/providers/retry.rs",
+        "src/providers/anthropic.rs",
+        "src/providers/google.rs",
+        "src/providers/ollama.rs",
+        "src/lib.rs"
+      ],
+      "expected_adjustment_files_total": 6,
+      "adjustments": [
+        {
+          "file": "src/providers/compat.rs",
+          "adjustment_index": 62,
+          "old": 2136,
+          "expected_old": 2136,
+          "base_file_measured_lines": 2136,
+          "new": 2129,
+          "expected_new": 2129,
+          "measured_lines": 2129,
+          "baseline_lines": 2129,
+          "predecessor_new": 2136,
+          "six_fields_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+          "authorization_ok": true,
+          "authorization_exact": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        },
+        {
+          "file": "src/providers/retry.rs",
+          "adjustment_index": 63,
+          "old": 970,
+          "expected_old": 970,
+          "base_file_measured_lines": 970,
+          "new": 863,
+          "expected_new": 863,
+          "measured_lines": 863,
+          "baseline_lines": 863,
+          "predecessor_new": 970,
+          "six_fields_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+          "authorization_ok": true,
+          "authorization_exact": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        },
+        {
+          "file": "src/providers/anthropic.rs",
+          "adjustment_index": 64,
+          "old": 1684,
+          "expected_old": 1684,
+          "base_file_measured_lines": 1684,
+          "new": 1688,
+          "expected_new": 1688,
+          "measured_lines": 1688,
+          "baseline_lines": 1688,
+          "predecessor_new": 1684,
+          "six_fields_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+          "authorization_ok": true,
+          "authorization_exact": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        },
+        {
+          "file": "src/providers/google.rs",
+          "adjustment_index": 65,
+          "old": 1813,
+          "expected_old": 1813,
+          "base_file_measured_lines": 1813,
+          "new": 1812,
+          "expected_new": 1812,
+          "measured_lines": 1812,
+          "baseline_lines": 1812,
+          "predecessor_new": 1813,
+          "six_fields_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+          "authorization_ok": true,
+          "authorization_exact": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        },
+        {
+          "file": "src/providers/ollama.rs",
+          "adjustment_index": 66,
+          "old": 855,
+          "expected_old": 855,
+          "base_file_measured_lines": 855,
+          "new": 860,
+          "expected_new": 860,
+          "measured_lines": 860,
+          "baseline_lines": 860,
+          "predecessor_new": 855,
+          "six_fields_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+          "authorization_ok": true,
+          "authorization_exact": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        },
+        {
+          "file": "src/lib.rs",
+          "adjustment_index": 67,
+          "old": 951,
+          "expected_old": 951,
+          "base_file_measured_lines": 951,
+          "new": 957,
+          "expected_new": 957,
+          "measured_lines": 957,
+          "baseline_lines": 957,
+          "predecessor_new": 951,
+          "six_fields_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-HTTP-SAFE)",
+          "authorization_ok": true,
+          "authorization_exact": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        }
+      ],
+      "below_threshold_paths": [
+        {
+          "file": "src/providers/http.rs",
+          "measured_lines": 119,
+          "in_baseline": false,
+          "adjustments": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/mod.rs",
+          "measured_lines": 427,
+          "in_baseline": false,
+          "adjustments": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/openai.rs",
+          "measured_lines": 163,
+          "in_baseline": false,
+          "adjustments": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/http/redirect.rs",
+          "measured_lines": 70,
+          "in_baseline": false,
+          "adjustments": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/http/error.rs",
+          "measured_lines": 18,
+          "in_baseline": false,
+          "adjustments": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/http/retry_hint.rs",
+          "measured_lines": 176,
+          "in_baseline": false,
+          "adjustments": 0,
+          "pass": true
+        }
+      ],
+      "planned_files": [
+        {
+          "file": "src/providers/http/redirect.rs",
+          "exists": true,
+          "measured_lines": 70,
+          "below_threshold": true,
+          "in_baseline": false,
+          "adjustment_count": 0,
+          "sha256": "10613bc8ff610764b79732cc6c57068a3fcc1bd76711ddce2d0b2789198bad07",
+          "pass": true
+        },
+        {
+          "file": "src/providers/http/error.rs",
+          "exists": true,
+          "measured_lines": 18,
+          "below_threshold": true,
+          "in_baseline": false,
+          "adjustment_count": 0,
+          "sha256": "08a2b9465f83f9772dfc502128805176f3c91a4426e0d20cef164eebc10a2d4b",
+          "pass": true
+        },
+        {
+          "file": "src/providers/http/retry_hint.rs",
+          "exists": true,
+          "measured_lines": 176,
+          "below_threshold": true,
+          "in_baseline": false,
+          "adjustment_count": 0,
+          "sha256": "25414b5dcad31607b395bd8aa263f4fccb58edc0228831602d00957c8bc8db10",
+          "pass": true
+        }
+      ],
+      "newly_oversized": {
+        "files": [],
+        "observed": false,
+        "branch_logic_checked": true,
+        "verdict": "PASS（本批无 newly-oversized；卡面分支在场且其余分支逐路径实判）"
+      },
+      "stray_card_entries": [],
+      "verdict": "PASS"
+    },
+    "baseline_files": [
+      {
+        "file": "src/lib.rs",
+        "baseline_lines": 957,
+        "measured_lines": 957,
+        "sha256": "913a19bfd4d4d5dbc04696abe49ec2b085ac26a0c924810086b38aa9097717ce",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/anthropic.rs",
+        "baseline_lines": 1688,
+        "measured_lines": 1688,
+        "sha256": "d465f0e2896b0ba722fae1bedbe7f8059f4a191c5fe068f05c7bc59918ea1a3d",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/capabilities.rs",
+        "baseline_lines": 712,
+        "measured_lines": 712,
+        "sha256": "e5aaaedb7092c620e75f9a42e63795ef742213f457d01206a6dfb0d130809929",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/compat.rs",
+        "baseline_lines": 2129,
+        "measured_lines": 2129,
+        "sha256": "3f1248a86c071e470617b9f13e441b00e5e575b98bf160e1f9f02816984586a4",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/google.rs",
+        "baseline_lines": 1812,
+        "measured_lines": 1812,
+        "sha256": "d2050e96b3bc303c47a4c139fd5b755dc98927b9aaa296d72d232ef96f35fe40",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/ollama.rs",
+        "baseline_lines": 860,
+        "measured_lines": 860,
+        "sha256": "c8be53e6c1deca93cd03f7fddb4849045a5f66c223066341656317fb534a48b2",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/providers/retry.rs",
+        "baseline_lines": 863,
+        "measured_lines": 863,
+        "sha256": "f7192fc1c82a5afde7b58cdfa999db961953b66ffd7bda74a3bc747f82e19f83",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/proxy/anthropic_proxy.rs",
+        "baseline_lines": 2225,
+        "measured_lines": 2225,
+        "sha256": "0c3e928df67acd3e183b5d8440595e6ae0ea64cbc499a387fc1bfcc1a774c893",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/proxy/mod.rs",
+        "baseline_lines": 4138,
+        "measured_lines": 4138,
+        "sha256": "72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/proxy/responses_proxy.rs",
+        "baseline_lines": 1177,
+        "measured_lines": 1177,
+        "sha256": "a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/router.rs",
+        "baseline_lines": 1231,
+        "measured_lines": 1231,
+        "sha256": "7eca653e5bb38f3316550eaf0790ca70370f04ae12cddde90189ebf8658f374d",
+        "baseline_eq_measured": true
+      },
+      {
+        "file": "src/types.rs",
+        "baseline_lines": 1136,
+        "measured_lines": 1136,
+        "sha256": "b6eaade3f0c8c214f653bde4eaa56673e899f0d172f4b550106de4c208c68c66",
+        "baseline_eq_measured": true
+      }
+    ],
+    "threshold_bidirectional": {
+      "src_rs_files_total": 28,
+      "files_ge_threshold": 12,
+      "baseline_entries": 12,
+      "baseline_eq_measured": 12,
+      "unlisted_oversized": [],
+      "listed_below_threshold": [],
+      "baseline_mismatches": [],
+      "line_metric_equivalent": true,
+      "verdict": "PASS"
+    },
+    "adjustments": {
+      "count": 68,
+      "six_fields": [
+        "file",
+        "old",
+        "new",
+        "reason",
+        "authorized_by",
+        "date"
+      ],
+      "six_fields_all_present_nonempty": true,
+      "chain_continuity_gaps": [],
+      "chains": {
+        "src/lib.rs": {
+          "entries": 9,
+          "first_old": 0,
+          "last_new": 957,
+          "baseline_now": 957,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/anthropic.rs": {
+          "entries": 9,
+          "first_old": 972,
+          "last_new": 1688,
+          "baseline_now": 1688,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/capabilities.rs": {
+          "entries": 1,
+          "first_old": 0,
+          "last_new": 712,
+          "baseline_now": 712,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/compat.rs": {
+          "entries": 8,
+          "first_old": 1228,
+          "last_new": 2129,
+          "baseline_now": 2129,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/google.rs": {
+          "entries": 8,
+          "first_old": 1221,
+          "last_new": 1812,
+          "baseline_now": 1812,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/ollama.rs": {
+          "entries": 5,
+          "first_old": 0,
+          "last_new": 860,
+          "baseline_now": 860,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/retry.rs": {
+          "entries": 5,
+          "first_old": 0,
+          "last_new": 863,
+          "baseline_now": 863,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/proxy/anthropic_proxy.rs": {
+          "entries": 5,
+          "first_old": 1520,
+          "last_new": 2225,
+          "baseline_now": 2225,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/proxy/mod.rs": {
+          "entries": 12,
+          "first_old": 2573,
+          "last_new": 4138,
+          "baseline_now": 4138,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/proxy/responses_proxy.rs": {
+          "entries": 2,
+          "first_old": 0,
+          "last_new": 1177,
+          "baseline_now": 1177,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/router.rs": {
+          "entries": 3,
+          "first_old": 851,
+          "last_new": 1231,
+          "baseline_now": 1231,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/types.rs": {
+          "entries": 1,
+          "first_old": 1132,
+          "last_new": 1136,
+          "baseline_now": 1136,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        }
+      },
+      "chain_convergence": {
+        "verdict": "PASS",
+        "converged_files": [
+          "src/lib.rs",
+          "src/providers/anthropic.rs",
+          "src/providers/capabilities.rs",
+          "src/providers/compat.rs",
+          "src/providers/google.rs",
+          "src/providers/ollama.rs",
+          "src/providers/retry.rs",
+          "src/proxy/anthropic_proxy.rs",
+          "src/proxy/mod.rs",
+          "src/proxy/responses_proxy.rs",
+          "src/router.rs",
+          "src/types.rs"
+        ],
+        "non_converged_files": []
+      }
+    },
+    "append_only_vs_batch_base": {
+      "base_commit": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+      "base_blob_sha256": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc",
+      "base_adjustments": 62,
+      "current_adjustments": 68,
+      "base_prefix_parsed_identical": true,
+      "historical_entries_rewritten": false,
+      "appended_indices": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67
+      ],
+      "appended_card_entries_exact": true,
+      "top_level_keyset_unchanged": true,
+      "description_unchanged": true,
+      "threshold_unchanged": true,
+      "baseline_delta": {
+        "src/lib.rs": {
+          "old": 951,
+          "new": 957
+        },
+        "src/providers/anthropic.rs": {
+          "old": 1684,
+          "new": 1688
+        },
+        "src/providers/compat.rs": {
+          "old": 2136,
+          "new": 2129
+        },
+        "src/providers/google.rs": {
+          "old": 1813,
+          "new": 1812
+        },
+        "src/providers/ollama.rs": {
+          "old": 855,
+          "new": 860
+        },
+        "src/providers/retry.rs": {
+          "old": 970,
+          "new": 863
+        }
+      },
+      "other_baselines_unchanged": true,
+      "git_numstat": "54\t6\ttests/hotspot_ledger.json",
+      "verdict": "PASS"
+    },
+    "cross_check_receipts": {
+      "fields_read": [
+        "artifacts.path",
+        "artifacts.sha256",
+        "artifacts.frozen_files[].path",
+        "artifacts.frozen_files[].sha256",
+        "artifacts.frozen_files_sha256",
+        "artifacts.spec.path",
+        "artifacts.spec.sha256",
+        "files_changed"
+      ],
+      "method": "只读 dev/qa 的 artifacts(path+sha256) 与 dev files_changed；未读 verdict/notes/解释",
+      "notes_read": false,
+      "dev_artifacts_total": 14,
+      "qa_frozen_artifacts_total": 14,
+      "artifact_sha_mismatches": 0,
+      "artifact_missing": 0,
+      "dev_files_changed": [
+        "src/providers/http.rs",
+        "src/providers/http/redirect.rs",
+        "src/providers/http/error.rs",
+        "src/providers/http/retry_hint.rs",
+        "src/providers/mod.rs",
+        "src/providers/compat.rs",
+        "src/providers/retry.rs",
+        "src/providers/openai.rs",
+        "src/providers/anthropic.rs",
+        "src/providers/google.rs",
+        "src/providers/ollama.rs",
+        "src/lib.rs",
+        "tests/provider_contract_freeze.rs",
+        "tests/hotspot_ledger.json"
+      ],
+      "dev_files_changed_total": 14,
+      "dev_qa_artifact_paths_equal": true,
+      "dev_qa_handoff_path_sets_equal": true,
+      "dev_files_changed_within_card_scopes": true,
+      "dev_receipt_sha256": "ee8acbd4eca3fafffc3a1441e0d60c9398c6108e6a6a2fd5256b565627e3917a",
+      "qa_receipt_sha256": "7d9043d3c225c1b7fc7edfcab626087bfaa8b3dfafdaf134f7d759ae0f13e567"
+    },
+    "protected_inputs_unchanged_by_writer": true,
+    "protected_inputs_sha256_before": {
+      ".workforce/config.json": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      ".workforce/spec.json": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      ".workforce/cards/C-018-HTTP-SAFE.json": "fc712b862c3e078dde406b32e9ba2fe595b954a1c8be02b1e4d0b50d83f963a2",
+      ".workforce/loop-state.json": "ce47874e70b25ba4ef41e4c3b4a6e78e9612772e7f45aa431b6ecacab704b4ef",
+      "tests/hotspot_ledger.json": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8",
+      ".workforce/evidence/B-018-HTTP/dev-C-018-HTTP-SAFE.json": "ee8acbd4eca3fafffc3a1441e0d60c9398c6108e6a6a2fd5256b565627e3917a",
+      ".workforce/evidence/B-018-HTTP/qa-C-018-HTTP-SAFE.json": "7d9043d3c225c1b7fc7edfcab626087bfaa8b3dfafdaf134f7d759ae0f13e567",
+      ".workforce/signoffs/architect.json": "bc711bc94075a9ed904f27d5652b4f78bf733a81b8fe0da10842009ae34ee3ac",
+      ".workforce/signoffs/ci.json": "031d0ffc060a15623dda7c51ff25456d733ec730398d355fe4ace45ba2d5070a",
+      ".workforce/signoffs/dev.json": "2973235b654220cd19442234552440f4ed7de7aa1f71dfbbffc35fb1fb079943",
+      ".workforce/signoffs/gate.json": "2553240ceb9c97ea4655e5122b7d173a20fee325f7d710444e1c319d6bc96dd1",
+      ".workforce/signoffs/lead.json": "65241f78059fe8b2a54a72831ece6b6aafc057d4828709781daf64b494f2375a",
+      ".workforce/signoffs/ledger.json": "1fa47443c4bbb8f3cc884ab5ac3d96408ae6ed602a78dc55cf20f476fdf5a8de",
+      ".workforce/signoffs/qa.json": "93817f949b37a24264ff138cff210b7bdf6c85e1cabd1e9c053378667fb85f0e",
+      "src/**/*.rs aggregate": "1f08c6f54040dc07c6ba2f763c672b377fb2bc614f56398e18dc12bf5a305bce",
+      "tests/**/*.rs aggregate": "73dc597b5a455d508a8a1abffa89a2898c9bd3accb6696a32cccf9cfc027a555"
+    },
+    "protected_inputs_sha256_after": {
+      ".workforce/config.json": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      ".workforce/spec.json": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      ".workforce/cards/C-018-HTTP-SAFE.json": "fc712b862c3e078dde406b32e9ba2fe595b954a1c8be02b1e4d0b50d83f963a2",
+      ".workforce/loop-state.json": "ce47874e70b25ba4ef41e4c3b4a6e78e9612772e7f45aa431b6ecacab704b4ef",
+      "tests/hotspot_ledger.json": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8",
+      ".workforce/evidence/B-018-HTTP/dev-C-018-HTTP-SAFE.json": "ee8acbd4eca3fafffc3a1441e0d60c9398c6108e6a6a2fd5256b565627e3917a",
+      ".workforce/evidence/B-018-HTTP/qa-C-018-HTTP-SAFE.json": "7d9043d3c225c1b7fc7edfcab626087bfaa8b3dfafdaf134f7d759ae0f13e567",
+      ".workforce/signoffs/architect.json": "bc711bc94075a9ed904f27d5652b4f78bf733a81b8fe0da10842009ae34ee3ac",
+      ".workforce/signoffs/ci.json": "031d0ffc060a15623dda7c51ff25456d733ec730398d355fe4ace45ba2d5070a",
+      ".workforce/signoffs/dev.json": "2973235b654220cd19442234552440f4ed7de7aa1f71dfbbffc35fb1fb079943",
+      ".workforce/signoffs/gate.json": "2553240ceb9c97ea4655e5122b7d173a20fee325f7d710444e1c319d6bc96dd1",
+      ".workforce/signoffs/lead.json": "65241f78059fe8b2a54a72831ece6b6aafc057d4828709781daf64b494f2375a",
+      ".workforce/signoffs/ledger.json": "1fa47443c4bbb8f3cc884ab5ac3d96408ae6ed602a78dc55cf20f476fdf5a8de",
+      ".workforce/signoffs/qa.json": "93817f949b37a24264ff138cff210b7bdf6c85e1cabd1e9c053378667fb85f0e",
+      "src/**/*.rs aggregate": "1f08c6f54040dc07c6ba2f763c672b377fb2bc614f56398e18dc12bf5a305bce",
+      "tests/**/*.rs aggregate": "73dc597b5a455d508a8a1abffa89a2898c9bd3accb6696a32cccf9cfc027a555"
+    },
+    "business_access": "read_only；唯一写入 .workforce/evidence/B-018-HTTP/ledger.json",
+    "problems": [],
+    "observations_non_blocking": [
+      {
+        "note": "config.ledger.command=null，Node ledgerCheck 的预期结果为 ok=true/unverified=true。",
+        "impact": "已按配置只验 schema/generatedAt/self_sha256 自洽；selfShaOk 与 ledgerCheck 均实跑。"
+      },
+      {
+        "note": "本批无 newly-oversized 文件。",
+        "impact": "卡面机判包含该分支；实测 12 路径落入 6 个 oversized 与 6 个 below-threshold（含 3 个 planned）。"
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-018-HTTP/ledger.json",
+      "sha256": "SELF-REFERENTIAL：文件级 sha 由同文件 self_sha256 承载；ledgerCheck 在 command=null 下验 schema/generatedAt/self_sha256",
+      "desc": "本回执自身"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8",
+      "desc": "被核验台账实物；与 handoff 冻结 sha 一致"
+    },
+    {
+      "path": ".workforce/spec.json",
+      "sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      "desc": "指定 spec；sha256 逐字节匹配"
+    },
+    {
+      "path": ".workforce/cards/C-018-HTTP-SAFE.json",
+      "sha256": "fc712b862c3e078dde406b32e9ba2fe595b954a1c8be02b1e4d0b50d83f963a2",
+      "desc": "c5 判据与 planned/write_scopes 来源"
+    },
+    {
+      "path": ".workforce/config.json",
+      "sha256": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      "desc": "ledger.command=null 与 none_reason 来源"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/dev-C-018-HTTP-SAFE.json",
+      "sha256": "ee8acbd4eca3fafffc3a1441e0d60c9398c6108e6a6a2fd5256b565627e3917a",
+      "desc": "仅读 artifacts/files_changed 用于对账"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/qa-C-018-HTTP-SAFE.json",
+      "sha256": "7d9043d3c225c1b7fc7edfcab626087bfaa8b3dfafdaf134f7d759ae0f13e567",
+      "desc": "仅读 artifacts 用于对账；未读 notes/verdict"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "python -c \"<C-018-HTTP-SAFE c5 卡面原文；code_sha256=cc53f25146efcf03afe45f575b3749ca44f326e9981d2a55f6d6f3ddfe682f8f>\"（subprocess argv 实跑）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node <inline B-018 ledger verification：六文件/planned/newly-oversized/threshold 12/12/append-only/handoff 14/artifacts/protected-input assertions>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"const fs=require('fs'),crypto=require('crypto');const p='.workforce/evidence/B-018-HTTP/ledger.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const w=j.self_sha256;delete j.self_sha256;if(w!==crypto.createHash('sha256').update(JSON.stringify(j)).digest('hex'))process.exit(1);console.log('SELF_SHA_OK '+w)\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"import('./.agents/skills/agent-workforce-loop/scripts/lib.mjs').then(m=>{const fs=require('fs');const p='.workforce/evidence/B-018-HTTP/ledger.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const P={repo:process.cwd(),dirRel:'.workforce',config:'.workforce/config.json'};const r=m.ledgerCheck(P,j.artifacts[0],j);if(!m.selfShaOk(j)||!r.ok)throw new Error(JSON.stringify(r));console.log(JSON.stringify({selfShaOk:true,ledgerCheck:r}));})\"",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS",
+  "notes": "B-018-HTTP / C-018-HTTP-SAFE 台账层独立核验 PASS：batch_base=4ff1fd4；六文件 adjustment 全绿（compat 2136→2129、retry 970→863、anthropic 1684→1688、google 1813→1812、ollama 855→860、lib 951→957），old=基线且=base 文件实测、前驱 new=old、new=baseline=实测、六字段/授权/date 全符；3 个 planned 文件存在且均低于 threshold；newly-oversized 本批为空。threshold=500，src Rust 28 个文件中 12 个达到阈值，baseline 12/12 双向一致；adjustments 68 条六字段齐、全链收敛。append-only：前 62 条与 batch_base parsed 完全相同，仅追加 idx62–67 并更新六项 baseline。handoff=0aaf82060ef22dc752267648 冻结 14 文件，零漂移；dev/qa artifacts 各对账 14 路径，0 mismatch/0 missing，且未读 notes。只读业务/台账/spec/card/signoffs/loop-state，唯一写入本 ledger.json。",
+  "generatedAt": "2026-11-25T05:07:39.092Z",
+  "self_sha256": "12c23fd77a3e92f7fbb91e1877f3c8775fea6f9d672d21866815c3bd60aa4f22"
+}

@@ -1,0 +1,486 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ci",
+  "agent": "ci-llmrust",
+  "written_by": "ci-llmrust",
+  "card_id": "C-018-STREAM-CORE",
+  "batch": "B-018-STREAM",
+  "batch_id": "B-018-STREAM",
+  "spec": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+  "handoff": "ece5291caa237b095b4515f9",
+  "handoff_id": "ece5291caa237b095b4515f9",
+  "provider": "github",
+  "repo": "llmrust/llmrust",
+  "head": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+  "business_commit": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+  "commit": {
+    "sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+    "parent": "aa56d1ed2e65f240461081e65bf7dc3ad1d61b73",
+    "author": "ci-llmrust <ci-llmrust@agents.local>",
+    "committer": "ci-llmrust <ci-llmrust@agents.local>",
+    "authored_at": "2026-11-27T19:59:43+08:00",
+    "subject": "fix(stream): B-018-STREAM v9 acceptance checkpoint",
+    "file_count": 16,
+    "files": [
+      ".workforce/evidence/B-018-STREAM/dev-C-018-STREAM-CORE.json",
+      ".workforce/evidence/B-018-STREAM/gate.json",
+      ".workforce/evidence/B-018-STREAM/ledger.json",
+      ".workforce/evidence/B-018-STREAM/probe/git-status-after.bin",
+      ".workforce/evidence/B-018-STREAM/probe/git-status-before.bin",
+      ".workforce/evidence/B-018-STREAM/probe/postflight.json",
+      ".workforce/evidence/B-018-STREAM/probe/preflight.json",
+      ".workforce/evidence/B-018-STREAM/probe/required-06-rustdoc.exit.txt",
+      ".workforce/evidence/B-018-STREAM/probe/run-gate.py",
+      ".workforce/evidence/B-018-STREAM/probe/run-manifest.json",
+      ".workforce/evidence/B-018-STREAM/probe/run-start.json",
+      ".workforce/evidence/B-018-STREAM/probe/run-summary.json",
+      ".workforce/evidence/B-018-STREAM/probe/runs.jsonl",
+      ".workforce/evidence/B-018-STREAM/probe/verification.json",
+      ".workforce/evidence/B-018-STREAM/qa-C-018-STREAM-CORE.json",
+      "src/providers/stream_util.rs"
+    ]
+  },
+  "pushed": {
+    "remote": "origin",
+    "branch": "task/PH-0.1.8-B-018-HTTP",
+    "pushed": true,
+    "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+    "remote_head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+    "previous_head_sha": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "fast_forward": true,
+    "force_used": false,
+    "remote_branch_created": false
+  },
+  "remote_branch_created": false,
+  "remote_head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+  "first_green_head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+  "cumulative_pr": {
+    "number": 253,
+    "includes_pr": 252,
+    "includes_delivered_commit": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+    "previous_head_branch": "task/PH-0.1.8-B-018-HTTP",
+    "previous_head_sha": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "business_commit": "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+    "compatibility_commit": "aa56d1ed2e65f240461081e65bf7dc3ad1d61b73",
+    "evidence_commit": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+    "pushed_to_existing_head_branch": true,
+    "force_used": false,
+    "chain": [
+      "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+      "5f8d844ffb2902055ba2cedf1d8a36271ac8282f",
+      "8a084f52dfcf15fcafb30d58b017c44ca6f32616",
+      "16a54058f3e40026336002233d15acf937b14743",
+      "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+      "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+      "5807ab32bcdf4f1bb65fcc5b976c5b2f49007254",
+      "1d717999b9ef9762c40c2e237d329db6522ffe37",
+      "22274d332e658114f6dfad5537b1e79a4bdd2f58",
+      "aa56d1ed2e65f240461081e65bf7dc3ad1d61b73",
+      "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f"
+    ]
+  },
+  "pr": {
+    "number": 253,
+    "url": "https://github.com/llmrust/llmrust/pull/253",
+    "state": "open",
+    "base": "main",
+    "head": "task/PH-0.1.8-B-018-HTTP",
+    "head_branch": "task/PH-0.1.8-B-018-HTTP",
+    "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+    "title": "PH-0.1.8 B-018-STREAM：严格 SSE 流边界与 0.1.x 兼容（#252/#253 累计口径）",
+    "checks_total": 7,
+    "checks_passed": 7,
+    "checks_failed": 0,
+    "checks_all_pass": true
+  },
+  "workflow_runs": [
+    {
+      "name": "CI",
+      "run_id": 45995279860,
+      "database_id": 45995279860,
+      "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45995279860",
+      "event": "pull_request",
+      "created_at": "2026-11-27T12:02:06Z",
+      "updated_at": "2026-11-27T12:03:20Z",
+      "jobs": [
+        {
+          "name": "Test (stable)",
+          "database_id": 140493005784,
+          "run_id": 45995279860,
+          "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45995279860/job/140493005784",
+          "started_at": "2026-11-27T12:02:09Z",
+          "completed_at": "2026-11-27T12:03:19Z"
+        },
+        {
+          "name": "MSRV (1.86)",
+          "database_id": 140493006067,
+          "run_id": 45995279860,
+          "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45995279860/job/140493006067",
+          "started_at": "2026-11-27T12:02:09Z",
+          "completed_at": "2026-11-27T12:02:32Z"
+        },
+        {
+          "name": "API-002 semver gate (vs 0.1.2 baseline)",
+          "database_id": 140493006270,
+          "run_id": 45995279860,
+          "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45995279860/job/140493006270",
+          "started_at": "2026-11-27T12:02:09Z",
+          "completed_at": "2026-11-27T12:03:08Z"
+        },
+        {
+          "name": "Architecture & package guards (CI-003)",
+          "database_id": 140493006312,
+          "run_id": 45995279860,
+          "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45995279860/job/140493006312",
+          "started_at": "2026-11-27T12:02:09Z",
+          "completed_at": "2026-11-27T12:02:32Z"
+        }
+      ]
+    },
+    {
+      "name": "Security Gates",
+      "run_id": 45995281391,
+      "database_id": 45995281391,
+      "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45995281391",
+      "event": "pull_request",
+      "created_at": "2026-11-27T12:02:07Z",
+      "updated_at": "2026-11-27T12:02:43Z",
+      "jobs": [
+        {
+          "name": "Secret scan (gitleaks CLI)",
+          "database_id": 140493013026,
+          "run_id": 45995281391,
+          "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45995281391/job/140493013026",
+          "started_at": "2026-11-27T12:02:09Z",
+          "completed_at": "2026-11-27T12:02:16Z"
+        },
+        {
+          "name": "RustSec advisories",
+          "database_id": 140493013653,
+          "run_id": 45995281391,
+          "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45995281391/job/140493013653",
+          "started_at": "2026-11-27T12:02:09Z",
+          "completed_at": "2026-11-27T12:02:25Z"
+        },
+        {
+          "name": "Supply-chain policy (cargo-deny)",
+          "database_id": 140493014122,
+          "run_id": 45995281391,
+          "head_sha": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45995281391/job/140493014122",
+          "started_at": "2026-11-27T12:02:10Z",
+          "completed_at": "2026-11-27T12:02:43Z"
+        }
+      ]
+    }
+  ],
+  "pr_checks": [
+    {
+      "name": "Test (stable)",
+      "database_id": 140493005784,
+      "state": "pass",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45995279860/job/140493005784",
+      "started_at": "2026-11-27T12:02:09Z",
+      "completed_at": "2026-11-27T12:03:19Z"
+    },
+    {
+      "name": "MSRV (1.86)",
+      "database_id": 140493006067,
+      "state": "pass",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45995279860/job/140493006067",
+      "started_at": "2026-11-27T12:02:09Z",
+      "completed_at": "2026-11-27T12:02:32Z"
+    },
+    {
+      "name": "API-002 semver gate (vs 0.1.2 baseline)",
+      "database_id": 140493006270,
+      "state": "pass",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45995279860/job/140493006270",
+      "started_at": "2026-11-27T12:02:09Z",
+      "completed_at": "2026-11-27T12:03:08Z"
+    },
+    {
+      "name": "Architecture & package guards (CI-003)",
+      "database_id": 140493006312,
+      "state": "pass",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45995279860/job/140493006312",
+      "started_at": "2026-11-27T12:02:09Z",
+      "completed_at": "2026-11-27T12:02:32Z"
+    },
+    {
+      "name": "Secret scan (gitleaks CLI)",
+      "database_id": 140493013026,
+      "state": "pass",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45995281391/job/140493013026",
+      "started_at": "2026-11-27T12:02:09Z",
+      "completed_at": "2026-11-27T12:02:16Z"
+    },
+    {
+      "name": "RustSec advisories",
+      "database_id": 140493013653,
+      "state": "pass",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45995281391/job/140493013653",
+      "started_at": "2026-11-27T12:02:09Z",
+      "completed_at": "2026-11-27T12:02:25Z"
+    },
+    {
+      "name": "Supply-chain policy (cargo-deny)",
+      "database_id": 140493014122,
+      "state": "pass",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45995281391/job/140493014122",
+      "started_at": "2026-11-27T12:02:10Z",
+      "completed_at": "2026-11-27T12:02:43Z"
+    }
+  ],
+  "conclusion": "success",
+  "verdict": "PASS",
+  "bypass_detected": false,
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "inputs_seen": [
+    "Lead CI 指令：B-018-STREAM accepted；仅提交本批允许 delta，普通快进推送累计分支，更新 PR #253，等待双 workflow，ci.json 不提交。",
+    "dev/qa/gate/ledger 回执与 handoff=ece5291caa237b095b4515f9、spec_sha256=b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94 已复核。",
+    "gh REST 实测 PR #253 head、远端 ref、CI 45995279860 与 Security Gates 45995281391；7/7 jobs 全 success。"
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "git -c user.name=ci-llmrust -c user.email=ci-llmrust@agents.local commit -m fix(stream): B-018-STREAM v9 acceptance checkpoint",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git push origin HEAD:refs/heads/task/PH-0.1.8-B-018-HTTP",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api --method PATCH repos/llmrust/llmrust/pulls/253",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh run list --repo llmrust/llmrust --commit e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f --json databaseId,workflowName,status,conclusion,headSha,url",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh run view 45995279860 --repo llmrust/llmrust --json databaseId,workflowName,headSha,status,conclusion,url,jobs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh run view 45995281391 --repo llmrust/llmrust --json databaseId,workflowName,headSha,status,conclusion,url,jobs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr checks 253 --repo llmrust/llmrust",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/pulls/253",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/git/ref/heads/task/PH-0.1.8-B-018-HTTP",
+      "exit_code": 0
+    },
+    {
+      "cmd": "ci.json schema/head/workflow/job/artifact self-check",
+      "exit_code": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-018-STREAM/dev-C-018-STREAM-CORE.json",
+      "sha256": "4e61f98d55fe25108d014d63f7c4d5f99ba842b36e254237f587fa78e1d4db6c"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/gate.json",
+      "sha256": "c5dcfaba774f131cbc1288bd47d295d12a91a67f3cbfd7e55c8ed30a60bd341f"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/ledger.json",
+      "sha256": "36229cfa8489f06873fbdb80949ec7ab8aee6d6d8b93b0b8b595b87d6da0b15b"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/c4-01-test-default.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/c4-02-test-proxy.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/c4-03-test-all-features.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/c4-04-build-default.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/c4-05-fmt.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/c4-06-clippy.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/c5-01-ledger-chain.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/git-status-after.bin",
+      "sha256": "b6b3afeab6a7ed6aecad14307c49ead07131a41e58bfeec0c9ed4e4c27d10264"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/git-status-before.bin",
+      "sha256": "c3a203aad5b92e82e07be165fe51a914a7abbdc2fcf8481ea13be25168372baa"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/postflight.json",
+      "sha256": "10c3ebac681fca8bd0d3a355a8caa6e6a5c5497e25c365a0155d32a07f7ecb31"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/preflight.json",
+      "sha256": "94a43aa3a0f927626610a99daa5ec233d2fff9d2c947e884390a5f9994042f00"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/required-01-build.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/required-02-test-default.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/required-03-test-all-features.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/required-04-fmt.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/required-05-clippy.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/required-06-rustdoc.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/required-07-cargo-deny.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/run-gate.py",
+      "sha256": "4d719d7920ebdbd154fd344365e02ac32a6fdbaa6fb89ed4ecabbadc7fd63865"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/run-manifest.json",
+      "sha256": "a24e83c0b275cfa59f73cc41099985d56bb0e7c639f91cf4044f5ae781b98e6c"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/run-start.json",
+      "sha256": "600b1447dc86bd19499bc0fd1844744d2fa8b2eccaf489bb83f09cb94efc7aee"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/run-summary.json",
+      "sha256": "eb95283cafbd8b385d9c633f0c08832bc76389e3448239c4903d9f69b9a77b4d"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/runs.jsonl",
+      "sha256": "7e342f9ef0b6f160f8926e1bccb3db43e691349ff4fe9ba816f80aee56354997"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/probe/verification.json",
+      "sha256": "7d7852eaf02288acaaa0110477dbec9de1639d7b6ff81da7ee375de25067621a"
+    },
+    {
+      "path": ".workforce/evidence/B-018-STREAM/qa-C-018-STREAM-CORE.json",
+      "sha256": "72f3ea4a851411df85ccf875fd7cb32e19dfc66e5a61e02057ba2a9b32c01a57"
+    },
+    {
+      "path": "src/providers/anthropic.rs",
+      "sha256": "59aa1d047ca737e35f33eaf04defeda30befc589cdb9507d6d0a1387c6a8ca94"
+    },
+    {
+      "path": "src/providers/compat.rs",
+      "sha256": "ce3a892ded4a39ee61598c1b975d3e00bc5aef36e3c522ca97d19eea59c1a808"
+    },
+    {
+      "path": "src/providers/google.rs",
+      "sha256": "55389d6502da7fc70998037786fbcb8e4b91d2139361b9b498230f93ab6227ac"
+    },
+    {
+      "path": "src/providers/ollama.rs",
+      "sha256": "d132e25a909b659b18e2c0fc86297700f08047660af6aa3a66bd8ebeed19bab7"
+    },
+    {
+      "path": "src/providers/sse/limits.rs",
+      "sha256": "efeee5b43c2cfbaddd4e318544a6f18869427e9b1b1be16569ddee48056e93b3"
+    },
+    {
+      "path": "src/providers/sse/mod.rs",
+      "sha256": "d82acd6f877d2b5d86109faae9ccb7fb4649f85a9eca7257b6c201d5d0113aed"
+    },
+    {
+      "path": "src/providers/sse/parser.rs",
+      "sha256": "f87077e9084d43f9296fbf5333587a0ea2476dbcd13116dfc06b5dfa0cd76d3b"
+    },
+    {
+      "path": "src/providers/stream_state.rs",
+      "sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb"
+    },
+    {
+      "path": "src/providers/stream_util.rs",
+      "sha256": "4393fca859f2ec24e68e673e1ac0ddc2da5292d0db13e6516183a91c20f49c78"
+    },
+    {
+      "path": "src/providers/stream_util/legacy.rs",
+      "sha256": "ece6b1f28e7af749b3b49904841db447d9a4b1e541aa12e2d9ee0cfe0779d9a6"
+    },
+    {
+      "path": "tests/contract_tests.rs",
+      "sha256": "ca4590681bcf5a9100c36d3741fd9af7cc9a68723e8dce6c41e2c8f4e1391cc8"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "fce12174aca4f6769a2ba1b988520194c393949fe81cee18d0e5564f30c80c0e"
+    }
+  ],
+  "notes": "普通快进 1d717999b9ef9762c40c2e237d329db6522ffe37..e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f 推送到既有累计分支 task/PH-0.1.8-B-018-HTTP，未 force、未新建分支。PR #253 已改为 B-018-STREAM 累计口径并保留 #252、HTTP、B-AUD-3、ROUTER 链。CI 45995279860（4 jobs）与 Security Gates 45995281391（3 jobs）均 completed/success，head_sha 全绑定 e47781c；gh pr checks 7/7 pass。Git 既有代理端口 7897 不可用，本轮仅对 git/gh 命令临时使用已实测可用的 127.0.0.1:7894，未改持久配置。GH_TOKEN 仅由 Windows CredRead 读入内存并供 git/gh 子进程使用，结束后清除。未改业务/spec/card/signoffs/loop-state，未提交 ci.json。",
+  "generated_at_utc": "2026-11-27T12:05:57.5412380Z"
+}

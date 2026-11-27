@@ -1,0 +1,1001 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "gate",
+  "agent": "gate-llmrust",
+  "written_by": "gate-llmrust",
+  "card_id": "C-018-PROVIDER-INTEGRITY",
+  "batch_id": "B-018-PROVIDER",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+  "handoff_id": "6ab65fa6eacf5b7e67296210",
+  "base_head": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+  "inputs_seen": [
+    ".workforce/spec.json",
+    ".workforce/config.json",
+    ".workforce/cards/C-018-PROVIDER-INTEGRITY.json",
+    ".workforce/loop-state.json",
+    ".agents/skills/agent-workforce-loop/references/roles.md",
+    ".agents/skills/agent-workforce-loop/assets/evidence.template.json",
+    ".workforce/evidence/B-018-PROVIDER/dev-C-018-PROVIDER-INTEGRITY.json",
+    ".workforce/evidence/B-018-PROVIDER/qa-C-018-PROVIDER-INTEGRITY.json",
+    ".workforce/evidence/B-018-PROVIDER/ledger.json",
+    "AGENT_MANIFESTO.md",
+    "docs/PROJECT_MAP.md",
+    "docs/CAPABILITIES.md",
+    "docs/CONTRACTS.md",
+    "src/types.rs",
+    "src/providers/mod.rs"
+  ],
+  "mock_used": false,
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/run-gate.py",
+      "sha256": "2700ed542382e886387a6184dc9c838273e029e0fb603cd4b6469ce48f39bfa0"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/preflight.json",
+      "sha256": "a864761cbeda1ed0116f459a60af4ee7b9841bc69d1b1bad97120aad12685981"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/run-manifest.json",
+      "sha256": "597d63bcaff7796d88dd5974dfebf2e20a873437965989b22419daab46d4309a"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/run-start.json",
+      "sha256": "80a570a31540e8e8cfab6a3232ebc3bdecd1c012cd87bd58801a98af73429602"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/runs.jsonl",
+      "sha256": "abc0ce4814562dfcc9334fb441db20fc12083d5f21b9a9db76420f272d3ae787"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/run-summary.json",
+      "sha256": "f81962f78d4bae6d66b363bddb3ffc3188dab67bd7f2450d4350bd9d7a79dbcb"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/incremental-cleanup.json",
+      "sha256": "7d0a547ae59ab48c4efb11e9a138b0bdb96788bbff9d9a20cf53c233162fc784"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/postflight.json",
+      "sha256": "bcbf8dbaccfa6db6caf3f8f5ad1944cb3844a2535bcd25ee23fad9601b01056d"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/git-status-before.bin",
+      "sha256": "8b080550ea6b2417b11c19f80ed9b442ec838ce8612fbec478e672ce51955d92"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/git-status-after.bin",
+      "sha256": "4b29192470fbe599b25e7c3b02647abf87261ee7a42f8840da0c53dcadaebdd7"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.command.txt",
+      "sha256": "2768a65f80c3552375379f71fad7e23e7825804b333aa2946f3bf7f2ad098b29"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.stderr.log",
+      "sha256": "9a30d54c8b16d7e49510b182028079bca120aeebb7d662e88f8566e6196a49f6"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.ps1",
+      "sha256": "371775e2bf586675952d564df22dc7e5f3ffafc19cb93aca12605f6fef6d2f24"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.command.txt",
+      "sha256": "e643d653504488d689520e98492f51d9805379468c73adae5d6ee401797242fc"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.stdout.log",
+      "sha256": "0da966fc18a81e70a615103104bedbead0cc2f42fe4d9185174019da27e29f9a"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.stderr.log",
+      "sha256": "9afca90f10b499f9cee05a474424200175643d7032c17983cc81b8527c60244b"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.ps1",
+      "sha256": "7d9ee7eca637594d55e2619273e6d0faea61674ce66cd2317c3f45f6d43d8861"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.command.txt",
+      "sha256": "9ceb21852d35c6d26226eea347036cb4455d7a45a60101190e7562ce97e05b53"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.stdout.log",
+      "sha256": "3a0d9c5ff0dac72f6f5bff0bf2caade1c69f5a928709a70b4e478c9f1e83eb56"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.stderr.log",
+      "sha256": "d8a7d23309a936b721e58b05d3cb1f772045429e81cc7f3e9abe63b63a4bff35"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.ps1",
+      "sha256": "e0935d40067f2a1ebc1f6388443be8dca9918632af888f0745e2c3076de85706"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.command.txt",
+      "sha256": "1dadf1b63f3fc19e19b1e9fb9a6c3f7772d8ba250861dcced4346f892ae2fca3"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.ps1",
+      "sha256": "a0c5a73ff1dc9b2e76590f172952aa059ec3b976f259f97294231c9615ee59d5"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.command.txt",
+      "sha256": "d05d8afa04a0970c83069687646ea170f9c0db27473084a58339041c5f1fcc93"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.stderr.log",
+      "sha256": "8ff208724cf0c04081c037b021a39dac4e914bed652a41bbea2f278fdd6433e0"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.ps1",
+      "sha256": "4e63b8ed6bec1819707a8ac8133249a04ce9045f28efbc06af8b8a2ed9b569a6"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.command.txt",
+      "sha256": "656a2c45b4da18f772f3596c3f0e5eecc0284a0b7cb341c20b90be1da0e0bc44"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.stderr.log",
+      "sha256": "6becc8c0b4862dfdd53c91b6fa85fc22619e6ddd18ff78415d9ef14298c4c36e"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.ps1",
+      "sha256": "6d26405fd09cb60c40e0c556f8b6cafd187fe75df62212d0ea47b6a393b14df6"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.command.txt",
+      "sha256": "075915908d93fb9e5f41a7138cbe9e687880f3a7fbc083a4fd3c537d1bcb9fb8"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.stdout.log",
+      "sha256": "f1a0fca39d4280363937aabd77783990ea6480bd9ca257816de3b68fc8efa845"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.stderr.log",
+      "sha256": "d69ec2efaeb2556ff757d761ab8d5466c4e46c99cbea51b6f33fd5012f078a8a"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.ps1",
+      "sha256": "acc4be1ce00bc4f711a034edbd16951dec39c8c365c1650043da00ea80e14b02"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.command.txt",
+      "sha256": "e643d653504488d689520e98492f51d9805379468c73adae5d6ee401797242fc"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.stdout.log",
+      "sha256": "776fd4a5cfc697b32cd235d136407a468463653df705fc3f4b918faf63950217"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.stderr.log",
+      "sha256": "cd77f726bea7a29dd521a4ff9a5e8948b1e6fd9fefbed2dc1f06e52c32e766f5"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.ps1",
+      "sha256": "7d9ee7eca637594d55e2619273e6d0faea61674ce66cd2317c3f45f6d43d8861"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.command.txt",
+      "sha256": "9ceb21852d35c6d26226eea347036cb4455d7a45a60101190e7562ce97e05b53"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.stdout.log",
+      "sha256": "0c8f5413b2b6bedc6c0f60383489d50b7fc9d4a60962da8db8d17f04abdb28fa"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.stderr.log",
+      "sha256": "4a2970bb23520c491f6f837738d479e22425b63ecdc234746a144bb010c21597"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.ps1",
+      "sha256": "e0935d40067f2a1ebc1f6388443be8dca9918632af888f0745e2c3076de85706"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.command.txt",
+      "sha256": "e9d73861b7e2c03eb560f157ca50978ad33f9ad78d5757b257fc22dd58f84372"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.stdout.log",
+      "sha256": "a196df21f08fe00ab3d4c124feb3f6108eaf106c93298767e68262eb83a3b0b6"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.stderr.log",
+      "sha256": "f7107285c9ce55eeda995d1646415e7be6f71efd734121a982e5a80f58ab2199"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.ps1",
+      "sha256": "4458adad0a84d3fe21968aa1d8cab22eb62aa9f2532c6d55e87f488501a54a5e"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.command.txt",
+      "sha256": "4425daacf3a7730399ac482697639d3990620fce373ad2d3d44c0d2c23b833ac"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.stderr.log",
+      "sha256": "2ea739af411979a3cd07507c62e61ad9b12ce83a14ca9005e272f04f067f2df0"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.ps1",
+      "sha256": "e4059b3efe2b13bab363f8828d794be7f0997891ed61b6d06673418bc9d2d485"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.command.txt",
+      "sha256": "1dadf1b63f3fc19e19b1e9fb9a6c3f7772d8ba250861dcced4346f892ae2fca3"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.ps1",
+      "sha256": "a0c5a73ff1dc9b2e76590f172952aa059ec3b976f259f97294231c9615ee59d5"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.command.txt",
+      "sha256": "d05d8afa04a0970c83069687646ea170f9c0db27473084a58339041c5f1fcc93"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.stderr.log",
+      "sha256": "2461b00c8697c4189b2de92ca6fb05b5d72273c78a0a47b1ce4e83ccca077b70"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.ps1",
+      "sha256": "4e63b8ed6bec1819707a8ac8133249a04ce9045f28efbc06af8b8a2ed9b569a6"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.environment.json",
+      "sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c5-01-ledger-chain.command.txt",
+      "sha256": "eaf5071e9877866bf65b32e3d8cdbcb7947a76405853d7f0d8ac57806059c90b"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c5-01-ledger-chain.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c5-01-ledger-chain.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/c5-01-ledger-chain.exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/probe/verification.json",
+      "sha256": "4355c9d6a869cea5090ac96ccd63ce2c7b58feea83269005ff7fdcaea5a9c7b0"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "cargo build --locked --workspace --all-targets --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo rustdoc --locked --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo deny --locked check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test embeddings_contract_tests",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-PROVIDER');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-PROVIDER-INTEGRITY.json',encoding='utf-8'));F=['src/providers/mod.rs','src/providers/compat.rs','src/providers/anthropic.rs','src/providers/google.rs','src/providers/ollama.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-PROVIDER-INTEGRITY' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0
+    }
+  ],
+  "command_runs": [
+    {
+      "id": "required-01-build",
+      "criterion": "config.gates.required_commands[0]",
+      "kind": "cargo",
+      "cmd": "cargo build --locked --workspace --all-targets --all-features",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.command.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "9a30d54c8b16d7e49510b182028079bca120aeebb7d662e88f8566e6196a49f6",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "2768a65f80c3552375379f71fad7e23e7825804b333aa2946f3bf7f2ad098b29",
+      "started_at_utc": "2026-11-27T12:57:22.131842+00:00",
+      "ended_at_utc": "2026-11-27T12:57:23.171861+00:00",
+      "duration_seconds": 1.040001,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.ps1",
+      "wrapper_file_sha256": "371775e2bf586675952d564df22dc7e5f3ffafc19cb93aca12605f6fef6d2f24",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/required-01-build.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "required-02-test-default",
+      "criterion": "config.gates.required_commands[1]",
+      "kind": "cargo",
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.command.txt",
+      "stdout_sha256": "0da966fc18a81e70a615103104bedbead0cc2f42fe4d9185174019da27e29f9a",
+      "stderr_sha256": "9afca90f10b499f9cee05a474424200175643d7032c17983cc81b8527c60244b",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "e643d653504488d689520e98492f51d9805379468c73adae5d6ee401797242fc",
+      "started_at_utc": "2026-11-27T12:57:23.212871+00:00",
+      "ended_at_utc": "2026-11-27T12:57:45.569695+00:00",
+      "duration_seconds": 22.356799,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.ps1",
+      "wrapper_file_sha256": "7d9ee7eca637594d55e2619273e6d0faea61674ce66cd2317c3f45f6d43d8861",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/required-02-test-default.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "required-03-test-all-features",
+      "criterion": "config.gates.required_commands[2]",
+      "kind": "cargo",
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.command.txt",
+      "stdout_sha256": "3a0d9c5ff0dac72f6f5bff0bf2caade1c69f5a928709a70b4e478c9f1e83eb56",
+      "stderr_sha256": "d8a7d23309a936b721e58b05d3cb1f772045429e81cc7f3e9abe63b63a4bff35",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "9ceb21852d35c6d26226eea347036cb4455d7a45a60101190e7562ce97e05b53",
+      "started_at_utc": "2026-11-27T12:57:45.601956+00:00",
+      "ended_at_utc": "2026-11-27T12:58:01.565556+00:00",
+      "duration_seconds": 15.963578,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.ps1",
+      "wrapper_file_sha256": "e0935d40067f2a1ebc1f6388443be8dca9918632af888f0745e2c3076de85706",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/required-03-test-all-features.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "required-04-fmt",
+      "criterion": "config.gates.required_commands[3]",
+      "kind": "cargo",
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.command.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "1dadf1b63f3fc19e19b1e9fb9a6c3f7772d8ba250861dcced4346f892ae2fca3",
+      "started_at_utc": "2026-11-27T12:58:01.640060+00:00",
+      "ended_at_utc": "2026-11-27T12:58:05.239172+00:00",
+      "duration_seconds": 3.599086,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.ps1",
+      "wrapper_file_sha256": "a0c5a73ff1dc9b2e76590f172952aa059ec3b976f259f97294231c9615ee59d5",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/required-04-fmt.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "required-05-clippy",
+      "criterion": "config.gates.required_commands[4]",
+      "kind": "cargo",
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.command.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "8ff208724cf0c04081c037b021a39dac4e914bed652a41bbea2f278fdd6433e0",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "d05d8afa04a0970c83069687646ea170f9c0db27473084a58339041c5f1fcc93",
+      "started_at_utc": "2026-11-27T12:58:05.257997+00:00",
+      "ended_at_utc": "2026-11-27T12:58:08.155933+00:00",
+      "duration_seconds": 2.897906,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.ps1",
+      "wrapper_file_sha256": "4e63b8ed6bec1819707a8ac8133249a04ce9045f28efbc06af8b8a2ed9b569a6",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/required-05-clippy.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "required-06-rustdoc",
+      "criterion": "config.gates.required_commands[5]",
+      "kind": "cargo",
+      "cmd": "cargo rustdoc --locked --all-features -- -D warnings",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.command.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "6becc8c0b4862dfdd53c91b6fa85fc22619e6ddd18ff78415d9ef14298c4c36e",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "656a2c45b4da18f772f3596c3f0e5eecc0284a0b7cb341c20b90be1da0e0bc44",
+      "started_at_utc": "2026-11-27T12:58:08.195864+00:00",
+      "ended_at_utc": "2026-11-27T12:58:18.899692+00:00",
+      "duration_seconds": 10.7038,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.ps1",
+      "wrapper_file_sha256": "6d26405fd09cb60c40e0c556f8b6cafd187fe75df62212d0ea47b6a393b14df6",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/required-06-rustdoc.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "required-07-cargo-deny",
+      "criterion": "config.gates.required_commands[6]",
+      "kind": "cargo",
+      "cmd": "cargo deny --locked check",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.command.txt",
+      "stdout_sha256": "f1a0fca39d4280363937aabd77783990ea6480bd9ca257816de3b68fc8efa845",
+      "stderr_sha256": "d69ec2efaeb2556ff757d761ab8d5466c4e46c99cbea51b6f33fd5012f078a8a",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "075915908d93fb9e5f41a7138cbe9e687880f3a7fbc083a4fd3c537d1bcb9fb8",
+      "started_at_utc": "2026-11-27T12:58:18.934743+00:00",
+      "ended_at_utc": "2026-11-27T12:58:49.415660+00:00",
+      "duration_seconds": 30.48089,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.ps1",
+      "wrapper_file_sha256": "acc4be1ce00bc4f711a034edbd16951dec39c8c365c1650043da00ea80e14b02",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/required-07-cargo-deny.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "c4-01-test-default",
+      "criterion": "C-018-PROVIDER-INTEGRITY.acceptance_criteria.c4[0]",
+      "kind": "cargo",
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.command.txt",
+      "stdout_sha256": "776fd4a5cfc697b32cd235d136407a468463653df705fc3f4b918faf63950217",
+      "stderr_sha256": "cd77f726bea7a29dd521a4ff9a5e8948b1e6fd9fefbed2dc1f06e52c32e766f5",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "e643d653504488d689520e98492f51d9805379468c73adae5d6ee401797242fc",
+      "started_at_utc": "2026-11-27T12:58:49.486526+00:00",
+      "ended_at_utc": "2026-11-27T12:59:05.223394+00:00",
+      "duration_seconds": 15.736843,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.ps1",
+      "wrapper_file_sha256": "7d9ee7eca637594d55e2619273e6d0faea61674ce66cd2317c3f45f6d43d8861",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-01-test-default.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "c4-02-test-all-features",
+      "criterion": "C-018-PROVIDER-INTEGRITY.acceptance_criteria.c4[1]",
+      "kind": "cargo",
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.command.txt",
+      "stdout_sha256": "0c8f5413b2b6bedc6c0f60383489d50b7fc9d4a60962da8db8d17f04abdb28fa",
+      "stderr_sha256": "4a2970bb23520c491f6f837738d479e22425b63ecdc234746a144bb010c21597",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "9ceb21852d35c6d26226eea347036cb4455d7a45a60101190e7562ce97e05b53",
+      "started_at_utc": "2026-11-27T12:59:05.288488+00:00",
+      "ended_at_utc": "2026-11-27T12:59:20.252239+00:00",
+      "duration_seconds": 14.963731,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.ps1",
+      "wrapper_file_sha256": "e0935d40067f2a1ebc1f6388443be8dca9918632af888f0745e2c3076de85706",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-02-test-all-features.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "c4-03-embeddings-contract",
+      "criterion": "C-018-PROVIDER-INTEGRITY.acceptance_criteria.c4[2]",
+      "kind": "cargo",
+      "cmd": "cargo test --locked --test embeddings_contract_tests",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.command.txt",
+      "stdout_sha256": "a196df21f08fe00ab3d4c124feb3f6108eaf106c93298767e68262eb83a3b0b6",
+      "stderr_sha256": "f7107285c9ce55eeda995d1646415e7be6f71efd734121a982e5a80f58ab2199",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "e9d73861b7e2c03eb560f157ca50978ad33f9ad78d5757b257fc22dd58f84372",
+      "started_at_utc": "2026-11-27T12:59:20.304497+00:00",
+      "ended_at_utc": "2026-11-27T12:59:21.299714+00:00",
+      "duration_seconds": 0.995191,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.ps1",
+      "wrapper_file_sha256": "4458adad0a84d3fe21968aa1d8cab22eb62aa9f2532c6d55e87f488501a54a5e",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-03-embeddings-contract.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "c4-04-build-default",
+      "criterion": "C-018-PROVIDER-INTEGRITY.acceptance_criteria.c4[3]",
+      "kind": "cargo",
+      "cmd": "cargo build --locked --workspace",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.command.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "2ea739af411979a3cd07507c62e61ad9b12ce83a14ca9005e272f04f067f2df0",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "4425daacf3a7730399ac482697639d3990620fce373ad2d3d44c0d2c23b833ac",
+      "started_at_utc": "2026-11-27T12:59:21.350827+00:00",
+      "ended_at_utc": "2026-11-27T12:59:22.228348+00:00",
+      "duration_seconds": 0.877505,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.ps1",
+      "wrapper_file_sha256": "e4059b3efe2b13bab363f8828d794be7f0997891ed61b6d06673418bc9d2d485",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-04-build-default.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "c4-05-fmt",
+      "criterion": "C-018-PROVIDER-INTEGRITY.acceptance_criteria.c4[4]",
+      "kind": "cargo",
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.command.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "1dadf1b63f3fc19e19b1e9fb9a6c3f7772d8ba250861dcced4346f892ae2fca3",
+      "started_at_utc": "2026-11-27T12:59:22.263897+00:00",
+      "ended_at_utc": "2026-11-27T12:59:23.422733+00:00",
+      "duration_seconds": 1.158822,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.ps1",
+      "wrapper_file_sha256": "a0c5a73ff1dc9b2e76590f172952aa059ec3b976f259f97294231c9615ee59d5",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-05-fmt.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "c4-06-clippy",
+      "criterion": "C-018-PROVIDER-INTEGRITY.acceptance_criteria.c4[5]",
+      "kind": "cargo",
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.command.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "2461b00c8697c4189b2de92ca6fb05b5d72273c78a0a47b1ce4e83ccca077b70",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "d05d8afa04a0970c83069687646ea170f9c0db27473084a58339041c5f1fcc93",
+      "started_at_utc": "2026-11-27T12:59:23.443700+00:00",
+      "ended_at_utc": "2026-11-27T12:59:24.420077+00:00",
+      "duration_seconds": 0.976359,
+      "wrapper_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.ps1",
+      "wrapper_file_sha256": "4e63b8ed6bec1819707a8ac8133249a04ce9045f28efbc06af8b8a2ed9b569a6",
+      "environment_file": ".workforce/evidence/B-018-PROVIDER/probe/c4-06-clippy.environment.json",
+      "environment_file_sha256": "3608b343ce0d05583143bcb70207388c8e6b65ea82437ebb24c648a119781a50",
+      "cargo_incremental_environment": {
+        "variable": "CARGO_INCREMENTAL",
+        "before": null,
+        "during": "0",
+        "after": null,
+        "restored": true
+      }
+    },
+    {
+      "id": "c5-01-ledger-chain",
+      "criterion": "C-018-PROVIDER-INTEGRITY.acceptance_criteria.c5",
+      "kind": "python",
+      "cmd": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-PROVIDER');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-PROVIDER-INTEGRITY.json',encoding='utf-8'));F=['src/providers/mod.rs','src/providers/compat.rs','src/providers/anthropic.rs','src/providers/google.rs','src/providers/ollama.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-PROVIDER-INTEGRITY' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-PROVIDER/probe/c5-01-ledger-chain.stdout.log",
+      "stderr": ".workforce/evidence/B-018-PROVIDER/probe/c5-01-ledger-chain.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-PROVIDER/probe/c5-01-ledger-chain.exit.txt",
+      "command_file": ".workforce/evidence/B-018-PROVIDER/probe/c5-01-ledger-chain.command.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "command_file_sha256": "eaf5071e9877866bf65b32e3d8cdbcb7947a76405853d7f0d8ac57806059c90b",
+      "started_at_utc": "2026-11-27T12:59:24.464767+00:00",
+      "ended_at_utc": "2026-11-27T12:59:24.625047+00:00",
+      "duration_seconds": 0.160264,
+      "python_code_sha256": "4f1babcd49d511a3f4e95e5ba909d37cd3ddd538c256ea175a6dccce3249fc6f"
+    }
+  ],
+  "failed_commands": [],
+  "expected_command_count": 14,
+  "recorded_command_count": 14,
+  "successful_command_count": 14,
+  "missing_commands": [],
+  "skipped_commands": [],
+  "command_serial": true,
+  "criteria_results": {
+    "config_required_commands": "PASS",
+    "card_c4": "PASS",
+    "card_c5": "PASS",
+    "command_outputs_archived": "PASS",
+    "protected_inputs_unchanged": "PASS",
+    "tracked_diff_unchanged": "PASS",
+    "cargo_incremental_policy": "PASS",
+    "incremental_cleanup": "PASS",
+    "no_skip": "PASS"
+  },
+  "test_result_lines": {
+    "required-02-test-default": [
+      "test result: ok. 294 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s",
+      "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.04s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s",
+      "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.12s",
+      "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+      "test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 1.02s"
+    ],
+    "required-03-test-all-features": [
+      "test result: ok. 428 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s",
+      "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s",
+      "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.18s",
+      "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+      "test result: ok. 7 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.45s"
+    ],
+    "c4-01-test-default": [
+      "test result: ok. 294 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s",
+      "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s",
+      "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.19s",
+      "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+      "test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 1.19s"
+    ],
+    "c4-02-test-all-features": [
+      "test result: ok. 428 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.53s",
+      "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+      "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s",
+      "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.15s",
+      "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+      "test result: ok. 7 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.18s"
+    ],
+    "c4-03-embeddings-contract": [
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+    ]
+  },
+  "observations": [
+    {
+      "id": "OBS-CARGO-DENY-WARNINGS",
+      "command_id": "required-07-cargo-deny",
+      "exit_code": 0,
+      "stdout": "advisories ok, bans ok, licenses ok, sources ok",
+      "stderr_warning_count": 11,
+      "disposition": "warnings preserved verbatim; verdict follows the actual cargo deny exit code and output"
+    },
+    {
+      "id": "OBS-DOCTEST-IGNORED-COUNTS",
+      "default_doctest_result": "test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 1.02s",
+      "all_features_doctest_result": "test result: ok. 7 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.45s",
+      "disposition": "existing doctest ignored counts remain in raw stdout; no gate command was skipped"
+    },
+    {
+      "id": "OBS-CARGO-INCREMENTAL",
+      "cargo_command_count": 13,
+      "all_set_to_zero": true,
+      "all_restored": true,
+      "target_debug_incremental_verified_absent": true
+    }
+  ],
+  "verification": {
+    "path": ".workforce/evidence/B-018-PROVIDER/probe/verification.json",
+    "sha256": "4355c9d6a869cea5090ac96ccd63ce2c7b58feea83269005ff7fdcaea5a9c7b0",
+    "failed_checks": []
+  },
+  "failed_checks": [],
+  "tracked_diff_unchanged": true,
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "generated_at_utc": "2026-11-27T12:59:44.530543+00:00",
+  "notes": "独立门禁按配置 7 条 required_commands、卡 c4 六条、c5 一条，共 14 条命令串行实跑；config=PASS，c4=PASS，c5=PASS。每条 stdout/stderr/exit 分别以原始文件保存并计算 sha256；无 SKIP、无 mock、未删 FAIL。command_exit_codes 仅含最终成功项；全部命令的原始结果另见 command_runs/runs.jsonl。13 条 cargo 命令均由 PowerShell 包装设置 CARGO_INCREMENTAL=0 并在 finally 恢复，before/during/after 单独留证。target/debug/incremental 清理后复核=PASS。受保护输入、ledger 与 tracked diff 复核=PASS；tracked_diff_unchanged 的口径排除本 gate.json/probe 覆盖，但拼接 ledger.json 原始字节。"
+}

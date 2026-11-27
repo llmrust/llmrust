@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "gate",
   "agent": "gate-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
-  "comments": "五卡 c4 门禁命令组（cargo build/test --workspace、fmt --all --check、clippy --workspace --all-targets -- -D warnings，PROV/PROXY 另加 cargo test --workspace --features proxy，proxy feature 实测存在于 Cargo.toml）均为本机可实跑且逐条 exit 0 可记录的标准 cargo 命令，判据只锚 exit code 与 stdout/stderr 原文存档，与 gate 回执 command_exit_codes逐条记录/mock_used=false 字段结构兼容（B-DELTA-NULL 回执先例已验证同款命令组本机可达），gitleaks 仅落 CI 未压给 gate（本机实测无该 CLI，口径自洽），无不可跑命令与口径冲突，同意 spec v3。",
-  "signedAt": "2026-11-20T15:08:02.089Z"
+  "comments": "v9 只读复核通过：spec SHA256 匹配；config 全局门禁覆盖 C-018-STREAM-CORE c4 的共有命令并追加全目标构建、rustdoc 与 cargo deny；v9 的 legacy line_stream 兼容及生产 strict 路径判据与 K-02/K-04/K-05/K-06 无冲突。仅复核门禁与判据，未执行构建或测试。",
+  "signedAt": "2026-11-27T08:45:14.3634790Z"
 }

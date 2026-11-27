@@ -20,7 +20,9 @@ use crate::types::{
 };
 use crate::LlmError;
 
-use super::{generate_id, split_model, AppState};
+use super::{
+    generate_id, sanitize_error_text, split_model, stream_error_message, truncate_message, AppState,
+};
 
 // ── Anthropic API types (request) ──────────────────────
 
@@ -331,7 +333,11 @@ pub fn convert_request(req: &AnthropicRequest) -> Result<ChatRequest, String> {
                     }
                 }
             }
-            other => return Err(format!("Unknown role: {other}")),
+            other => {
+                return Err(truncate_message(&sanitize_error_text(&format!(
+                    "Unknown role: {other}"
+                ))))
+            }
         }
     }
 
@@ -893,8 +899,12 @@ pub fn build_stream_response(
                         &serde_json::json!({
                             "type": "error",
                             "error": {
-                                "type": "api_error",
-                                "message": e.to_string()
+                                "type": if matches!(e, LlmError::Unsupported { .. }) {
+                                    "invalid_request_error"
+                                } else {
+                                    "api_error"
+                                },
+                                "message": truncate_message(stream_error_message(&e))
                             }
                         })
                         .to_string(),
@@ -1005,7 +1015,7 @@ async fn handle_non_stream(state: AppState, model: &str, req: ChatRequest) -> Re
 }
 
 async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Response {
-    let (provider_name, model_name) = match split_model(model) {
+    let (_, model_name) = match split_model(model) {
         Ok(pair) => pair,
         Err(e) => {
             return anthropic_error(StatusCode::BAD_REQUEST, "invalid_request_error", e);
@@ -1015,13 +1025,10 @@ async fn handle_stream(state: AppState, model: &str, mut req: ChatRequest) -> Re
     req.model = model_name.to_string();
     req.stream = true;
 
-    let provider = match state.llm.get_provider(provider_name).await {
-        Ok(p) => p,
-        Err(e) => return anthropic_error_from_llm_error(e),
-    };
-
     let id = generate_id();
-    match provider.stream(&req).await {
+    // AUD#2: route/capability adjudicate once in LmrsClient, while leaving the
+    // raw terminal observable so Anthropic can reject a clean EOF in flush().
+    match state.llm.stream_raw_with(model, req).await {
         Ok(inner_stream) => build_stream_response(inner_stream, id, model_name.to_string()),
         Err(e) => anthropic_error_from_llm_error(e),
     }
@@ -1034,7 +1041,7 @@ pub(crate) fn anthropic_error(status: StatusCode, error_type: &str, message: &st
         error_type: "error".to_string(),
         error: AnthropicErrorDetail {
             detail_type: error_type.to_string(),
-            message: message.to_string(),
+            message: truncate_message(&sanitize_error_text(message)),
         },
     };
     (status, Json(body)).into_response()
@@ -1048,15 +1055,12 @@ fn invalid_json_body_response(message: &str) -> Response {
 
 fn anthropic_error_from_llm_error(e: LlmError) -> Response {
     // PRX-005 (SPCC §11.6): normalize upstream errors to Anthropic-shaped
-    // bodies. Message rule: truncate to ≤200 chars as the ONLY mechanical
-    // rule; never echo request body content. Parse is an upstream fault →
-    // 502 api_error (architect ruling).
-    const MAX_MSG: usize = 200;
-    let truncate = |s: &str| -> String { s.chars().take(MAX_MSG).collect() };
-    let (status, error_type, message) = match &e {
+    // bodies. The constructor applies URL stripping and the <=200-char bound
+    // exactly once; fixed wording is used for transport/parse failures.
+    let (status, error_type, raw_message) = match &e {
         LlmError::Api { status, message } => {
             let code = StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_GATEWAY);
-            (code, "api_error", truncate(message))
+            (code, "api_error", message.clone())
         }
         LlmError::Parse(_) => (
             StatusCode::BAD_GATEWAY,
@@ -1074,9 +1078,9 @@ fn anthropic_error_from_llm_error(e: LlmError) -> Response {
             "invalid_request_error",
             e.to_string(),
         ),
-        LlmError::Stream(msg) => (StatusCode::BAD_GATEWAY, "api_error", truncate(msg)),
+        LlmError::Stream(msg) => (StatusCode::BAD_GATEWAY, "api_error", msg.clone()),
     };
-    anthropic_error(status, error_type, &message)
+    anthropic_error(status, error_type, &raw_message)
 }
 
 // ── Tests ──────────────────────────────────────────────
@@ -1087,6 +1091,7 @@ mod tests {
     use crate::types::{ChatResponse, FunctionCall, Role, StreamChunk, ToolCall, Usage};
     use crate::LmrsClient;
     use axum::http::StatusCode;
+    use std::sync::Arc;
 
     #[test]
     fn text_request_converts() {
@@ -2049,5 +2054,172 @@ mod tests {
             !text.contains(RAW),
             "H-3: the raw upstream string must NOT appear anywhere in the response body, got: {text}"
         );
+    }
+
+    // ── C-AUD-PROXY: sanitized SSE errors + Ollama zero-dispatch proofs ──
+
+    struct StreamErrorProvider;
+
+    #[async_trait::async_trait]
+    impl crate::Provider for StreamErrorProvider {
+        async fn chat(&self, _req: &ChatRequest) -> crate::Result<ChatResponse> {
+            Ok(ChatResponse::default())
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> crate::Result<futures::stream::BoxStream<'static, crate::Result<StreamChunk>>>
+        {
+            let message = format!(
+                "raw-secret https://upstream.example/private?token=secret {}",
+                "x".repeat(2_000)
+            );
+            Ok(Box::pin(futures::stream::iter(vec![Err(
+                LlmError::Stream(message),
+            )])))
+        }
+    }
+
+    struct CountingOllamaProvider {
+        inner: crate::providers::ollama::OllamaProvider,
+        calls: Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    impl CountingOllamaProvider {
+        fn new() -> (Self, Arc<std::sync::atomic::AtomicUsize>) {
+            let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let inner = crate::providers::ollama::OllamaProvider::new(
+                crate::ProviderConfig::new("").with_base_url("http://127.0.0.1:1"),
+            );
+            (
+                Self {
+                    inner,
+                    calls: Arc::clone(&calls),
+                },
+                calls,
+            )
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::Provider for CountingOllamaProvider {
+        async fn chat(&self, _req: &ChatRequest) -> crate::Result<ChatResponse> {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Err(LlmError::Stream("provider must not be called".to_string()))
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> crate::Result<futures::stream::BoxStream<'static, crate::Result<StreamChunk>>>
+        {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Err(LlmError::Stream("provider must not be called".to_string()))
+        }
+
+        fn capabilities(&self) -> crate::Capabilities {
+            self.inner.capabilities()
+        }
+    }
+
+    fn build_messages_request(body: &str) -> axum::http::Request<axum::body::Body> {
+        axum::http::Request::builder()
+            .method("POST")
+            .uri("/v1/messages")
+            .header("content-type", "application/json")
+            .body(axum::body::Body::from(body.to_string()))
+            .expect("failed to build Anthropic test request")
+    }
+
+    async fn assert_ollama_request_rejected_before_provider(body: serde_json::Value) {
+        use tower::ServiceExt;
+
+        let (provider, calls) = CountingOllamaProvider::new();
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("ollama", Arc::new(provider)).await;
+        let app = crate::proxy::router(llm);
+        let response = app
+            .oneshot(build_messages_request(&body.to_string()))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let json: serde_json::Value = serde_json::from_slice(&bytes).expect("valid JSON error");
+        assert_eq!(json["error"]["type"], "invalid_request_error");
+        assert!(json["error"]["message"]
+            .as_str()
+            .is_some_and(|m| m.to_lowercase().contains("unsupported")));
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "CAP-003 rejection must precede every provider call"
+        );
+    }
+
+    #[tokio::test]
+    async fn anthropic_messages_stream_error_is_sanitized() {
+        use tower::ServiceExt;
+
+        let llm = Arc::new(LmrsClient::new());
+        llm.set_custom("err", Arc::new(StreamErrorProvider)).await;
+        let app = crate::proxy::router(llm);
+        let body = serde_json::json!({
+            "model": "err/m",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": true
+        });
+        let response = app
+            .oneshot(build_messages_request(&body.to_string()))
+            .await
+            .expect("request failed");
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body read failed");
+        let text = String::from_utf8(bytes.to_vec()).expect("valid UTF-8");
+        assert!(text.contains("event: error"));
+        let payload = text
+            .lines()
+            .filter_map(|line| line.strip_prefix("data:"))
+            .map(str::trim)
+            .find(|data| !data.is_empty())
+            .expect("error SSE data");
+        let json: serde_json::Value = serde_json::from_str(payload).expect("valid error JSON");
+        let message = json["error"]["message"].as_str().expect("error message");
+        assert_eq!(message, "upstream stream failed");
+        assert!(message.chars().count() <= super::super::MAX_ERROR_MESSAGE_CHARS);
+        assert!(!text.contains("http://"));
+        assert!(!text.contains("https://"));
+        assert!(!text.contains("raw-secret"));
+    }
+
+    #[tokio::test]
+    async fn anthropic_messages_ollama_tools_rejected_before_provider() {
+        assert_ollama_request_rejected_before_provider(serde_json::json!({
+            "model": "ollama/llama3",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": true,
+            "tools": [{"name": "f", "input_schema": {"type": "object"}}]
+        }))
+        .await;
+    }
+
+    #[tokio::test]
+    async fn anthropic_messages_ollama_image_rejected_before_provider() {
+        assert_ollama_request_rejected_before_provider(serde_json::json!({
+            "model": "ollama/llava",
+            "stream": true,
+            "messages": [{
+                "role": "user",
+                "content": [{
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": "image/png", "data": "AAAA"}
+                }]
+            }]
+        }))
+        .await;
     }
 }

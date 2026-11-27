@@ -11,6 +11,7 @@ pub mod ollama;
 pub mod openai;
 pub mod openrouter;
 pub mod retry;
+pub(crate) mod sse;
 pub(crate) mod stream_state;
 pub mod stream_util;
 
@@ -25,7 +26,7 @@ use crate::types::{ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingRespons
 #[derive(Debug, thiserror::Error)]
 pub enum LlmError {
     #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
+    Http(reqwest::Error),
 
     #[error("API error ({status}): {message}")]
     Api { status: u16, message: String },
@@ -46,6 +47,12 @@ pub enum LlmError {
 
 pub type Result<T> = std::result::Result<T, LlmError>;
 
+impl From<reqwest::Error> for LlmError {
+    fn from(error: reqwest::Error) -> Self {
+        http::error::http_error(error)
+    }
+}
+
 /// The core trait that all LLM providers must implement.
 #[async_trait]
 pub trait Provider: Send + Sync {
@@ -64,6 +71,37 @@ pub trait Provider: Send + Sync {
             feature: "embeddings".to_string(),
             message: "provider does not implement embeddings".to_string(),
         })
+    }
+
+    /// Send chat and bind any upstream `Retry-After` hint to this call's result.
+    ///
+    /// The default implementation preserves downstream provider signatures and
+    /// establishes a fresh request scope. Retry decorators consume the returned
+    /// tuple directly; they never read a provider instance's mutable hint slot.
+    async fn chat_with_retry_after(
+        &self,
+        req: &ChatRequest,
+    ) -> (Result<ChatResponse>, Option<std::time::Duration>) {
+        http::retry_hint::scoped_call(self.chat(req)).await
+    }
+
+    /// Streaming counterpart of [`Provider::chat_with_retry_after`].
+    async fn stream_with_retry_after(
+        &self,
+        req: &ChatRequest,
+    ) -> (
+        Result<BoxStream<'static, Result<StreamChunk>>>,
+        Option<std::time::Duration>,
+    ) {
+        http::retry_hint::scoped_call(self.stream(req)).await
+    }
+
+    /// Embedding counterpart of [`Provider::chat_with_retry_after`].
+    async fn embed_with_retry_after(
+        &self,
+        req: &EmbeddingRequest,
+    ) -> (Result<EmbeddingResponse>, Option<std::time::Duration>) {
+        http::retry_hint::scoped_call(self.embed(req)).await
     }
 
     /// Machine-readable capability declaration (`CNT-001` / `CAP-002`).
@@ -89,6 +127,14 @@ pub trait Provider: Send + Sync {
         "unknown"
     }
 
+    /// Whether this instance is already a retry decorator.
+    ///
+    /// Defaults to `false` for downstream providers. [`crate::RetryProvider`]
+    /// overrides it so repeated client wrapping cannot multiply retry loops.
+    fn is_retry_provider(&self) -> bool {
+        false
+    }
+
     /// `ERR-004`：**最近一次上游响应**给出的等待窗口（来自 `Retry-After` 头），已解析。
     ///
     /// **为什么走 trait 方法，而不是往 `LlmError` 里加字段**：`LlmError` 及其 `Api` 变体
@@ -96,11 +142,9 @@ pub trait Provider: Send + Sync {
     /// （穷尽匹配失效 / 字面量构造失效）——而本卡明禁"破坏错误类型形状"。
     /// **带默认实现的 trait 方法则是纯附加**（`CAP-002` 的 `capabilities()` 已由 semver 门实测通过）。
     ///
-    /// 语义约定：
-    /// - `None` = 没有可用指示（无响应头 / 解析失败 / 尚未发生失败）→ 调用方走本地退避；
-    /// - `Some(d)` = 上游明示的等待窗口（**已按 `retry::MAX_RETRY_AFTER` 截顶**）。
-    ///
-    /// 默认返回 `None`，故**下游自定义 Provider 不实现也不受影响**。
+    /// 兼容性说明：新重试路径使用上面的 `*_with_retry_after` 返回值，不再读取
+    /// 本方法或任何实例级共享槽。本方法保留以维持 0.1.x 的公开 trait 表面；
+    /// 默认返回 `None`，下游自定义 Provider 不实现也不受影响。
     fn last_retry_after(&self) -> Option<std::time::Duration> {
         None
     }
@@ -212,7 +256,22 @@ pub(crate) fn tool_args_degradation_message(tool_name: &str, err: &serde_json::E
     )
 }
 
-/// 解析工具调用参数，失败时**降级为空对象并留痕**（不 panic、不改成功路径）。
+/// Provider 请求侧的严格工具参数解析。
+///
+/// 非法 JSON 返回 [`LlmError::Parse`]，且错误只含工具名与 serde 的位置信息，
+/// 不回显参数原文。调用方可在网络调用前修正输入。
+pub(crate) fn parse_tool_arguments_strict(tool_name: &str, raw: &str) -> Result<serde_json::Value> {
+    serde_json::from_str(raw).map_err(|err| {
+        LlmError::Parse(format!(
+            "tool `{tool_name}` arguments are not valid JSON ({err})"
+        ))
+    })
+}
+
+/// 旧的 proxy 降级 helper：非法 JSON 改为空对象并留痕。
+///
+/// **Provider 请求侧不得调用本函数。** 它仅用于保持旧代理转换路径，直到
+/// C-018-PROXY-RESIDUAL 在协议边界把非法参数变成显式错误。
 pub(crate) fn parse_tool_arguments(tool_name: &str, raw: &str) -> serde_json::Value {
     match serde_json::from_str(raw) {
         Ok(value) => value,
@@ -226,6 +285,30 @@ pub(crate) fn parse_tool_arguments(tool_name: &str, raw: &str) -> serde_json::Va
             serde_json::json!({})
         }
     }
+}
+
+/// 校验 embedding 数量与 index 集合：每个输入必须恰好对应一个唯一且落在
+/// `0..expected` 内的向量。保持上游返回顺序，不重排。
+pub(crate) fn validate_embedding_indices(
+    expected: usize,
+    indices: impl IntoIterator<Item = usize>,
+) -> Result<()> {
+    let mut seen = HashSet::new();
+    let mut count = 0usize;
+    for index in indices {
+        count += 1;
+        if index >= expected || !seen.insert(index) {
+            return Err(LlmError::Parse(format!(
+                "embedding response has an invalid or duplicate index {index} for {expected} inputs"
+            )));
+        }
+    }
+    if count != expected || seen.len() != expected {
+        return Err(LlmError::Parse(format!(
+            "embedding response count/index set is incomplete: expected {expected}, got {count}"
+        )));
+    }
+    Ok(())
 }
 
 // 0.1.3 期此处另有 `warn_if_unsupported_n`，由六个 Provider 内部手工调用。
@@ -321,6 +404,25 @@ mod tests {
         assert!(n_is_unsupported(Some(2)));
         assert!(n_is_unsupported(Some(5)));
         assert!(n_is_unsupported(Some(128)));
+    }
+
+    #[test]
+    fn strict_tool_arguments_reject_invalid_json_without_echoing_payload() {
+        const SECRET: &str = "super-secret-token-abc123";
+        let raw = format!("{{bad json {SECRET}");
+        let err = parse_tool_arguments_strict("do_thing", &raw).unwrap_err();
+        assert!(matches!(err, LlmError::Parse(_)));
+        let shown = err.to_string();
+        assert!(shown.contains("do_thing"));
+        assert!(!shown.contains(SECRET));
+    }
+
+    #[test]
+    fn embedding_index_set_requires_exact_complete_unique_indices() {
+        assert!(validate_embedding_indices(2, [1, 0]).is_ok());
+        assert!(validate_embedding_indices(2, [0]).is_err());
+        assert!(validate_embedding_indices(2, [0, 0]).is_err());
+        assert!(validate_embedding_indices(2, [0, 2]).is_err());
     }
 
     // ── ERR-001：解析失败的降级与脱敏 ───────────────────────────────────

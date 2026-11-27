@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "ledger",
   "agent": "ledger-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
-  "comments": "同意：三张台账卡 adjustments 六字段格式与现台账结构逐字段一致且机判命令齐备，8 old 值与 b008185 实测基线逐一对账成立，Python splitlines 与守卫 lines().count() 在全部 12 个基线文件上实测同值且双口径判据互为闭环，台账/capabilities.json 全部跨批重叠均由 blocked_by 显式串行化解，ledger 回执口径（command=null 台账层只验 self_sha256 自洽）可产。",
-  "signedAt": "2026-11-20T23:07:27+08:00"
+  "comments": "同意 v9：新增 src/providers/sse/、src/providers/stream_util/ scope 与 planned_file_paths 未放宽 K-02/c5 台账口径——planned 仅允许缺失且不得入 baseline/adjustments，低于 threshold 不登记，达到阈值仍须按 batch_base→adjustment→baseline 实测链登记。以 batch_base 1d717999b9ef9762c40c2e237d329db6522ffe37 执行 c5 与全量双向检查均 PASS：31 个 src/**/*.rs 中 13 个达到 threshold=500 且全部登记，74 条 adjustment 连续并收敛；新增 parser.rs/limits.rs 为 397/18 行，legacy.rs 为 planned 缺失，四个超限 provider 的 baseline 与末条 adjustment、实测值一致。台账 sha256=3f9cfa62e87059c88cdd779e06755f891f11af9a6f057711bc0745cf3d85d5f1。本次仅覆盖本 signoff，未运行 cargo，未修改其它文件。",
+  "signedAt": "2026-11-27T16:45:19.5915739+08:00"
 }

@@ -1,0 +1,77 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-018-API-DOC",
+  "phase": "PH-0.1.8",
+  "story": "VS-3",
+  "priority": "P1",
+  "parallel": "[NP]",
+  "owner_agent": "dev-llmrust-018apidoc",
+  "qa_agent": "qa-llmrust-018apidoc",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "docs/PROJECT_MAP.md",
+    "docs/CONTRACTS.md",
+    "docs/spcc.md",
+    "docs/api-inventory.json",
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "examples/README.md",
+    "tests/agent_docs_validation.rs",
+    "tests/api_freeze.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "exact_file_paths": [
+    "docs/PROJECT_MAP.md",
+    "docs/CONTRACTS.md",
+    "docs/spcc.md",
+    "docs/api-inventory.json",
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "examples/README.md",
+    "tests/agent_docs_validation.rs",
+    "tests/api_freeze.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-3",
+    "PH-0.1.8",
+    "B-018-API-DOC",
+    "T-018-API-DOC"
+  ],
+  "requirement_refs": [
+    "P2-34",
+    "P2-35",
+    "P3-12",
+    "KI-ZH-RESPONSES-DOC",
+    "KI-REEXPORTS",
+    "K-02",
+    "K-04",
+    "K-05"
+  ],
+  "ruling_refs": [
+    "architect 裁定 2026-11-24（v7.1）：ThinkingConfig crate 根/prelude re-export 因 K-04/既有 api_freeze 断言冲突移入 0.2.0 候选，0.1.8 不实现、不注入、不改写 thinking_config_is_stable_but_not_root_reexported；tests/api_freeze.rs 仅可新增断言，现有断言原样保留。CachePolicy/CacheRetention 维持现状；新增定价/能力查询 API 同步登记，不扩大 FinishReason。",
+    "architect 裁定 2026-11-24：docs/spcc.md 作为当前治理入口，明确历史 SPCC-0.1.3/0.1.4 只对各自 commit 有效；PH-0.1.7/0.1.8 的承接、版本与 CHANGELOG Unreleased 关系写入当前文档。",
+    "architect 裁定 2026-11-24：PROJECT_MAP 补 Responses/profiles/sse/wire 模块；CONTRACTS 更新 Retry-After 请求作用域、EOF/截断、cache/provider profile、代理错误/usage/安全重定向；双语 README 与示例模型/端点以 llmrust.models.json/catalog 为机器事实源。"
+  ],
+  "acceptance_criteria": [
+    "c1 `cargo test --locked --test agent_docs_validation audit_2026_api_doc_` 含 2 passed/0 failed/0 ignored：audit_2026_api_doc_unreleased_allowed_during_development、audit_2026_api_doc_final_version_requires_first_heading；`cargo test --locked --test api_freeze thinking_config_is_stable_but_not_root_reexported` 与新增 `cargo test --locked --test api_freeze audit_2026_api_doc_thinking_config_reexport_deferred_0_2_0` 各含 1 passed/0 failed/0 ignored；随后 agent_docs_validation 与 api_freeze 全量 exit 0。",
+    "c2 文档结构判据（python 逐条 exit 0）：① docs/api-inventory.json 将 ThinkingConfig 根/prelude re-export 标记为 deferred 0.2.0，0.1.8 不新增 root/prelude 导出；② docs/PROJECT_MAP.md 含 responses_proxy、profiles、sse、proxy/wire；③ docs/CONTRACTS.md 含 request-scoped Retry-After、clean EOF、CachePolicy、redirect Policy::none；④ README.md 与 README.zh-CN.md 均含 /v1/responses，且模型示例前缀与 provider 表通过脚本对账；⑤ CHANGELOG.md 含 Unreleased 且说明 0.1.6→0.1.7→0.1.8 关系；⑥ docs/spcc.md 指明当前 SSOT 与历史文档边界；⑦ docs/api-inventory.json 含本阶段新增公开符号且 api_freeze 通过；⑧ tests/agent_docs_validation.rs 含开发期 allow_unreleased 分支与最终版本首段校验；⑨ tests/api_freeze.rs 新增 deferred 断言，但 thinking_config_is_stable_but_not_root_reexported 既有函数名与断言原文不得删改。",
+    "c3 注入验红：临时删除 docs/api-inventory.json 的 ThinkingConfig deferred 0.2.0 标记，`cargo test --locked --test api_freeze audit_2026_api_doc_thinking_config_reexport_deferred_0_2_0` 必须 exit 非 0；恢复后 exit 0 且 inventory sha256 等于注入前 h0；不得对既有 stable-but-not-root-reexported 断言做注入或改写。",
+    "c4 门禁逐条 exit 0：cargo test --locked --workspace、cargo test --locked --workspace --all-features、cargo build --locked --workspace、cargo fmt --all --check、cargo clippy --locked --all-targets --all-features -- -D warnings、cargo rustdoc --locked --all-features -- -D warnings。",
+    "c5 零台账动作（单行命令 exit 0 即 PASS）：`python -c \"import json;C=json.load(open('.workforce/cards/C-018-API-DOC.json',encoding='utf-8'));L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));assert not any(s.startswith('src/') for s in C['write_scopes']);assert not any('C-018-API-DOC' in json.dumps(a,ensure_ascii=False) for a in L['adjustments'])\"`。本卡无 src 写入，因而无 baseline/adjustment 义务。",
+    "c6 零放宽与 semver：基线 eb07c7cb118a0b289df50a581173d01a158b4bb6 的既有断言只增不减；不新增 ignore/should_panic；`cargo semver-checks --baseline-version 0.1.6 --default-features` 与 `cargo semver-checks --baseline-version 0.1.6 --all-features` 均 exit 0；README、examples、PROJECT_MAP、CAPABILITIES 等当前面向文档不得保留已退役默认示例；历史 CHANGELOG/兼容性说明允许出现历史名称，历史 GO 不被外推为当前 GO。"
+  ],
+  "independent_test": "cargo test --locked --workspace --all-features",
+  "needs_clarification": [],
+  "blocked_by": [
+    "C-018-CAPABILITY-WIRE",
+    "C-018-PROXY-RESIDUAL",
+    "C-018-ROUTER-COST"
+  ],
+  "checkpoint": "c1-c6 全绿且回执齐全；三张实现卡交付后汇总文档/API/inventory；Cargo 版本 0.1.8 的最终 bump 由 RELEASE-GATE 执行。",
+  "status": "pending"
+}

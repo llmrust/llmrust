@@ -1,0 +1,14 @@
+{
+  "base_head": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+  "handoff_id": "f0ccaa47803ffa8b43084e96",
+  "command": "cargo test --locked --lib audit_2026_router_cost_ready_failure_falls_back_to_cooling",
+  "injection": "removed candidates.extend(cooling); ready-exhaustion cooling suffix",
+  "h0_sha256": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+  "injected_sha256": "958271702f0e33a97492f69b68fd5a4c21b66b6a0adee8760963d9b957f8eca6",
+  "injected_exit_code": 101,
+  "injected_log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c3-injected-red.txt",
+  "restored_sha256": "d945655d6f54319743bad80847667ec7a117c9efb3a1283efec96a728e0ba75e",
+  "restored_exit_code": 0,
+  "restored_log": ".workforce/evidence/B-018-ROUTER/qa-command-logs/c3-restored-green.txt",
+  "sha_restored": true
+}

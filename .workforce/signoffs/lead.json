@@ -2,9 +2,9 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "lead",
   "agent": "lead",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
   "approved": true,
-  "comments": "PH-0.1.7 审计清障战役：Boss 2026-11-20 决策 A 授权。Lead 复核过（六层结构、5 卡 scope 两两不交+blocked_by 串行、台账每批唯一、K-06 新宪法条款合理、known_issues 25 条对账齐全）；dev/qa/gate/ci/ledger 五工种独立审阅签署全过（各有实证记录）。Boss 两项现场裁定：#9 Responses reasoning 原生承载（维持架构师裁定）；B-AUD-1 派发已授权。",
-  "signedAt": "2026-11-20T23:25:00+08:00"
+  "comments": "批准 spec v9。独立 QA 证明 line_stream 新增 E: From<LlmError> + Unpin 会破坏 0.1.6 下游编译，而 cargo-semver-checks 无对应 lint、196 checks 是假绿。v9 采用方案 A：line_stream 恢复 0.1.6 精确 E: Send + 'static 与 legacy lossy 行为并加 deprecated，lossy 实现隔离到 planned 的 src/providers/stream_util/legacy.rs；四个 provider 生产路径只走 strict 有界解析。SSE 空行优先 dispatch，同时单 newline 后接 data: 在当前数据已构成完整 JSON 时自动断帧，未完成 JSON 继续多行追加，EOF 补发完整 event。c2 新增第⑥条可机判判据。六角色 ALL_AGREED，validate-spec/check-criteria/check-card-scopes PASS（14 cards/90 criteria/0 scope异常）。授权 B-018-STREAM 按 v9 回流重做，未通过新 handoff 的 QA/Gate/CI 前不得 release。",
+  "signedAt": "2026-11-27T16:47:34.2030317+08:00"
 }

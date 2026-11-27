@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "qa",
   "agent": "qa-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
-  "comments": "同意签署：实测核对基线 b008185（spec sha256、8 文件台账行数、should_panic 2 处/ignore 0、Doc-tests ignored 2+4 锚点、全部缺陷旧形态锚点）后确认五卡 c1–c7 判据独立可测（机判命令+命名测试+注入验红 h1==h0+零放宽），proxy wire 判据全部 --features proxy 口径，测试名与既有风格一致且无冲突；注入验红为每卡一条代表性验红（沿 C-DELTA-NULL 先例），其余修复以对现行代码可复核的否定性断言钉住不构成阻断。",
-  "signedAt": "2026-11-20T23:10:58+08:00"
+  "comments": "复核 spec v9 与 C-018-STREAM-CORE：实测 spec SHA256 与给定值一致，且 v0.1.6 的 line_stream 确实只有 E: Send + 'static。v9 明确恢复该精确签名及 legacy lossy 行为并 deprecated，禁止新增 From<LlmError>/Unpin，生产路径改走 strict；c1/c6 以无 From<LlmError> 的自定义 E 编译探针补足 semver-checks 盲区，已解决泛型 bound semver 破坏。c2⑥ 已与 legacy 解耦，仅验收新 SSE dispatch（空行优先、单 newline+data: 且当前数据为完整 JSON 才断帧、未完成 JSON 继续追加），并由 c1 的 single_newline_json_frames_tolerated 与 multiline_data_not_split_before_json_complete 两条具名测试独立验收。本轮仅复核 spec/卡面，未运行 cargo，不构成工作树实现验收。",
+  "signedAt": "2026-11-27T16:45:35.7405293+08:00"
 }

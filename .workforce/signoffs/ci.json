@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "ci",
   "agent": "ci-llmrust",
-  "spec_sha256": "254d36f2461f28aeb8155719bb8950b7260c0db38d72561e17d290112931911b",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
-  "comments": "同意签署：五卡全部 CI 承接面经实测成立——gitleaks 锚定由 security.yml secrets job（detect --no-git --config .gitleaks.toml）闭环，proxy 口径测试由 ci.yml cargo test --all-features（proxy 为唯一非默认 feature，等价 --features proxy）每次 push/PR 全量覆盖，architecture_guard/package_guard 有 architecture 专项 job，回执所需 pushed.head_sha 与 workflow_runs conclusion/URL 可经已认证 gh 实测拉取（b008185 双 workflow 均 push/success：CI 44723526976、Security Gates 44723526852），无判据引用 CI 上不存在的 job/命令，CRLF（splitlines/lines() 双口径同值、PROXY 卡不锚行号）与正斜杠路径差异不构成阻塞缺口。",
-  "signedAt": "2026-11-20T23:10:48+08:00"
+  "comments": "复核 spec v9 与 C-018-STREAM-CORE：spec 实测 sha256 与上述值一致；v9 仅调整 legacy line_stream 兼容及 SSE dispatch 口径，卡的 write_scopes/exact_file_paths 不含 .github/workflows、CI 配置或发布流程，c4 继续执行既有 workspace/proxy/all-features/build/fmt/clippy 门禁，因此不改变 CI 流程。origin 可访问，远端 task/PH-0.1.8-B-018-HTTP@1d717999b9ef9762c40c2e237d329db6522ffe37 的 Security Gates run 45569925424 与 CI run 45569925528 均为 success，可取得远端证据。",
+  "signedAt": "2026-11-27T16:45:14.8833945+08:00"
 }

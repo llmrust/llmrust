@@ -1,0 +1,59 @@
+{
+  "schema": "agent-workforce-gate-skill-preflight/v1",
+  "checked_at_utc": "2026-11-25T06:27:13.381138+00:00",
+  "checks": [
+    {
+      "id": "validate-skill",
+      "argv": [
+        "node",
+        "D:\\llmrust-0.1.5\\.agents\\skills\\agent-workforce-loop\\scripts\\validate-skill.mjs"
+      ],
+      "started_at_utc": "2026-11-25T06:26:16.968105+00:00",
+      "ended_at_utc": "2026-11-25T06:26:18.263310+00:00",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/skill-validate-skill.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/skill-validate-skill.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/skill-validate-skill.exit.txt",
+      "stdout_sha256": "4b331b1d7e3b9b1d1fc86879d9f9702e155965adf7ae12f5827fdaf2157a3938",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "selftest",
+      "argv": [
+        "node",
+        "D:\\llmrust-0.1.5\\.agents\\skills\\agent-workforce-loop\\scripts\\selftest.mjs"
+      ],
+      "started_at_utc": "2026-11-25T06:26:18.279918+00:00",
+      "ended_at_utc": "2026-11-25T06:27:13.192245+00:00",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/skill-selftest.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/skill-selftest.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/skill-selftest.exit.txt",
+      "stdout_sha256": "b2438109667c9a06e4b881e3cc940490069b93358d296c1b00c500d3dc24e28b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "id": "loop-status",
+      "argv": [
+        "node",
+        "D:\\llmrust-0.1.5\\.agents\\skills\\agent-workforce-loop\\scripts\\loop.mjs",
+        "status",
+        "--repo",
+        "D:\\llmrust-0.1.5"
+      ],
+      "started_at_utc": "2026-11-25T06:27:13.209693+00:00",
+      "ended_at_utc": "2026-11-25T06:27:13.363046+00:00",
+      "exit_code": 0,
+      "stdout": ".workforce/evidence/B-018-ROUTER/probe/skill-loop-status.stdout.log",
+      "stderr": ".workforce/evidence/B-018-ROUTER/probe/skill-loop-status.stderr.log",
+      "exit_code_file": ".workforce/evidence/B-018-ROUTER/probe/skill-loop-status.exit.txt",
+      "stdout_sha256": "1656ecb6e74565d9ab531b9266b588f978d2f175bff087cbacf3c2cceb3bf3b5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    }
+  ],
+  "all_exit_zero": true,
+  "note": "Auxiliary skill checks; not part of the 13 required gate commands."
+}

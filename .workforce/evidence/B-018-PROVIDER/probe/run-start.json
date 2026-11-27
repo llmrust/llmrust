@@ -1,0 +1,9 @@
+{
+  "schema": "agent-workforce-gate-run-start/v1",
+  "pid": 25180,
+  "started_at_utc": "2026-11-27T12:57:22.122908+00:00",
+  "serial": true,
+  "expected_command_count": 14,
+  "pwsh": "C:\\Program Files\\PowerShell\\7\\pwsh.EXE",
+  "parent_cargo_incremental_before": null
+}

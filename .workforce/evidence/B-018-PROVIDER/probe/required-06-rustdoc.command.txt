@@ -1,0 +1,1 @@
+cargo rustdoc --locked --all-features -- -D warnings

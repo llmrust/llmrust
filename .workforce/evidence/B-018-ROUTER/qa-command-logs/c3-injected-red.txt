@@ -1,0 +1,41 @@
+   Compiling llmrust v0.1.6 (D:\llmrust-0.1.5)
+warning: variable does not need to be mutable
+   --> src\router.rs:357:13
+    |
+357 |         let mut candidates = self.rotate_ready(group, ready);
+    |             ----^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `cooling`
+   --> src\router.rs:348:21
+    |
+348 |         let (ready, cooling) = self.ready_and_cooling(&deployments);
+    |                     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_cooling`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `llmrust` (lib test) generated 2 warnings (run `cargo fix --lib -p llmrust --tests` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.06s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-8bbb1f94b5dfc7a5.exe)
+
+running 1 test
+test router::tests::audit_2026_router_cost_ready_failure_falls_back_to_cooling ... FAILED
+
+failures:
+
+---- router::tests::audit_2026_router_cost_ready_failure_falls_back_to_cooling stdout ----
+
+thread 'router::tests::audit_2026_router_cost_ready_failure_falls_back_to_cooling' (33784) panicked at src\router.rs:1350:55:
+called `Result::unwrap()` on an `Err` value: Api { status: 503, message: "fail" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    router::tests::audit_2026_router_cost_ready_failure_falls_back_to_cooling
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 275 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

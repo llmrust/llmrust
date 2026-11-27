@@ -1,0 +1,60 @@
+{
+  "schema": "agent-workforce-card/v1",
+  "card_id": "C-018-ROUTER-COST",
+  "phase": "PH-0.1.8",
+  "story": "VS-3",
+  "priority": "P1",
+  "parallel": "[NP]",
+  "owner_agent": "dev-llmrust-018router",
+  "qa_agent": "qa-llmrust-018router",
+  "gate_agent": "gate-llmrust",
+  "ledger_agent": "ledger-llmrust",
+  "write_scopes": [
+    "src/router.rs",
+    "src/pricing.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "exact_file_paths": [
+    "src/router.rs",
+    "src/pricing.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "spec_refs": [
+    "VS-0",
+    "VS-3",
+    "PH-0.1.8",
+    "B-018-ROUTER",
+    "T-018-ROUTER"
+  ],
+  "requirement_refs": [
+    "P2-03",
+    "P2-04",
+    "P2-05",
+    "P2-07",
+    "P2-09",
+    "K-02",
+    "K-04",
+    "K-05"
+  ],
+  "ruling_refs": [
+    "architect 裁定 2026-11-24：ready 节点全部失败后允许继续尝试 cooling 节点；先过滤 ready 再轮转；全冷却时按注册顺序 fail-open，不因轮转计数器改写顺序。",
+    "architect 裁定 2026-11-24：cooldown map 清理过期项并设容量上限，Instant 计算使用 checked_add/saturating 等价安全路径，极端 Duration 不得 panic。",
+    "architect 裁定 2026-11-24：Router+Retry 在 0.1.8 保持“同部署先重试、耗尽后 failover”的既有组合语义，但在 Router 公共文档与结构化日志明确 waits_for_upstream/retry_budget_exhausted，不冒充 failover-first；真正 failover-first 留 0.2.0 候选。",
+    "architect 裁定 2026-11-24：P2-09 用 pricing 模块新增 retention-aware 估算 API 与 CacheWriteTokens 输入，不修改 Usage 字段，保持 0.1.x 可构造结构兼容。"
+  ],
+  "acceptance_criteria": [
+    "c1 新增并以 `cargo test --locked --lib audit_2026_router_cost_` 运行 5 条测试，stdout 含 `5 passed; 0 failed; 0 ignored`：audit_2026_router_cost_ready_failure_falls_back_to_cooling、audit_2026_router_cost_round_robin_after_ready_filter、audit_2026_router_cost_all_cooling_keeps_registration_order、audit_2026_router_cost_one_hour_cache_write_is_priced、audit_2026_router_cost_concurrent_cooldown_rr_interleaving。测试须覆盖三节点偏斜、过期清理/容量/极端 Duration，以及 1h 写缓存估算不再落回 5m 价。",
+    "c2 结构判据（python 逐条 exit 0）：① src/router.rs 的候选选择在 round-robin 递增前完成 ready 过滤；② 存在 ready 耗尽后的 cooling fallback 分支；③ cooldown 写入使用 checked_add 或 saturating_add；④ src/pricing.rs 新增公开 retention-aware 方法且接受 5m/1h 分开的 cache-write 用量，不修改 src/types.rs 的 Usage；⑤ Router 文档/日志包含 waits_for_upstream 与 retry_budget_exhausted 语义；⑥ 并发测试交错 cooldown 写入/过期与 per-group RR 递增，断言无死锁、无跨组污染、全冷却顺序仍为注册顺序。",
+    "c3 注入验红：临时删除 ready 耗尽后的 cooling fallback，`cargo test --locked --lib audit_2026_router_cost_ready_failure_falls_back_to_cooling` 必须 exit 非 0；恢复后 exit 0 且 src/router.rs sha256 等于注入前 h0。",
+    "c4 门禁逐条 exit 0：cargo test --locked --workspace、cargo test --locked --workspace --all-features、cargo build --locked --workspace、cargo fmt --all --check、cargo clippy --locked --all-targets --all-features -- -D warnings。",
+    "c5 台账链机判（单行命令，exit 0 即 PASS；F 自动并入 planned_file_paths）：`python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-ROUTER');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-ROUTER-COST.json',encoding='utf-8'));F=['src/router.rs','src/pricing.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-ROUTER-COST' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"`。断言 scope/真实性或 planned 缺失、六字段含 file、old=batch_base baseline（newly-oversized 允许 batch_base 无 baseline/adjustment 且 old=0/首条）、前驱 new=old、new=splitlines 实测=当前 baseline、reason/authorized/date；当前<threshold 或 planned 文件尚不存在时不得登记 baseline/adjustment。",
+    "c6 零放宽与 semver：基线 eb07c7cb118a0b289df50a581173d01a158b4bb6 的既有断言只增不减；不新增 ignore/should_panic；`cargo semver-checks --baseline-version 0.1.6 --default-features` 与 `cargo semver-checks --baseline-version 0.1.6 --all-features` 均 exit 0。"
+  ],
+  "independent_test": "cargo test --locked --workspace --all-features",
+  "needs_clarification": [],
+  "blocked_by": [
+    "C-018-HTTP-SAFE"
+  ],
+  "checkpoint": "c1-c6 全绿且回执齐全；本卡持有台账，故不得与任何其他 source 卡并发；Router+Retry 的非 failover-first 语义必须在最终 CONTRACTS 文档保留。",
+  "status": "pending"
+}

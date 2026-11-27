@@ -1,0 +1,239 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ci",
+  "agent": "ci-llmrust",
+  "written_by": "ci-llmrust",
+  "card_id": null,
+  "batch_id": "B-AUD-3",
+  "handoff_id": "79b1a1c78436c5d212c854a3",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "provider": "github",
+  "repo": "llmrust/llmrust",
+  "pushed": {
+    "remote": "origin",
+    "branch": "task/PH-0.1.7-B-AUD-3-proxy",
+    "head_sha": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d"
+  },
+  "pr": {
+    "number": 252,
+    "url": "https://github.com/llmrust/llmrust/pull/252",
+    "state": "OPEN",
+    "base": "main",
+    "head": "task/PH-0.1.7-B-AUD-3-proxy",
+    "head_sha": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d"
+  },
+  "workflow_runs": [
+    {
+      "id": 45540610509,
+      "name": "CI",
+      "run_number": 526,
+      "event": "pull_request",
+      "head_sha": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45540610509",
+      "jobs": [
+        {
+          "id": 138957909904,
+          "name": "Architecture & package guards (CI-003)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45540610509/job/138957909904"
+        },
+        {
+          "id": 138957910158,
+          "name": "MSRV (1.86)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45540610509/job/138957910158"
+        },
+        {
+          "id": 138957910222,
+          "name": "API-002 semver gate (vs 0.1.2 baseline)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45540610509/job/138957910222"
+        },
+        {
+          "id": 138957910336,
+          "name": "Test (stable)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45540610509/job/138957910336"
+        }
+      ]
+    },
+    {
+      "id": 45540610472,
+      "name": "Security Gates",
+      "run_number": 304,
+      "event": "pull_request",
+      "head_sha": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45540610472",
+      "jobs": [
+        {
+          "id": 138957910117,
+          "name": "Secret scan (gitleaks CLI)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45540610472/job/138957910117"
+        },
+        {
+          "id": 138957910326,
+          "name": "RustSec advisories",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45540610472/job/138957910326"
+        },
+        {
+          "id": 138957910389,
+          "name": "Supply-chain policy (cargo-deny)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45540610472/job/138957910389"
+        }
+      ]
+    }
+  ],
+  "conclusion": "success",
+  "verdict": "PASS",
+  "bypass_detected": false,
+  "security_resolution": {
+    "advisory_id": "RUSTSEC-2026-0592",
+    "package": "url",
+    "resolved_version": "2.5.9",
+    "transitive_update": "form_urlencoded 1.2.3",
+    "previous_head": "93f8a94f87b239bc9845733028ee9be2b47e9b45",
+    "previous_security_run": 45535179134,
+    "previous_conclusion": "failure",
+    "current_security_run": 45540610472,
+    "current_conclusion": "success",
+    "bypass_attempted": false
+  },
+  "inputs_seen": [
+    "git status/diff：22 个 v8 预期 delta 精确匹配；无 target、*.log、ci.json、loop-state、src/tests 业务文件入暂存区",
+    ".workforce/spec.json、C-AUD-PROXY、七方 signoffs：spec_sha256=f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+    ".workforce/loop-state.json：handoff_id=79b1a1c78436c5d212c854a3；本会话只读，SHA256 保持 105860a2a3257afaf2de9b2f5e1bc660f60b96eb172cf3ac045763f70d04b816",
+    "B-AUD-3 v8 dev/qa/gate/ledger 回执及 probe：18 条命令全 exit 0，gate verdict=PASS，工件哈希复核通过",
+    "Cargo.lock：url 2.5.9、form_urlencoded 1.2.3；既有代理 src/tests 业务文件无 delta",
+    "git push 前远端分支=93f8a94；push 后 ls-remote=4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+    "gh pr view/REST #252：同一 PR，base=main，headRefOid=4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+    "GitHub Actions runs?head_sha=4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d：仅 CI 与 Security Gates 两条，均 completed/success",
+    "CI/Security jobs API：CI 4/4 success；Security Gates 3/3 success"
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/tmp/ci-b3-v8-pr.json",
+      "sha256": "8e6777ecaa7fd8a3c4826506169d191bdda93c4e17720b221a926b1f9f00a65d"
+    },
+    {
+      "path": ".workforce/tmp/ci-b3-v8-runs-4ff1fd4.json",
+      "sha256": "661d009c1ba6192d25260b59deeac8279f69e8a3d4798c98dfb9569207100c19"
+    },
+    {
+      "path": ".workforce/tmp/ci-b3-v8-jobs-ci-45540610509.json",
+      "sha256": "46f2b61446af8bf06e3c7270c9806edef242bc6f8e2e68ae95cc6d22f174da4f"
+    },
+    {
+      "path": ".workforce/tmp/ci-b3-v8-jobs-security-45540610472.json",
+      "sha256": "64635ed0f769f870fb23bc750be7a2adb86a7136c1763009becd13887941991b"
+    },
+    {
+      "path": ".workforce/tmp/ci-b3-v8-security-run-45540610472.json",
+      "sha256": "681b6c98f39ef1ee879b9f8095b41b2ece2c53e72e6ae28448f9e66a3b3a825b"
+    },
+    {
+      "path": ".workforce/tmp/ci-b3-v8-pr-body-after.txt",
+      "sha256": "19b5525faf0fcf5f876507b2dc5bb91b4bdb9fb2fa63b66af672b7f676824c96"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "git status/diff 与 v8 expected-set/protected-hash/probe-artifact 校验",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git -c core.whitespace=cr-at-eol diff --check / diff --cached --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git add -- <22 个显式 v8 预期路径>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git -c user.name=ci-llmrust -c user.email=ci-llmrust@agents.local commit",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git ls-remote --heads origin refs/heads/task/PH-0.1.7-B-AUD-3-proxy（push 前=93f8a94）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git push origin HEAD:refs/heads/task/PH-0.1.7-B-AUD-3-proxy",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git ls-remote --heads origin refs/heads/task/PH-0.1.7-B-AUD-3-proxy（push 后=4ff1fd4）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api user（push 后活动账号仍为 dongyanyuxuana）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr view 252 --json number,url,state,headRefName,baseRefName,headRefOid",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/actions/runs?head_sha=4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d（首次）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr checks 252（首次：CI pending，Security 已全绿）",
+      "exit_code": 8
+    },
+    {
+      "cmd": "gh run watch 45540610509 --exit-status --interval 15",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/actions/runs/45540610472/jobs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/actions/runs/45540610472",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/actions/runs?head_sha=4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d（最终）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/actions/runs/45540610509/jobs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr edit 252 --body（GraphQL Projects classic 弃用报错，未改正文）",
+      "exit_code": 1
+    },
+    {
+      "cmd": "gh api -X PATCH repos/llmrust/llmrust/pulls/252 -F body=@.workforce/tmp/ci-b3-v8-pr-body.md",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr checks 252（最终双绿）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "Get-FileHash / Python hashlib 校验全部 artifacts",
+      "exit_code": 0
+    }
+  ],
+  "mock_used": false,
+  "independent": true,
+  "declared_by_lead": false,
+  "generated_at_utc": "2026-11-25T03:37:28.589193+00:00",
+  "notes": "B-AUD-3 v8 新 head=4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d：CI #45540610509（run_number 526）completed/success，4/4 jobs 全绿；Security Gates #45540610472（run_number 304）completed/success，3/3 jobs 全绿，RustSec advisories 与 Supply-chain policy (cargo-deny) 均通过，确认 url 2.5.9 已解除 RUSTSEC-2026-0592。故 conclusion=success、verdict=PASS；未 bypass、未忽略公告、未改安全门。commit author/committer 均为 ci-llmrust <ci-llmrust@agents.local>；push 使用既有 bishuan 凭据，token 仅进程内读取并单次注入，未打印、未落盘、未改 git/gh 配置，push 后活动 gh 账号仍为 dongyanyuxuana。同一 PR #252 保留；gh pr edit 因 GraphQL Projects classic 弃用错误退出 1 且未改正文，随后用 REST PATCH 成功更新为 v8 说明。本会话未修改业务 src/tests、spec、card、signoffs 或 loop-state；仅提交 Lead 提供的 v8 预期 delta。ci.json 按任务要求覆盖为新 head 真实结果且不提交。"
+}

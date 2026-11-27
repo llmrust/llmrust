@@ -1,0 +1,10 @@
+    Building llmrust v0.1.6 (current)
+       Built [   9.689s] (current)
+     Parsing llmrust v0.1.6 (current)
+      Parsed [   0.050s] (current)
+     Parsing llmrust v0.1.6 (baseline, cached)
+      Parsed [   0.118s] (baseline)
+    Checking llmrust v0.1.6 -> v0.1.6 (no change; assume minor)
+     Checked [   0.092s] 196 checks: 196 pass, 57 skip
+     Summary no semver update required
+    Finished [  13.217s] llmrust

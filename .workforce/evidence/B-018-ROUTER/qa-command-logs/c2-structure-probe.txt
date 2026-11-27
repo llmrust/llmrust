@@ -1,0 +1,7 @@
+PASS c2.1 ready filtering precedes round-robin advancement
+PASS c2.2 ready-exhaustion cooling fallback exists and is tested
+PASS c2.3 checked deadline arithmetic, pruning, capacity and extreme Duration
+PASS c2.4 public split-retention pricing; Usage bytes unchanged from base_head
+PASS c2.5 Router docs/chat/stream logs expose retry-composition semantics
+PASS c2.6 concurrent cooldown/RR proof covers deadlock, isolation and fail-open order
+C2_RESULT: 6/6 PASS

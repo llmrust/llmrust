@@ -1,0 +1,20 @@
+{
+  "schema": "agent-workforce-gate-incremental-cleanup/v1",
+  "batch_id": "B-018-PROVIDER",
+  "card_id": "C-018-PROVIDER-INTEGRITY",
+  "path": "target/debug/incremental",
+  "resolved_path": "D:\\llmrust-0.1.5\\target\\debug\\incremental",
+  "before": {
+    "exists": true,
+    "files": 0,
+    "bytes": 0
+  },
+  "removed": true,
+  "after": {
+    "exists": false,
+    "files": 0,
+    "bytes": 0
+  },
+  "verified_absent": true,
+  "verified_at_utc": "2026-11-27T12:59:39.053632+00:00"
+}

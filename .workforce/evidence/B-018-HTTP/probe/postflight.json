@@ -1,0 +1,43 @@
+{
+  "schema": "agent-workforce-gate-postflight/v1",
+  "batch_id": "B-018-HTTP",
+  "card_id": "C-018-HTTP-SAFE",
+  "agent": "gate-llmrust",
+  "written_by": "gate-llmrust",
+  "verified_at_utc": "2026-11-25T05:05:28.190467+00:00",
+  "head": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+  "protected_sha256": {
+    ".workforce/spec.json": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+    ".workforce/config.json": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+    ".workforce/cards/C-018-HTTP-SAFE.json": "fc712b862c3e078dde406b32e9ba2fe595b954a1c8be02b1e4d0b50d83f963a2",
+    ".workforce/loop-state.json": "ce47874e70b25ba4ef41e4c3b4a6e78e9612772e7f45aa431b6ecacab704b4ef",
+    ".workforce/signoffs/architect.json": "bc711bc94075a9ed904f27d5652b4f78bf733a81b8fe0da10842009ae34ee3ac",
+    ".workforce/signoffs/ci.json": "031d0ffc060a15623dda7c51ff25456d733ec730398d355fe4ace45ba2d5070a",
+    ".workforce/signoffs/dev.json": "2973235b654220cd19442234552440f4ed7de7aa1f71dfbbffc35fb1fb079943",
+    ".workforce/signoffs/gate.json": "2553240ceb9c97ea4655e5122b7d173a20fee325f7d710444e1c319d6bc96dd1",
+    ".workforce/signoffs/lead.json": "65241f78059fe8b2a54a72831ece6b6aafc057d4828709781daf64b494f2375a",
+    ".workforce/signoffs/ledger.json": "1fa47443c4bbb8f3cc884ab5ac3d96408ae6ed602a78dc55cf20f476fdf5a8de",
+    ".workforce/signoffs/qa.json": "93817f949b37a24264ff138cff210b7bdf6c85e1cabd1e9c053378667fb85f0e",
+    "src/lib.rs": "913a19bfd4d4d5dbc04696abe49ec2b085ac26a0c924810086b38aa9097717ce",
+    "src/providers/anthropic.rs": "d465f0e2896b0ba722fae1bedbe7f8059f4a191c5fe068f05c7bc59918ea1a3d",
+    "src/providers/compat.rs": "3f1248a86c071e470617b9f13e441b00e5e575b98bf160e1f9f02816984586a4",
+    "src/providers/google.rs": "d2050e96b3bc303c47a4c139fd5b755dc98927b9aaa296d72d232ef96f35fe40",
+    "src/providers/http.rs": "d7110847ef843eec16f32b011ff77105721625e0f8791074a45e097cc1edda78",
+    "src/providers/http/error.rs": "08a2b9465f83f9772dfc502128805176f3c91a4426e0d20cef164eebc10a2d4b",
+    "src/providers/http/redirect.rs": "10613bc8ff610764b79732cc6c57068a3fcc1bd76711ddce2d0b2789198bad07",
+    "src/providers/http/retry_hint.rs": "25414b5dcad31607b395bd8aa263f4fccb58edc0228831602d00957c8bc8db10",
+    "src/providers/mod.rs": "0ff54f99f3a4ae76f4a56d8a3886f38151a4f8229b8b9b3b3cf13b21b2b2cf19",
+    "src/providers/ollama.rs": "c8be53e6c1deca93cd03f7fddb4849045a5f66c223066341656317fb534a48b2",
+    "src/providers/openai.rs": "becffa8c01561f22ab9f17499d65d0cdd2c21e48fdf5ba2cc53644c0bede800c",
+    "src/providers/retry.rs": "f7192fc1c82a5afde7b58cdfa999db961953b66ffd7bda74a3bc747f82e19f83",
+    "tests/hotspot_ledger.json": "a29ee7ca07c4a6a66aa2831c0f2ca697f1bc4e046653eca3acffeb8373da63c8",
+    "tests/provider_contract_freeze.rs": "d309e38e04fc57620a55595f8ca34fa7cff063067ba0c10c20840d47a997a361"
+  },
+  "protected_mismatches": [],
+  "git_status_after": {
+    "path": ".workforce/evidence/B-018-HTTP/probe/git-status-after.bin",
+    "sha256": "2c8efef85183f4e55f9d80b9ce271d8aa0ef1466498efcaec0da5c3607497c44",
+    "bytes": 390
+  },
+  "git_diff_binary_sha256": "0591cd7d3e438cbba9d3925fe845bdc61bfe24a0157022e4510094edb47dc50b"
+}

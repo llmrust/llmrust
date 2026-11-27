@@ -1,0 +1,13 @@
+PASS: actual router existing-hotspot chain
+PASS: actual pricing newly-oversized old=0/first-row
+PASS: pricing facts: batch_base absent, 527>=500, baseline 527, sole 0->527 adjustment
+PASS: synthetic newly-oversized valid
+PASS: newly-oversized rejects nonzero old
+PASS: rejects old != batch_base baseline
+PASS: rejects predecessor new != old
+PASS: rejects baseline != measured
+PASS: rejects missing file field
+PASS: planned missing file allowed
+PASS: unplanned missing file rejected
+PASS: under-threshold baseline registration rejected
+C5_BRANCH_RESULT: 11/11 PASS; batch_base=18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c; pricing_newly_oversized=PASS

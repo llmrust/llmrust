@@ -1,0 +1,389 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ci",
+  "agent": "ci-llmrust",
+  "written_by": "ci-llmrust",
+  "card_id": null,
+  "batch_id": "B-018-HTTP",
+  "handoff_id": "0aaf82060ef22dc752267648",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "provider": "github",
+  "repo": "llmrust/llmrust",
+  "commit": {
+    "sha": "16a54058f3e40026336002233d15acf937b14743",
+    "parent": "8a084f52dfcf15fcafb30d58b017c44ca6f32616",
+    "author": "ci-llmrust <ci-llmrust@agents.local>",
+    "committer": "ci-llmrust <ci-llmrust@agents.local>",
+    "subject": "chore(workforce): B-AUD-3 历史 CI 回介入库（release 脏检查清障）",
+    "file_count": 1
+  },
+  "release_cleanup": {
+    "reason": "未跟踪的 .workforce/evidence/B-AUD-3/ci.json 阻断 release 脏检查",
+    "historical_batch_id": "B-AUD-3",
+    "historical_head_sha": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+    "archived_path": ".workforce/evidence/B-AUD-3/ci.json",
+    "archived_sha256": "75a93d385420c3132962c166dc83a9e203ca3a51a4e505055e50fa99cf0aaf03",
+    "current_ci_json_committed": false,
+    "previous_ci_json_sha256": "c550e103fdabf3d6ede881a2f952deb311181fceaf6c950ccf3cc89e8c7d0ff8"
+  },
+  "cumulative_pr": {
+    "includes_pr": 252,
+    "includes_delivered_commit": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+    "business_commit": "5f8d844ffb2902055ba2cedf1d8a36271ac8282f",
+    "note": "PR #253 为包含 #252 已交付提交的累计 PR；追加 B-AUD-3 历史 CI 回执归档提交后继续使用同一 PR。"
+  },
+  "pushed": {
+    "remote": "origin",
+    "branch": "task/PH-0.1.8-B-018-HTTP",
+    "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+    "remote_head_verified": true,
+    "local_remote_tracking_ref": "refs/remotes/origin/task/PH-0.1.8-B-018-HTTP"
+  },
+  "pr": {
+    "number": 253,
+    "url": "https://github.com/llmrust/llmrust/pull/253",
+    "state": "open",
+    "base": "main",
+    "head": "task/PH-0.1.8-B-018-HTTP",
+    "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+    "title": "PH-0.1.8 B-018-HTTP：HTTP 安全边界收口（累计包含 #252）"
+  },
+  "workflow_runs": [
+    {
+      "id": 45555556840,
+      "run_id": 45555556840,
+      "name": "CI",
+      "run_number": 528,
+      "run_attempt": 1,
+      "event": "pull_request",
+      "head_branch": "task/PH-0.1.8-B-018-HTTP",
+      "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45555556840",
+      "created_at": "2026-11-25T05:43:34Z",
+      "updated_at": "2026-11-25T05:44:57Z",
+      "jobs": [
+        {
+          "id": 139006631121,
+          "job_id": 139006631121,
+          "name": "Test (stable)",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+          "run_id": 45555556840,
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45555556840/job/139006631121",
+          "started_at": "2026-11-25T05:43:37Z",
+          "completed_at": "2026-11-25T05:44:56Z"
+        },
+        {
+          "id": 139006631447,
+          "job_id": 139006631447,
+          "name": "MSRV (1.86)",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+          "run_id": 45555556840,
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45555556840/job/139006631447",
+          "started_at": "2026-11-25T05:43:37Z",
+          "completed_at": "2026-11-25T05:43:56Z"
+        },
+        {
+          "id": 139006631478,
+          "job_id": 139006631478,
+          "name": "API-002 semver gate (vs 0.1.2 baseline)",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+          "run_id": 45555556840,
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45555556840/job/139006631478",
+          "started_at": "2026-11-25T05:43:37Z",
+          "completed_at": "2026-11-25T05:44:42Z"
+        },
+        {
+          "id": 139006631491,
+          "job_id": 139006631491,
+          "name": "Architecture & package guards (CI-003)",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+          "run_id": 45555556840,
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45555556840/job/139006631491",
+          "started_at": "2026-11-25T05:43:37Z",
+          "completed_at": "2026-11-25T05:43:59Z"
+        }
+      ]
+    },
+    {
+      "id": 45555556819,
+      "run_id": 45555556819,
+      "name": "Security Gates",
+      "run_number": 306,
+      "run_attempt": 1,
+      "event": "pull_request",
+      "head_branch": "task/PH-0.1.8-B-018-HTTP",
+      "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45555556819",
+      "created_at": "2026-11-25T05:43:34Z",
+      "updated_at": "2026-11-25T05:44:13Z",
+      "jobs": [
+        {
+          "id": 139006631184,
+          "job_id": 139006631184,
+          "name": "Secret scan (gitleaks CLI)",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+          "run_id": 45555556819,
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45555556819/job/139006631184",
+          "started_at": "2026-11-25T05:43:37Z",
+          "completed_at": "2026-11-25T05:43:43Z"
+        },
+        {
+          "id": 139006631531,
+          "job_id": 139006631531,
+          "name": "RustSec advisories",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+          "run_id": 45555556819,
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45555556819/job/139006631531",
+          "started_at": "2026-11-25T05:43:37Z",
+          "completed_at": "2026-11-25T05:43:46Z"
+        },
+        {
+          "id": 139006631598,
+          "job_id": 139006631598,
+          "name": "Supply-chain policy (cargo-deny)",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "16a54058f3e40026336002233d15acf937b14743",
+          "run_id": 45555556819,
+          "url": "https://github.com/llmrust/llmrust/actions/runs/45555556819/job/139006631598",
+          "started_at": "2026-11-25T05:43:37Z",
+          "completed_at": "2026-11-25T05:44:13Z"
+        }
+      ]
+    }
+  ],
+  "conclusion": "success",
+  "verdict": "PASS",
+  "bypass_detected": false,
+  "inputs_seen": [
+    "Lead 指令：release 唯一阻断为未跟踪 B-AUD-3/ci.json；仅以 CI 身份归档该历史证据并重绑当前 HEAD=16a54058f3e40026336002233d15acf937b14743",
+    "r2 前 HEAD=8a084f52dfcf15fcafb30d58b017c44ca6f32616；B-018-HTTP/ci.json 旧 SHA256=c550e103fdabf3d6ede881a2f952deb311181fceaf6c950ccf3cc89e8c7d0ff8，明确排除不提交",
+    "B-AUD-3/ci.json：role=ci、agent/written_by=ci-llmrust、batch=B-AUD-3、绑定 4ff1fd4 与 PR #252；CI/Security 均 success；原始 SHA256=75a93d385420c3132962c166dc83a9e203ca3a51a4e505055e50fa99cf0aaf03",
+    "r2 提交只含 .workforce/evidence/B-AUD-3/ci.json 一个文件；author/committer=ci-llmrust；parent=8a084f5；未提交当前 B-018-HTTP/ci.json",
+    "普通快进推送 8a084f5..16a5405；远端与本地 remote-tracking ref 均为新 HEAD；PR #253 自动同步且正文经 REST PATCH 更新",
+    "GitHub Actions API head_sha=16a5405：CI 与 Security Gates 各一条最终 run；逐 run/job 的 head_sha/status/conclusion/url 已记录",
+    "本会话受保护输入 SHA256 前后一致；.github/workflows/{ci.yml,security.yml} 与 origin/main blob 一致；未改业务/spec/card/signoffs/loop-state",
+    "历史回执为 CRLF，保持原字节；core.whitespace=cr-at-eol 与真正行尾空白审计均通过，普通 diff --check exit 2 已如实记录"
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-018-HTTP/dev-C-018-HTTP-SAFE.json",
+      "sha256": "ee8acbd4eca3fafffc3a1441e0d60c9398c6108e6a6a2fd5256b565627e3917a"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/qa-C-018-HTTP-SAFE.json",
+      "sha256": "7d9043d3c225c1b7fc7edfcab626087bfaa8b3dfafdaf134f7d759ae0f13e567"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/gate.json",
+      "sha256": "9062f065652480c8b9974ef7aaf73c8587681bb43aaa2029e5cc1483a0e185d6"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/ledger.json",
+      "sha256": "9360060ed92036ef10e4f35b56296e259a13e39476e9b8ec70ad42d6c7fe6dd8"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/probe/preflight.json",
+      "sha256": "92f7e775458b647112872b426f66bcd7d99fecf8b439dd9c458d5043c48428bb"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/probe/run-manifest.json",
+      "sha256": "911bc4ad96d4d7d63c67050eab01358d944aeeb9b1afb12f04a2ff6b71f87f01"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/probe/runs.jsonl",
+      "sha256": "e065f7e967e6246300e91e5177b7af5ecebe5358bb6fda3347915d9077772ed0"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/probe/run-summary.json",
+      "sha256": "172338a45d50e70ca4f371f551761faca31ff807ce0214e0ccd3dab78826b9c5"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/probe/postflight.json",
+      "sha256": "49c520a645098ca1181686e5537f81c8d205d3e47c9ccf1502146c06cefef643"
+    },
+    {
+      "path": ".workforce/evidence/B-018-HTTP/probe/verification.json",
+      "sha256": "90218eba0036f30c22cf795a49cd135e025a915d1f3c892f97cc784228c62c76"
+    },
+    {
+      "path": ".workforce/evidence/B-AUD-3/ci.json",
+      "sha256": "75a93d385420c3132962c166dc83a9e203ca3a51a4e505055e50fa99cf0aaf03"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-preflight.json",
+      "sha256": "3ef8b6d8d430af9dfb8a2fd2de173f181d4b4467aaa55cccdd49de0c7031ce63"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-commit.txt",
+      "sha256": "c3bd4a6e105c0a4cd7bf79068e4b57f6af792c64c4def2c767b0f9cd87dcbd96"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-commit-audit.json",
+      "sha256": "3fa6aa963ec2979e5c5969283bf2079724e27a6ffc5e284c51ec784a75e0416e"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-lsremote-before.txt",
+      "sha256": "47c8ea94e29a360f6fb058948d40777c92d7395cbc646b34a92066af005e5e94"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-push.txt",
+      "sha256": "847ca1aee7f4f0f565d4a7a3919b8fc465619b72f811123e7ca5ba54f78b7727"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-lsremote-after.txt",
+      "sha256": "9bc1bde120846879d573f80ef86c1903b34ecfb46d8f06926df2dd21e6d08866"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-pr-body.md",
+      "sha256": "a99b423447ed106639fcacf7fbf0e40bde151857b9faff3fca7d78dde29195cd"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-pr-edit.txt",
+      "sha256": "9fcb6867364a6db80f18f9c77d6dafabdf486deb444967210e9a91ffb16cd13e"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-pr-patch.json",
+      "sha256": "40a28f2aaefed5507890330e4c9d5034912badd0f5b9b592afa85572a96dd7ad"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-pr.json",
+      "sha256": "4785c082e7f521b2381bcd458666f02d2279731e4d183e5bf48098d258f02794"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-pr-view.json",
+      "sha256": "c8540e86ab859e12816a612685b8dcbc88caa95a04bae479f81a3c748a9e5ba0"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-pr-files.json",
+      "sha256": "a97b2db74017c81305af09740c132f0140239c27f327e26c89e7023fb290b5fe"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-pr-commits.json",
+      "sha256": "c370d4377f355a0bd28f64bf13ad55bc1c7f2a41b5f03c9f8f9733a6b1793b38"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-pr-audit.json",
+      "sha256": "2046b8ae1054bdd43a04a9e021580497af1ae965b251499d2fa89cf73fcd25f2"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-runs.json",
+      "sha256": "f945c05ead3c1344ad328fe637b3fdef7c35cfb38848ac45e7a847d51974937c"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-workflow-summary.json",
+      "sha256": "9d9561f11d9c3696cdc03a8dc68265fa98f65c8c1e5ce8e139ca792d2eae5ba7"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-pr-checks.txt",
+      "sha256": "1dbb5b46962e099831fbed791352ff1419a1cccb3207da9e0effcddefc7d9300"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-run-45555556840.json",
+      "sha256": "5a05e9b3e639c1bb523e82746ab99e678b1407a70cb03539aa686def700046a7"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-jobs-45555556840.json",
+      "sha256": "77579b8f93dcfa5ec7fa962c1ce9a0477efd0277aeb4f939d6b8f89d1bfb6215"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-run-45555556819.json",
+      "sha256": "43d99b9e37f4222494b3f81f15241097d445a16bc414b403b009c70ffd126d68"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-r2-jobs-45555556819.json",
+      "sha256": "afe70aba4dea0e814d9b8d97b9b2acfd316b130a12d44913768333f748d6609f"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "git status/HEAD/remote、B-AUD-3 历史回执解析与受保护输入 SHA256 核验",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <生成 r2 单文件 staging preflight；记录被排除的 B-018-HTTP/ci.json 旧 SHA>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git add -- .workforce/evidence/B-AUD-3/ci.json（唯一暂存文件）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git -c core.whitespace=cr-at-eol diff --cached --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git diff --cached --check（历史回执 CRLF 普通口径误报；exit 2）",
+      "exit_code": 2
+    },
+    {
+      "cmd": "python -c <历史回执原始字节 SHA256 与真正行尾空白核验>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git -c user.name=ci-llmrust -c user.email=ci-llmrust@agents.local commit -m 'chore(workforce): B-AUD-3 历史 CI 回介入库（release 脏检查清障）'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git ls-remote --heads origin refs/heads/task/PH-0.1.8-B-018-HTTP（push 前=8a084f5）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git push origin HEAD:refs/heads/task/PH-0.1.8-B-018-HTTP（GH_TOKEN 单次注入；普通快进 8a084f5..16a5405，无 force）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git ls-remote（push 后=16a5405）/ git fetch 指定 ref / git branch -r --contains HEAD",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr view 253 --json number,url,state,baseRefName,headRefName,headRefOid",
+      "exit_code": 0
+    },
+    {
+      "cmd": "后台 gh api runs?head_sha=16a5405 轮询至 CI 与 Security Gates completed，并拉取 run/jobs 原始 JSON",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr edit 253 --body-file ...（Projects classic 弃用；exit 1，未改正文）",
+      "exit_code": 1
+    },
+    {
+      "cmd": "gh api -X PATCH repos/llmrust/llmrust/pulls/253 -F body=@.workforce/tmp/ci-b018-pr-body.md",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api --paginate pulls/253/files / pulls/253/commits 与 PR 正文/范围审计",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <单文件 commit、受保护输入、workflow blob、远端 HEAD 审计>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr checks 253 --repo llmrust/llmrust（新 HEAD 最终 7/7 pass）",
+      "exit_code": 0
+    }
+  ],
+  "mock_used": false,
+  "independent": true,
+  "declared_by_lead": false,
+  "generated_at_utc": "2026-11-25T05:45:22.519255+00:00",
+  "notes": "B-018-HTTP CI 回执第二轮重绑：新 HEAD=16a54058f3e40026336002233d15acf937b14743，父提交=8a084f5。为解除 release 脏检查，仅追加 B-AUD-3 历史 CI 回执一个文件；当前 B-018-HTTP/ci.json 仍未提交。PR #253 保持累计 PR，双 workflow 对同一新 HEAD 完成并逐 job 核验；未 bypass、未 force push、未改 workflow/安全门、未改业务/spec/card/signoffs/loop-state。双 workflow 与全部 jobs 均 success。"
+}

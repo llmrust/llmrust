@@ -252,7 +252,8 @@
       "path": "/v1/responses",
       "format": "OpenAI Responses API",
       "sse_streaming": true,
-      "conversion": "input/instructions/tools (Responses shape) -> llmrust ChatRequest; ChatResponse/StreamChunk -> Responses object/SSE"
+      "conversion": "input/instructions/tools (Responses shape) -> llmrust ChatRequest; ChatResponse/StreamChunk -> Responses object/SSE",
+      "reasoning": "StreamChunk.thinking / thinking_done map natively to Responses reasoning output items and reasoning_summary_* events"
     },
     "openai_endpoint": {
       "path": "/v1/chat/completions",

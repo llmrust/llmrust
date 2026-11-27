@@ -1,0 +1,268 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "dev",
+  "agent": "dev-llmrust-px",
+  "written_by": "dev-llmrust-px",
+  "card_id": "C-AUD-PROXY",
+  "batch_id": "B-AUD-3",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "inputs_seen": [
+    ".workforce/cards/C-AUD-PROXY.json",
+    ".agents/skills/agent-workforce-loop/SKILL.md",
+    ".agents/skills/agent-workforce-loop/references/roles.md",
+    ".agents/skills/agent-workforce-loop/assets/evidence.template.json",
+    "AGENTS.md",
+    "AGENT_MANIFESTO.md",
+    "docs/PROJECT_MAP.md",
+    "docs/CONTRACTS.md",
+    "docs/CAPABILITIES.md",
+    "src/types.rs",
+    "src/providers/mod.rs",
+    "src/providers/capabilities.rs",
+    "src/providers/stream_state.rs",
+    "src/lib.rs",
+    "src/proxy/mod.rs",
+    "src/proxy/anthropic_proxy.rs",
+    "src/proxy/responses_proxy.rs",
+    "tests/responses_proxy_tests.rs",
+    "tests/hotspot_ledger.json",
+    "llmrust.capabilities.json",
+    "Cargo.lock"
+  ],
+  "files_changed": [
+    "Cargo.lock"
+  ],
+  "mock_used": false,
+  "artifacts": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "97819f2cde8c258af1e848114a7112e8c76e082c82f209c90eb94089822d2547"
+    },
+    {
+      "path": "src/proxy/mod.rs",
+      "sha256": "72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d"
+    },
+    {
+      "path": "src/proxy/anthropic_proxy.rs",
+      "sha256": "0c3e928df67acd3e183b5d8440595e6ae0ea64cbc499a387fc1bfcc1a774c893"
+    },
+    {
+      "path": "src/proxy/responses_proxy.rs",
+      "sha256": "a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5"
+    },
+    {
+      "path": "tests/responses_proxy_tests.rs",
+      "sha256": "cc7ef211bf4bb0763d487fc370766c556cdcdb7c6eaf47936939d80151bb8f23"
+    },
+    {
+      "path": "llmrust.capabilities.json",
+      "sha256": "2b960bee8ebc5d85cbbdeeb3dc931f91a9860cfd4f47b14c80b0813baa281a38"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc"
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "bc6e4620b7f05209184104edd470177368e2430de716abdf325b329a6336791d"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "node .agents/skills/agent-workforce-loop/scripts/validate-skill.mjs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node .agents/skills/agent-workforce-loop/scripts/selftest.mjs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node .agents/skills/agent-workforce-loop/scripts/loop.mjs status --repo D:\\llmrust-0.1.5",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo update -p url --precise 2.5.9",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import pathlib; ps=['src/proxy/mod.rs','src/proxy/anthropic_proxy.rs','src/proxy/responses_proxy.rs']; assert all('stream_raw_with' in pathlib.Path(p).read_text(encoding='utf-8') for p in ps); print('c1.1 PASS')\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import pathlib,re; s=pathlib.Path('src/proxy/responses_proxy.rs').read_text(encoding='utf-8'); b=re.search(r'fn responses_error_from_llm_error.*?\\n}',s,re.S).group(); assert 'Unsupported' in b and '400' in b; print('c1.2 PASS')\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,pathlib; j=json.loads(pathlib.Path('llmrust.capabilities.json').read_text(encoding='utf-8')); s=json.dumps(j['proxy']['responses_endpoint']).lower(); assert 'reasoning' in s or 'thinking' in s; print('c1.3 PASS')\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import pathlib; m=pathlib.Path('src/proxy/mod.rs').read_text(encoding='utf-8'); r=pathlib.Path('src/proxy/responses_proxy.rs').read_text(encoding='utf-8'); assert 'MAX_ERROR_MESSAGE_CHARS' in m and 'truncate' in r; print('c1.4 PASS')\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import pathlib,re; s=pathlib.Path('src/lib.rs').read_text(encoding='utf-8'); m=re.search(r'pub\\(crate\\) async fn stream_raw_with.*?\\n    }',s,re.S); assert m and 'unify_terminal' not in m.group(); print('c1.5 PASS')\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import tomllib;d=tomllib.load(open('Cargo.lock','rb'));v=[p['version'] for p in d['package'] if p['name']=='url'];assert v and tuple(map(int,v[-1].split('.')[:3]))>=(2,5,9);print('c1.6 PASS',v)\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::tests::proxy_chat_completions_rejects_unsupported_thinking_with_400",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::tests::proxy_chat_completions_stream_without_terminal_emits_done",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::tests::proxy_chat_completions_bare_done_does_not_fabricate_finish_reason",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::tests::proxy_embeddings_missing_provider_prefix_yields_400",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::tests::proxy_stream_error_event_is_sanitized",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::anthropic_proxy::tests::anthropic_messages_stream_error_is_sanitized",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::tests::convert_request_unknown_role_is_clamped",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test responses_proxy_tests responses_stream_carries_thinking_not_dropped",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test responses_proxy_tests responses_stream_truncation_without_terminal_fails_not_completed",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test responses_proxy_tests responses_unsupported_error_maps_to_400_not_502",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test responses_proxy_tests responses_stream_error_event_is_sanitized",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::tests::proxy_chat_completions_ollama_tools_rejected_before_provider",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::tests::proxy_chat_completions_ollama_image_rejected_before_provider",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::anthropic_proxy::tests::anthropic_messages_ollama_tools_rejected_before_provider",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::anthropic_proxy::tests::anthropic_messages_ollama_image_rejected_before_provider",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test responses_proxy_tests responses_ollama_tools_rejected_before_provider",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test responses_proxy_tests responses_ollama_image_rejected_before_provider",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import tomllib;d=tomllib.load(open('Cargo.lock','rb'));v=[p['version'] for p in d['package'] if p['name']=='url'];assert v and tuple(map(int,v[-1].split('.')[:3]))>=(2,5,9)\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test responses_proxy_tests responses_stream_truncation_without_terminal_fails_not_completed",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib proxy::tests::proxy_chat_completions_ollama_tools_rejected_before_provider",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --workspace --features proxy",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo deny --locked check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test architecture_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test package_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test responses_proxy_tests",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --lib",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --features proxy --test contract_tests",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c 'import os,re,pathlib\nfor label in [\"architecture\",\"package\",\"responses\",\"lib\",\"contract\"]:\n    text=(pathlib.Path(os.environ[\"TEMP\"])/f\"C-AUD-PROXY-v8-{label}.log\").read_text(encoding=\"utf-8-sig\")\n    rows=[tuple(map(int,m.groups())) for m in re.finditer(r\"test result: ok\\. (\\d+) passed; (\\d+) failed; (\\d+) ignored\",text)]\n    assert rows and all(f==0 and i==0 for _,f,i in rows),(label,rows)\n    if label==\"package\": assert rows==[(4,0,0)],rows\n    print(label,rows)\nprint(\"c5 PASS\")'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));base={'src/proxy/mod.rs':3770,'src/proxy/anthropic_proxy.rs':2053,'src/proxy/responses_proxy.rs':964,'src/lib.rs':847};R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());assert all(L['baseline_lines'][f]==N(f) and a and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and a[-1]['old']==old and (len(a)<2 or a[-2]['new']==old) and a[-1]['new']==N(f) and 'C-AUD-PROXY' in a[-1]['reason'] and 'architect-llmrust v7.1' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24' for f,old in base.items() for a in [[x for x in L['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));allowed={'src/proxy/mod.rs','src/proxy/anthropic_proxy.rs','src/proxy/responses_proxy.rs','src/lib.rs'};bad=[a for a in L['adjustments'] if 'C-AUD-PROXY' in a.get('reason','') and a.get('file') not in allowed];assert not bad,bad;print('c6 reverse-scope PASS')\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import subprocess,pathlib; ps=['src/proxy/mod.rs','src/proxy/anthropic_proxy.rs','src/proxy/responses_proxy.rs','tests/responses_proxy_tests.rs','src/lib.rs']; missing={}; [(missing.setdefault(p,set(l.strip() for l in subprocess.check_output(['git','show','b008185:'+p],text=True,encoding='utf-8').splitlines() if l.strip().startswith(('assert!','assert_eq!','assert_ne!')))-set(l.strip() for l in pathlib.Path(p).read_text(encoding='utf-8').splitlines() if l.strip().startswith(('assert!','assert_eq!','assert_ne!'))))) for p in ps]; assert all(not v for v in missing.values()),missing; print('c7.1 assertions only-added PASS')\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c 'import subprocess,re,collections,pathlib; files=subprocess.check_output([\"git\",\"ls-files\",\"*.rs\"],text=True).splitlines(); pat=re.compile(r\"#\\[should_panic\\(expected\\s*=\\s*\\\"([^\\\"]*)\\\"\\)\\]\"); cur=[(f,pat.findall(pathlib.Path(f).read_text(encoding=\"utf-8\"))) for f in files]; base=[(f,pat.findall(subprocess.check_output([\"git\",\"show\",\"b008185:\"+f],text=True,encoding=\"utf-8\"))) for f in files if subprocess.run([\"git\",\"cat-file\",\"-e\",\"b008185:\"+f],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0]; norm=lambda xs:collections.Counter((f,e) for f,es in xs for e in es); assert norm(cur)==norm(base); assert sum(norm(cur).values())==2 and all(f==\"src/proxy/mod.rs\" and e==\"must not be empty or whitespace-only\" for (f,e),n in norm(cur).items() for _ in range(n)); assert not [f for f in files if \"#[ignore\" in pathlib.Path(f).read_text(encoding=\"utf-8\")]; print(\"c7.2 PASS\")'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c 'import os,re,pathlib\nfor label,limit in [(\"default\",2),(\"proxy\",4)]:\n    lines=(pathlib.Path(os.environ[\"TEMP\"])/f\"C-AUD-PROXY-v8-test-{label}.log\").read_text(encoding=\"utf-8-sig\").splitlines()\n    unit=doc=0; in_doc=False\n    for line in lines:\n        if \"Doc-tests\" in line: in_doc=True\n        m=re.search(r\"test result:.* (\\d+) ignored\",line)\n        if m:\n            if in_doc: doc+=int(m.group(1))\n            else: unit+=int(m.group(1))\n    print(label,\"unit\",unit,\"doc\",doc,\"limit\",limit)\n    assert unit==0 and doc<=limit\nprint(\"c7.3 PASS\")'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "spec v8 回流轮，batch_base=7948e6a。本轮唯一业务 delta 为 Cargo.lock：执行 cargo update -p url --precise 2.5.9，url 2.5.8→2.5.9，并按 url 2.5.9 的最小依赖要求将 form_urlencoded 1.2.2→1.2.3；未改 Cargo.toml、任何源码/测试/能力 JSON 或台账。files_changed 仅列 Cargo.lock；artifacts 同时钉住该 delta 与七个未改的 scope 基线文件，便于 QA 冻结完整证据面。Cargo.lock 不入热点台账；既有四条 C-AUD-PROXY adjustment 全部保持且 c6 机判通过（4138/2225/1177/951）。c1–c7 本轮完整重跑全绿：c1 六条结构断言含 url>=2.5.9；c2 十七条命名 wire 逐条 1 passed/0 failed/0 ignored，六项 Ollama tools/image 均 400 + Unsupported/invalid_request_error + provider 调用 0；c3 两项注入均 exit 101，字节恢复后各 exit 0，h0=h1（responses a26765e3aa598d42eb2475f6b22642859ebf7c9f69ce2045b362f39f6adc87a5，mod 72544d417023c66154d86a2c4b79300ae1ac582e9eec3ec395aeee4ac8096b9d），预期红不列入 command_exit_codes；c4 六门全 exit 0，其中 cargo deny --locked check 为 advisories ok/bans ok/licenses ok/sources ok，仅有 core-foundation、wit-bindgen duplicate 与未命中 license allowance 警告；c5 architecture 16、package 4、responses 16、lib 405、contract 16 全绿且 ignored 0；c6 台账通过；c7 断言只增不减、should_panic 恰 2 且均在 mod.rs、ignore 0，默认/proxy unit ignored 0、doc ignored 2/4。git diff --check exit 0；未 git commit；停止修改等待 QA。"
+}

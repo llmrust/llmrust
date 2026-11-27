@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running unittests src\lib.rs (target\debug\deps\llmrust-8bbb1f94b5dfc7a5.exe)
+
+running 5 tests
+test pricing::tests::audit_2026_router_cost_one_hour_cache_write_is_priced ... ok
+test router::tests::audit_2026_router_cost_all_cooling_keeps_registration_order ... ok
+test router::tests::audit_2026_router_cost_round_robin_after_ready_filter ... ok
+test router::tests::audit_2026_router_cost_ready_failure_falls_back_to_cooling ... ok
+test router::tests::audit_2026_router_cost_concurrent_cooldown_rr_interleaving ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 271 filtered out; finished in 0.01s
+

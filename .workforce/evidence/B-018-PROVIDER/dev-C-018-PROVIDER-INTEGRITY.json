@@ -1,0 +1,166 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "dev",
+  "agent": "dev-llmrust-018provider",
+  "written_by": "dev-llmrust-018provider",
+  "card_id": "C-018-PROVIDER-INTEGRITY",
+  "batch_id": "B-018-PROVIDER",
+  "batch_base": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+  "card_sha256": "6f9a1055689b09ef29d6dbd8356ca73992243a9f3fb7d6837ceb56eb726683c5",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+  "inputs_seen": [
+    ".workforce/cards/C-018-PROVIDER-INTEGRITY.json",
+    ".workforce/spec.json",
+    ".workforce/loop-state.json",
+    ".workforce/config.json",
+    "AGENTS.md",
+    "AGENT_MANIFESTO.md",
+    "docs/PROJECT_MAP.md",
+    "docs/CAPABILITIES.md",
+    "docs/CONTRACTS.md",
+    "docs/SPCC-0.1.4.md",
+    "docs/audit-2026-11-24.md",
+    "src/types.rs",
+    "src/providers/mod.rs",
+    "src/providers/compat.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/google.rs",
+    "src/providers/ollama.rs",
+    "src/providers/sse/mod.rs",
+    "src/providers/sse/parser.rs",
+    "src/providers/stream_state.rs",
+    "tests/provider_contract_freeze.rs",
+    "tests/embeddings_contract_tests.rs",
+    "tests/hotspot_ledger.json",
+    "tests/architecture_guard.rs",
+    "examples/README.md",
+    "Cargo.toml"
+  ],
+  "files_changed": [
+    "src/providers/mod.rs",
+    "src/providers/compat.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/google.rs",
+    "src/providers/ollama.rs",
+    "tests/provider_contract_freeze.rs",
+    "tests/embeddings_contract_tests.rs",
+    "tests/hotspot_ledger.json"
+  ],
+  "mock_used": false,
+  "artifacts": [
+    {
+      "path": "src/providers/mod.rs",
+      "sha256": "b4aba93ed228e933f96cae84c5ed533235b988bce6b1eb9aa43e03d047169d0b"
+    },
+    {
+      "path": "src/providers/compat.rs",
+      "sha256": "2f20274f9f945e36475ee6067363ce0b60fa1e505870e5c9a94b3287bee63bc7"
+    },
+    {
+      "path": "src/providers/anthropic.rs",
+      "sha256": "fb4dd8f2f1d33a8012ca9bda5d33e5da7ed5603d17ab22a1b15e908895088c97"
+    },
+    {
+      "path": "src/providers/google.rs",
+      "sha256": "05a30a92db29d51be1d66a9081cbe99079c2a86d8b3406598cedf83eccef53f1"
+    },
+    {
+      "path": "src/providers/ollama.rs",
+      "sha256": "8ecf0ea62829f662906348bb2f47c87c48d0392fe01199803942f040e94ba08f"
+    },
+    {
+      "path": "tests/provider_contract_freeze.rs",
+      "sha256": "58047e51f9609986d3e41bd23eeacbf0119dd88a9d58060028df32af68e0bf63"
+    },
+    {
+      "path": "tests/embeddings_contract_tests.rs",
+      "sha256": "9ae04cc12f1b2859d977a3a8c0d78ccb3242989bdd44cd33b4eb13cd85f63614"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "8ff661ba044bf80ccce34098ea119aa3ef9056fae3b409d6bab134a2c4665605"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "cargo test --locked --test provider_contract_freeze audit_2026_provider_integrity_",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <c2.1-c2.9 structural probes, each a separate python process>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test provider_contract_freeze audit_2026_provider_integrity_gemini_ids_are_response_scoped",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test embeddings_contract_tests",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test architecture_guard",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-PROVIDER');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-PROVIDER-INTEGRITY.json',encoding='utf-8'));F=['src/providers/mod.rs','src/providers/compat.rs','src/providers/anthropic.rs','src/providers/google.rs','src/providers/ollama.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-PROVIDER-INTEGRITY' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <assert/assert_eq/assert_ne multiset and ignore/should_panic occurrence comparison vs eb07c7cb118a0b289df50a581173d01a158b4bb6>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "git -c core.whitespace=cr-at-eol diff --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c <final exact scope, frozen governance files, SHA-256, LF/CRLF and incremental-absence verification>",
+      "exit_code": 0
+    }
+  ],
+  "observations": [
+    {
+      "kind": "expected_injection_red",
+      "cmd": "cargo test --locked --test provider_contract_freeze audit_2026_provider_integrity_gemini_ids_are_response_scoped",
+      "injected_change": "temporarily replaced make_gemini_tool_call_id with per-response call_{index}, restoring the cross-response call_0 collision",
+      "exit_code": 101,
+      "observed": "The named test failed precisely at assert_ne!(first_call.id, second_call.id): left call_0, right call_0. cargo clean -p llmrust forced a Windows rebuild before the injected run.",
+      "restored_exit_code": 0,
+      "h0": "05a30a92db29d51be1d66a9081cbe99079c2a86d8b3406598cedf83eccef53f1",
+      "h1": "05a30a92db29d51be1d66a9081cbe99079c2a86d8b3406598cedf83eccef53f1"
+    }
+  ],
+  "verdict": "PASS",
+  "independent": true,
+  "declared_by_lead": false,
+  "notes": "c1：11 条精确命名生产 wire 测试全部通过（11 passed; 0 failed; 0 ignored）；两轮 Gemini 响应 id 不同且旧 call_0 按各自轮次解析，Anthropic 半截参数 EOF 只出现 Err、无 done=true。c2：九项结构探针逐项 exit 0。c3：注入后目标测试 exit 101 且精确命中 call_0/call_0 碰撞；恢复后 exit 0，google.rs h0=h1=05a30a92…；注入前后均 cargo clean -p llmrust 强制重编译。c4：卡面六门全部 exit 0；默认口径 unit/integration ignored 全 0、doc ignored=2，all-features unit/integration ignored 全 0、doc ignored=4，均为既有 rust,ignore。c5：batch_base=e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f，精确卡面链命令 exit 0；compat 2134→2175、anthropic 1691→1760、google 1815→2005、ollama 868→887，前驱 new=old、baseline=splitlines 实测；mod.rs 486<500 不入台账。c6：相对 eb07c7cb118a0b289df50a581173d01a158b4bb6，断言行多重集合 1445→1709、缺失/弱化 0；ignore/should_panic 2→2、新增 0；semver 默认与 all-features 各 196 checks pass、57 skip。首次 semver 尝试受本机 crates.io 代理不可达阻断，随后以 CARGO_NET_OFFLINE=true 使用既有本地缓存重跑同一命令均 exit 0。所有 cargo 命令均设置 CARGO_INCREMENTAL=0 并在 finally 恢复；target/debug/incremental 已按精确 Resolve-Path 校验删除，目录内 files=0、bytes=0（释放 0 字节）。七个 Rust 文件最终 LF，hotspot_ledger.json 最终 CRLF；git -c core.whitespace=cr-at-eol diff --check exit 0。未改 spec/card/signoffs/loop-state，未 git commit/push；工作区原有未跟踪 .workforce/evidence/B-018-STREAM/ci.json 未触碰。"
+}

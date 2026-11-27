@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use crate::providers::http::{self, build_http_client, REQUEST_TIMEOUT};
@@ -226,6 +227,8 @@ struct GeminiResponse {
     model_version: String,
     #[serde(default, rename = "usageMetadata")]
     usage_metadata: Option<GeminiUsageMetadata>,
+    #[serde(default, rename = "promptFeedback")]
+    prompt_feedback: Option<GeminiPromptFeedback>,
 }
 
 #[derive(Deserialize)]
@@ -379,16 +382,37 @@ struct GeminiStreamCandidate {
     content: Option<GeminiContentResponse>,
     #[serde(default, rename = "finishReason")]
     finish_reason: Option<String>,
+    /// `StreamChunk` has no logprobs carrier; never silently discard it.
+    #[serde(default, rename = "logprobsResult")]
+    logprobs_result: Option<GeminiLogprobsResult>,
 }
 
 /// Accumulates streamed `functionCall` parts from a Gemini stream. Gemini emits
 /// each tool call as a complete `functionCall` part (name + args), so the
 /// accumulator simply collects them and drains the set once a `finishReason`
 /// arrives.
+/// Process-wide response scope. Zero is reserved for deterministic unit
+/// fixtures constructed through `Default`; every production response uses a
+/// non-zero scope so repeated `call_0` indexes cannot collide across turns.
+static GEMINI_RESPONSE_SCOPE: AtomicU64 = AtomicU64::new(1);
+
+fn next_gemini_response_scope() -> u64 {
+    GEMINI_RESPONSE_SCOPE.fetch_add(1, Ordering::Relaxed)
+}
+
+fn make_gemini_tool_call_id(response_scope: u64, index: usize) -> String {
+    if response_scope == 0 {
+        crate::providers::make_tool_call_id(index)
+    } else {
+        format!("call_g{response_scope}_{index}")
+    }
+}
+
 #[derive(Default)]
 struct GeminiToolAccumulator {
     calls: Vec<ToolCall>,
     counter: u64,
+    response_scope: u64,
     /// REA-004G: at least one `thought` part was seen — the terminal chunk
     /// then carries `thinking_done = true` (at most once).
     thinking_seen: bool,
@@ -396,6 +420,13 @@ struct GeminiToolAccumulator {
 }
 
 impl GeminiToolAccumulator {
+    fn for_response() -> Self {
+        Self {
+            response_scope: next_gemini_response_scope(),
+            ..Self::default()
+        }
+    }
+
     fn note_thought(&mut self) {
         self.thinking_seen = true;
     }
@@ -412,7 +443,7 @@ impl GeminiToolAccumulator {
     }
 
     fn push(&mut self, name: String, args: serde_json::Value) {
-        let id = crate::providers::make_tool_call_id(self.counter as usize);
+        let id = make_gemini_tool_call_id(self.response_scope, self.counter as usize);
         self.counter += 1;
         self.calls.push(ToolCall {
             id,
@@ -560,10 +591,19 @@ fn gemini_response_format(format: &ResponseFormat) -> (Option<String>, Option<se
         ResponseFormat::Text => (None, None),
         ResponseFormat::JsonObject => (Some("application/json".to_string()), None),
         ResponseFormat::JsonSchema { json_schema } => {
-            let schema = json_schema
-                .get("schema")
-                .cloned()
-                .unwrap_or_else(|| json_schema.clone());
+            // Only the OpenAI wrapper `{name, schema, strict?}` is unwrapped,
+            // and exactly once. A bare schema may itself define a `schema`
+            // property; treating that as a wrapper corrupts the constraint.
+            let wrapped = json_schema
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+                .is_some()
+                && json_schema.get("schema").is_some();
+            let schema = if wrapped {
+                json_schema["schema"].clone()
+            } else {
+                json_schema.clone()
+            };
             (Some("application/json".to_string()), Some(schema))
         }
     }
@@ -609,19 +649,44 @@ fn build_generation_config(req: &ChatRequest) -> Option<GeminiGenerationConfig> 
 /// collected into the dedicated `systemInstruction` field; assistant tool
 /// calls become `functionCall` parts on a `model` turn; tool results become
 /// `functionResponse` parts on a `user` turn.
-fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiContent>) {
+#[derive(Default)]
+struct PendingGeminiToolCall {
+    id: String,
+    name: String,
+    matched: bool,
+}
+
+/// Resolve a tool result against assistant-call rounds, newest first. An
+/// explicit id is matched only inside a round; without an id, the most recent
+/// unmatched call wins. This prevents a repeated synthetic id in a later turn
+/// from rewriting an older result's function name.
+fn resolve_pending_tool_name(
+    rounds: &mut [Vec<PendingGeminiToolCall>],
+    tool_call_id: Option<&str>,
+) -> Option<String> {
+    let matched = if let Some(id) = tool_call_id {
+        rounds.iter_mut().rev().find_map(|round| {
+            round
+                .iter_mut()
+                .rev()
+                .find(|call| !call.matched && call.id == id)
+        })
+    } else {
+        rounds
+            .iter_mut()
+            .rev()
+            .find_map(|round| round.iter_mut().rev().find(|call| !call.matched))
+    };
+    matched.map(|call| {
+        call.matched = true;
+        call.name.clone()
+    })
+}
+
+fn build_contents(req: &ChatRequest) -> Result<(Vec<GeminiContent>, Option<GeminiContent>)> {
     let mut contents = Vec::new();
     let mut system_parts: Vec<GeminiPart> = Vec::new();
-
-    // Build a tool_call_id → function_name map from assistant turns so
-    // that tool-result messages that only carry the synthetic id still
-    // produce the correct `functionResponse.name`.
-    let id_to_name: std::collections::HashMap<&str, &str> = req
-        .messages
-        .iter()
-        .flat_map(|m| m.tool_calls.iter().flatten())
-        .map(|tc| (tc.id.as_str(), tc.function.name.as_str()))
-        .collect();
+    let mut pending_rounds: Vec<Vec<PendingGeminiToolCall>> = Vec::new();
 
     for msg in &req.messages {
         match msg.role {
@@ -629,14 +694,13 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
                 text: msg.content.as_text(),
             }),
             crate::types::Role::Tool => {
+                let resolved =
+                    resolve_pending_tool_name(&mut pending_rounds, msg.tool_call_id.as_deref());
                 let name = msg
                     .name
                     .clone()
-                    .or_else(|| {
-                        msg.tool_call_id
-                            .as_deref()
-                            .and_then(|id| id_to_name.get(id).map(|n| n.to_string()))
-                    })
+                    .filter(|name| !name.is_empty())
+                    .or(resolved)
                     .or_else(|| msg.tool_call_id.clone())
                     .unwrap_or_default();
                 contents.push(GeminiContent {
@@ -657,11 +721,17 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
                 if !text.is_empty() {
                     parts.push(GeminiPart::Text { text });
                 }
+                let mut round = Vec::with_capacity(msg.tool_calls.as_ref().unwrap().len());
                 for call in msg.tool_calls.as_ref().unwrap() {
-                    let args: serde_json::Value = crate::providers::parse_tool_arguments(
+                    let args = crate::providers::parse_tool_arguments_strict(
                         &call.function.name,
                         &call.function.arguments,
-                    );
+                    )?;
+                    round.push(PendingGeminiToolCall {
+                        id: call.id.clone(),
+                        name: call.function.name.clone(),
+                        matched: false,
+                    });
                     parts.push(GeminiPart::FunctionCall {
                         function_call: GeminiFunctionCallOut {
                             name: call.function.name.clone(),
@@ -669,6 +739,7 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
                         },
                     });
                 }
+                pending_rounds.push(round);
                 contents.push(GeminiContent {
                     parts,
                     role: Some("model".to_string()),
@@ -690,7 +761,7 @@ fn build_contents(req: &ChatRequest) -> (Vec<GeminiContent>, Option<GeminiConten
         })
     };
 
-    (contents, system_instruction)
+    Ok((contents, system_instruction))
 }
 
 /// Convert a Gemini `finishReason` string (uppercase, e.g. `"STOP"`,
@@ -786,7 +857,13 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
         return Vec::new();
     };
 
-    let mut finish_reason: Option<FinishReason> = candidate.finish_reason.map(to_finish_reason);
+    if candidate.logprobs_result.is_some() {
+        return vec![Err(LlmError::Unsupported {
+            feature: "logprobs".to_string(),
+            message: "Gemini streaming logprobs cannot be represented by StreamChunk".to_string(),
+        })];
+    }
+    let finish_reason: Option<FinishReason> = candidate.finish_reason.map(to_finish_reason);
     let mut text = String::new();
     let mut chunks = Vec::new();
     if let Some(content) = candidate.content {
@@ -814,9 +891,8 @@ fn parse_sse_line(tools: &mut GeminiToolAccumulator, line: &str) -> Vec<Result<S
     } else {
         None
     };
-    if tool_calls.is_some() {
-        finish_reason = Some(FinishReason::ToolCalls);
-    }
+    // Preserve the upstream finish reason verbatim. Tool calls never overwrite
+    // STOP/MAX_TOKENS/SAFETY or any other real reason.
     // REA-004G: the thinking phase ends with the terminal chunk (Gemini has no
     // dedicated end event); marked at most once.
     let thinking_done = if finish_reason.is_some() {
@@ -871,7 +947,7 @@ where
     futures::stream::unfold(
         (
             lines.boxed(),
-            GeminiToolAccumulator::default(),
+            GeminiToolAccumulator::for_response(),
             false,
             false,
         ),
@@ -984,7 +1060,7 @@ impl Provider for GoogleProvider {
                     .to_string(),
             });
         }
-        let (contents, system_instruction) = build_contents(req);
+        let (contents, system_instruction) = build_contents(req)?;
         let body = build_body(req, &contents, system_instruction);
 
         let url = http::redirect::gemini_endpoint_url(&self.base_url, &req.model, false)?;
@@ -1027,6 +1103,15 @@ impl Provider for GoogleProvider {
             .await
             .map_err(|e| LlmError::Parse(http::error::error_message(e)))?;
 
+        if let Some(reason) = parsed
+            .prompt_feedback
+            .and_then(|feedback| feedback.block_reason)
+        {
+            return Err(LlmError::Stream(format!(
+                "gemini: prompt blocked (promptFeedback.blockReason: {reason})"
+            )));
+        }
+
         let usage = parsed.usage_metadata.map(|u| Usage {
             prompt_tokens: u.prompt_token_count,
             completion_tokens: u.candidates_token_count,
@@ -1035,45 +1120,45 @@ impl Provider for GoogleProvider {
             ..Default::default()
         });
 
-        let (content, tool_calls, finish_reason, logprobs) =
-            match parsed.candidates.into_iter().next() {
-                Some(candidate) => {
-                    let candidate_finish = candidate.finish_reason;
-                    let lp = candidate
-                        .logprobs_result
-                        .as_ref()
-                        .and_then(gemini_logprobs_to_logprobs);
-                    let mut text = String::new();
-                    let mut calls: Vec<ToolCall> = Vec::new();
-                    let mut call_index = 0usize;
-                    for part in candidate.content.parts {
-                        if let Some(t) = part.text {
-                            text.push_str(&t);
-                        }
-                        if let Some(fc) = part.function_call {
-                            let id = crate::providers::make_tool_call_id(call_index);
-                            call_index += 1;
-                            let arguments = fc.args.to_string();
-                            calls.push(ToolCall {
-                                id,
-                                call_type: "function".to_string(),
-                                function: FunctionCall {
-                                    name: fc.name,
-                                    arguments,
-                                },
-                            });
-                        }
+        let Some(candidate) = parsed.candidates.into_iter().next() else {
+            return Err(LlmError::Parse(
+                "gemini response has no valid candidates".to_string(),
+            ));
+        };
+        let response_scope = next_gemini_response_scope();
+        let (content, tool_calls, finish_reason, logprobs) = {
+            let candidate_finish = candidate.finish_reason;
+            let lp = candidate
+                .logprobs_result
+                .as_ref()
+                .and_then(gemini_logprobs_to_logprobs);
+            let mut text = String::new();
+            let mut calls: Vec<ToolCall> = Vec::new();
+            let mut call_index = 0usize;
+            for part in candidate.content.parts {
+                if let Some(t) = part.text {
+                    if part.thought != Some(true) {
+                        text.push_str(&t);
                     }
-                    let tool_calls = if calls.is_empty() { None } else { Some(calls) };
-                    let finish_reason = if tool_calls.is_some() {
-                        Some(FinishReason::ToolCalls)
-                    } else {
-                        candidate_finish.map(to_finish_reason)
-                    };
-                    (text, tool_calls, finish_reason, lp)
                 }
-                None => (String::new(), None, None, None),
-            };
+                if let Some(fc) = part.function_call {
+                    let id = make_gemini_tool_call_id(response_scope, call_index);
+                    call_index += 1;
+                    let arguments = fc.args.to_string();
+                    calls.push(ToolCall {
+                        id,
+                        call_type: "function".to_string(),
+                        function: FunctionCall {
+                            name: fc.name,
+                            arguments,
+                        },
+                    });
+                }
+            }
+            let tool_calls = if calls.is_empty() { None } else { Some(calls) };
+            let finish_reason = candidate_finish.map(to_finish_reason);
+            (text, tool_calls, finish_reason, lp)
+        };
 
         let result = ChatResponse {
             content,
@@ -1088,7 +1173,16 @@ impl Provider for GoogleProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<BoxStream<'static, Result<StreamChunk>>> {
-        let (contents, system_instruction) = build_contents(req);
+        // StreamChunk has no logprobs field. Reject before network instead of
+        // dropping a requested capability on the floor.
+        if req.logprobs == Some(true) || req.top_logprobs.is_some() {
+            return Err(LlmError::Unsupported {
+                feature: "logprobs".to_string(),
+                message: "Gemini streaming logprobs are not representable by StreamChunk"
+                    .to_string(),
+            });
+        }
+        let (contents, system_instruction) = build_contents(req)?;
         let body = build_body(req, &contents, system_instruction);
 
         let url = http::redirect::gemini_endpoint_url(&self.base_url, &req.model, true)?;
@@ -1321,7 +1415,7 @@ mod tests {
                 Message::tool("get_weather", "sunny"),
             ],
         );
-        let (contents, _system) = build_contents(&req);
+        let (contents, _system) = build_contents(&req).unwrap();
         let v = serde_json::to_value(&contents).unwrap();
         assert_eq!(v[1]["role"], "model");
         assert_eq!(v[1]["parts"][0]["functionCall"]["name"], "get_weather");
@@ -1347,7 +1441,7 @@ mod tests {
         let mut tools = GeminiToolAccumulator::default();
         let lines = [
             r#"data: {"candidates":[{"content":{"parts":[{"functionCall":{"name":"get_weather","args":{"city":"SF"}}}]}}]}"#,
-            r#"data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":2,"totalTokenCount":3}}"#,
+            r#"data: {"candidates":[{"content":{"parts":[]},"finishReason":"tool_calls"}],"usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":2,"totalTokenCount":3}}"#,
         ];
         let mut final_chunk = None;
         for line in lines {
@@ -1481,9 +1575,105 @@ mod tests {
                 Message::tool("call_0", "sunny"),
             ],
         );
-        let (contents, _system) = build_contents(&req);
+        let (contents, _system) = build_contents(&req).unwrap();
         let v = serde_json::to_value(&contents).unwrap();
         assert_eq!(v[2]["parts"][0]["functionResponse"]["name"], "get_weather");
+    }
+
+    #[test]
+    fn stream_tool_call_preserves_real_finish_reason() {
+        let mut tools = GeminiToolAccumulator::for_response();
+        let lines = [
+            r#"data: {"candidates":[{"content":{"parts":[{"functionCall":{"name":"write_file","args":{"path":"x"}}}]}}]}"#,
+            r#"data: {"candidates":[{"content":{"parts":[]},"finishReason":"MAX_TOKENS"}]}"#,
+        ];
+        let mut terminal = None;
+        for line in lines {
+            for chunk in parse_sse_line(&mut tools, line) {
+                terminal = Some(chunk.unwrap());
+            }
+        }
+        let terminal = terminal.expect("terminal chunk");
+        assert!(terminal.done);
+        assert_eq!(terminal.finish_reason, Some(FinishReason::MaxTokens));
+        assert_ne!(terminal.finish_reason, Some(FinishReason::ToolCalls));
+        assert!(terminal.tool_calls.is_some());
+    }
+
+    #[test]
+    fn repeated_tool_call_ids_resolve_within_rounds() {
+        let req = ChatRequest::from_messages(
+            "gemini",
+            vec![
+                Message::assistant_tool_calls(vec![ToolCall {
+                    id: "call_0".into(),
+                    call_type: "function".into(),
+                    function: FunctionCall {
+                        name: "first_tool".into(),
+                        arguments: "{}".into(),
+                    },
+                }]),
+                Message::tool("call_0", "first result"),
+                Message::assistant_tool_calls(vec![ToolCall {
+                    id: "call_0".into(),
+                    call_type: "function".into(),
+                    function: FunctionCall {
+                        name: "second_tool".into(),
+                        arguments: "{}".into(),
+                    },
+                }]),
+                Message::tool("call_0", "second result"),
+            ],
+        );
+        let (contents, _) = build_contents(&req).unwrap();
+        let value = serde_json::to_value(contents).unwrap();
+        assert_eq!(
+            value[1]["parts"][0]["functionResponse"]["name"],
+            "first_tool"
+        );
+        assert_eq!(
+            value[3]["parts"][0]["functionResponse"]["name"],
+            "second_tool"
+        );
+    }
+
+    #[test]
+    fn explicit_tool_result_name_has_priority() {
+        let mut result = Message::tool("call_0", "ok");
+        result.name = Some("explicit_name".into());
+        let req = ChatRequest::from_messages(
+            "gemini",
+            vec![
+                Message::assistant_tool_calls(vec![ToolCall {
+                    id: "call_0".into(),
+                    call_type: "function".into(),
+                    function: FunctionCall {
+                        name: "resolved_name".into(),
+                        arguments: "{}".into(),
+                    },
+                }]),
+                result,
+            ],
+        );
+        let (contents, _) = build_contents(&req).unwrap();
+        let value = serde_json::to_value(contents).unwrap();
+        assert_eq!(
+            value[1]["parts"][0]["functionResponse"]["name"],
+            "explicit_name"
+        );
+    }
+
+    #[test]
+    fn bare_schema_with_schema_property_is_not_a_wrapper() {
+        let bare = serde_json::json!({
+            "type": "object",
+            "schema": {"type": "string"},
+            "properties": {"schema": {"type": "string"}}
+        });
+        let (_, schema) = gemini_response_format(&ResponseFormat::JsonSchema {
+            json_schema: bare.clone(),
+        });
+        assert_eq!(schema, Some(bare));
     }
 
     #[test]
@@ -1623,7 +1813,7 @@ mod tests {
         let req = ChatRequest::new("gemini", "hi").with_thinking(ThinkingConfig::Enabled {
             budget_tokens: Some(2000),
         });
-        let (contents, system_instruction) = build_contents(&req);
+        let (contents, system_instruction) = build_contents(&req).unwrap();
         let body = build_body(&req, &contents, system_instruction);
         let v = serde_json::to_value(&body).unwrap();
         assert_eq!(v["thinkingConfig"]["thinkingBudget"], 2000);
@@ -1636,7 +1826,7 @@ mod tests {
         let req = ChatRequest::new("gemini", "hi").with_thinking(ThinkingConfig::Enabled {
             budget_tokens: None,
         });
-        let (contents, system_instruction) = build_contents(&req);
+        let (contents, system_instruction) = build_contents(&req).unwrap();
         let body = build_body(&req, &contents, system_instruction);
         let v = serde_json::to_value(&body).unwrap();
         assert!(v["thinkingConfig"].get("thinkingBudget").is_none());
@@ -1646,7 +1836,7 @@ mod tests {
     #[test]
     fn thinking_disabled_omits_thinking_config() {
         let req = ChatRequest::new("gemini", "hi").with_thinking(ThinkingConfig::Disabled);
-        let (contents, system_instruction) = build_contents(&req);
+        let (contents, system_instruction) = build_contents(&req).unwrap();
         let body = build_body(&req, &contents, system_instruction);
         let v = serde_json::to_value(&body).unwrap();
         assert!(v.get("thinkingConfig").is_none());

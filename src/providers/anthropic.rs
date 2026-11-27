@@ -292,7 +292,7 @@ fn flush_tool_results(
 /// `messages` array. System content is flattened to text; assistant tool calls
 /// become `tool_use` blocks and `tool` results are folded into `user` turns as
 /// `tool_result` blocks (consecutive results are merged into one user turn).
-fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) {
+fn split_messages(req: &ChatRequest) -> Result<(Option<String>, Vec<AnthropicMessage>)> {
     let mut system = None;
     let mut messages = Vec::new();
     let mut pending_tool_results: Vec<AnthropicContentBlock> = Vec::new();
@@ -334,10 +334,10 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
                             });
                         }
                         for call in tool_calls {
-                            let input: serde_json::Value = crate::providers::parse_tool_arguments(
+                            let input = crate::providers::parse_tool_arguments_strict(
                                 &call.function.name,
                                 &call.function.arguments,
-                            );
+                            )?;
                             blocks.push(AnthropicContentBlock::ToolUse {
                                 id: call.id.clone(),
                                 name: call.function.name.clone(),
@@ -359,7 +359,7 @@ fn split_messages(req: &ChatRequest) -> (Option<String>, Vec<AnthropicMessage>) 
         }
     }
     flush_tool_results(&mut messages, &mut pending_tool_results);
-    (system, messages)
+    Ok((system, messages))
 }
 
 /// Build the Claude request body shared by `chat` and `stream`.
@@ -376,7 +376,7 @@ pub(crate) fn build_body_json(req: &ChatRequest) -> String {
         .expect("body must serialize")
 }
 fn build_body(req: &ChatRequest, stream: bool) -> Result<AnthropicRequest<'_>> {
-    let (system, mut messages) = split_messages(req);
+    let (system, mut messages) = split_messages(req)?;
     let thinking = match &req.thinking {
         Some(cfg) => thinking_to_anthropic(cfg)?,
         None => None,
@@ -537,6 +537,9 @@ struct AnthropicStreamContentBlock {
     id: Option<String>,
     #[serde(default)]
     name: Option<String>,
+    /// Some upstreams put the complete empty input on the start event.
+    #[serde(default)]
+    input: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -573,6 +576,8 @@ struct AnthropicToolBuilder {
     id: String,
     name: String,
     arguments: String,
+    initial_input: Option<serde_json::Value>,
+    closed: bool,
 }
 
 impl AnthropicToolAccumulator {
@@ -633,51 +638,77 @@ impl AnthropicToolAccumulator {
         ))
     }
 
-    fn start(&mut self, index: usize, id: String, name: String) {
+    fn start(&mut self, index: usize, id: String, name: String, input: Option<serde_json::Value>) {
         self.builders.insert(
             index,
             AnthropicToolBuilder {
                 id,
                 name,
                 arguments: String::new(),
+                initial_input: input,
+                closed: false,
             },
         );
     }
 
-    fn push_arguments(&mut self, index: usize, partial_json: &str) {
+    fn close(&mut self, index: usize) {
         if let Some(builder) = self.builders.get_mut(&index) {
-            builder.arguments.push_str(partial_json);
+            builder.closed = true;
         }
     }
 
-    fn take(&mut self) -> Option<Vec<ToolCall>> {
+    fn push_arguments(&mut self, index: usize, partial_json: &str) -> Result<()> {
+        let builder = self.builders.get_mut(&index).ok_or_else(|| {
+            LlmError::Parse(format!(
+                "anthropic stream: tool arguments arrived for unopened block {index}"
+            ))
+        })?;
+        builder.arguments.push_str(partial_json);
+        Ok(())
+    }
+
+    /// Validate every pending tool before any terminal/flush can be emitted.
+    /// A partial, unclosed, unnamed, unidentified, or invalid-JSON tool is an
+    /// error; it is never silently filtered or rewritten to `{}`.
+    fn take(&mut self) -> Result<Option<Vec<ToolCall>>> {
         if self.builders.is_empty() {
-            return None;
+            return Ok(None);
         }
-        let calls: Vec<ToolCall> = std::mem::take(&mut self.builders)
-            .into_values()
-            .filter(|b| !b.name.is_empty())
-            .map(|b| {
-                let arguments = if b.arguments.is_empty() {
-                    "{}".to_string()
-                } else {
-                    b.arguments
-                };
-                ToolCall {
-                    id: b.id,
-                    call_type: "function".to_string(),
-                    function: FunctionCall {
-                        name: b.name,
-                        arguments,
-                    },
-                }
-            })
-            .collect();
-        if calls.is_empty() {
-            None
-        } else {
-            Some(calls)
+        let mut calls = Vec::with_capacity(self.builders.len());
+        for (index, builder) in std::mem::take(&mut self.builders) {
+            if !builder.closed {
+                return Err(LlmError::Parse(format!(
+                    "anthropic stream: tool block {index} is not closed"
+                )));
+            }
+            if builder.id.trim().is_empty() || builder.name.trim().is_empty() {
+                return Err(LlmError::Parse(format!(
+                    "anthropic stream: tool block {index} has an empty id or name"
+                )));
+            }
+            let arguments = if builder.arguments.is_empty() {
+                builder
+                    .initial_input
+                    .map(|value| value.to_string())
+                    .unwrap_or_default()
+            } else {
+                builder.arguments
+            };
+            serde_json::from_str::<serde_json::Value>(&arguments).map_err(|err| {
+                LlmError::Parse(format!(
+                    "anthropic stream: tool block {index} arguments are not valid JSON ({err})"
+                ))
+            })?;
+            calls.push(ToolCall {
+                id: builder.id,
+                call_type: "function".to_string(),
+                function: FunctionCall {
+                    name: builder.name,
+                    arguments,
+                },
+            });
         }
+        Ok(Some(calls))
     }
 }
 
@@ -724,6 +755,7 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
                             event.index.unwrap_or(0),
                             block.id.unwrap_or_default(),
                             block.name.unwrap_or_default(),
+                            block.input,
                         );
                     }
                     // REA-002: a redacted thinking block carries no deltas —
@@ -734,6 +766,10 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
             }
             Vec::new()
         }
+        "content_block_stop" => {
+            tools.close(event.index.unwrap_or(0));
+            Vec::new()
+        }
         "content_block_delta" => {
             let index = event.index.unwrap_or(0);
             let Some(delta) = event.delta else {
@@ -742,7 +778,9 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
             match delta.delta_type.as_deref() {
                 Some("input_json_delta") => {
                     if let Some(partial) = delta.partial_json {
-                        tools.push_arguments(index, &partial);
+                        if let Err(error) = tools.push_arguments(index, &partial) {
+                            return vec![Err(error)];
+                        }
                     }
                     Vec::new()
                 }
@@ -783,7 +821,10 @@ fn parse_sse_line(tools: &mut AnthropicToolAccumulator, line: &str) -> Vec<Resul
             // (input + cache) merged with `message_delta` side (output +
             // thinking tokens); falls back to `message_delta` alone.
             let usage = tools.terminal_usage(event.usage);
-            let tool_calls = tools.take();
+            let tool_calls = match tools.take() {
+                Ok(calls) => calls,
+                Err(error) => return vec![Err(error)],
+            };
             vec![Ok(StreamChunk {
                 done: finish_reason.is_some(),
                 finish_reason,
@@ -854,23 +895,9 @@ where
             loop {
                 match lines.next().await {
                     Some(Ok(line)) => {
-                        let mut chunks = parse_sse_line(&mut tools, &line);
+                        let chunks = parse_sse_line(&mut tools, &line);
                         if chunks.iter().any(|c| c.is_err()) {
                             errored = true;
-                        }
-                        // Flush point 1 — a bare done chunk carrying neither
-                        // `finish_reason` nor calls. Forward-compatible port:
-                        // `parse_sse_line` only emits `done == true` together
-                        // with a `finish_reason` (which drains the accumulator
-                        // itself), so this is a no-op today.
-                        if !errored {
-                            for c in chunks.iter_mut().flatten() {
-                                let bare_done =
-                                    c.done && c.finish_reason.is_none() && c.tool_calls.is_none();
-                                if bare_done {
-                                    c.tool_calls = tools.take();
-                                }
-                            }
                         }
                         if chunks.is_empty() {
                             continue;
@@ -901,7 +928,7 @@ where
                             return None;
                         }
                         match tools.take() {
-                            Some(calls) => {
+                            Ok(Some(calls)) => {
                                 let chunk = StreamChunk {
                                     done: true,
                                     tool_calls: Some(calls),
@@ -912,7 +939,13 @@ where
                                     (lines, tools, errored, true),
                                 ));
                             }
-                            None => return None,
+                            Ok(None) => return None,
+                            Err(error) => {
+                                return Some((
+                                    futures::stream::iter(vec![Err(error)]),
+                                    (lines, tools, errored, true),
+                                ));
+                            }
                         }
                     }
                 }
@@ -1148,7 +1181,7 @@ mod tests {
             "claude",
             vec![Message::system("be brief"), Message::user("hi")],
         );
-        let (system, messages) = split_messages(&req);
+        let (system, messages) = split_messages(&req).unwrap();
         assert_eq!(system.as_deref(), Some("be brief"));
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].role.as_str(), "user");
@@ -1165,7 +1198,7 @@ mod tests {
                 Message::user("thanks"),
             ],
         );
-        let (system, messages) = split_messages(&req);
+        let (system, messages) = split_messages(&req).unwrap();
         assert_eq!(system.as_deref(), Some("be brief\n\nalso be polite"));
         assert_eq!(messages.len(), 2);
     }
@@ -1305,7 +1338,7 @@ mod tests {
                 Message::tool("toolu_1", "sunny"),
             ],
         );
-        let (_system, messages) = split_messages(&req);
+        let (_system, messages) = split_messages(&req).unwrap();
         assert_eq!(messages.len(), 3);
         let v = serde_json::to_value(&messages).unwrap();
         assert_eq!(v[1]["role"], "assistant");
@@ -1325,6 +1358,7 @@ mod tests {
             r#"data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"get_weather"}}"#,
             r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"city\":"}}"#,
             r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"\"SF\"}"}}"#,
+            r#"data: {"type":"content_block_stop","index":0}"#,
             r#"data: {"type":"message_delta","delta":{"stop_reason":"tool_use"}}"#,
         ];
         let mut final_chunk = None;
@@ -1477,6 +1511,7 @@ mod tests {
             Ok(r#"data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"get_weather"}}"#.to_string()),
             Ok(r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"city\":"}}"#.to_string()),
             Ok(r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"\"SF\"}"}}"#.to_string()),
+            Ok(r#"data: {"type":"content_block_stop","index":0}"#.to_string()),
         ];
         let chunks: Vec<Result<StreamChunk>> = sse_chunk_stream(futures::stream::iter(lines))
             .collect()
@@ -1504,6 +1539,40 @@ mod tests {
         assert_eq!(calls[0].id, "toolu_1");
         assert_eq!(calls[0].function.name, "get_weather");
         assert_eq!(calls[0].function.arguments, "{\"city\":\"SF\"}");
+    }
+
+    #[tokio::test]
+    async fn stream_unclosed_tool_is_error_without_done() {
+        let lines = vec![
+            Ok(r#"data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"write_file"}}"#.to_string()),
+            Ok(r#"data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"path\":"}}"#.to_string()),
+        ];
+        let chunks: Vec<Result<StreamChunk>> = sse_chunk_stream(futures::stream::iter(lines))
+            .collect()
+            .await;
+        assert!(chunks
+            .iter()
+            .any(|chunk| matches!(chunk, Err(LlmError::Parse(_)))));
+        assert!(chunks
+            .iter()
+            .all(|chunk| chunk.is_err() || !chunk.as_ref().unwrap().done));
+    }
+
+    #[test]
+    fn closed_tool_with_only_start_input_uses_valid_json() {
+        let mut tools = AnthropicToolAccumulator::default();
+        for line in [
+            r#"data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"no_args","input":{}}}"#,
+            r#"data: {"type":"content_block_stop","index":0}"#,
+            r#"data: {"type":"message_delta","delta":{"stop_reason":"tool_use"}}"#,
+        ] {
+            for chunk in parse_sse_line(&mut tools, line) {
+                let chunk = chunk.unwrap();
+                if chunk.done {
+                    assert_eq!(chunk.tool_calls.unwrap()[0].function.arguments, "{}");
+                }
+            }
+        }
     }
 
     // --- REA-002: extended thinking request mapping ---

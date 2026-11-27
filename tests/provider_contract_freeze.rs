@@ -400,15 +400,15 @@ mod audit_2026_http_tests {
     use std::time::{Duration, Instant};
 
     #[derive(Debug, Clone)]
-    struct CapturedRequest {
-        target: String,
-        headers: String,
-        body: String,
+    pub(super) struct CapturedRequest {
+        pub(super) target: String,
+        pub(super) headers: String,
+        pub(super) body: String,
     }
 
-    type ResponseSpec = (u16, Vec<(String, String)>, String);
+    pub(super) type ResponseSpec = (u16, Vec<(String, String)>, String);
 
-    fn read_request(stream: &mut TcpStream) -> std::io::Result<CapturedRequest> {
+    pub(super) fn read_request(stream: &mut TcpStream) -> std::io::Result<CapturedRequest> {
         stream.set_read_timeout(Some(Duration::from_secs(30)))?;
         let mut bytes = Vec::new();
         let header_end = loop {
@@ -459,7 +459,7 @@ mod audit_2026_http_tests {
         })
     }
 
-    fn write_response(
+    pub(super) fn write_response(
         stream: &mut TcpStream,
         status: u16,
         headers: &[(String, String)],
@@ -487,7 +487,7 @@ mod audit_2026_http_tests {
         stream.flush().ok();
     }
 
-    fn serve_n<H>(
+    pub(super) fn serve_n<H>(
         listener: TcpListener,
         count: usize,
         mut handler: H,
@@ -1015,5 +1015,450 @@ mod audit_2026_http_tests {
         assert!(captured
             .iter()
             .all(|request| request.target == "/v1/chat/completions"));
+    }
+}
+
+// ── B-018-PROVIDER: production-wire integrity audits ──────────────────────
+
+mod audit_2026_provider_integrity_tests {
+    use super::audit_2026_http_tests::{serve_n, ResponseSpec};
+    use super::*;
+    use futures::StreamExt;
+    use llmrust::providers::anthropic::AnthropicProvider;
+    use llmrust::providers::compat::OpenAiCompatibleProvider;
+    use llmrust::providers::google::GoogleProvider;
+    use llmrust::providers::ollama::OllamaProvider;
+    use llmrust::types::{
+        EmbeddingRequest, FinishReason, FunctionCall, Message, ResponseFormat, ToolCall,
+    };
+    use llmrust::ProviderConfig;
+    use std::io::ErrorKind;
+    use std::net::TcpListener;
+
+    fn json_response(body: impl Into<String>) -> ResponseSpec {
+        (
+            200,
+            vec![("Content-Type".into(), "application/json".into())],
+            body.into(),
+        )
+    }
+
+    fn sse_response(body: impl Into<String>) -> ResponseSpec {
+        (
+            200,
+            vec![("Content-Type".into(), "text/event-stream".into())],
+            body.into(),
+        )
+    }
+
+    fn ndjson_response(body: impl Into<String>) -> ResponseSpec {
+        (
+            200,
+            vec![("Content-Type".into(), "application/x-ndjson".into())],
+            body.into(),
+        )
+    }
+
+    fn request_json(request: &super::audit_2026_http_tests::CapturedRequest) -> serde_json::Value {
+        serde_json::from_str(&request.body).expect("fixture request body must be JSON")
+    }
+
+    fn tool_call(id: &str, name: &str) -> ToolCall {
+        ToolCall {
+            id: id.to_string(),
+            call_type: "function".to_string(),
+            function: FunctionCall {
+                name: name.to_string(),
+                arguments: "{}".to_string(),
+            },
+        }
+    }
+
+    fn assert_no_success_terminal(chunks: &[Result<StreamChunk>]) {
+        assert!(
+            chunks.iter().any(|chunk| chunk.is_err()),
+            "an incomplete/error stream must surface Err: {chunks:?}"
+        );
+        assert!(
+            chunks
+                .iter()
+                .all(|chunk| chunk.is_err() || !chunk.as_ref().unwrap().done),
+            "an error stream must never emit done=true: {chunks:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_anthropic_incomplete_tool_is_error() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let wire = concat!(
+            "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"write_file\"}}\n\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"path\\\":\"}}\n\n",
+            "data: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+        );
+        let server = serve_n(listener, 1, move |_| Some(sse_response(wire)));
+        let provider = AnthropicProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1")),
+        );
+        let stream = provider
+            .stream(&ChatRequest::new("claude-test", "write"))
+            .await
+            .unwrap();
+        let chunks: Vec<Result<StreamChunk>> = stream.collect().await;
+        assert_no_success_terminal(&chunks);
+        assert!(chunks.iter().all(|chunk| chunk
+            .as_ref()
+            .map_or(true, |chunk| chunk.tool_calls.is_none())));
+        assert_eq!(server.join().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_gemini_ids_are_response_scoped() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let mut index = 0usize;
+        let server = serve_n(listener, 3, move |_| {
+            index += 1;
+            let body = match index {
+                1 => {
+                    r#"{"modelVersion":"gemini-test","candidates":[{"content":{"parts":[{"functionCall":{"name":"first_tool","args":{"x":1}}}]},"finishReason":"STOP"}]}"#
+                }
+                2 => {
+                    r#"{"modelVersion":"gemini-test","candidates":[{"content":{"parts":[{"functionCall":{"name":"second_tool","args":{"x":2}}}]},"finishReason":"STOP"}]}"#
+                }
+                _ => {
+                    r#"{"modelVersion":"gemini-test","candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}"#
+                }
+            };
+            Some(json_response(body))
+        });
+        let provider = GoogleProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1beta")),
+        );
+        let first = provider
+            .chat(&ChatRequest::new("gemini-test", "first"))
+            .await
+            .unwrap();
+        let second = provider
+            .chat(&ChatRequest::new("gemini-test", "second"))
+            .await
+            .unwrap();
+        let first_call = &first.tool_calls.as_ref().unwrap()[0];
+        let second_call = &second.tool_calls.as_ref().unwrap()[0];
+        assert_eq!(first_call.function.name, "first_tool");
+        assert_eq!(second_call.function.name, "second_tool");
+        assert_ne!(first_call.id, second_call.id);
+        assert_ne!(first_call.id, "call_0");
+        assert_eq!(first.finish_reason, Some(FinishReason::Stop));
+        assert_eq!(second.finish_reason, Some(FinishReason::Stop));
+
+        // Legacy clients may still reuse call_0. Resolution is round-scoped,
+        // so the first result must not be rewritten by the second round.
+        let history = vec![
+            Message::user("start"),
+            Message::assistant_tool_calls(vec![tool_call("call_0", "first_tool")]),
+            Message::tool("call_0", "first result"),
+            Message::assistant_tool_calls(vec![tool_call("call_0", "second_tool")]),
+            Message::tool("call_0", "second result"),
+        ];
+        provider
+            .chat(&ChatRequest::from_messages("gemini-test", history))
+            .await
+            .unwrap();
+        let captured = server.join().unwrap();
+        let body = request_json(&captured[2]);
+        let names: Vec<&str> = body["contents"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|content| content["parts"].as_array())
+            .flatten()
+            .filter_map(|part| part["functionResponse"]["name"].as_str())
+            .collect();
+        assert_eq!(names, ["first_tool", "second_tool"]);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_gemini_blocked_200_is_error() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let mut index = 0usize;
+        let server = serve_n(listener, 2, move |_| {
+            index += 1;
+            Some(json_response(if index == 1 {
+                r#"{"promptFeedback":{"blockReason":"SAFETY"}}"#
+            } else {
+                r#"{"modelVersion":"gemini-test","candidates":[]}"#
+            }))
+        });
+        let provider = GoogleProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1beta")),
+        );
+        assert!(provider
+            .chat(&ChatRequest::new("gemini-test", "blocked"))
+            .await
+            .is_err());
+        assert!(provider
+            .chat(&ChatRequest::new("gemini-test", "empty"))
+            .await
+            .is_err());
+        assert_eq!(server.join().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_compat_empty_or_refusal_is_error() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let bodies = [
+            r#"{"model":"test","choices":[],"usage":{"prompt_tokens":1,"completion_tokens":0,"total_tokens":1}}"#,
+            r#"{"model":"test","choices":[{"message":{"role":"assistant","content":null,"refusal":"policy refusal"},"finish_reason":"stop"}]}"#,
+            r#"{"model":"test","choices":[{"message":{"role":"assistant","content":null},"finish_reason":"stop"}]}"#,
+        ];
+        let mut index = 0usize;
+        let server = serve_n(listener, 3, move |_| {
+            let body = bodies[index];
+            index += 1;
+            Some(json_response(body))
+        });
+        let provider = OpenAiCompatibleProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1")),
+            [],
+        );
+        for prompt in ["empty", "refusal", "null message"] {
+            assert!(provider
+                .chat(&ChatRequest::new("test", prompt))
+                .await
+                .is_err());
+        }
+        assert_eq!(server.join().unwrap().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_choices_null_usage_is_accepted() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let mut index = 0usize;
+        let server = serve_n(listener, 2, move |_| {
+            index += 1;
+            if index == 1 {
+                Some(json_response(
+                    r#"{"model":"test","choices":null,"usage":{"prompt_tokens":3,"completion_tokens":0,"total_tokens":3}}"#,
+                ))
+            } else {
+                Some(sse_response(concat!(
+                    "data: {\"choices\":null,\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":0,\"total_tokens\":4}}\n\n",
+                    "data: [DONE]\n\n",
+                )))
+            }
+        });
+        let provider = OpenAiCompatibleProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1")),
+            [],
+        );
+        let chat = provider
+            .chat(&ChatRequest::new("test", "usage"))
+            .await
+            .unwrap();
+        assert_eq!(chat.usage.unwrap().total_tokens, 3);
+        let mut stream = provider
+            .stream(&ChatRequest::new("test", "usage"))
+            .await
+            .unwrap();
+        let mut total = None;
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.unwrap();
+            if let Some(usage) = chunk.usage {
+                total = Some(usage.total_tokens);
+            }
+        }
+        assert_eq!(total, Some(4));
+        assert_eq!(server.join().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_embedding_index_set_is_complete() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let bodies = [
+            r#"{"model":"test","data":[{"index":0,"embedding":[0.1]}]}"#,
+            r#"{"model":"test","data":[{"index":0,"embedding":[0.1]},{"index":0,"embedding":[0.2]}]}"#,
+            r#"{"model":"test","embeddings":[[0.1]]}"#,
+        ];
+        let mut index = 0usize;
+        let server = serve_n(listener, 3, move |_| {
+            let body = bodies[index];
+            index += 1;
+            Some(json_response(body))
+        });
+        let compat = OpenAiCompatibleProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1")),
+            [],
+        );
+        let ollama =
+            OllamaProvider::new(ProviderConfig::new("").with_base_url(format!("http://{address}")));
+        let request = EmbeddingRequest::batch("test", ["a", "b"]);
+        assert!(matches!(
+            compat.embed(&request).await,
+            Err(LlmError::Parse(_))
+        ));
+        assert!(matches!(
+            compat.embed(&request).await,
+            Err(LlmError::Parse(_))
+        ));
+        assert!(matches!(
+            ollama.embed(&request).await,
+            Err(LlmError::Parse(_))
+        ));
+        assert_eq!(server.join().unwrap().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_ollama_finish_and_error_envelope() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let mut index = 0usize;
+        let server = serve_n(listener, 2, move |_| {
+            index += 1;
+            if index == 1 {
+                Some(json_response(
+                    r#"{"model":"test","message":{"role":"assistant","content":"partial"},"done":true,"done_reason":"length"}"#,
+                ))
+            } else {
+                Some(ndjson_response(concat!(
+                    "{\"error\":\"model not found\"}\n",
+                    "{\"message\":{\"content\":\"must not surface\"},\"done\":true}\n",
+                )))
+            }
+        });
+        let provider =
+            OllamaProvider::new(ProviderConfig::new("").with_base_url(format!("http://{address}")));
+        let chat = provider
+            .chat(&ChatRequest::new("test", "hello"))
+            .await
+            .unwrap();
+        assert_eq!(chat.finish_reason, Some(FinishReason::Length));
+        let stream = provider
+            .stream(&ChatRequest::new("test", "hello"))
+            .await
+            .unwrap();
+        let chunks: Vec<Result<StreamChunk>> = stream.collect().await;
+        assert!(matches!(chunks.as_slice(), [Err(LlmError::Stream(_))]));
+        assert_eq!(server.join().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_invalid_tool_arguments_are_not_rewritten() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let mut call = tool_call("call_1", "write_file");
+        call.function.arguments = "{bad json super-secret-token".to_string();
+        let request = ChatRequest::from_messages(
+            "test",
+            vec![
+                Message::user("write"),
+                Message::assistant_tool_calls(vec![call]),
+            ],
+        );
+        let anthropic = AnthropicProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1")),
+        );
+        let google = GoogleProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1beta")),
+        );
+        for error in [
+            anthropic.chat(&request).await.unwrap_err(),
+            google.chat(&request).await.unwrap_err(),
+        ] {
+            assert!(matches!(error, LlmError::Parse(_)), "{error:?}");
+            assert!(!error.to_string().contains("super-secret-token"));
+        }
+        assert_eq!(listener.accept().unwrap_err().kind(), ErrorKind::WouldBlock);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_gemini_chat_thought_not_in_content() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = serve_n(listener, 1, move |_| {
+            Some(json_response(
+                r#"{"modelVersion":"gemini-test","candidates":[{"content":{"parts":[{"text":"private thought","thought":true},{"text":"public answer"}]},"finishReason":"STOP"}]}"#,
+            ))
+        });
+        let provider = GoogleProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1beta")),
+        );
+        let response = provider
+            .chat(&ChatRequest::new("gemini-test", "hello"))
+            .await
+            .unwrap();
+        assert_eq!(response.content, "public answer");
+        assert_eq!(server.join().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_gemini_bare_schema_not_double_wrapped() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = serve_n(listener, 2, move |_| {
+            Some(json_response(
+                r#"{"modelVersion":"gemini-test","candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}"#,
+            ))
+        });
+        let provider = GoogleProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1beta")),
+        );
+        let bare = serde_json::json!({
+            "type": "object",
+            "schema": {"type": "string"},
+            "properties": {"schema": {"type": "string"}}
+        });
+        provider
+            .chat(
+                &ChatRequest::new("gemini-test", "bare")
+                    .with_response_format(ResponseFormat::json_schema(bare.clone())),
+            )
+            .await
+            .unwrap();
+        let wrapped_inner = serde_json::json!({"schema": {"type": "object"}});
+        provider
+            .chat(
+                &ChatRequest::new("gemini-test", "wrapped").with_response_format(
+                    ResponseFormat::json_schema(serde_json::json!({
+                        "name": "wrapped",
+                        "schema": wrapped_inner.clone(),
+                        "strict": true
+                    })),
+                ),
+            )
+            .await
+            .unwrap();
+        let captured = server.join().unwrap();
+        assert_eq!(
+            request_json(&captured[0])["generationConfig"]["responseSchema"],
+            bare
+        );
+        assert_eq!(
+            request_json(&captured[1])["generationConfig"]["responseSchema"],
+            wrapped_inner
+        );
+    }
+
+    #[tokio::test]
+    async fn audit_2026_provider_integrity_gemini_stream_logprobs_not_dropped() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let provider = GoogleProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("http://{address}/v1beta")),
+        );
+        let request = ChatRequest::new("gemini-test", "hello")
+            .with_logprobs(true)
+            .with_top_logprobs(2);
+        assert!(matches!(
+            provider.stream(&request).await,
+            Err(LlmError::Unsupported { feature, .. }) if feature == "logprobs"
+        ));
+        assert_eq!(listener.accept().unwrap_err().kind(), ErrorKind::WouldBlock);
     }
 }

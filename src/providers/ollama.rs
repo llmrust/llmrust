@@ -111,6 +111,8 @@ struct OllamaResponse {
     eval_count: u64,
     #[serde(default)]
     prompt_eval_count: u64,
+    #[serde(default)]
+    done_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -169,6 +171,11 @@ fn parse_ndjson_line(line: &str) -> Vec<Result<StreamChunk>> {
     let line = line.trim();
     if line.is_empty() {
         return Vec::new();
+    }
+    // Ollama reports in-band failures as {"error":"..."} NDJSON. Detect the
+    // envelope before the normal chunk DTO so it is a Stream error, not Parse.
+    if let Ok(error) = serde_json::from_str::<OllamaErrorBody>(line) {
+        return vec![Err(LlmError::Stream(error.error))];
     }
     let parsed = match serde_json::from_str::<OllamaStreamChunk>(line) {
         Ok(p) => p,
@@ -276,6 +283,7 @@ impl Provider for OllamaProvider {
                 total_tokens: parsed.prompt_eval_count.saturating_add(parsed.eval_count),
                 ..Default::default()
             }),
+            finish_reason: parsed.done_reason.map(FinishReason::from),
             ..Default::default()
         };
         tracing::debug!(
@@ -346,13 +354,23 @@ impl Provider for OllamaProvider {
             .bytes_stream()
             .map(|r| r.map_err(|e| LlmError::Stream(http::error::error_message(e))));
 
-        let stream = sse::strict_line_stream(byte_stream).flat_map(|line_result| {
-            let chunks = match line_result {
-                Ok(line) => parse_ndjson_line(&line),
-                Err(e) => vec![Err(e)],
-            };
-            futures::stream::iter(chunks)
-        });
+        let stream = sse::strict_line_stream(byte_stream)
+            .scan(false, |errored, line_result| {
+                let output = if *errored {
+                    None
+                } else {
+                    let chunks = match line_result {
+                        Ok(line) => parse_ndjson_line(&line),
+                        Err(error) => vec![Err(error)],
+                    };
+                    if chunks.iter().any(|chunk| chunk.is_err()) {
+                        *errored = true;
+                    }
+                    Some(chunks)
+                };
+                futures::future::ready(output)
+            })
+            .flat_map(futures::stream::iter);
 
         Ok(stream.boxed())
     }
@@ -413,6 +431,7 @@ impl Provider for OllamaProvider {
             ))
         })?;
 
+        crate::providers::validate_embedding_indices(req.input.len(), 0..parsed.embeddings.len())?;
         let data: Vec<Embedding> = parsed
             .embeddings
             .into_iter()

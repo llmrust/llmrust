@@ -242,3 +242,100 @@ mod embeddings_contracts {
         );
     }
 }
+
+mod provider_embedding_integrity {
+    use llmrust::providers::compat::OpenAiCompatibleProvider;
+    use llmrust::providers::ollama::OllamaProvider;
+    use llmrust::{EmbeddingRequest, LlmError, Provider, ProviderConfig};
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    fn serve_responses(bodies: Vec<String>) -> (String, std::thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            for body in bodies {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut bytes = Vec::new();
+                let header_end = loop {
+                    if let Some(index) = bytes.windows(4).position(|window| window == b"\r\n\r\n") {
+                        break index + 4;
+                    }
+                    let mut buffer = [0_u8; 4096];
+                    let count = stream.read(&mut buffer).unwrap();
+                    if count == 0 {
+                        panic!("request headers ended early");
+                    }
+                    bytes.extend_from_slice(&buffer[..count]);
+                };
+                let headers = String::from_utf8_lossy(&bytes[..header_end]);
+                let content_length = headers
+                    .lines()
+                    .find_map(|line| {
+                        let (name, value) = line.split_once(':')?;
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().unwrap())
+                    })
+                    .unwrap_or(0);
+                while bytes.len() < header_end + content_length {
+                    let mut buffer = [0_u8; 4096];
+                    let count = stream.read(&mut buffer).unwrap();
+                    if count == 0 {
+                        panic!("request body ended early");
+                    }
+                    bytes.extend_from_slice(&buffer[..count]);
+                }
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                stream.write_all(response.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
+        });
+        (format!("http://{address}"), server)
+    }
+
+    #[tokio::test]
+    async fn compat_embedding_requires_complete_unique_index_set() {
+        let (url, server) = serve_responses(vec![
+            r#"{"model":"m","data":[{"index":0,"embedding":[0.1]}]}"#.into(),
+            r#"{"model":"m","data":[{"index":1,"embedding":[0.2]},{"index":0,"embedding":[0.1]}]}"#
+                .into(),
+        ]);
+        let provider = OpenAiCompatibleProvider::new(
+            ProviderConfig::new("test").with_base_url(format!("{url}/v1")),
+            [],
+        );
+        let request = EmbeddingRequest::batch("m", ["a", "b"]);
+        assert!(matches!(
+            provider.embed(&request).await,
+            Err(LlmError::Parse(_))
+        ));
+        let response = provider.embed(&request).await.unwrap();
+        assert_eq!(response.data.len(), 2);
+        assert_eq!(response.data[0].index, 1);
+        assert_eq!(response.data[1].index, 0);
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn ollama_embedding_requires_one_vector_per_input() {
+        let (url, server) = serve_responses(vec![
+            r#"{"model":"m","embeddings":[[0.1]]}"#.into(),
+            r#"{"model":"m","embeddings":[[0.1],[0.2]]}"#.into(),
+        ]);
+        let provider = OllamaProvider::new(ProviderConfig::new("").with_base_url(url));
+        let request = EmbeddingRequest::batch("m", ["a", "b"]);
+        assert!(matches!(
+            provider.embed(&request).await,
+            Err(LlmError::Parse(_))
+        ));
+        let response = provider.embed(&request).await.unwrap();
+        assert_eq!(response.data.len(), 2);
+        assert_eq!(response.data[0].index, 0);
+        assert_eq!(response.data[1].index, 1);
+        server.join().unwrap();
+    }
+}

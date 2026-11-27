@@ -95,6 +95,9 @@ struct CompMessage {
     tool_call_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     name: Option<String>,
+    /// A non-empty refusal is an explicit upstream rejection, never an empty success.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    refusal: Option<String>,
 }
 
 impl From<&Message> for CompMessage {
@@ -119,13 +122,16 @@ impl From<&Message> for CompMessage {
             tool_calls: msg.tool_calls.clone(),
             tool_call_id: msg.tool_call_id.clone(),
             name: msg.name.clone(),
+            refusal: None,
         }
     }
 }
 
 #[derive(Deserialize)]
 struct CompResponse {
-    choices: Vec<CompChoice>,
+    /// `null` is a legitimate usage-only shape on compatible endpoints.
+    #[serde(default)]
+    choices: Option<Vec<CompChoice>>,
     model: String,
     usage: Option<CompUsage>,
 }
@@ -176,8 +182,9 @@ struct CompStreamError {
 
 #[derive(Deserialize)]
 struct CompStreamChunk {
+    /// Some gateways emit `choices: null` on usage-only frames.
     #[serde(default)]
-    choices: Vec<CompStreamChoice>,
+    choices: Option<Vec<CompStreamChoice>>,
     #[serde(default)]
     usage: Option<CompUsage>,
     /// AUD#3: in-band error field, named exactly as on the wire (`error`)
@@ -436,7 +443,11 @@ fn parse_sse_line(tools: &mut ToolCallAccumulator, line: &str) -> Vec<Result<Str
         })];
     }
     let usage = parsed.usage.map(comp_usage_to_usage);
-    match parsed.choices.first() {
+    match parsed
+        .choices
+        .as_deref()
+        .and_then(|choices| choices.first())
+    {
         Some(choice) => {
             // DELTA-NULL: `delta` may be absent or explicitly `null` on terminal
             // frames; substitute an empty delta so downstream logic is unchanged.
@@ -818,34 +829,58 @@ impl OpenAiCompatibleProvider {
     }
 
     /// Parse a non-streaming response into [`ChatResponse`].
-    fn parse_response(parsed: CompResponse) -> ChatResponse {
+    ///
+    /// `choices: null` is accepted only as a usage-only response. An empty
+    /// choice list, an explicit refusal, or a primary message with neither
+    /// text nor tool calls is an upstream protocol failure, not `Ok("")`.
+    fn parse_response(parsed: CompResponse) -> Result<ChatResponse> {
         let usage = parsed.usage.map(comp_usage_to_usage);
-
-        let (content, tool_calls, finish_reason, logprobs) = match parsed.choices.into_iter().next()
-        {
-            Some(choice) => {
-                let content = match choice.message.content {
-                    Some(c) => c.as_text(),
-                    None => String::new(),
-                };
-                (
-                    content,
-                    choice.message.tool_calls,
-                    choice.finish_reason.map(FinishReason::from),
-                    choice.logprobs,
-                )
+        let Some(choices) = parsed.choices else {
+            if usage.is_some() {
+                return Ok(ChatResponse {
+                    model: parsed.model,
+                    usage,
+                    ..Default::default()
+                });
             }
-            None => (String::new(), None, None, None),
+            return Err(LlmError::Parse(
+                "OpenAI-compatible response has no choices and no usage".to_string(),
+            ));
         };
-
-        ChatResponse {
+        let Some(choice) = choices.into_iter().next() else {
+            return Err(LlmError::Parse(
+                "OpenAI-compatible response has an empty primary choice".to_string(),
+            ));
+        };
+        if choice
+            .message
+            .refusal
+            .as_deref()
+            .is_some_and(|refusal| !refusal.trim().is_empty())
+        {
+            return Err(LlmError::Parse(
+                "OpenAI-compatible response refused the request".to_string(),
+            ));
+        }
+        let content = choice
+            .message
+            .content
+            .as_ref()
+            .map_or_else(String::new, |content| content.as_text());
+        let tool_calls = choice.message.tool_calls.filter(|calls| !calls.is_empty());
+        if content.is_empty() && tool_calls.is_none() {
+            return Err(LlmError::Parse(
+                "OpenAI-compatible primary choice has no content or tool calls".to_string(),
+            ));
+        }
+        Ok(ChatResponse {
             content,
             model: parsed.model,
             usage,
             tool_calls,
-            finish_reason,
-            logprobs,
-        }
+            finish_reason: choice.finish_reason.map(FinishReason::from),
+            logprobs: choice.logprobs,
+        })
     }
 }
 
@@ -885,7 +920,7 @@ impl Provider for OpenAiCompatibleProvider {
             ))
         })?;
 
-        let result = Self::parse_response(parsed);
+        let result = Self::parse_response(parsed)?;
         tracing::debug!(provider = "openai-compatible", model = &result.model, finish_reason = ?result.finish_reason, "chat response received");
         Ok(result)
     }
@@ -969,6 +1004,10 @@ impl Provider for OpenAiCompatibleProvider {
             ))
         })?;
 
+        crate::providers::validate_embedding_indices(
+            req.input.len(),
+            parsed.data.iter().map(|item| item.index),
+        )?;
         let data: Vec<Embedding> = parsed
             .data
             .into_iter()
@@ -1064,7 +1103,7 @@ mod tests {
         .to_string();
 
         let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
-        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        let resp = OpenAiCompatibleProvider::parse_response(parsed).unwrap();
         assert_eq!(resp.content, "");
         assert_eq!(resp.finish_reason, Some(FinishReason::ToolCalls));
         let calls = resp.tool_calls.expect("tool_calls present");
@@ -1099,7 +1138,7 @@ mod tests {
         .to_string();
 
         let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
-        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        let resp = OpenAiCompatibleProvider::parse_response(parsed).unwrap();
         assert_eq!(resp.content, "Hi");
         assert_eq!(resp.finish_reason, Some(FinishReason::Stop));
 
@@ -1839,7 +1878,7 @@ mod tests {
                     assert_eq!(body["model"], "text-embedding-3-small");
                     assert_eq!(body["input"][0], "hello");
                     assert_eq!(body["input"][1], "world");
-                    axum::Json(serde_json::json!({"data":[],"model":"m"}))
+                    axum::Json(serde_json::json!({"data":[{"index":0,"embedding":[0.1]},{"index":1,"embedding":[0.2]}],"model":"m"}))
                 },
             ),
         );
@@ -1865,7 +1904,9 @@ mod tests {
                     assert_eq!(body["dimensions"], 1024);
                     assert_eq!(body["user"], "u");
                     assert_eq!(body["task"], "search");
-                    axum::Json(serde_json::json!({"data":[],"model":"m"}))
+                    axum::Json(
+                        serde_json::json!({"data":[{"index":0,"embedding":[0.1]}],"model":"m"}),
+                    )
                 },
             ),
         );
@@ -1972,7 +2013,7 @@ mod tests {
             axum::routing::post(
                 |axum::Json(body): axum::Json<serde_json::Value>| async move {
                     assert_eq!(body["model"], "text-embedding-3-small");
-                    axum::Json(serde_json::json!({"data":[],"model":"text-embedding-3-small"}))
+                    axum::Json(serde_json::json!({"data":[{"index":0,"embedding":[0.1]}],"model":"text-embedding-3-small"}))
                 },
             ),
         );
@@ -2110,7 +2151,7 @@ mod tests {
         })
         .to_string();
         let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
-        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        let resp = OpenAiCompatibleProvider::parse_response(parsed).unwrap();
         let u = resp.usage.unwrap();
         assert_eq!(u.cache_read_tokens, Some(5));
         assert_eq!(u.reasoning_tokens, Some(8));
@@ -2126,7 +2167,7 @@ mod tests {
         })
         .to_string();
         let parsed: CompResponse = serde_json::from_str(&raw).unwrap();
-        let resp = OpenAiCompatibleProvider::parse_response(parsed);
+        let resp = OpenAiCompatibleProvider::parse_response(parsed).unwrap();
         let u = resp.usage.unwrap();
         assert_eq!(u.cache_read_tokens, None);
         assert_eq!(u.reasoning_tokens, None);

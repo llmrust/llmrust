@@ -256,7 +256,22 @@ pub(crate) fn tool_args_degradation_message(tool_name: &str, err: &serde_json::E
     )
 }
 
-/// 解析工具调用参数，失败时**降级为空对象并留痕**（不 panic、不改成功路径）。
+/// Provider 请求侧的严格工具参数解析。
+///
+/// 非法 JSON 返回 [`LlmError::Parse`]，且错误只含工具名与 serde 的位置信息，
+/// 不回显参数原文。调用方可在网络调用前修正输入。
+pub(crate) fn parse_tool_arguments_strict(tool_name: &str, raw: &str) -> Result<serde_json::Value> {
+    serde_json::from_str(raw).map_err(|err| {
+        LlmError::Parse(format!(
+            "tool `{tool_name}` arguments are not valid JSON ({err})"
+        ))
+    })
+}
+
+/// 旧的 proxy 降级 helper：非法 JSON 改为空对象并留痕。
+///
+/// **Provider 请求侧不得调用本函数。** 它仅用于保持旧代理转换路径，直到
+/// C-018-PROXY-RESIDUAL 在协议边界把非法参数变成显式错误。
 pub(crate) fn parse_tool_arguments(tool_name: &str, raw: &str) -> serde_json::Value {
     match serde_json::from_str(raw) {
         Ok(value) => value,
@@ -270,6 +285,30 @@ pub(crate) fn parse_tool_arguments(tool_name: &str, raw: &str) -> serde_json::Va
             serde_json::json!({})
         }
     }
+}
+
+/// 校验 embedding 数量与 index 集合：每个输入必须恰好对应一个唯一且落在
+/// `0..expected` 内的向量。保持上游返回顺序，不重排。
+pub(crate) fn validate_embedding_indices(
+    expected: usize,
+    indices: impl IntoIterator<Item = usize>,
+) -> Result<()> {
+    let mut seen = HashSet::new();
+    let mut count = 0usize;
+    for index in indices {
+        count += 1;
+        if index >= expected || !seen.insert(index) {
+            return Err(LlmError::Parse(format!(
+                "embedding response has an invalid or duplicate index {index} for {expected} inputs"
+            )));
+        }
+    }
+    if count != expected || seen.len() != expected {
+        return Err(LlmError::Parse(format!(
+            "embedding response count/index set is incomplete: expected {expected}, got {count}"
+        )));
+    }
+    Ok(())
 }
 
 // 0.1.3 期此处另有 `warn_if_unsupported_n`，由六个 Provider 内部手工调用。
@@ -365,6 +404,25 @@ mod tests {
         assert!(n_is_unsupported(Some(2)));
         assert!(n_is_unsupported(Some(5)));
         assert!(n_is_unsupported(Some(128)));
+    }
+
+    #[test]
+    fn strict_tool_arguments_reject_invalid_json_without_echoing_payload() {
+        const SECRET: &str = "super-secret-token-abc123";
+        let raw = format!("{{bad json {SECRET}");
+        let err = parse_tool_arguments_strict("do_thing", &raw).unwrap_err();
+        assert!(matches!(err, LlmError::Parse(_)));
+        let shown = err.to_string();
+        assert!(shown.contains("do_thing"));
+        assert!(!shown.contains(SECRET));
+    }
+
+    #[test]
+    fn embedding_index_set_requires_exact_complete_unique_indices() {
+        assert!(validate_embedding_indices(2, [1, 0]).is_ok());
+        assert!(validate_embedding_indices(2, [0]).is_err());
+        assert!(validate_embedding_indices(2, [0, 0]).is_err());
+        assert!(validate_embedding_indices(2, [0, 2]).is_err());
     }
 
     // ── ERR-001：解析失败的降级与脱敏 ───────────────────────────────────

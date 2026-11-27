@@ -1,0 +1,526 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ledger",
+  "agent": "ledger-llmrust",
+  "written_by": "ledger-llmrust",
+  "card_id": null,
+  "batch_id": "B-018-PROVIDER",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "inputs_seen": [
+    ".workforce/config.json（ledger.command/none_reason）",
+    ".workforce/cards/C-018-PROVIDER-INTEGRITY.json（c5 原文、write_scopes、planned_file_paths）",
+    "tests/hotspot_ledger.json（被核验台账实物）",
+    ".workforce/loop-state.json（仅 B-018-PROVIDER batch_base/base_head/handoff/card_sha256 与运行时 sha256；不列 artifacts）",
+    ".workforce/spec.json（仅核验 sha256）",
+    ".agents/skills/agent-workforce-loop/references/roles.md、assets/evidence.template.json、scripts/lib.mjs（角色、回执与 selfShaOk/ledgerCheck 口径）",
+    ".workforce/evidence/B-018-PROVIDER/dev-C-018-PROVIDER-INTEGRITY.json（仅取 artifacts.path/sha256、files_changed 与身份字段；notes 未作为证据）",
+    ".workforce/evidence/B-018-PROVIDER/qa-C-018-PROVIDER-INTEGRITY.json（仅取 artifacts.path/sha256、handoff_id 与身份字段；notes 未作为证据）",
+    "git 对象 e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f:tests/hotspot_ledger.json 与四个 provider 文件"
+  ],
+  "ledger": {
+    "duty_basis": {
+      "config_ledger": "command=null；llmrust 仓无台账生成脚本，按 none_reason 只验 schema/generatedAt/self_sha256 自洽；Node ledgerCheck 预期 ok=true/unverified=true。",
+      "role_contract": "ledger-* 独立核验台账；agent=ledger-llmrust，written_by=ledger-llmrust，independent=true，declared_by_lead=false。",
+      "c5_basis": "C-018-PROVIDER-INTEGRITY acceptance_criteria c5；六字段、batch_base 前驱、scope、threshold、授权与 date 按卡面原文机判。"
+    },
+    "target_card_id": "C-018-PROVIDER-INTEGRITY",
+    "verification_started_at": "2026-11-27T12:48:51.000Z",
+    "target": "tests/hotspot_ledger.json",
+    "target_sha256_raw_bytes": "8ff661ba044bf80ccce34098ea119aa3ef9056fae3b409d6bab134a2c4665605",
+    "base_target_sha256_raw_bytes": "fce12174aca4f6769a2ba1b988520194c393949fe81cee18d0e5564f30c80c0e",
+    "threshold": 500,
+    "line_count_metric": "UTF-8 decode 后 len(splitlines())；另扫全部 32 个 src/**/*.rs 无 VT/FF/FS/GS/RS/NEL/LS/PS 与孤立 CR，故与 Rust lines().count() 同口径。",
+    "runtime_state": {
+      "path": ".workforce/loop-state.json",
+      "sha256_before": "6daa4f0f309016e09f73c2d307df57af93b38f5a5abf064799acea110338cec1",
+      "sha256_after_read_only_checks": "6daa4f0f309016e09f73c2d307df57af93b38f5a5abf064799acea110338cec1",
+      "included_in_artifacts": false,
+      "reason": "运行时文件哈希只写正文，避免 artifacts 数组引用易变状态文件。"
+    },
+    "freeze": {
+      "batch_base": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+      "base_head": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+      "head": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+      "handoff_id": "6ab65fa6eacf5b7e67296210",
+      "handoff_at": "2026-11-27T12:34:21.872Z",
+      "receipt_file": ".workforce/evidence/B-018-PROVIDER/dev-C-018-PROVIDER-INTEGRITY.json",
+      "receipt_sha256": "da9c279547115102ae9479e12dc11f51afc2818e734f5777a0bb564495a0e291",
+      "qa_receipt_file": ".workforce/evidence/B-018-PROVIDER/qa-C-018-PROVIDER-INTEGRITY.json",
+      "qa_receipt_sha256": "ae5f8990965fafcb88c095f09734b435a4fcd9a907d5a4f0424d79c6a74ffa98",
+      "frozen_files_total": 8,
+      "frozen_files": {
+        "src/providers/mod.rs": "b4aba93ed228e933f96cae84c5ed533235b988bce6b1eb9aa43e03d047169d0b",
+        "src/providers/compat.rs": "2f20274f9f945e36475ee6067363ce0b60fa1e505870e5c9a94b3287bee63bc7",
+        "src/providers/anthropic.rs": "fb4dd8f2f1d33a8012ca9bda5d33e5da7ed5603d17ab22a1b15e908895088c97",
+        "src/providers/google.rs": "05a30a92db29d51be1d66a9081cbe99079c2a86d8b3406598cedf83eccef53f1",
+        "src/providers/ollama.rs": "8ecf0ea62829f662906348bb2f47c87c48d0392fe01199803942f040e94ba08f",
+        "tests/provider_contract_freeze.rs": "58047e51f9609986d3e41bd23eeacbf0119dd88a9d58060028df32af68e0bf63",
+        "tests/embeddings_contract_tests.rs": "9ae04cc12f1b2859d977a3a8c0d78ccb3242989bdd44cd33b4eb13cd85f63614",
+        "tests/hotspot_ledger.json": "8ff661ba044bf80ccce34098ea119aa3ef9056fae3b409d6bab134a2c4665605"
+      },
+      "drift_after_handoff": [],
+      "zero_drift": true
+    },
+    "c5_machine_command": {
+      "source": ".workforce/cards/C-018-PROVIDER-INTEGRITY.json acceptance_criteria c5",
+      "code_sha256": "4f1babcd49d511a3f4e95e5ba909d37cd3ddd538c256ea175a6dccce3249fc6f",
+      "execution": "python -c <卡面原文>，subprocess argv 实跑",
+      "exit_code": 0,
+      "pass": true
+    },
+    "c5": {
+      "expected_paths": [
+        "src/providers/mod.rs",
+        "src/providers/compat.rs",
+        "src/providers/anthropic.rs",
+        "src/providers/google.rs",
+        "src/providers/ollama.rs"
+      ],
+      "expected_paths_total": 5,
+      "planned_file_paths": [],
+      "path_checks": [
+        {
+          "file": "src/providers/mod.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 486,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        },
+        {
+          "file": "src/providers/compat.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 2175,
+          "threshold": 500,
+          "in_baseline": true,
+          "baseline_lines": 2175,
+          "adjustment_count": 11,
+          "pass": true
+        },
+        {
+          "file": "src/providers/anthropic.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 1760,
+          "threshold": 500,
+          "in_baseline": true,
+          "baseline_lines": 1760,
+          "adjustment_count": 12,
+          "pass": true
+        },
+        {
+          "file": "src/providers/google.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 2005,
+          "threshold": 500,
+          "in_baseline": true,
+          "baseline_lines": 2005,
+          "adjustment_count": 11,
+          "pass": true
+        },
+        {
+          "file": "src/providers/ollama.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 887,
+          "threshold": 500,
+          "in_baseline": true,
+          "baseline_lines": 887,
+          "adjustment_count": 8,
+          "pass": true
+        }
+      ],
+      "adjustments": [
+        {
+          "file": "src/providers/compat.rs",
+          "adjustment_index": 78,
+          "old": 2134,
+          "new": 2175,
+          "measured_lines": 2175,
+          "current_baseline": 2175,
+          "predecessor_new": 2134,
+          "six_fields_present_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+          "authorization_ok": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        },
+        {
+          "file": "src/providers/anthropic.rs",
+          "adjustment_index": 79,
+          "old": 1691,
+          "new": 1760,
+          "measured_lines": 1760,
+          "current_baseline": 1760,
+          "predecessor_new": 1691,
+          "six_fields_present_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+          "authorization_ok": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        },
+        {
+          "file": "src/providers/google.rs",
+          "adjustment_index": 80,
+          "old": 1815,
+          "new": 2005,
+          "measured_lines": 2005,
+          "current_baseline": 2005,
+          "predecessor_new": 1815,
+          "six_fields_present_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+          "authorization_ok": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        },
+        {
+          "file": "src/providers/ollama.rs",
+          "adjustment_index": 81,
+          "old": 868,
+          "new": 887,
+          "measured_lines": 887,
+          "current_baseline": 887,
+          "predecessor_new": 868,
+          "six_fields_present_nonempty": true,
+          "reason_contains_card_id": true,
+          "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+          "authorization_ok": true,
+          "date": "2026-11-24",
+          "date_ok": true,
+          "old_eq_base_baseline_and_base_file_measured": true,
+          "predecessor_new_eq_old": true,
+          "new_eq_measured_and_baseline": true,
+          "pass": true
+        }
+      ],
+      "below_threshold_paths": [
+        {
+          "file": "src/providers/mod.rs",
+          "scope_ok": true,
+          "exists": true,
+          "measured_lines": 486,
+          "threshold": 500,
+          "in_baseline": false,
+          "baseline_lines": null,
+          "adjustment_count": 0,
+          "pass": true
+        }
+      ],
+      "newly_oversized": {
+        "files": [],
+        "observed": false,
+        "verdict": "PASS（本批无 newly-oversized；四条 adjustment 在 batch_base 已登记）"
+      },
+      "stray_card_adjustments": [],
+      "verdict": "PASS"
+    },
+    "threshold_bidirectional": {
+      "threshold": 500,
+      "src_rs_files_total": 32,
+      "files_ge_threshold": 13,
+      "baseline_entries": 13,
+      "baseline_eq_measured": 13,
+      "unlisted_oversized": [],
+      "listed_below_threshold": [],
+      "baseline_mismatches": [],
+      "line_metric_equivalent": true,
+      "verdict": "PASS"
+    },
+    "adjustments_summary": {
+      "count": 82,
+      "six_fields": [
+        "file",
+        "old",
+        "new",
+        "reason",
+        "authorized_by",
+        "date"
+      ],
+      "six_fields_all_present_nonempty": true,
+      "chain_continuity_gaps": [],
+      "chain_convergence": {
+        "verdict": "PASS",
+        "converged_files": [
+          "src/lib.rs",
+          "src/pricing.rs",
+          "src/providers/anthropic.rs",
+          "src/providers/capabilities.rs",
+          "src/providers/compat.rs",
+          "src/providers/google.rs",
+          "src/providers/ollama.rs",
+          "src/providers/retry.rs",
+          "src/proxy/anthropic_proxy.rs",
+          "src/proxy/mod.rs",
+          "src/proxy/responses_proxy.rs",
+          "src/router.rs",
+          "src/types.rs"
+        ],
+        "non_converged_files": []
+      },
+      "target_chains": {
+        "src/providers/compat.rs": {
+          "entries": 11,
+          "first_index": 4,
+          "last_index": 78,
+          "first_old": 1228,
+          "predecessor_new": 2134,
+          "last_new": 2175,
+          "baseline_now": 2175,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/anthropic.rs": {
+          "entries": 12,
+          "first_index": 1,
+          "last_index": 79,
+          "first_old": 972,
+          "predecessor_new": 1691,
+          "last_new": 1760,
+          "baseline_now": 1760,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/google.rs": {
+          "entries": 11,
+          "first_index": 2,
+          "last_index": 80,
+          "first_old": 1221,
+          "predecessor_new": 1815,
+          "last_new": 2005,
+          "baseline_now": 2005,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        },
+        "src/providers/ollama.rs": {
+          "entries": 8,
+          "first_index": 18,
+          "last_index": 81,
+          "first_old": 0,
+          "predecessor_new": 868,
+          "last_new": 887,
+          "baseline_now": 887,
+          "chain_gaps": [],
+          "converges_to_baseline": true
+        }
+      }
+    },
+    "append_only_vs_batch_base": {
+      "base_commit": "e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f",
+      "base_adjustments": 78,
+      "current_adjustments": 82,
+      "base_prefix_parsed_identical": true,
+      "historical_entries_rewritten": false,
+      "appended_indices": [
+        78,
+        79,
+        80,
+        81
+      ],
+      "appended_card_entries_exact": true,
+      "top_level_keyset_unchanged": true,
+      "description_unchanged": true,
+      "threshold_unchanged": true,
+      "baseline_delta": {
+        "src/providers/compat.rs": {
+          "old": 2134,
+          "new": 2175
+        },
+        "src/providers/anthropic.rs": {
+          "old": 1691,
+          "new": 1760
+        },
+        "src/providers/google.rs": {
+          "old": 1815,
+          "new": 2005
+        },
+        "src/providers/ollama.rs": {
+          "old": 868,
+          "new": 887
+        }
+      },
+      "added_baselines": {},
+      "removed_baselines": [],
+      "other_baselines_unchanged": true,
+      "verdict": "PASS"
+    },
+    "cross_check_receipts": {
+      "fields_read": [
+        "artifacts.path",
+        "artifacts.sha256",
+        "files_changed",
+        "handoff_id",
+        "spec_sha256",
+        "card_id",
+        "batch_id"
+      ],
+      "notes_used_as_evidence": false,
+      "dev_artifacts_total": 8,
+      "qa_artifacts_total": 8,
+      "artifact_sha_mismatches": 0,
+      "artifact_missing": 0,
+      "dev_files_changed": [
+        "src/providers/mod.rs",
+        "src/providers/compat.rs",
+        "src/providers/anthropic.rs",
+        "src/providers/google.rs",
+        "src/providers/ollama.rs",
+        "tests/provider_contract_freeze.rs",
+        "tests/embeddings_contract_tests.rs",
+        "tests/hotspot_ledger.json"
+      ],
+      "dev_files_changed_within_card_scopes": true,
+      "dev_artifact_paths_equal_handoff": true,
+      "qa_artifact_paths_equal_handoff": true,
+      "dev_qa_frozen_sha_equal": true,
+      "dev_receipt_sha256": "da9c279547115102ae9479e12dc11f51afc2818e734f5777a0bb564495a0e291",
+      "qa_receipt_sha256": "ae5f8990965fafcb88c095f09734b435a4fcd9a907d5a4f0424d79c6a74ffa98"
+    },
+    "protected_inputs_sha256": {
+      ".workforce/config.json": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      ".workforce/spec.json": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+      ".workforce/cards/C-018-PROVIDER-INTEGRITY.json": "6f9a1055689b09ef29d6dbd8356ca73992243a9f3fb7d6837ceb56eb726683c5",
+      "tests/hotspot_ledger.json": "8ff661ba044bf80ccce34098ea119aa3ef9056fae3b409d6bab134a2c4665605",
+      ".workforce/evidence/B-018-PROVIDER/dev-C-018-PROVIDER-INTEGRITY.json": "da9c279547115102ae9479e12dc11f51afc2818e734f5777a0bb564495a0e291",
+      ".workforce/evidence/B-018-PROVIDER/qa-C-018-PROVIDER-INTEGRITY.json": "ae5f8990965fafcb88c095f09734b435a4fcd9a907d5a4f0424d79c6a74ffa98",
+      ".agents/skills/agent-workforce-loop/scripts/lib.mjs": "5a6de4c0d045f0c2d69631db1a0cfd4625b74f9942af68b90fcdc1e2158b3b4e"
+    },
+    "business_access": "read_only；唯一写入 .workforce/evidence/B-018-PROVIDER/ledger.json",
+    "problems": [],
+    "observations_non_blocking": [
+      {
+        "observation": "config.ledger.command=null",
+        "impact": "Node ledgerCheck 按配置返回 ok=true/unverified=true；另实跑 selfShaOk 校验自洽性。"
+      },
+      {
+        "observation": ".workforce/loop-state.json 为运行时文件",
+        "impact": "哈希仅记录在正文 runtime_state，不进入 artifacts 数组。"
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/ledger.json",
+      "sha256": "SELF-REFERENTIAL：文件级 sha 由同文件 self_sha256 承载；最终文件 sha256 在回执外返回。",
+      "desc": "本回执自身；ledgerCheck 在 command=null 下验 schema/generatedAt/self_sha256"
+    },
+    {
+      "path": "src/providers/mod.rs",
+      "sha256": "b4aba93ed228e933f96cae84c5ed533235b988bce6b1eb9aa43e03d047169d0b",
+      "desc": "handoff 冻结八文件之一；486<500，零漂移"
+    },
+    {
+      "path": "src/providers/compat.rs",
+      "sha256": "2f20274f9f945e36475ee6067363ce0b60fa1e505870e5c9a94b3287bee63bc7",
+      "desc": "2134→2175；handoff 冻结八文件之一，零漂移"
+    },
+    {
+      "path": "src/providers/anthropic.rs",
+      "sha256": "fb4dd8f2f1d33a8012ca9bda5d33e5da7ed5603d17ab22a1b15e908895088c97",
+      "desc": "1691→1760；handoff 冻结八文件之一，零漂移"
+    },
+    {
+      "path": "src/providers/google.rs",
+      "sha256": "05a30a92db29d51be1d66a9081cbe99079c2a86d8b3406598cedf83eccef53f1",
+      "desc": "1815→2005；handoff 冻结八文件之一，零漂移"
+    },
+    {
+      "path": "src/providers/ollama.rs",
+      "sha256": "8ecf0ea62829f662906348bb2f47c87c48d0392fe01199803942f040e94ba08f",
+      "desc": "868→887；handoff 冻结八文件之一，零漂移"
+    },
+    {
+      "path": "tests/provider_contract_freeze.rs",
+      "sha256": "58047e51f9609986d3e41bd23eeacbf0119dd88a9d58060028df32af68e0bf63",
+      "desc": "handoff 冻结八文件之一，零漂移"
+    },
+    {
+      "path": "tests/embeddings_contract_tests.rs",
+      "sha256": "9ae04cc12f1b2859d977a3a8c0d78ccb3242989bdd44cd33b4eb13cd85f63614",
+      "desc": "handoff 冻结八文件之一，零漂移"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "8ff661ba044bf80ccce34098ea119aa3ef9056fae3b409d6bab134a2c4665605",
+      "desc": "被核验台账实物；与 handoff 冻结 sha 一致"
+    },
+    {
+      "path": ".workforce/spec.json",
+      "sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
+      "desc": "指定 spec；sha256 匹配"
+    },
+    {
+      "path": ".workforce/cards/C-018-PROVIDER-INTEGRITY.json",
+      "sha256": "6f9a1055689b09ef29d6dbd8356ca73992243a9f3fb7d6837ceb56eb726683c5",
+      "desc": "c5 判据、scope 与 planned_file_paths 来源"
+    },
+    {
+      "path": ".workforce/config.json",
+      "sha256": "d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08",
+      "desc": "ledger.command=null 与 none_reason 来源"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/dev-C-018-PROVIDER-INTEGRITY.json",
+      "sha256": "da9c279547115102ae9479e12dc11f51afc2818e734f5777a0bb564495a0e291",
+      "desc": "handoff 回执；仅对账 artifacts/files_changed"
+    },
+    {
+      "path": ".workforce/evidence/B-018-PROVIDER/qa-C-018-PROVIDER-INTEGRITY.json",
+      "sha256": "ae5f8990965fafcb88c095f09734b435a4fcd9a907d5a4f0424d79c6a74ffa98",
+      "desc": "QA 回执；仅对账 artifacts/handoff_id"
+    },
+    {
+      "path": ".agents/skills/agent-workforce-loop/scripts/lib.mjs",
+      "sha256": "5a6de4c0d045f0c2d69631db1a0cfd4625b74f9942af68b90fcdc1e2158b3b4e",
+      "desc": "selfShaOk/ledgerCheck 机器语义来源"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "python -c \"<C-018-PROVIDER-INTEGRITY c5 卡面原文；code_sha256=4f1babcd49d511a3f4e95e5ba909d37cd3ddd538c256ea175a6dccce3249fc6f>\"（subprocess argv 实跑）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python - <inline B-018-PROVIDER c5 核验：六字段/前驱/授权/date/append-only +4/threshold 13/13/handoff 8/dev 8+qa 8 artifacts/protected-input assertions>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python - <assert C-018-PROVIDER-INTEGRITY adjustment indices exactly 78,79,80,81>",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"const fs=require('fs'),crypto=require('crypto');const p='.workforce/evidence/B-018-PROVIDER/ledger.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const w=j.self_sha256;delete j.self_sha256;if(w!==crypto.createHash('sha256').update(JSON.stringify(j)).digest('hex'))process.exit(1);console.log('SELF_SHA_OK '+w)\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "node -e \"import('./.agents/skills/agent-workforce-loop/scripts/lib.mjs').then(m=>{const fs=require('fs');const p='.workforce/evidence/B-018-PROVIDER/ledger.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const P={repo:process.cwd(),dirRel:'.workforce',config:'.workforce/config.json'};const r=m.ledgerCheck(P,j.artifacts[0],j);if(!m.selfShaOk(j)||!r.ok)throw new Error(JSON.stringify(r));console.log(JSON.stringify({selfShaOk:true,ledgerCheck:r}));})\"",
+      "exit_code": 0
+    }
+  ],
+  "verdict": "PASS",
+  "summary": "B-018-PROVIDER / C-018-PROVIDER-INTEGRITY c5 独立核验 PASS：batch_base=e47781c6351c3d9802e78cf1f2dc8039b2d6ee6f；compat 2134→2175、anthropic 1691→1760、google 1815→2005、ollama 868→887，前驱 new=old，六字段齐、授权含 architect-llmrust、date=2026-11-24，new=splitlines 实测=当前 baseline；mod.rs 486<500 不入 baseline/adjustments。adjustments 78→82，仅追加 idx78–81，baseline 仅四项更新，历史前缀 parsed 完全相同；threshold=500，32 个 src Rust 文件中 13 个达到阈值且 baseline 13/13 双向一致，82 条 adjustment 六字段齐、全链收敛。handoff=6ab65fa6eacf5b7e67296210 冻结 8 文件零漂移；dev/qa 各 8 artifacts 与 handoff/实物 sha 全一致，0 missing/0 mismatch；notes 未作为证据。loop-state 仅以运行时哈希写正文，不进入 artifacts。",
+  "generatedAt": "2026-11-27T12:51:11.391Z",
+  "self_sha256": "8a4f05650bd03717ac1cba546c44888b459fc0e3f145707723af837b4e054709"
+}

@@ -5,13 +5,13 @@
     "src/proxy/mod.rs": 4138,
     "src/proxy/anthropic_proxy.rs": 2225,
     "src/proxy/responses_proxy.rs": 1177,
-    "src/providers/compat.rs": 2134,
-    "src/providers/google.rs": 1815,
+    "src/providers/compat.rs": 2175,
+    "src/providers/google.rs": 2005,
     "src/types.rs": 1136,
-    "src/providers/anthropic.rs": 1691,
+    "src/providers/anthropic.rs": 1760,
     "src/router.rs": 1586,
     "src/pricing.rs": 527,
-    "src/providers/ollama.rs": 868,
+    "src/providers/ollama.rs": 887,
     "src/lib.rs": 957,
     "src/providers/retry.rs": 863,
     "src/providers/capabilities.rs": 712
@@ -640,6 +640,38 @@
       "new": 868,
       "reason": "C-018-STREAM-CORE v9: the v8 checkpoint batch_base already registered 868 lines; the legacy line_stream and SSE dispatch compatibility redo does not touch this provider. Record the measured 868->868 batch-base transition so the v9 adjustment chain starts at its actual baseline.",
       "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-STREAM-CORE v9 compatibility redo)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/compat.rs",
+      "old": 2134,
+      "new": 2175,
+      "reason": "C-018-PROVIDER-INTEGRITY: nullable stream choices preserve usage-only frames; non-stream null/empty/refusal/no-content responses fail explicitly; embedding count and unique complete index sets are validated. Growth is real production logic plus inline fixture corrections, measured after cargo fmt.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/anthropic.rs",
+      "old": 1691,
+      "new": 1760,
+      "reason": "C-018-PROVIDER-INTEGRITY: streamed tools now track content_block_stop and validate closure, non-empty id/name and legal JSON before message_delta or clean-EOF flush; incomplete tools return Err with no done terminal. Request-side tool arguments use strict parsing. Growth is real implementation and regression tests, measured after cargo fmt.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/google.rs",
+      "old": 1815,
+      "new": 2005,
+      "reason": "C-018-PROVIDER-INTEGRITY: response-scoped unique tool ids, round-scoped nearest-unmatched tool-result resolution with Message::tool.name priority, chat promptFeedback/no-candidate errors, thought/content separation, one-layer wrapper-only schema unwrap, preserved upstream finish reasons, and pre-network Unsupported for unrepresentable stream logprobs. Growth is real implementation and regression tests, measured after cargo fmt.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
+      "date": "2026-11-24"
+    },
+    {
+      "file": "src/providers/ollama.rs",
+      "old": 868,
+      "new": 887,
+      "reason": "C-018-PROVIDER-INTEGRITY: non-stream done_reason maps to finish_reason; NDJSON error envelopes map to LlmError::Stream and close without a later success terminal; embedding vector count must match input count. Growth is real implementation and tests, measured after cargo fmt.",
+      "authorized_by": "architect-llmrust ruling 2026-11-24 (C-018-PROVIDER-INTEGRITY)",
       "date": "2026-11-24"
     }
   ]

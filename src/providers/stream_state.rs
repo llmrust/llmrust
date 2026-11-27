@@ -48,6 +48,10 @@ pub(crate) struct UnifyTerminal<S> {
     finish_reason: Option<FinishReason>,
     usage: Option<Usage>,
     tool_calls: Option<Vec<ToolCall>>,
+    /// Reasoning carried by a *terminal* chunk. Terminal content is otherwise
+    /// deferred/dropped, so without this field a provider that attaches its
+    /// final reasoning increment to the terminal frame would lose it.
+    thinking: Option<String>,
     thinking_done: Option<bool>,
     /// Whether the single trailing terminal has already been emitted.
     terminal_emitted: bool,
@@ -75,6 +79,16 @@ where
         }
     }
 
+    /// Harvest a *terminal* chunk: metadata plus its reasoning increment.
+    /// Non-terminal thinking is forwarded immediately and must not be
+    /// duplicated onto the terminal, so it is deliberately not harvested.
+    fn harvest_terminal(&mut self, chunk: &StreamChunk) {
+        self.harvest(chunk);
+        if chunk.thinking.is_some() {
+            self.thinking = chunk.thinking.clone();
+        }
+    }
+
     /// Build and mark-emitted the single trailing terminal.
     fn emit_terminal(&mut self) -> StreamChunk {
         self.terminal_emitted = true;
@@ -84,7 +98,7 @@ where
             finish_reason: self.finish_reason.clone(),
             usage: self.usage.clone(),
             tool_calls: self.tool_calls.clone(),
-            thinking: None,
+            thinking: self.thinking.clone(),
             thinking_done: self.thinking_done,
         }
     }
@@ -99,7 +113,10 @@ where
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
         loop {
-            if this.terminal_emitted {
+            // §6.6 error priority and immediate close: once an `Err` has been
+            // forwarded, the next poll must be `Ready(None)` WITHOUT polling a
+            // possibly `Pending` inner stream again.
+            if this.terminal_emitted || this.phase == Phase::Errored {
                 return Poll::Ready(None);
             }
             match Pin::new(&mut this.inner).poll_next(cx) {
@@ -130,12 +147,12 @@ where
                             // First terminal signal: defer emission, harvest
                             // metadata and buffer this chunk's delta.
                             this.phase = Phase::TerminalSeen;
-                            this.harvest(&chunk);
+                            this.harvest_terminal(&chunk);
                             this.final_delta.push_str(&chunk.delta);
                         } else {
                             // Repeat terminal ([DONE] / usage-only after
                             // finish): drop content, keep metadata only.
-                            this.harvest(&chunk);
+                            this.harvest_terminal(&chunk);
                         }
                         // Do not forward; continue draining so late metadata
                         // is captured before the trailing emit.
@@ -184,6 +201,7 @@ where
         finish_reason: None,
         usage: None,
         tool_calls: None,
+        thinking: None,
         thinking_done: None,
         terminal_emitted: false,
     }
@@ -436,5 +454,24 @@ mod tests {
             Some(true),
             "thinking_done reaches terminal"
         );
+    }
+
+    // T-10: a terminal chunk that itself carries a reasoning increment must
+    // keep it. The machine defers/drops terminal content, so a terminal
+    // `thinking` field is lost unless harvested explicitly (C-018-STREAM-CORE).
+    #[tokio::test]
+    async fn t10_terminal_thinking_is_preserved() {
+        let out = drain(vec![Ok(StreamChunk {
+            done: true,
+            thinking: Some("final thought".into()),
+            thinking_done: Some(true),
+            finish_reason: Some(FinishReason::Stop),
+            ..Default::default()
+        })])
+        .await;
+        assert_eq!(count_done(&out), 1);
+        let term = terminal_of(&out);
+        assert_eq!(term.thinking.as_deref(), Some("final thought"));
+        assert_eq!(term.thinking_done, Some(true));
     }
 }

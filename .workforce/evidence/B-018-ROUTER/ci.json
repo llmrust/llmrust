@@ -1,0 +1,322 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "ci",
+  "agent": "ci-llmrust",
+  "written_by": "ci-llmrust",
+  "card_id": "C-018-ROUTER-COST",
+  "batch": "B-018-ROUTER",
+  "batch_id": "B-018-ROUTER",
+  "spec": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "handoff": "f0ccaa47803ffa8b43084e96",
+  "handoff_id": "f0ccaa47803ffa8b43084e96",
+  "provider": "github",
+  "repo": "llmrust/llmrust",
+  "head": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+  "business_commit": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+  "commit": {
+    "sha": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "parent": "5807ab32bcdf4f1bb65fcc5b976c5b2f49007254",
+    "author": "ci-llmrust <ci-llmrust@agents.local>",
+    "committer": "ci-llmrust <ci-llmrust@agents.local>",
+    "authored_at": "2026-11-25T07:39:54Z",
+    "subject": "chore(workforce): B-018-ROUTER 交接包与下一批就绪审查",
+    "file_count": 2,
+    "files": [
+      ".workforce/evidence/B-018-ROUTER/PUSH-HANDOFF.md",
+      ".workforce/evidence/B-018-ROUTER/STREAM-READINESS.md"
+    ]
+  },
+  "pushed": {
+    "remote": "origin",
+    "branch": "task/PH-0.1.8-B-018-HTTP",
+    "head_sha": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "pushed": true,
+    "remote_head_sha": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "remote_branch_created": true,
+    "router_branch_created": false,
+    "force_used": false
+  },
+  "remote_branch_created": true,
+  "router_branch_created": false,
+  "remote_head_sha": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+  "first_green_head_sha": "5807ab32bcdf4f1bb65fcc5b976c5b2f49007254",
+  "cumulative_pr": {
+    "number": 253,
+    "includes_pr": 252,
+    "includes_delivered_commit": "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+    "previous_head_branch": "task/PH-0.1.8-B-018-HTTP",
+    "previous_head_sha": "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+    "business_commit": "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+    "evidence_commit": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "docs_commit": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "retarget_planned": true,
+    "retargeted": false,
+    "pushed_to_existing_head_branch": true,
+    "router_branch_pushed": false,
+    "chain": [
+      "4ff1fd4c41a4ad30fa0a8aca33489cb455ef398d",
+      "5f8d844ffb2902055ba2cedf1d8a36271ac8282f",
+      "8a084f52dfcf15fcafb30d58b017c44ca6f32616",
+      "16a54058f3e40026336002233d15acf937b14743",
+      "18bdb3dcf5a6e8e59ab8a26592d6ca41250f2d9c",
+      "29f535cf8a57b5de900c30fc48d8f5d8bd55accc",
+      "5807ab32bcdf4f1bb65fcc5b976c5b2f49007254",
+      "1d717999b9ef9762c40c2e237d329db6522ffe37"
+    ]
+  },
+  "pr": {
+    "number": 253,
+    "url": "https://github.com/llmrust/llmrust/pull/253",
+    "state": "OPEN",
+    "base": "main",
+    "head": "task/PH-0.1.8-B-018-HTTP",
+    "head_branch": "task/PH-0.1.8-B-018-HTTP",
+    "head_sha": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "headRefName": "task/PH-0.1.8-B-018-HTTP",
+    "headRefOid": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "title": "PH-0.1.8 B-018-HTTP：HTTP 安全边界收口（累计包含 #252）",
+    "checks_total": 7,
+    "checks_passed": 7,
+    "checks_failed": 0,
+    "checks_all_pass": true
+  },
+  "workflow_runs": [
+    {
+      "name": "CI",
+      "run_id": 45569925528,
+      "head_sha": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45569925528",
+      "jobs": [
+        {
+          "name": "MSRV (1.86)",
+          "database_id": 139053783878,
+          "conclusion": "success"
+        },
+        {
+          "name": "API-002 semver gate (vs 0.1.2 baseline)",
+          "database_id": 139053784204,
+          "conclusion": "success"
+        },
+        {
+          "name": "Architecture & package guards (CI-003)",
+          "database_id": 139053784420,
+          "conclusion": "success"
+        },
+        {
+          "name": "Test (stable)",
+          "database_id": 139053784525,
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "Security Gates",
+      "run_id": 45569925424,
+      "head_sha": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+      "conclusion": "success",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45569925424",
+      "jobs": [
+        {
+          "name": "Supply-chain policy (cargo-deny)",
+          "database_id": 139053783891,
+          "conclusion": "success"
+        },
+        {
+          "name": "Secret scan (gitleaks CLI)",
+          "database_id": 139053784140,
+          "conclusion": "success"
+        },
+        {
+          "name": "RustSec advisories",
+          "database_id": 139053784173,
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "pr_checks": [
+    {
+      "name": "API-002 semver gate (vs 0.1.2 baseline)",
+      "state": "pass",
+      "duration": "1m8s",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45569925528/job/139053784204"
+    },
+    {
+      "name": "Architecture & package guards (CI-003)",
+      "state": "pass",
+      "duration": "22s",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45569925528/job/139053784420"
+    },
+    {
+      "name": "MSRV (1.86)",
+      "state": "pass",
+      "duration": "22s",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45569925528/job/139053783878"
+    },
+    {
+      "name": "RustSec advisories",
+      "state": "pass",
+      "duration": "16s",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45569925424/job/139053784173"
+    },
+    {
+      "name": "Secret scan (gitleaks CLI)",
+      "state": "pass",
+      "duration": "5s",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45569925424/job/139053784140"
+    },
+    {
+      "name": "Supply-chain policy (cargo-deny)",
+      "state": "pass",
+      "duration": "25s",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45569925424/job/139053783891"
+    },
+    {
+      "name": "Test (stable)",
+      "state": "pass",
+      "duration": "1m12s",
+      "url": "https://github.com/llmrust/llmrust/actions/runs/45569925528/job/139053784525"
+    }
+  ],
+  "conclusion": "success",
+  "verdict": "PASS",
+  "bypass_detected": false,
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "inputs_seen": [
+    "Lead 指令：B-018-ROUTER accepted、spec/handoff/业务 commit 与分支；仅归档本批回执和非日志 probe，ci.json 不提交。",
+    "Lead 复核指令：历史 403 已由 bishuan 凭据解除；用 gh 只读复核 CI/Security Gates、PR #253 与 gh pr checks 253 后改写 ci.json 为真实成功回执。",
+    "Lead 更新指令：release 报 CI_HEAD_MISMATCH（回执 bound 5807ab32 而 HEAD 已前进到 1d71799）；该新 HEAD 双 workflow 已完成，要求以只读 gh 复核后仅更新 ci.json。",
+    "gh run view 45569925528 / 45569925424 --json databaseId,workflowName,headSha,conclusion,jobs：两条 run 均 conclusion=success，headSha=1d71799...，共 4+3 个 job 全部 success。",
+    "gh pr view 253 --json number,state,headRefName,headRefOid,url：OPEN、head=task/PH-0.1.8-B-018-HTTP、headRefOid=1d71799...。",
+    "gh pr checks 253：7/7 全部 pass（MSRV、API-002 semver、Test(stable)、Architecture & package、cargo-deny、gitleaks、RustSec）。",
+    "gh api git/ref/heads/task/PH-0.1.8-B-018-HTTP = 1d71799...；分支清单中 B-018 相关仅 task/PH-0.1.8-B-018-HTTP，task/PH-0.1.8-B-018-ROUTER 仍不存在。",
+    "gh api git/commits/1d71799：parent=5807ab32...，author/committer=ci-llmrust，改动 2 个文件（PUSH-HANDOFF.md、STREAM-READINESS.md）。",
+    "历史轮次：5807ab32 为首个双绿 HEAD（CI 45566694129 4 job + Security Gates 45566694476 3 job 全 success，7/7 pass）。"
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "gh run view 45566694129 --repo llmrust/llmrust --json databaseId,workflowName,headSha,conclusion,jobs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh run view 45566694476 --repo llmrust/llmrust --json databaseId,workflowName,headSha,conclusion,jobs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr view 253 --repo llmrust/llmrust --json number,state,headRefName,headRefOid,url",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr checks 253 --repo llmrust/llmrust",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/git/ref/heads/task/PH-0.1.8-B-018-HTTP（5807ab32 轮）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/branches --paginate --jq '.[].name'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python .workforce/tmp/ci-b018-router-r2-selftest.py（5807ab32 轮 ci.json 自校验，未提交）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh run view 45569925528 --repo llmrust/llmrust --json databaseId,workflowName,headSha,conclusion,jobs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh run view 45569925424 --repo llmrust/llmrust --json databaseId,workflowName,headSha,conclusion,jobs",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr view 253 --repo llmrust/llmrust --json number,state,headRefName,headRefOid,url",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh pr checks 253 --repo llmrust/llmrust",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/git/ref/heads/task/PH-0.1.8-B-018-HTTP（1d71799 轮）",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/branches --paginate --jq '.[].name'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/git/commits/1d717999b9ef9762c40c2e237d329db6522ffe37 --jq '{sha,parents,message,tree}'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "gh api repos/llmrust/llmrust/commits/1d717999b9ef9762c40c2e237d329db6522ffe37 --jq '{files,names,parents,msg}'",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python .workforce/tmp/ci-b018-router-r3-selftest.py（1d71799 轮 ci.json 自校验，未提交）",
+      "exit_code": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".workforce/tmp/ci-b018-router-r2-run-45566694129.json",
+      "sha256": "8f2f824e6b879ef567aee86c8b04bf30eadd1cb87762f1be872cb6c1650cf44b"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r2-run-45566694476.json",
+      "sha256": "ce6dd4540c8c5262efe281729def6952978a806b0bf5b93415c94f2418af78e4"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r2-pr-253.json",
+      "sha256": "4c908291aa1980c55500f98005e75a8d2527df710126b467462b5060828aa603"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r2-pr-checks-253.txt",
+      "sha256": "aa708060852c0c7821a59c4cfffa47f90b62cbe90e38ac5e56b637b29857ef41"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r2-http-ref.json",
+      "sha256": "9da0b1eee42893aa59830616901e22cfb46a38ff1d9a35a904e5d7cf1bfd7f96"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r2-branches.txt",
+      "sha256": "f85405cbb65769e3b37b9958f2215c256533b474836552a38d3605043619a813"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r3-run-45569925528.json",
+      "sha256": "90df05df958cc21b2a14f83c8c908d3fc5f1d83fcdd57a6f1f65572b735cad76"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r3-run-45569925424.json",
+      "sha256": "00fc13e15037ee86790425e16619b716b4a3d8ebb9f73918293b724a80f22430"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r3-pr-253.json",
+      "sha256": "d59b13d27eb506f59c8ca9c5ced38639748b01b97fda0e3d4375163d6165dd44"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r3-pr-checks-253.txt",
+      "sha256": "57bb3dd6db5146aa67612746eaa1d76e5e42c6725e76a76204353509479ed9b4"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r3-http-ref.json",
+      "sha256": "f9865b097e30918efa59492bd8e4ad93fcbef25f18c173ff7af163490c526e87"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r3-branches.txt",
+      "sha256": "f85405cbb65769e3b37b9958f2215c256533b474836552a38d3605043619a813"
+    },
+    {
+      "path": ".workforce/tmp/ci-b018-router-r3-commit.json",
+      "sha256": "397d1081559ca7f6fde86900c8ebc774e2fb4af551ea692f510e329f262ec879"
+    }
+  ],
+  "notes": "HEAD 绑定已更新为 1d717999b9ef9762c40c2e237d329db6522ffe37：5807ab32 是本批首个双绿 HEAD（CI 45566694129 + Security Gates 45566694476 全 success、7/7 pass），1d71799 是在其之上追加两份交接文档（PUSH-HANDOFF.md、STREAM-READINESS.md，仅 2 文件）后的复验 HEAD，本轮以只读 gh 复核 CI 45569925528（4 job）与 Security Gates 45569925424（3 job）均 success、gh pr checks 253 为 7/7 pass，PR #253 的 headRefOid 与远端分支 head 均为 1d71799。历史 403 已由 bishuan 凭据解除：此前 dongyanyuxuana 对 llmrust/llmrust 无写权限（push HTTP 403、permissions.push=false）已不再是当前阻塞。Router 证据提交按交接包落于累计分支 task/PH-0.1.8-B-018-HTTP，未创建独立分支 task/PH-0.1.8-B-018-ROUTER（router_branch_created=false，分支清单中 B-018 仅 HTTP 一条）。本轮未重跑 cargo、未 push、未 force、未改动业务/spec/card/signoffs/loop-state、未提交 git，ci.json 仅本地保留。",
+  "generated_at_utc": "2026-11-25T07:45:13.000000+00:00"
+}

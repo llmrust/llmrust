@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "ci",
   "agent": "ci-llmrust",
-  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
-  "comments": "复核 spec v8 与 config 提交 7948e6a 后同意签署，无新增 CI 阻断。validate-spec 与 check-criteria 均 PASS（3 phases/12 batches/14 cards/90 criteria）；7948e6a 将 cargo deny --locked check 纳入七条 config gates，使供应链公告成为每批必跑门。v8 把 P1-13 的 url 2.5.8→>=2.5.9 升级前移到 C-AUD-PROXY：Cargo.lock 已纳入写域，c1/c2 有机判版本断言，c4 增加 cargo deny --locked check，且 Cargo.lock 不进入热点台账；B-AUD-3 保留已完成的 stream_raw_with/代理 wire 实现，回流后重跑 QA/Gate/CI，RELEASE-GATE 保留 url>=2.5.9 断言及其余完整发布门，不重复执行升级。该安排可解除“先要 CI 绿才能发布、但安全公告只在后期发布卡修复”的死锁。当前事实边界：工作区 Cargo.lock 仍为 url 2.5.8，远端代理分支 HEAD 93f8a94 的 Security Gates run 45535179134 为 failure（CI run 45535179019 为 success），7948e6a 本身也尚未推送；因此本次签署只确认前移方案可承接，必须完成锁文件升级并取得新 head_sha 的 Security Gates/CI 双绿后，才能把依赖阻断视为实际关闭。",
-  "signedAt": "2026-11-25T10:55:55+08:00"
+  "comments": "复核 spec v9 与 C-018-STREAM-CORE：spec 实测 sha256 与上述值一致；v9 仅调整 legacy line_stream 兼容及 SSE dispatch 口径，卡的 write_scopes/exact_file_paths 不含 .github/workflows、CI 配置或发布流程，c4 继续执行既有 workspace/proxy/all-features/build/fmt/clippy 门禁，因此不改变 CI 流程。origin 可访问，远端 task/PH-0.1.8-B-018-HTTP@1d717999b9ef9762c40c2e237d329db6522ffe37 的 Security Gates run 45569925424 与 CI run 45569925528 均为 success，可取得远端证据。",
+  "signedAt": "2026-11-27T16:45:14.8833945+08:00"
 }

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::providers::http::{self, build_http_client, REQUEST_TIMEOUT};
-use crate::providers::stream_util::line_stream;
+use crate::providers::sse;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
     ChatRequest, ChatResponse, Content, Embedding, EmbeddingRequest, EmbeddingResponse,
@@ -917,11 +917,16 @@ impl Provider for OpenAiCompatibleProvider {
             return Err(err);
         }
 
+        // C-018-STREAM-CORE: a 200 response is only a stream when it says so.
+        // `application/json` (or a missing type) is an explicit protocol error,
+        // never an empty success.
+        sse::require_event_stream(resp.headers())?;
+
         let byte_stream = resp
             .bytes_stream()
             .map(|r| r.map_err(|e| LlmError::Stream(http::error::error_message(e))));
 
-        let stream = sse_chunk_stream(line_stream(byte_stream));
+        let stream = sse_chunk_stream(sse::event_line_stream(byte_stream));
 
         Ok(stream.boxed())
     }
@@ -1917,9 +1922,9 @@ mod tests {
         // spark-x2.6; before the fix the accumulated arguments (tens of
         // kilobytes in practice) were swallowed inside the accumulator.
         let sse = [
-            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"function\":{\"name\":\"write\",\"arguments\":\"{\\\"path\\\":\"}}]},\"finish_reason\":null}]}\n",
-            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"a.rs\\\"}\"}}]},\"finish_reason\":null}]}\n",
-            "data: [DONE]\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"function\":{\"name\":\"write\",\"arguments\":\"{\\\"path\\\":\"}}]},\"finish_reason\":null}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"a.rs\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
+            "data: [DONE]\n\n",
         ]
         .concat();
         let app = axum::Router::new().route(

@@ -418,3 +418,468 @@ mod proxy_n_policy_contracts {
         assert_n_policy_error(&json);
     }
 }
+
+#[cfg(test)]
+mod audit_2026_stream {
+    //! C-018-STREAM-CORE production-path tests: every assertion is driven by a
+    //! real provider parsing real response bytes (via a local loopback server),
+    //! or by `LmrsClient::stream_with` exercising the public collapse layer.
+
+    use futures::{Stream, StreamExt};
+    use llmrust::providers::anthropic::AnthropicProvider;
+    use llmrust::providers::compat::OpenAiCompatibleProvider;
+    use llmrust::providers::google::GoogleProvider;
+    use llmrust::providers::ollama::OllamaProvider;
+    use llmrust::{
+        ChatRequest, ChatResponse, LlmError, LmrsClient, Provider, ProviderConfig, StreamChunk,
+    };
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, TcpListener, TcpStream};
+    use std::pin::Pin;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+    use std::task::{Context, Poll};
+    use std::time::Duration;
+
+    /// Consume one HTTP request so the client can finish writing its body
+    /// before the fixture responds (avoids a write-side reset).
+    fn read_request(stream: &mut TcpStream) {
+        let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
+        let mut bytes = Vec::new();
+        let mut header_end = None;
+        while header_end.is_none() {
+            let mut buffer = [0_u8; 4096];
+            match stream.read(&mut buffer) {
+                Ok(0) | Err(_) => return,
+                Ok(count) => {
+                    bytes.extend_from_slice(&buffer[..count]);
+                    header_end = bytes
+                        .windows(4)
+                        .position(|window| window == b"\r\n\r\n")
+                        .map(|index| index + 4);
+                }
+            }
+        }
+        let Some(header_end) = header_end else {
+            return;
+        };
+        let length = String::from_utf8_lossy(&bytes[..header_end])
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse::<usize>().unwrap_or(0))
+            })
+            .unwrap_or(0);
+        while bytes.len() < header_end + length {
+            let mut buffer = [0_u8; 4096];
+            match stream.read(&mut buffer) {
+                Ok(0) | Err(_) => break,
+                Ok(count) => bytes.extend_from_slice(&buffer[..count]),
+            }
+        }
+    }
+
+    /// Serve exactly one `200 OK` response with the given Content-Type and body.
+    fn serve_once(content_type: &str, body: Vec<u8>) -> (String, std::thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let content_type = content_type.to_string();
+        let handle = std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                read_request(&mut stream);
+                let headers = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                let _ = stream.write_all(headers.as_bytes());
+                let _ = stream.write_all(&body);
+                let _ = stream.flush();
+                let _ = stream.shutdown(Shutdown::Write);
+            }
+        });
+        (format!("http://{address}"), handle)
+    }
+
+    fn compat_provider(base_url: &str) -> OpenAiCompatibleProvider {
+        OpenAiCompatibleProvider::new(
+            ProviderConfig::new("test-key")
+                .with_base_url(base_url)
+                .with_timeout_secs(5),
+            [],
+        )
+    }
+
+    async fn collect<S>(stream: &mut S) -> Vec<llmrust::Result<StreamChunk>>
+    where
+        S: Stream<Item = llmrust::Result<StreamChunk>> + Unpin,
+    {
+        let mut items = Vec::new();
+        while let Some(item) = stream.next().await {
+            items.push(item);
+        }
+        items
+    }
+
+    #[tokio::test]
+    async fn audit_2026_stream_terminal_thinking_survives_public_client() {
+        // One terminal frame carrying BOTH the reasoning increment and the
+        // finish reason. The public `stream_with` collapse layer must keep the
+        // terminal thinking (and mark thinking_done exactly once).
+        let body = concat!(
+            "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"terminal-thought\"},",
+            "\"finish_reason\":\"stop\"}]}\n\n",
+            "data: [DONE]\n\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let (base, server) = serve_once("text/event-stream", body);
+        let llm = LmrsClient::new();
+        llm.set_custom("compat", Arc::new(compat_provider(&base)))
+            .await;
+        let mut stream = llm
+            .stream_with("compat/model", ChatRequest::new("model", "hi"))
+            .await
+            .expect("stream established");
+        let items = collect(&mut stream).await;
+        server.join().unwrap();
+
+        let terminals: Vec<&StreamChunk> = items
+            .iter()
+            .filter_map(|item| item.as_ref().ok())
+            .filter(|chunk| chunk.done)
+            .collect();
+        assert_eq!(terminals.len(), 1, "exactly one terminal: {items:?}");
+        let terminal = terminals[0];
+        assert_eq!(
+            terminal.thinking.as_deref(),
+            Some("terminal-thought"),
+            "terminal thinking must survive the public collapse layer"
+        );
+        assert_eq!(
+            terminal.thinking_done,
+            Some(true),
+            "thinking_done lands on the single terminal"
+        );
+        let thinking_chunks: Vec<&StreamChunk> = items
+            .iter()
+            .filter_map(|item| item.as_ref().ok())
+            .filter(|chunk| {
+                chunk
+                    .thinking
+                    .as_deref()
+                    .is_some_and(|text| !text.is_empty())
+            })
+            .collect();
+        assert_eq!(thinking_chunks.len(), 1, "reasoning surfaced exactly once");
+        assert!(thinking_chunks[0].done, "reasoning is on the terminal");
+    }
+
+    #[tokio::test]
+    async fn audit_2026_stream_oversized_line_is_bounded() {
+        // A single physical line far beyond MAX_LINE_BYTES. The parser must
+        // refuse it with an explicit error instead of buffering without bound.
+        let mut body = Vec::new();
+        body.extend_from_slice(b"data: ");
+        body.resize(2 * 1024 * 1024 + 16, b'x');
+        body.extend_from_slice(b"\n\n");
+        let (base, server) = serve_once("text/event-stream", body);
+        let provider = compat_provider(&base);
+        let mut stream = provider
+            .stream(&ChatRequest::new("model", "hi"))
+            .await
+            .expect("stream established");
+        let items = collect(&mut stream).await;
+        server.join().unwrap();
+        assert!(
+            items.iter().any(|item| matches!(
+                item,
+                Err(LlmError::Parse(message)) if message.contains("MAX_LINE_BYTES")
+            )),
+            "oversized line must be a bounded Parse error, got {items:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn audit_2026_stream_invalid_utf8_is_error() {
+        // Valid frame first, then a line containing invalid UTF-8 bytes. The
+        // invalid bytes must surface as an error, never as U+FFFD.
+        let mut body = Vec::new();
+        body.extend_from_slice(
+            b"data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":null}]}\n\n",
+        );
+        body.extend_from_slice(b"data: \xFF\xFE\n\n");
+        let (base, server) = serve_once("text/event-stream", body);
+        let provider = compat_provider(&base);
+        let mut stream = provider
+            .stream(&ChatRequest::new("model", "hi"))
+            .await
+            .expect("stream established");
+        let items = collect(&mut stream).await;
+        server.join().unwrap();
+
+        assert!(
+            items
+                .iter()
+                .any(|item| matches!(item, Ok(chunk) if chunk.delta == "ok")),
+            "the valid frame before the bad one is surfaced: {items:?}"
+        );
+        assert!(
+            items.iter().any(|item| matches!(
+                item,
+                Err(LlmError::Parse(message)) if message.contains("UTF-8")
+            )),
+            "invalid UTF-8 must be an explicit Parse error, got {items:?}"
+        );
+        assert!(
+            !items.iter().any(|item| matches!(
+                item,
+                Ok(chunk) if chunk.delta.contains('\u{FFFD}') || chunk.thinking.as_deref().is_some_and(|text| text.contains('\u{FFFD}'))
+            )),
+            "no replacement characters may be emitted: {items:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn audit_2026_stream_standard_sse_variants_parse() {
+        // BOM + comment, `data:` without a space, CRLF, bare CR, multi-line
+        // data, `[DONE]`, and `event: error` — all through the real provider.
+        let mut body = Vec::new();
+        body.extend_from_slice(b"\xEF\xBB\xBF: leading comment\r\n");
+        body.extend_from_slice(
+            b"data:{\"choices\":[{\"delta\":{\"content\":\"A\"},\"finish_reason\":null}]}\r\n\r\n",
+        );
+        body.extend_from_slice(b": keepalive\r\r");
+        body.extend_from_slice(
+            b"data: {\"choices\":[{\"delta\":{\"content\":\"B\"},\"finish_reason\":null}]}\r\r",
+        );
+        body.extend_from_slice(
+            b"data: {\"choices\":[{\"delta\":\r\ndata: {\"content\":\"C\"},\"finish_reason\":null}]}\r\n\r\n",
+        );
+        body.extend_from_slice(b"data: [DONE]\r\n\r\n");
+        body.extend_from_slice(
+            b"event: error\r\ndata: {\"error\":{\"message\":\"variant-error\"}}\r\n\r\n",
+        );
+        let (base, server) = serve_once("text/event-stream; charset=utf-8", body);
+        let provider = compat_provider(&base);
+        let mut stream = provider
+            .stream(&ChatRequest::new("model", "hi"))
+            .await
+            .expect("stream established");
+        let items = collect(&mut stream).await;
+        server.join().unwrap();
+
+        let text: String = items
+            .iter()
+            .filter_map(|item| item.as_ref().ok())
+            .map(|chunk| chunk.delta.as_str())
+            .collect();
+        assert_eq!(text, "ABC", "all framing variants parse: {items:?}");
+        assert!(
+            items
+                .iter()
+                .any(|item| matches!(item, Ok(chunk) if chunk.done)),
+            "[DONE] still terminates: {items:?}"
+        );
+        assert!(
+            items.iter().any(|item| matches!(
+                item,
+                Err(LlmError::Stream(message)) if message.contains("variant-error")
+            )),
+            "`event: error` is surfaced: {items:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn audit_2026_stream_non_sse_200_is_error() {
+        // A 200 response whose Content-Type is not the protocol's type is a
+        // protocol error — for all four provider implementations.
+        let (compat_base, compat_server) =
+            serve_once("application/json", br#"{"choices":[]}"#.to_vec());
+        let (anthropic_base, anthropic_server) = serve_once("text/plain", b"not a stream".to_vec());
+        let (google_base, google_server) = serve_once("text/html", b"<html></html>".to_vec());
+        let (ollama_base, ollama_server) =
+            serve_once("text/event-stream", b"data: {}\n\n".to_vec());
+
+        let providers: Vec<Arc<dyn Provider>> = vec![
+            Arc::new(compat_provider(&compat_base)),
+            Arc::new(AnthropicProvider::new(
+                ProviderConfig::new("k").with_base_url(format!("{anthropic_base}/v1")),
+            )),
+            Arc::new(GoogleProvider::new(
+                ProviderConfig::new("k").with_base_url(format!("{google_base}/v1beta/")),
+            )),
+            Arc::new(OllamaProvider::new(
+                ProviderConfig::new("").with_base_url(&ollama_base),
+            )),
+        ];
+        for provider in providers {
+            let error = match provider.stream(&ChatRequest::new("model", "hi")).await {
+                Ok(_) => panic!("a non-SSE 200 must not become an empty success"),
+                Err(error) => error,
+            };
+            assert!(
+                matches!(error, LlmError::Parse(_)),
+                "expected Parse, got {error:?}"
+            );
+        }
+        for server in [
+            compat_server,
+            anthropic_server,
+            google_server,
+            ollama_server,
+        ] {
+            server.join().unwrap();
+        }
+    }
+
+    struct ErrorThenPending {
+        polls: Arc<AtomicUsize>,
+    }
+
+    impl Stream for ErrorThenPending {
+        type Item = llmrust::Result<StreamChunk>;
+
+        fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            if self.polls.fetch_add(1, Ordering::SeqCst) == 0 {
+                Poll::Ready(Some(Err(LlmError::Stream("boom".into()))))
+            } else {
+                Poll::Pending
+            }
+        }
+    }
+
+    struct ErrorThenPendingProvider {
+        polls: Arc<AtomicUsize>,
+    }
+
+    #[async_trait::async_trait]
+    impl Provider for ErrorThenPendingProvider {
+        async fn chat(&self, _req: &ChatRequest) -> llmrust::Result<ChatResponse> {
+            Ok(ChatResponse::default())
+        }
+
+        async fn stream(
+            &self,
+            _req: &ChatRequest,
+        ) -> llmrust::Result<futures::stream::BoxStream<'static, llmrust::Result<StreamChunk>>>
+        {
+            Ok(Box::pin(ErrorThenPending {
+                polls: Arc::clone(&self.polls),
+            }))
+        }
+    }
+
+    #[tokio::test]
+    async fn audit_2026_stream_error_closes_without_pending_poll() {
+        // After the error is forwarded, the collapse layer must close without
+        // polling the (Pending-forever) inner stream again.
+        let polls = Arc::new(AtomicUsize::new(0));
+        let llm = LmrsClient::new();
+        llm.set_custom(
+            "err",
+            Arc::new(ErrorThenPendingProvider {
+                polls: Arc::clone(&polls),
+            }),
+        )
+        .await;
+        let mut stream = llm
+            .stream_with("err/model", ChatRequest::new("model", "hi"))
+            .await
+            .expect("stream established");
+        let first = stream.next().await.expect("one item");
+        assert!(matches!(first, Err(LlmError::Stream(_))), "got {first:?}");
+        assert_eq!(polls.load(Ordering::SeqCst), 1, "one inner poll so far");
+        // Poll the next item exactly once (no wall-clock timeout): the machine
+        // must already be closed, so this is `Ready(None)` immediately.
+        let next = stream.next();
+        let polled = futures::poll!(next);
+        assert!(
+            matches!(polled, Poll::Ready(None)),
+            "after Err the next poll must be Ready(None), got {polled:?}"
+        );
+        assert_eq!(
+            polls.load(Ordering::SeqCst),
+            1,
+            "a possibly-Pending inner must not be polled after Err"
+        );
+    }
+
+    #[tokio::test]
+    async fn audit_2026_stream_clean_eof_flush_keeps_missing_finish_reason() {
+        // Clean EOF with fully accumulated tool calls: flush them onto the
+        // terminal, finish_reason stays None. A parse error in the same shape
+        // must NOT flush half-accumulated arguments.
+        let clean = concat!(
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",",
+            "\"function\":{\"name\":\"write\",\"arguments\":\"{\\\"path\\\":\"}}]},",
+            "\"finish_reason\":null}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,",
+            "\"function\":{\"arguments\":\"\\\"a.rs\\\"}\"}}]},\"finish_reason\":null}]}\n\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let (clean_base, clean_server) = serve_once("text/event-stream", clean);
+        let llm = LmrsClient::new();
+        llm.set_custom("compat", Arc::new(compat_provider(&clean_base)))
+            .await;
+        let mut stream = llm
+            .stream_with("compat/model", ChatRequest::new("model", "hi"))
+            .await
+            .expect("stream established");
+        let items = collect(&mut stream).await;
+        clean_server.join().unwrap();
+
+        let terminals: Vec<&StreamChunk> = items
+            .iter()
+            .filter_map(|item| item.as_ref().ok())
+            .filter(|chunk| chunk.done)
+            .collect();
+        assert_eq!(terminals.len(), 1, "exactly one terminal: {items:?}");
+        let terminal = terminals[0];
+        assert_eq!(
+            terminal.finish_reason, None,
+            "a missing finish reason is never invented"
+        );
+        let calls = terminal
+            .tool_calls
+            .as_ref()
+            .expect("complete tool calls flush at clean EOF");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_1");
+        assert_eq!(calls[0].function.name, "write");
+        assert_eq!(calls[0].function.arguments, "{\"path\":\"a.rs\"}");
+
+        let broken = concat!(
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",",
+            "\"function\":{\"name\":\"write\",\"arguments\":\"{\\\"path\\\":\"}}]},",
+            "\"finish_reason\":null}]}\n\n",
+            "data: {not valid json}\n\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let (broken_base, broken_server) = serve_once("text/event-stream", broken);
+        let broken_llm = LmrsClient::new();
+        broken_llm
+            .set_custom("compat", Arc::new(compat_provider(&broken_base)))
+            .await;
+        let mut broken_stream = broken_llm
+            .stream_with("compat/model", ChatRequest::new("model", "hi"))
+            .await
+            .expect("stream established");
+        let broken_items = collect(&mut broken_stream).await;
+        broken_server.join().unwrap();
+        assert!(
+            broken_items
+                .iter()
+                .any(|item| matches!(item, Err(LlmError::Parse(_)))),
+            "the malformed frame surfaces: {broken_items:?}"
+        );
+        assert!(
+            !broken_items
+                .iter()
+                .any(|item| matches!(item, Ok(chunk) if chunk.done)),
+            "no success terminal may be fabricated after an error: {broken_items:?}"
+        );
+    }
+}

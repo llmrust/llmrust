@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "ledger",
   "agent": "ledger-llmrust",
-  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
-  "comments": "同意 spec v8：Cargo.lock 已纳入 C-AUD-PROXY scope 但明确不属于热点台账；C-AUD-PROXY c6 四文件（proxy 三文件+lib.rs）判据与 v7.1 HEAD 逐字不变，并已对当前交付态实际执行 PASS。新增 cargo deny --locked check 已同时进入 config.gates.required_commands 与 C-AUD-PROXY c4，只增加 dependency 门，不改台账链口径。现行台账 62 条 adjustment，末尾四条均为 C-AUD-PROXY；12 条文件链零断链且全收敛。threshold=500，25 个 src/**/*.rs 中 12 个达到阈值且全部登记，无 baseline mismatch 或未登记超限；Cargo.lock 未出现在 baseline_lines/adjustments。台账 sha256=24c60f4567fe4d20b17d0d00bce58e3747be9d117e020a1e73171d86db3b6afc。本次未运行 cargo，未修改台账/spec/cards/业务文件。",
-  "signedAt": "2026-11-25T10:56:45.3390331+08:00"
+  "comments": "同意 v9：新增 src/providers/sse/、src/providers/stream_util/ scope 与 planned_file_paths 未放宽 K-02/c5 台账口径——planned 仅允许缺失且不得入 baseline/adjustments，低于 threshold 不登记，达到阈值仍须按 batch_base→adjustment→baseline 实测链登记。以 batch_base 1d717999b9ef9762c40c2e237d329db6522ffe37 执行 c5 与全量双向检查均 PASS：31 个 src/**/*.rs 中 13 个达到 threshold=500 且全部登记，74 条 adjustment 连续并收敛；新增 parser.rs/limits.rs 为 397/18 行，legacy.rs 为 planned 缺失，四个超限 provider 的 baseline 与末条 adjustment、实测值一致。台账 sha256=3f9cfa62e87059c88cdd779e06755f891f11af9a6f057711bc0745cf3d85d5f1。本次仅覆盖本 signoff，未运行 cargo，未修改其它文件。",
+  "signedAt": "2026-11-27T16:45:19.5915739+08:00"
 }

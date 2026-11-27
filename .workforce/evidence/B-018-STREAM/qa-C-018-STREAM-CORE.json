@@ -1,0 +1,636 @@
+{
+  "schema": "agent-workforce-evidence/v1",
+  "role": "qa",
+  "agent": "qa-llmrust-018stream",
+  "written_by": "qa-llmrust-018stream",
+  "card_id": "C-018-STREAM-CORE",
+  "batch_id": "B-018-STREAM",
+  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "handoff_id": "4d6668fbb0415d4c9da8905b",
+  "base_head": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+  "independent": true,
+  "declared_by_lead": false,
+  "mock_used": false,
+  "dev_notes_read": false,
+  "written_at": "2026-11-25T18:15:00+08:00",
+  "inputs_seen": [
+    ".workforce/cards/C-018-STREAM-CORE.json",
+    "src/providers/sse/parser.rs",
+    "src/providers/sse/limits.rs",
+    "src/providers/sse/mod.rs",
+    "src/providers/stream_util.rs",
+    "src/providers/stream_state.rs",
+    "src/providers/mod.rs",
+    "src/providers/compat.rs",
+    "src/providers/anthropic.rs",
+    "src/providers/google.rs",
+    "src/providers/ollama.rs",
+    "tests/contract_tests.rs",
+    "tests/hotspot_ledger.json",
+    "docs/CONTRACTS.md",
+    ".workforce/spec.json",
+    ".workforce/loop-state.json"
+  ],
+  "layers_covered": [
+    "event",
+    "logic",
+    "interface"
+  ],
+  "rule_ids": [
+    "P1-07",
+    "P2-02",
+    "P2-29",
+    "P2-36",
+    "KI-STREAMUTIL-LINE-CAP",
+    "KI-SSE-DATA-NOSPACE",
+    "K-02",
+    "K-04",
+    "K-05",
+    "K-06"
+  ],
+  "artifacts": [
+    {
+      "path": "src/providers/stream_util.rs",
+      "sha256": "30185c6c0c4d9f7cda3728c4d6e122804c75b81b8ba9761e589ff9a9a7cbeb80"
+    },
+    {
+      "path": "src/providers/stream_state.rs",
+      "sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb"
+    },
+    {
+      "path": "src/providers/mod.rs",
+      "sha256": "ca4a91e874b5ae46d3d74a7fe1ce5b0b5f83d0d1d121b26c757117964d8d5b45"
+    },
+    {
+      "path": "src/providers/compat.rs",
+      "sha256": "ce3a892ded4a39ee61598c1b975d3e00bc5aef36e3c522ca97d19eea59c1a808"
+    },
+    {
+      "path": "src/providers/anthropic.rs",
+      "sha256": "59aa1d047ca737e35f33eaf04defeda30befc589cdb9507d6d0a1387c6a8ca94"
+    },
+    {
+      "path": "src/providers/google.rs",
+      "sha256": "55389d6502da7fc70998037786fbcb8e4b91d2139361b9b498230f93ab6227ac"
+    },
+    {
+      "path": "src/providers/ollama.rs",
+      "sha256": "d132e25a909b659b18e2c0fc86297700f08047660af6aa3a66bd8ebeed19bab7"
+    },
+    {
+      "path": "src/providers/sse/parser.rs",
+      "sha256": "cdd5957db4089427aa957748e898d109d05cbd9918a652aa1d1f098bfc9e26eb"
+    },
+    {
+      "path": "src/providers/sse/limits.rs",
+      "sha256": "efeee5b43c2cfbaddd4e318544a6f18869427e9b1b1be16569ddee48056e93b3"
+    },
+    {
+      "path": "src/providers/sse/mod.rs",
+      "sha256": "e4a2993f0d76bad0496380b24818830baeff202b1c97d5a5da623b2a76c68ad3"
+    },
+    {
+      "path": "tests/contract_tests.rs",
+      "sha256": "2ae68b3e3e914c794d5469e5d13dee97510c79d80a54ae4c8ecaf56df802588b"
+    },
+    {
+      "path": "tests/hotspot_ledger.json",
+      "sha256": "3f9cfa62e87059c88cdd779e06755f891f11af9a6f057711bc0745cf3d85d5f1"
+    }
+  ],
+  "command_exit_codes": [
+    {
+      "cmd": "cargo test --locked --test contract_tests audit_2026_stream_",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python .tmp/qa018_c2.py 1  (bounded constants + pre-growth cap)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python .tmp/qa018_c2.py 2  (strict UTF-8, no from_utf8_lossy on provider stream paths)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python .tmp/qa018_c2.py 3  (terminal thinking harvested and emitted)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python .tmp/qa018_c2.py 4  (Err closes; next poll does not poll inner)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python .tmp/qa018_c2.py 5  (Content-Type validated before stream construction)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test contract_tests audit_2026_stream_terminal_thinking_survives_public_client  (after exact restore + forced rebuild)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace --features proxy",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --workspace --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo build --locked --workspace",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "cmd": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-STREAM');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-STREAM-CORE.json',encoding='utf-8'));F=['src/providers/stream_util.rs','src/providers/stream_state.rs','src/providers/mod.rs','src/providers/compat.rs','src/providers/anthropic.rs','src/providers/google.rs','src/providers/ollama.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-STREAM-CORE' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --default-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo semver-checks --baseline-version 0.1.6 --all-features",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo test --locked --test qa018_adversarial_tmp -- --nocapture --test-threads=1  (temporary probe, deleted)",
+      "exit_code": 0
+    },
+    {
+      "cmd": "cargo check --offline --manifest-path .tmp/qa018-probe-old/Cargo.toml  (downstream probe vs published 0.1.6, deleted)",
+      "exit_code": 0
+    }
+  ],
+  "criteria": {
+    "c1": {
+      "status": "PASS",
+      "command": "cargo test --locked --test contract_tests audit_2026_stream_",
+      "exit_code": 0,
+      "stdout_summary": "7 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out",
+      "test_count": 7,
+      "tests": [
+        {
+          "name": "audit_2026_stream_terminal_thinking_survives_public_client",
+          "ok": true,
+          "production_path": "LmrsClient::stream_with over OpenAiCompatibleProvider parsing real loopback SSE bytes; terminal thinking and thinking_done asserted on the single terminal"
+        },
+        {
+          "name": "audit_2026_stream_oversized_line_is_bounded",
+          "ok": true,
+          "production_path": "OpenAiCompatibleProvider::stream over a real 2 MiB single-line SSE body; asserts LlmError::Parse containing MAX_LINE_BYTES"
+        },
+        {
+          "name": "audit_2026_stream_invalid_utf8_is_error",
+          "ok": true,
+          "production_path": "OpenAiCompatibleProvider::stream over real bytes (valid frame then 0xFF 0xFE); asserts Parse+UTF-8 and no U+FFFD in output"
+        },
+        {
+          "name": "audit_2026_stream_standard_sse_variants_parse",
+          "ok": true,
+          "production_path": "OpenAiCompatibleProvider::stream over real bytes covering BOM, comment, data-no-space, CRLF, bare CR, multi-line data, [DONE] and event:error; asserts text ABC, terminal and Stream error"
+        },
+        {
+          "name": "audit_2026_stream_non_sse_200_is_error",
+          "ok": true,
+          "production_path": "all four Provider::stream impls against real loopback 200 responses with wrong/missing protocol types; each must return LlmError::Parse"
+        },
+        {
+          "name": "audit_2026_stream_error_closes_without_pending_poll",
+          "ok": true,
+          "production_path": "LmrsClient::stream_with over a custom Provider whose stream returns Err then Pending forever; second poll must be Ready(None) with inner poll count still 1"
+        },
+        {
+          "name": "audit_2026_stream_clean_eof_flush_keeps_missing_finish_reason",
+          "ok": true,
+          "production_path": "LmrsClient::stream_with over OpenAiCompatibleProvider real SSE bytes; clean EOF flushes complete tool calls with finish_reason None, malformed frame yields Parse and no done terminal"
+        }
+      ]
+    },
+    "c2": {
+      "status": "PASS",
+      "probes_passed": 5,
+      "probes_total": 5,
+      "results": [
+        "sse/limits.rs defines MAX_LINE_BYTES=1 MiB and MAX_EVENT_BYTES=4 MiB; parser.rs checks next > MAX_LINE_BYTES before extend_from_slice and needed > MAX_EVENT_BYTES before push_str (also MAX_FIELD_BYTES)",
+        "sse/parser.rs decodes every complete line and EOF tail with String::from_utf8 mapped to LlmError::Parse; stream_util.rs and the four providers contain zero from_utf8_lossy (the only remaining from_utf8_lossy hits are in proxy test fixtures inside #[cfg(test)] modules, unrelated to provider stream paths)",
+        "stream_state.rs harvest_terminal saves chunk.thinking and emit_terminal emits self.thinking.clone(); regression test t10_terminal_thinking_is_preserved present",
+        "Err arm sets Phase::Errored and the next poll returns Ready(None) before polling inner (verified statically and by c1 error_closes test); LineStream/EventStream set failed and gate on it before polling inner",
+        "compat/anthropic/google call sse::require_event_stream(resp.headers())? and ollama calls sse::require_ndjson_or_json(resp.headers())? before bytes_stream()/stream construction; all use sse::event_line_stream or sse::strict_line_stream"
+      ]
+    },
+    "c3": {
+      "status": "PASS",
+      "h0_sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
+      "injected_change": "emit_terminal thinking: self.thinking.clone() -> thinking: None",
+      "injected_exit_code": 101,
+      "injected_failure": "assertion left == right failed: terminal thinking must survive the public collapse layer; left None, right Some(\"terminal-thought\")",
+      "restored_sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
+      "restored_exit_code": 0,
+      "sha_restored": true,
+      "forced_rebuild": true,
+      "note": "The injected binary was rebuilt (Compiling llmrust); after restoring the file the first run reused the injected binary because the copy restored the older mtime, so a forced rebuild (touch + Compiling llmrust) was required before the green run. Expected red is recorded only in observations."
+    },
+    "c4": {
+      "status": "PASS",
+      "gates": [
+        {
+          "id": "c4.1",
+          "command": "cargo test --locked --workspace",
+          "exit_code": 0,
+          "ignored_unit_integration": 0,
+          "doc_tests_ignored": 2
+        },
+        {
+          "id": "c4.2",
+          "command": "cargo test --locked --workspace --features proxy",
+          "exit_code": 0,
+          "ignored_unit_integration": 0,
+          "doc_tests_ignored": 4
+        },
+        {
+          "id": "c4.3",
+          "command": "cargo test --locked --workspace --all-features",
+          "exit_code": 0,
+          "ignored_unit_integration": 0,
+          "doc_tests_ignored": 4
+        },
+        {
+          "id": "c4.4",
+          "command": "cargo build --locked --workspace",
+          "exit_code": 0
+        },
+        {
+          "id": "c4.5",
+          "command": "cargo fmt --all --check",
+          "exit_code": 0
+        },
+        {
+          "id": "c4.6",
+          "command": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+          "exit_code": 0
+        }
+      ],
+      "ignored_note": "Every unit/integration test result line reports 0 ignored. The only ignored items are doctests: 2 default / 4 with proxy or all-features, exactly equal to the four ```rust,ignore blocks present at eb07c7cb."
+    },
+    "c5": {
+      "status": "PASS",
+      "command": "python -c \"import json,subprocess,pathlib;P=pathlib.Path;L=json.load(open('tests/hotspot_ledger.json',encoding='utf-8'));S=json.load(open('.workforce/loop-state.json',encoding='utf-8'));BASE=next(b['batch_base'] for b in S['batches'] if b['id']=='B-018-STREAM');O=json.loads(subprocess.check_output(['git','show',BASE+':tests/hotspot_ledger.json']));C=json.load(open('.workforce/cards/C-018-STREAM-CORE.json',encoding='utf-8'));F=['src/providers/stream_util.rs','src/providers/stream_state.rs','src/providers/mod.rs','src/providers/compat.rs','src/providers/anthropic.rs','src/providers/google.rs','src/providers/ollama.rs']+C.get('planned_file_paths',[]);R=['file','old','new','reason','authorized_by','date'];N=lambda f:len(P(f).read_text(encoding='utf-8').splitlines());scope=lambda f:any(f==s or f.startswith(s.rstrip('/')+'/') for s in C['write_scopes']);assert all(scope(f) and ((not P(f).is_file() and f in C.get('planned_file_paths',[]) and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)<L['threshold'] and f not in L['baseline_lines'] and not a) or (P(f).is_file() and N(f)>=L['threshold'] and L['baseline_lines'].get(f)==N(f) and a and a[-1].get('file')==f and all(k in a[-1] and a[-1][k] not in (None,'') for k in R) and ((f in O['baseline_lines'] and a[-1]['old']==O['baseline_lines'][f] and (len(a)<2 or a[-2].get('new')==a[-1]['old'])) or (f not in O['baseline_lines'] and not ba and len(a)==1 and a[-1]['old']==0)) and a[-1]['new']==N(f) and 'C-018-STREAM-CORE' in a[-1]['reason'] and 'architect-llmrust' in a[-1]['authorized_by'] and a[-1]['date']=='2026-11-24')) for f in F for a in [[x for x in L['adjustments'] if x.get('file')==f]] for ba in [[x for x in O['adjustments'] if x.get('file')==f]])\"",
+      "exit_code": 0,
+      "manual_checks": {
+        "threshold": 500,
+        "unregistered_under_threshold": {
+          "src/providers/stream_state.rs": 477,
+          "src/providers/mod.rs": 428,
+          "src/providers/stream_util.rs": 122,
+          "src/providers/sse/parser.rs": 397,
+          "src/providers/sse/limits.rs": 18,
+          "src/providers/sse/mod.rs": 134
+        },
+        "registered_adjustments": [
+          {
+            "file": "src/providers/compat.rs",
+            "old": 2129,
+            "new": 2134,
+            "measured": 2134,
+            "six_fields": true,
+            "old_equals_batch_base_baseline": true,
+            "predecessor_new_equals_old": true
+          },
+          {
+            "file": "src/providers/anthropic.rs",
+            "old": 1688,
+            "new": 1691,
+            "measured": 1691,
+            "six_fields": true,
+            "old_equals_batch_base_baseline": true,
+            "predecessor_new_equals_old": true
+          },
+          {
+            "file": "src/providers/google.rs",
+            "old": 1812,
+            "new": 1815,
+            "measured": 1815,
+            "six_fields": true,
+            "old_equals_batch_base_baseline": true,
+            "predecessor_new_equals_old": true
+          },
+          {
+            "file": "src/providers/ollama.rs",
+            "old": 860,
+            "new": 868,
+            "measured": 868,
+            "six_fields": true,
+            "old_equals_batch_base_baseline": true,
+            "predecessor_new_equals_old": true
+          }
+        ],
+        "baseline_lines_bidirectional_mismatches": [],
+        "batch_base": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+        "ledger_file_lines": 614
+      }
+    },
+    "c6": {
+      "status": "FAIL",
+      "machine_subchecks": {
+        "baseline_commit": "eb07c7cb118a0b289df50a581173d01a158b4bb6",
+        "assert_lines_baseline": 1501,
+        "assert_lines_worktree": 1672,
+        "assert_lines_added": 171,
+        "assert_lines_missing": 0,
+        "ignore_should_panic_baseline": [
+          {
+            "file": "src/proxy/mod.rs",
+            "attr": "#[should_panic(expected = \"must not be empty or whitespace-only\")]",
+            "count": 2
+          }
+        ],
+        "ignore_should_panic_worktree": [
+          {
+            "file": "src/proxy/mod.rs",
+            "attr": "#[should_panic(expected = \"must not be empty or whitespace-only\")]",
+            "count": 2
+          }
+        ],
+        "new_ignore_or_should_panic": 0,
+        "unit_integration_ignored_default": 0,
+        "unit_integration_ignored_proxy": 0,
+        "unit_integration_ignored_all_features": 0,
+        "doc_tests_ignored_default": 2,
+        "doc_tests_ignored_proxy": 4,
+        "doc_tests_ignored_all_features": 4,
+        "doc_test_ignore_markers_baseline": 4,
+        "doc_test_ignore_markers_worktree": 4,
+        "semver_checks_default_features": {
+          "exit_code": 0,
+          "summary": "196 checks: 196 pass, 57 skip; no semver update required"
+        },
+        "semver_checks_all_features": {
+          "exit_code": 0,
+          "summary": "196 checks: 196 pass, 57 skip; no semver update required"
+        }
+      },
+      "failure": {
+        "id": "QA-C6-SEMVER-LINE-STREAM-BOUND",
+        "summary": "The public fn llmrust::providers::stream_util::line_stream gained E: From<LlmError> + Unpin on top of the published 0.1.6 E: Send + 'static. That narrowing is a genuine breaking change for downstream callers, and cargo-semver-checks does not cover generic bound additions, so both semver-checks commands exit 0 as a false negative.",
+        "ruling_conflict": "architect ruling 2026-11-24: “公开旧 line_stream 签名保留以维持 semver”",
+        "public_path": "llmrust::providers::stream_util::line_stream (pub mod providers -> pub mod stream_util -> pub fn; reachable and imported by the downstream probe)",
+        "published_0_1_6_bound": "E: Send + 'static",
+        "current_bound": "E: From<LlmError> + Send + Unpin + 'static",
+        "downstream_probe_old": {
+          "manifest": ".tmp/qa018-probe-old (path dep on registry llmrust-0.1.6)",
+          "command": "cargo check --offline",
+          "exit_code": 0,
+          "meaning": "E=MyErr (Send + static + Unpin, no From<LlmError>) compiles against 0.1.6"
+        },
+        "downstream_probe_new": {
+          "manifest": ".tmp/qa018-probe-new (path dep on worktree)",
+          "command": "cargo check --offline",
+          "exit_code": 101,
+          "error": "error[E0277]: the trait bound `MyErr: From<LlmError>` is not satisfied (3 errors)",
+          "meaning": "the same caller no longer compiles"
+        },
+        "semver_checks_coverage_gap": "cargo-semver-checks 0.48.0 --list exposes no lint for an added generic bound on a function (only parameter count/reorder lints, e.g. function_requires_different_generic_type_params); 196 checks pass without noticing the break",
+        "api_freeze_gap": "tests/api_freeze.rs and docs/api-inventory.json do not mention line_stream, so the API freeze cannot catch it either",
+        "remediation": "Keep line_stream with E: Send + 'static (old behaviour/signature) and expose the strict bounded parser under a new name/signature, or treat the change as breaking and bump accordingly; do not rely on semver-checks for generic-bound changes."
+      }
+    }
+  },
+  "adversarial_checks": [
+    {
+      "id": "ADV-1",
+      "layer": "interface",
+      "check": "line_stream public-API semver compatibility",
+      "result": "FAIL",
+      "evidence": "see c6.failure"
+    },
+    {
+      "id": "ADV-2",
+      "layer": "interface",
+      "check": "semver-checks coverage of added generic bounds",
+      "result": "GAP",
+      "evidence": "196 checks pass; lint list has no added-bound lint"
+    },
+    {
+      "id": "ADV-3",
+      "layer": "event",
+      "check": "missing Content-Type on HTTP 200",
+      "result": "PASS",
+      "evidence": "temporary real-byte probe: compat/anthropic/google/ollama each return LlmError::Parse(\"stream response is missing Content-Type; expected ...\")"
+    },
+    {
+      "id": "ADV-4",
+      "layer": "event",
+      "check": "Content-Type with parameters and mixed case",
+      "result": "PASS",
+      "evidence": "\"Text/Event-Stream; Charset=UTF-8\" accepted; delta A parsed"
+    },
+    {
+      "id": "ADV-5",
+      "layer": "event",
+      "check": "Ollama NDJSON/JSON acceptance",
+      "result": "PASS",
+      "evidence": "application/x-ndjson and application/json; charset=utf-8 both parsed to delta \"hi\"; text/event-stream rejected as Parse"
+    },
+    {
+      "id": "ADV-6",
+      "layer": "event",
+      "check": "multi-line data, BOM, bare-CR framing through the real provider",
+      "result": "PASS",
+      "evidence": "temporary probe parsed \"AB\" (BOM + comment CRLF, data-no-space CR, multi-line data with CRLF blank line)"
+    },
+    {
+      "id": "ADV-7",
+      "layer": "event",
+      "check": "over-limit line: error rather than truncation",
+      "result": "PASS",
+      "evidence": "2 MiB line -> LlmError::Parse containing MAX_LINE_BYTES; no >64 KiB delta surfaced and no post-error content \"A\"; stream closed"
+    },
+    {
+      "id": "ADV-8",
+      "layer": "event",
+      "check": "single-newline-separated data frames (non-standard SSE)",
+      "result": "BEHAVIOUR-CHANGE",
+      "evidence": "two data: lines without a blank line are now merged into one event and rejected with Parse \"trailing characters at line 2 column 1\" (previously per-line parsing tolerated them)"
+    },
+    {
+      "id": "ADV-9",
+      "layer": "logic",
+      "check": "Err close semantics both at framing and collapse layers",
+      "result": "PASS",
+      "evidence": "code guards + c1 error_closes_without_pending_poll (inner poll count stays 1, next poll Ready(None))"
+    }
+  ],
+  "observations": [
+    {
+      "id": "OBS-1",
+      "severity": "blocking",
+      "text": "Public API break: line_stream added E: From<LlmError> + Unpin. Probe with MyErr compiles against published 0.1.6 (exit 0) and fails on this worktree (exit 101, E0277). Both semver-checks commands still exit 0 because that lint class does not exist. This contradicts the card ruling that the old line_stream signature is preserved for semver."
+    },
+    {
+      "id": "OBS-2",
+      "severity": "expected-red",
+      "text": "c3 injection: thinking: None made audit_2026_stream_terminal_thinking_survives_public_client fail with exit 101 (left None vs Some(\"terminal-thought\")); after exact restore and forced rebuild it exits 0 with sha 81f668b3..."
+    },
+    {
+      "id": "OBS-3",
+      "severity": "process",
+      "text": "Windows stale-binary hazard reproduced: restoring the file via Copy-Item kept the older mtime and cargo reused the injected test binary (still exit 101). Only after touching the source (Compiling llmrust) did the restored code turn green. Any future injection QA must force recompilation."
+    },
+    {
+      "id": "OBS-4",
+      "severity": "informational",
+      "text": "tests/contract_tests.rs existing fixture compat_tool_arguments_split_across_chunks changed its SSE separators from single \\n to blank-line \\n\\n. No asserted line was removed (assert count grew +171 repo-wide, 0 baseline assert lines missing), but per-line tolerance for non-standard SSE is no longer exercised."
+    },
+    {
+      "id": "OBS-5",
+      "severity": "informational",
+      "text": "src/providers/sse/mod.rs is a new real file inside write_scope src/providers/sse/ but is absent from card planned_file_paths and from the c5 F list; it is 134 lines (<500) and correctly unregistered. Handoff lists it among the 12 frozen files."
+    },
+    {
+      "id": "OBS-6",
+      "severity": "informational",
+      "text": "Content-Type enforcement rejects a 200 application/json body even if it is a valid non-streaming JSON payload for a stream call; this is the architect-required behaviour, and missing Content-Type is a distinct explicit Parse message rather than an empty success."
+    },
+    {
+      "id": "OBS-7",
+      "severity": "informational",
+      "text": "Doc-test ignored counts (2 default / 4 proxy/all-features) come from the same four ```rust,ignore blocks present at baseline eb07c7cb: src/lib.rs:57, src/providers/retry.rs:19, src/proxy/mod.rs:396 and :595."
+    }
+  ],
+  "freeze_audit": {
+    "spec": {
+      "path": ".workforce/spec.json",
+      "sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+      "matches_declared": true
+    },
+    "handoff": {
+      "id": "4d6668fbb0415d4c9da8905b",
+      "verified_in_loop_state": true
+    },
+    "base_head": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "batch_base": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "frozen_file_count": 12,
+    "frozen_files": [
+      {
+        "path": "src/providers/stream_util.rs",
+        "sha256": "30185c6c0c4d9f7cda3728c4d6e122804c75b81b8ba9761e589ff9a9a7cbeb80",
+        "lines": 122,
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/stream_state.rs",
+        "sha256": "81f668b3076d3a0c1b07978582e3876a3bb2598838e77af7f892c24aa8856bcb",
+        "lines": 477,
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/mod.rs",
+        "sha256": "ca4a91e874b5ae46d3d74a7fe1ce5b0b5f83d0d1d121b26c757117964d8d5b45",
+        "lines": 428,
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/compat.rs",
+        "sha256": "ce3a892ded4a39ee61598c1b975d3e00bc5aef36e3c522ca97d19eea59c1a808",
+        "lines": 2134,
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/anthropic.rs",
+        "sha256": "59aa1d047ca737e35f33eaf04defeda30befc589cdb9507d6d0a1387c6a8ca94",
+        "lines": 1691,
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/google.rs",
+        "sha256": "55389d6502da7fc70998037786fbcb8e4b91d2139361b9b498230f93ab6227ac",
+        "lines": 1815,
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/ollama.rs",
+        "sha256": "d132e25a909b659b18e2c0fc86297700f08047660af6aa3a66bd8ebeed19bab7",
+        "lines": 868,
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/sse/parser.rs",
+        "sha256": "cdd5957db4089427aa957748e898d109d05cbd9918a652aa1d1f098bfc9e26eb",
+        "lines": 397,
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/sse/limits.rs",
+        "sha256": "efeee5b43c2cfbaddd4e318544a6f18869427e9b1b1be16569ddee48056e93b3",
+        "lines": 18,
+        "unchanged": true
+      },
+      {
+        "path": "src/providers/sse/mod.rs",
+        "sha256": "e4a2993f0d76bad0496380b24818830baeff202b1c97d5a5da623b2a76c68ad3",
+        "lines": 134,
+        "unchanged": true
+      },
+      {
+        "path": "tests/contract_tests.rs",
+        "sha256": "2ae68b3e3e914c794d5469e5d13dee97510c79d80a54ae4c8ecaf56df802588b",
+        "lines": 885,
+        "unchanged": true
+      },
+      {
+        "path": "tests/hotspot_ledger.json",
+        "sha256": "3f9cfa62e87059c88cdd779e06755f891f11af9a6f057711bc0745cf3d85d5f1",
+        "lines": 614,
+        "unchanged": true
+      }
+    ],
+    "all_frozen_sha_unchanged": true,
+    "git_status_before": [
+      "M src/providers/anthropic.rs",
+      "M src/providers/compat.rs",
+      "M src/providers/google.rs",
+      "M src/providers/mod.rs",
+      "M src/providers/ollama.rs",
+      "M src/providers/stream_state.rs",
+      "M src/providers/stream_util.rs",
+      "M tests/contract_tests.rs",
+      "M tests/hotspot_ledger.json",
+      "?? .workforce/evidence/B-018-ROUTER/ci.json",
+      "?? .workforce/evidence/B-018-STREAM/",
+      "?? src/providers/sse/"
+    ],
+    "git_status_after_same": true,
+    "head": "1d717999b9ef9762c40c2e237d329db6522ffe37",
+    "temporary_removed": [
+      "tests/qa018_adversarial_tmp.rs",
+      ".tmp/qa018_c2.py",
+      ".tmp/qa018_c5_manual.py",
+      ".tmp/qa018_c6_diff.py",
+      ".tmp/qa018_extract_c5.py",
+      ".tmp/qa018_gates.ps1",
+      ".tmp/qa018_semver.ps1",
+      ".tmp/qa018-probe-old/",
+      ".tmp/qa018-probe-new/",
+      ".tmp/qa018-*.log",
+      ".tmp/qa018-*.json",
+      ".tmp/qa018-freeze.txt",
+      ".tmp/qa018-gitstatus.txt",
+      ".tmp/qa018-stream_state.h0.rs",
+      ".tmp/c5_command.txt"
+    ],
+    "temporary_files_absent": true
+  },
+  "verdict": "FAIL",
+  "notes": "c1-c5 are green and every c6 machine command exits 0, but the interface-layer semver ruling is not satisfied: the public line_stream signature was narrowed with a From<LlmError> + Unpin bound. The published-0.1.6 downstream probe compiles (exit 0) while the same caller fails on this worktree (exit 101, E0277); cargo-semver-checks 0.48.0 has no lint for added generic bounds, so its green result is a false negative. Verdict FAIL pending a fix (keep the old signature and add a separately named strict entry point) or an explicit architect decision to accept a breaking change."
+}

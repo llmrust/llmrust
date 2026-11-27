@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::providers::http::{self, build_http_client};
-use crate::providers::stream_util::line_stream;
+use crate::providers::sse;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
     ChatRequest, ChatResponse, Embedding, EmbeddingRequest, EmbeddingResponse, EmbeddingUsage,
@@ -338,11 +338,15 @@ impl Provider for OllamaProvider {
             return Err(err);
         }
 
+        // C-018-STREAM-CORE: Ollama streams newline-delimited JSON; a 200 with
+        // any other type is an explicit protocol error, not an empty success.
+        sse::require_ndjson_or_json(resp.headers())?;
+
         let byte_stream = resp
             .bytes_stream()
             .map(|r| r.map_err(|e| LlmError::Stream(http::error::error_message(e))));
 
-        let stream = line_stream(byte_stream).flat_map(|line_result| {
+        let stream = sse::strict_line_stream(byte_stream).flat_map(|line_result| {
             let chunks = match line_result {
                 Ok(line) => parse_ndjson_line(&line),
                 Err(e) => vec![Err(e)],
@@ -532,7 +536,9 @@ mod tests {
             if let Ok((mut stream, _)) = listener.accept() {
                 let mut buf = vec![0u8; 16384];
                 let n = stream.read(&mut buf).unwrap_or(0);
-                let raw = String::from_utf8_lossy(&buf[..n]).to_string();
+                let raw = std::str::from_utf8(&buf[..n])
+                    .unwrap_or_default()
+                    .to_string();
                 let first_line = raw.lines().next().unwrap_or("");
                 let mut parts = first_line.split_whitespace();
                 let method = parts.next().unwrap_or("GET");
@@ -731,7 +737,9 @@ mod tests {
                 counter.fetch_add(1, Ordering::SeqCst);
                 let mut buf = vec![0u8; 16384];
                 let n = stream.read(&mut buf).unwrap_or(0);
-                let raw = String::from_utf8_lossy(&buf[..n]).to_string();
+                let raw = std::str::from_utf8(&buf[..n])
+                    .unwrap_or_default()
+                    .to_string();
                 let first_line = raw.lines().next().unwrap_or("");
                 let mut parts = first_line.split_whitespace();
                 let method = parts.next().unwrap_or("GET");

@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "gate",
   "agent": "gate-llmrust",
-  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
-  "comments": "v8 只读复核通过：spec 哈希匹配；config gates 已新增 cargo deny --locked check，C-AUD-PROXY c4 已同步该命令；本机 cargo deny --locked check --help 解析 exit 0。未运行 cargo build/test/deny 实门。",
-  "signedAt": "2026-11-25T02:55:48.5595536Z"
+  "comments": "v9 只读复核通过：spec SHA256 匹配；config 全局门禁覆盖 C-018-STREAM-CORE c4 的共有命令并追加全目标构建、rustdoc 与 cargo deny；v9 的 legacy line_stream 兼容及生产 strict 路径判据与 K-02/K-04/K-05/K-06 无冲突。仅复核门禁与判据，未执行构建或测试。",
+  "signedAt": "2026-11-27T08:45:14.3634790Z"
 }

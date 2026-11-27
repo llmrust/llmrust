@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use crate::cache_control::{AnthropicCacheControl, AnthropicSystem};
 use crate::providers::http::{self, build_http_client, REQUEST_TIMEOUT};
-use crate::providers::stream_util::line_stream;
+use crate::providers::sse;
 use crate::providers::{LlmError, Provider, ProviderConfig, Result};
 use crate::types::{
     ChatRequest, ChatResponse, Content, ContentPart, FinishReason, FunctionCall, StreamChunk,
@@ -1072,6 +1072,9 @@ impl Provider for AnthropicProvider {
             return Err(err);
         }
 
+        // C-018-STREAM-CORE: reject a 200 response that does not speak SSE.
+        sse::require_event_stream(resp.headers())?;
+
         let byte_stream = resp
             .bytes_stream()
             .map(|r| r.map_err(|e| LlmError::Stream(http::error::error_message(e))));
@@ -1079,7 +1082,7 @@ impl Provider for AnthropicProvider {
         // AUD#5 (C-AUD-PROV): the stream assembly carries the flush state
         // machine (`sse_chunk_stream`); per-line semantics stay in
         // `parse_sse_line`.
-        let stream = sse_chunk_stream(line_stream(byte_stream));
+        let stream = sse_chunk_stream(sse::event_line_stream(byte_stream));
 
         Ok(stream.boxed())
     }

@@ -2,10 +2,9 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "architect",
   "agent": "architect-llmrust",
-  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
-  "approved": null,
-  "confirmed": null,
-  "comments": "最终 spec v8 已由 Lead 接受。url 2.5.8→>=2.5.9 的 P1-13 依赖安全升级前移到 C-AUD-PROXY/B-AUD-3，以解除远端 Security Gates 与 loop release 死锁；已完成代理实现保留，回流后重跑 QA/Gate/CI。Cargo.lock 纳入 C-AUD-PROXY scope，cargo deny --locked check 纳入卡门与 config gates；Cargo.lock 不入热点台账，PH-0.1.8 RELEASE 卡不重复 url 升级。config-only commit=7948e6a，config sha256=d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08。validate-spec/check-criteria/check-card-scopes/validate-skill/config-check/selftest/git diff --check 均 PASS。未运行状态迁移。",
-  "signedAt": "2026-11-25T10:55:20.8447109+08:00"
+  "approved": true,
+  "comments": "v9 裁定完整可执行：line_stream 恢复 0.1.6 精确 E: Send + 'static 签名与行为并 deprecated，lossy legacy 隔离，四个 provider 生产路径改走 strict；SSE 空行优先 dispatch，单 newline 后完整 JSON data 帧自动断帧，未完成 JSON 继续多行追加、EOF 补发。c1/c2/c5 覆盖自定义 E 编译探针、legacy 行为及 dispatch 兼容；0.2.0 前不破坏性修改 line_stream。",
+  "signedAt": "2026-11-27T16:46:28.4528180+08:00"
 }

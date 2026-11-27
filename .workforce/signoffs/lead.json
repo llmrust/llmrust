@@ -2,9 +2,9 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "lead",
   "agent": "lead",
-  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
   "approved": true,
-  "comments": "批准 spec v8：将 url>=2.5.9 安全升级前移至 C-AUD-PROXY，并把 cargo deny --locked check 加入七条全局门，解除 B-AUD-3 accepted 后 Security Gates 失败造成的发布死锁。C-AUD-PROXY 增加 Cargo.lock 写域但热点台账仍限四个 src 文件；既有 stream_raw_with/17 条代理回归保留，回流后只新增依赖升级并重跑 QA/Gate/CI。config sha=d1a91d9959f13aa10b5d7af9c9b111416e6247f71c91c58d303729f48042eb08，config-only commit=7948e6a。六角色 ALL_AGREED，validate-spec/check-criteria/check-card-scopes/validate-skill/config-check/selftest 全 PASS。非阻塞文档注记：audit_dispositions.P1-13 文本仍列旧 RELEASE 卡，实际执行以 C-AUD-PROXY 卡为准。授权回流 B-AUD-3，未取得新 HEAD 的 CI+Security Gates 双绿前不得 release。",
-  "signedAt": "2026-11-25T11:00:43.7466643+08:00"
+  "comments": "批准 spec v9。独立 QA 证明 line_stream 新增 E: From<LlmError> + Unpin 会破坏 0.1.6 下游编译，而 cargo-semver-checks 无对应 lint、196 checks 是假绿。v9 采用方案 A：line_stream 恢复 0.1.6 精确 E: Send + 'static 与 legacy lossy 行为并加 deprecated，lossy 实现隔离到 planned 的 src/providers/stream_util/legacy.rs；四个 provider 生产路径只走 strict 有界解析。SSE 空行优先 dispatch，同时单 newline 后接 data: 在当前数据已构成完整 JSON 时自动断帧，未完成 JSON 继续多行追加，EOF 补发完整 event。c2 新增第⑥条可机判判据。六角色 ALL_AGREED，validate-spec/check-criteria/check-card-scopes PASS（14 cards/90 criteria/0 scope异常）。授权 B-018-STREAM 按 v9 回流重做，未通过新 handoff 的 QA/Gate/CI 前不得 release。",
+  "signedAt": "2026-11-27T16:47:34.2030317+08:00"
 }

@@ -11,6 +11,7 @@ pub mod ollama;
 pub mod openai;
 pub mod openrouter;
 pub mod retry;
+pub(crate) mod sse;
 pub(crate) mod stream_state;
 pub mod stream_util;
 

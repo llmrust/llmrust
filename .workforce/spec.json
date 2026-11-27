@@ -687,7 +687,7 @@
       ]
     }
   ],
-  "revision_note": "v8（2026-11-25，architect-llmrust，Lead 依赖死锁解除）：① C-AUD-PROXY scope 增加 Cargo.lock 与 P1-13，c1/c2 断言 url>=2.5.9，c4 增加 cargo deny --locked check；c5/c6 仍只覆盖 proxy 三文件+lib 四个 src 台账文件，Cargo.lock 不入热点台账；② config gates 增加 cargo deny --locked check 并提交 config-only commit；③ B-AUD-3 记录依赖安全升级前移、已完成代理实现保留、回流后重跑 QA/Gate/CI；PH-0.1.8 RELEASE 卡不重复 url 升级；④ 其它卡、历史卡与业务源码不改，v7.1 全部口径保留。",
+  "revision_note": "v9（2026-11-25，architect-llmrust，B-018-STREAM QA FAIL 裁定）：仅修 C-018-STREAM-CORE，采用 A 保兼容：line_stream 恢复 0.1.6 精确 E: Send + 'static 签名与行为并 deprecated，lossy legacy 隔离到 planned 新文件；provider 生产路径全部走新 strict 入口，c2 不再要求 legacy 文件去 lossy。SSE 空行优先 dispatch，同时容忍单 newline 后完整 JSON data 帧自动断帧；未完成 JSON 继续多行追加，EOF 补发。新增下游自定义 E 编译探针、legacy 行为、单 newline 与多行 data 验收；0.2.0 才可破坏性修改 line_stream。其它卡/config/历史卡/业务源码不改，v8 全部口径保留。",
   "audit_dispositions": {
     "P1-02": [
       "C-018-HTTP-SAFE",

@@ -2,8 +2,8 @@
   "schema": "agent-workforce-signoff/v1",
   "role": "qa",
   "agent": "qa-llmrust",
-  "spec_sha256": "f068a5a470bf219776b1a4d0a95aed64cd18f86ffbd8346004135257e967dcf7",
+  "spec_sha256": "b49068ecf7fc157d3edd5cca3cea5da0eb331978414e30e1ecccae71407f0c94",
   "agreed": true,
-  "comments": "同意签署 spec v8：实测 SHA256 与 Lead 提供值一致。P1-13 依赖安全升级已前移至 C-AUD-PROXY，Cargo.lock 纳入 scope，c1/c2 提供离线 tomllib 版本>=2.5.9 断言，c4 与 config gates 均明确要求 cargo deny --locked check，可独立验收且无 SKIP 通道。当前 Cargo.lock 仍为 url 2.5.8，属待实施状态，版本断言与 deny 门会强制其在交付前转绿，不构成本次 spec 签署阻断。C-AUD-PROXY c2 的 17 条命名代理回归完整保留，C-018-PROXY-RESIDUAL c6 继续要求 17 条全部 ok。validate-spec、check-criteria、check-card-scopes 均 PASS（14 卡、90 条判据、0 scope 异常）。未运行 cargo；本轮仅更新本 QA 签署文件。",
-  "signedAt": "2026-11-25T10:57:31+08:00"
+  "comments": "复核 spec v9 与 C-018-STREAM-CORE：实测 spec SHA256 与给定值一致，且 v0.1.6 的 line_stream 确实只有 E: Send + 'static。v9 明确恢复该精确签名及 legacy lossy 行为并 deprecated，禁止新增 From<LlmError>/Unpin，生产路径改走 strict；c1/c6 以无 From<LlmError> 的自定义 E 编译探针补足 semver-checks 盲区，已解决泛型 bound semver 破坏。c2⑥ 已与 legacy 解耦，仅验收新 SSE dispatch（空行优先、单 newline+data: 且当前数据为完整 JSON 才断帧、未完成 JSON 继续追加），并由 c1 的 single_newline_json_frames_tolerated 与 multiline_data_not_split_before_json_complete 两条具名测试独立验收。本轮仅复核 spec/卡面，未运行 cargo，不构成工作树实现验收。",
+  "signedAt": "2026-11-27T16:45:35.7405293+08:00"
 }
